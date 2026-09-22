@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.quantsim.entity.AiLevel;
 import com.quantsim.entity.DailyPrediction;
 import com.quantsim.entity.DailyPrice;
 import com.quantsim.entity.Stock;
@@ -94,6 +95,7 @@ class GameApiIntegrationTest {
             DailyPrediction pred = new DailyPrediction();
             pred.setStockId(stock.getStockId());
             pred.setTradeDate(d.plusDays(i));
+            pred.setModel(AiLevel.EASY.getModel());
             pred.setProbUp(new BigDecimal("0.8000"));
             pred.setPredictedDirection("UP");
             predictionRepository.save(pred);
