@@ -1,0 +1,42 @@
+# 一键启动: docker compose up -d           (MySQL + 后端, Flyway 自动建表)
+# 灌数据:   docker compose --profile pipeline run --rm pipeline
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: quantsim
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      QUANTSIM_DB_HOST: mysql
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # 一次性数据管道 (mock 数据 -> Spark 指标 -> 入库), 需后端先建好表
+  pipeline:
+    build: ./data-pipeline
+    profiles: ["pipeline"]
+    environment:
+      QUANTSIM_DB_HOST: mysql
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  mysql-data:
