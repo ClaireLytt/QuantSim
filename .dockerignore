@@ -1,0 +1,7 @@
+.git/
+.claude/
+.localdb/
+backend/target/
+data-pipeline/data/
+__pycache__/
+*.pyc

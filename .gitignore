@@ -1,0 +1,27 @@
+# Java
+backend/target/
+*.class
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 数据文件 (本地快照, 不入库)
+data-pipeline/data/
+
+# 本地测试用临时 MySQL 数据目录
+.localdb/
+
+# Claude Code 本地配置
+.claude/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+Thumbs.db
+.DS_Store

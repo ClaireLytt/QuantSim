@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuantSim 虚拟炒股</title>
+  <link rel="stylesheet" href="style.css?v=20260922l">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>QuantSim <span class="sub" data-i18n="header.sub">虚拟炒股游戏</span></h1>
+    <div class="start-box">
+      <input id="username" type="text" data-i18n-placeholder="header.username" placeholder="输入用户名" maxlength="50">
+      <select id="market-select" data-i18n-title="market.title" title="选择市场">
+        <option value="" data-i18n="market.all">全部市场</option>
+        <option value="STOCK" data-i18n="market.stock">A股</option>
+        <option value="US" data-i18n="market.us">美股</option>
+        <option value="CRYPTO" data-i18n="market.crypto">币圈</option>
+      </select>
+      <select id="ai-level-select" data-i18n-title="ailevel.title" title="AI 对手难度">
+        <option value="EASY" data-i18n="ailevel.easy">简单 AI</option>
+        <option value="NORMAL" selected data-i18n="ailevel.normal">普通 AI</option>
+        <option value="HARD" data-i18n="ailevel.hard">困难 AI</option>
+      </select>
+      <button id="btn-start" class="primary" data-i18n="btn.start">开始新对局</button>
+      <button id="btn-help" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
+      <button id="btn-tour" data-i18n="tour.btn" data-i18n-title="tour.btn">新手引导</button>
+      <button id="btn-lang" class="ghost" title="中文 / English">EN</button>
+      <button id="btn-theme" class="ghost">浅色模式</button>
+    </div>
+    <nav id="main-nav">
+      <button class="nav-tab active" data-view="game" data-i18n="nav.game">模拟对局</button>
+      <button class="nav-tab" data-view="arena" data-i18n="nav.arena">策略竞技场</button>
+      <button class="nav-tab" data-view="academy" data-i18n="nav.academy">量化学堂</button>
+      <button class="nav-tab" data-view="famous" data-i18n="nav.famous">名场面挑战</button>
+      <button class="nav-tab" data-view="story" data-i18n="nav.story">剧本杀</button>
+      <button class="nav-tab" data-view="lab" data-i18n="nav.lab">研究所</button>
+      <button class="nav-tab" data-view="quiz" data-i18n="nav.quiz">人格测试</button>
+      <button class="nav-tab" data-view="profile" data-i18n="nav.profile">成长档案</button>
+    </nav>
+  </header>
+
+  <div id="view-game">
+  <section id="game-intro" class="card game-intro">
+    <h2 data-i18n="intro.title">开始你的第一局</h2>
+    <p data-i18n="intro.text">在顶部输入用户名、选择市场，点「开始新对局」穿越回历史行情。不确定怎么玩？点右上角「玩法说明」，或先去「量化学堂」闯关。</p>
+  </section>
+
+  <main id="game-area" hidden>
+    <section class="chart-panel">
+      <div class="session-bar">
+        <span id="stock-label">--</span>
+        <span id="day-label">--</span>
+        <span id="date-label">--</span>
+        <button id="btn-chart-guide" class="ghost" data-i18n="guide.btn">怎么看这张图？</button>
+      </div>
+      <div id="chart"></div>
+    </section>
+
+    <aside class="side-panel">
+      <div class="card">
+        <h2 data-i18n="status.title">账户状态</h2>
+        <dl>
+          <dt data-i18n="status.cash">现金余额</dt><dd id="st-cash">--</dd>
+          <dt data-i18n="status.shares">持仓股数</dt><dd id="st-shares">--</dd>
+          <dt><span class="term" data-term="holdingcost" data-i18n="status.cost">持仓成本</span></dt><dd id="st-cost">--</dd>
+          <dt data-i18n="status.price">最新价</dt><dd id="st-price">--</dd>
+          <dt><span class="term" data-term="marketvalue" data-i18n="status.value">持仓市值</span></dt><dd id="st-value">--</dd>
+          <dt><span class="term" data-term="floatingpnl" data-i18n="status.pnl">浮动盈亏</span></dt><dd id="st-pnl">--</dd>
+          <dt data-i18n="status.total">总资产</dt><dd id="st-total">--</dd>
+          <dt><span class="term" data-term="returnrate" data-i18n="status.return">收益率</span></dt><dd id="st-return">--</dd>
+        </dl>
+      </div>
+
+      <div class="card">
+        <h2><span data-i18n="ai.title">AI 操盘手</span> <span id="ai-level-label" class="sub"></span> <span class="sub" data-i18n="ai.sub">与你同场竞技</span></h2>
+        <div id="ai-pred-box">
+          <p id="ai-pred-label"><span data-i18n="ai.predLabel">AI 预测明日: </span><span id="ai-pred-dir">--</span></p>
+          <div class="conf-bar"><div id="ai-conf-fill"></div></div>
+          <p class="hint" id="ai-conf-text" data-i18n="ai.noPred">暂无预测</p>
+        </div>
+        <dl>
+          <dt data-i18n="ai.total">AI 总资产</dt><dd id="ai-total">--</dd>
+          <dt data-i18n="ai.shares">AI 持仓</dt><dd id="ai-shares">--</dd>
+          <dt data-i18n="ai.return">AI 收益率</dt><dd id="ai-return">--</dd>
+        </dl>
+        <button id="btn-advisor" class="ghost" disabled data-i18n="ai.ask">问问 Agent</button>
+        <p id="advisor-text" hidden></p>
+      </div>
+
+      <div class="card" id="trade-card">
+        <h2 data-i18n="trade.title">交易面板</h2>
+        <label><span data-i18n="trade.price">价格 </span><input id="trade-price" type="number" step="0.01" min="0"></label>
+        <label><span data-i18n="trade.shares">数量 </span><input id="trade-shares" type="number" step="100" min="100" value="100"></label>
+        <div class="trade-buttons">
+          <button id="btn-buy" class="buy" data-i18n="trade.buy">买入</button>
+          <button id="btn-sell" class="sell" data-i18n="trade.sell">卖出</button>
+        </div>
+        <p class="hint" id="price-range" data-i18n="trade.rangeEmpty">当日价格区间: --</p>
+      </div>
+
+      <div class="card action-card">
+        <button id="btn-tick" class="primary big" data-i18n="btn.tick">下一天 ➜</button>
+        <button id="btn-settle" class="ghost" data-i18n="btn.settle">提前结算</button>
+      </div>
+
+      <div class="card" id="settle-card" hidden>
+        <h2 data-i18n="settle.title">对局结算</h2>
+        <p><span data-i18n="settle.initial">初始资金: </span><span id="settle-initial">--</span></p>
+        <p><span data-i18n="settle.final">最终资产: </span><span id="settle-final">--</span></p>
+        <p class="settle-return"><span class="term" data-term="returnrate" data-i18n="settle.return">收益率: </span><span id="settle-return">--</span></p>
+        <p id="settle-verdict" class="verdict"></p>
+        <p id="settle-style" class="settle-style" hidden></p>
+        <div id="settle-pred" hidden>
+          <p class="hint"><span data-i18n="settle.predTitle">AI 本局预测命中: </span><span id="settle-pred-rate">--</span></p>
+          <div id="settle-pred-dots" class="pred-dots"></div>
+        </div>
+        <table class="compare-table">
+          <thead><tr><th data-i18n="cmp.strategy">策略</th><th data-i18n="cmp.return">收益率</th></tr></thead>
+          <tbody>
+            <tr><td data-i18n="cmp.you">你</td><td id="cmp-you">--</td></tr>
+            <tr><td data-i18n="cmp.ai">AI 操盘手</td><td id="cmp-ai">--</td></tr>
+            <tr><td><span class="term" data-term="buyhold" data-i18n="cmp.hold">买入持有</span></td><td id="cmp-hold">--</td></tr>
+            <tr><td><span class="term" data-term="goldencross" data-i18n="cmp.ma">均线金叉</span></td><td id="cmp-ma">--</td></tr>
+          </tbody>
+        </table>
+        <button id="btn-recap" class="ghost" hidden data-i18n="recap.btn">复盘报告</button>
+        <button id="btn-review" class="ghost" hidden data-i18n="review.ask">AI 复盘本局</button>
+        <p id="review-text" hidden></p>
+      </div>
+    </aside>
+  </main>
+
+  <section class="leaderboard-panel">
+    <h2><span data-i18n="lb.title">排行榜</span> <span class="sub" data-i18n="lb.sub">按收益率排名（已结算对局）</span></h2>
+    <table id="leaderboard">
+      <thead>
+        <tr><th>#</th><th data-i18n="lb.user">用户</th><th data-i18n="lb.stock">股票</th><th data-i18n="lb.startDate">起始日</th><th data-i18n="lb.return">收益率</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+  </div>
+
+  <div id="view-arena" hidden>
+  <section class="arena-panel">
+    <h2><span data-i18n="arena.title">策略回测竞技场</span> <span class="sub" data-i18n="arena.sub">用经典量化策略在整段历史行情上一决高下</span></h2>
+    <div class="arena-config card">
+      <label><span data-i18n="arena.stock">股票</span>
+        <select id="bt-stock"></select>
+      </label>
+      <label><span data-i18n="arena.strategy">策略</span>
+        <select id="bt-strategy">
+          <option value="MA_CROSS" data-i18n="strat.MA_CROSS">均线交叉</option>
+          <option value="MOMENTUM" data-i18n="strat.MOMENTUM">动量策略</option>
+          <option value="MEAN_REVERSION" data-i18n="strat.MEAN_REVERSION">均值回归</option>
+          <option value="BUY_HOLD" data-i18n="strat.BUY_HOLD">买入持有</option>
+          <option value="CUSTOM" data-i18n="strat.CUSTOM">自定义策略</option>
+        </select>
+      </label>
+      <span class="bt-param" data-for="MA_CROSS">
+        <label><span data-i18n="arena.fast">快线 </span><input id="bt-fast" type="number" min="2" max="60" value="5"></label>
+        <label><span data-i18n="arena.slow">慢线 </span><input id="bt-slow" type="number" min="5" max="120" value="20"></label>
+      </span>
+      <span class="bt-param" data-for="MOMENTUM" hidden>
+        <label><span data-i18n="arena.lookback">回看天数 </span><input id="bt-lookback" type="number" min="2" max="60" value="10"></label>
+      </span>
+      <span class="bt-param" data-for="MEAN_REVERSION" hidden>
+        <label><span data-i18n="arena.mawin">均值窗口 </span><input id="bt-mawin" type="number" min="5" max="60" value="20"></label>
+        <label><span data-i18n="arena.threshold">偏离阈值 </span><input id="bt-threshold" type="number" min="0.01" max="0.2" step="0.01" value="0.05"></label>
+      </span>
+      <div class="bt-param custom-editor" data-for="CUSTOM" hidden>
+        <div class="cond-group">
+          <h3><span data-i18n="arena.buyConds">买入条件</span> <span class="sub" data-i18n="arena.buyCondsSub">全部满足时全仓买入</span></h3>
+          <div id="buy-conds" class="cond-rows"></div>
+          <button type="button" class="ghost small" id="btn-add-buy" data-i18n="arena.addCond">+ 添加条件</button>
+        </div>
+        <div class="cond-group">
+          <h3><span data-i18n="arena.sellConds">卖出条件</span> <span class="sub" data-i18n="arena.sellCondsSub">全部满足时清仓</span></h3>
+          <div id="sell-conds" class="cond-rows"></div>
+          <button type="button" class="ghost small" id="btn-add-sell" data-i18n="arena.addCond">+ 添加条件</button>
+        </div>
+      </div>
+      <button id="btn-backtest" class="primary" data-i18n="arena.run">运行回测</button>
+      <button id="btn-tune" class="ghost" data-i18n="arena.tune">自动调参</button>
+      <p class="hint" id="bt-strategy-desc"></p>
+      <p class="hint" id="bt-tune-msg" hidden></p>
+    </div>
+
+    <div id="bt-result" class="arena-result" hidden>
+      <div class="card arena-metrics">
+        <h2 id="bt-title">回测结果</h2>
+        <dl>
+          <dt><span class="term" data-term="backtest" data-i18n="bt.range">回测区间</span></dt><dd id="bt-range">--</dd>
+          <dt data-i18n="bt.days">交易日数</dt><dd id="bt-days">--</dd>
+          <dt><span class="term" data-term="returnrate" data-i18n="bt.return">总收益率</span></dt><dd id="bt-return">--</dd>
+          <dt><span class="term" data-term="annual" data-i18n="bt.annual">年化收益</span></dt><dd id="bt-annual">--</dd>
+          <dt><span class="term" data-term="sharpe" data-i18n="bt.sharpe">夏普比率</span></dt><dd id="bt-sharpe">--</dd>
+          <dt><span class="term" data-term="drawdown" data-i18n="bt.drawdown">最大回撤</span></dt><dd id="bt-drawdown">--</dd>
+          <dt data-i18n="bt.trades">交易次数</dt><dd id="bt-trades">--</dd>
+          <dt><span class="term" data-term="winrate" data-i18n="bt.winrate">胜率</span></dt><dd id="bt-winrate">--</dd>
+          <dt><span class="term" data-term="buyhold" data-i18n="bt.hold">买入持有基准</span></dt><dd id="bt-hold">--</dd>
+        </dl>
+        <p id="bt-verdict" class="verdict"></p>
+      </div>
+      <div class="card arena-chart-card">
+        <h2><span class="term" data-term="equitycurve" data-i18n="bt.equity">资金曲线</span> <span class="sub" data-i18n="bt.equitySub">策略 vs 买入持有</span></h2>
+        <div id="bt-chart"></div>
+      </div>
+    </div>
+
+    <h2 class="arena-board-title"><span data-i18n="arena.boardTitle">竞技场排行榜</span> <span class="sub" data-i18n="arena.boardSub">按总收益率排名</span></h2>
+    <table id="arena-board">
+      <thead>
+        <tr><th>#</th><th data-i18n="lb.user">用户</th><th data-i18n="lb.stock">股票</th><th data-i18n="cmp.strategy">策略</th><th data-i18n="arena.params">参数</th><th><span class="term" data-term="sharpe" data-i18n="arena.sharpe">夏普</span></th><th><span class="term" data-term="drawdown" data-i18n="bt.drawdown">最大回撤</span></th><th data-i18n="lb.return">收益率</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+  </div>
+
+  <div id="view-academy" hidden>
+  <section class="academy-panel">
+    <h2><span data-i18n="academy.title">量化学堂</span> <span class="sub" data-i18n="academy.sub">边玩边学，从 K 线小白到股神</span></h2>
+
+    <h3 class="section-title" data-i18n="teach.section">实战教学关卡</h3>
+    <p class="hint" data-i18n="teach.sectionHint">不做选择题——直接上手：在真实走势里点买入卖出，立刻看到结果。</p>
+    <div id="teach-levels" class="academy-levels"></div>
+
+    <h3 class="section-title" data-i18n="guess.section">K 线猜涨跌</h3>
+    <p class="hint" data-i18n="guess.sectionHint">看图猜第二天涨还是跌，连对越多分越高，练出盘感。</p>
+    <section class="card guess-card">
+      <div class="guess-head">
+        <span><span data-i18n="guess.score">得分</span> <strong id="guess-score">0</strong></span>
+        <span><span data-i18n="guess.streak">连击</span> <strong id="guess-streak">0</strong></span>
+        <span><span data-i18n="guess.best">最佳连击</span> <strong id="guess-best">0</strong></span>
+        <span><span data-i18n="guess.acc">命中率</span> <strong id="guess-acc">--</strong></span>
+      </div>
+      <div id="guess-chart" class="guess-chart"></div>
+      <p id="guess-msg" class="guess-msg" data-i18n="guess.intro">点「开始」加载一段真实走势，然后猜第二天的涨跌。</p>
+      <div class="guess-actions">
+        <button id="btn-guess-start" class="primary" data-i18n="guess.start">开始</button>
+        <button id="btn-guess-daily" class="ghost" data-i18n="guess.daily">每日挑战</button>
+        <button id="btn-guess-up" class="buy" hidden data-i18n="guess.up">看涨</button>
+        <button id="btn-guess-down" class="sell" hidden data-i18n="guess.down">看跌</button>
+      </div>
+    </section>
+
+  </section>
+  </div>
+
+  <div id="view-profile" hidden>
+  <section class="academy-panel">
+    <h2><span data-i18n="profile.pageTitle">成长档案</span> <span class="sub" data-i18n="profile.pageSub">你的段位、经验、成就徽章、称号图鉴与装备</span></h2>
+
+    <section class="card profile-card">
+      <div class="profile-main">
+        <div class="profile-rank">
+          <span class="hint" data-i18n="profile.rank">当前段位</span>
+          <strong id="profile-level">--</strong>
+          <span id="profile-title" class="profile-title" hidden></span>
+        </div>
+        <div class="profile-xp">
+          <div class="xp-track"><div id="xp-fill" class="xp-fill"></div></div>
+          <span id="xp-text" class="hint">--</span>
+        </div>
+      </div>
+      <div class="profile-badges">
+        <span class="hint" data-i18n="profile.badges">成就徽章</span>
+        <div id="badge-list" class="badge-list"></div>
+      </div>
+      <div class="profile-badges">
+        <span class="hint"><span data-i18n="collect.title">称号图鉴</span> <span id="collect-pct"></span></span>
+        <div id="title-list" class="badge-list"></div>
+      </div>
+      <div class="profile-gear">
+        <span class="hint" data-i18n="gear.title">我的装备</span><span class="hint gear-hint" data-i18n="gear.hint">点击穿戴，最多同时装备 2 件</span>
+        <div id="gear-list" class="gear-list"></div>
+      </div>
+    </section>
+  </section>
+  </div>
+
+  <div id="view-famous" hidden>
+  <section class="academy-panel">
+    <h2><span data-i18n="tl.section">市场大事记</span> <span class="sub" data-i18n="tl.sectionHint">一条时间线读完百年市场史，带关卡的节点可以直接穿越进去。</span></h2>
+    <div id="timeline" class="timeline"></div>
+  </section>
+  <section class="academy-panel">
+    <h2><span data-i18n="famous.section">名场面挑战</span> <span class="sub" data-i18n="famous.sectionHint">穿越回市场史上的著名时刻，通关赢取专属称号。</span></h2>
+    <div id="famous-levels" class="academy-levels"></div>
+  </section>
+  </div>
+
+  <div id="view-story" hidden>
+  <section class="academy-panel">
+    <h2><span data-i18n="story.section">剧本杀 · 市场悬案</span> <span class="sub" data-i18n="story.sectionHint">多角色审讯剧场：轮流问话、收集线索、指认真凶，破案赢取专属称号。</span></h2>
+    <div id="case-levels" class="academy-levels"></div>
+  </section>
+  </div>
+
+  <div id="view-lab" hidden>
+  <section class="academy-panel">
+    <h2><span data-i18n="lab.section">量化研究所</span> <span class="sub" data-i18n="lab.sectionHint">亲手用真数据做研究：对比股票、审视 AI、检验那些江湖传闻的技术信号。</span></h2>
+
+    <div class="lab-block">
+      <h3 data-i18n="lab.compare">双股对比</h3>
+      <p class="hint" data-i18n="lab.compareHint">把两支股票放在同一起跑线（起点=100），看谁跑得远、走势像不像。</p>
+      <div class="lab-controls">
+        <select id="lab-stock-a"></select>
+        <span class="lab-vs">VS</span>
+        <select id="lab-stock-b"></select>
+        <button id="btn-lab-compare" data-i18n="lab.compareBtn">开始对比</button>
+      </div>
+      <div id="lab-corr" class="lab-verdict" hidden></div>
+      <div id="lab-compare-chart" class="lab-chart" hidden></div>
+    </div>
+
+    <div class="lab-block">
+      <h3 data-i18n="lab.models">AI 模型分歧</h3>
+      <p class="hint" data-i18n="lab.modelsHint">三个 AI 模型每天都预测次日涨跌。它们到底准不准？互相吵架吗？</p>
+      <div class="lab-controls">
+        <select id="lab-stock-m"></select>
+        <button id="btn-lab-models" data-i18n="lab.modelsBtn">分析</button>
+      </div>
+      <div id="lab-model-cards" class="lab-cards"></div>
+      <div id="lab-model-verdict" class="lab-verdict" hidden></div>
+    </div>
+
+    <div class="lab-block">
+      <h3 data-i18n="lab.signals">指标信号胜率</h3>
+      <p class="hint" data-i18n="lab.signalsHint">“金叉必涨”“大跌必反弹”……这些江湖传闻到底靠不靠谱？用历史数据当场验证。</p>
+      <div class="lab-controls">
+        <select id="lab-stock-s"></select>
+        <select id="lab-signal"></select>
+        <button id="btn-lab-signal" data-i18n="lab.signalBtn">回测信号</button>
+      </div>
+      <div id="lab-signal-cards" class="lab-cards"></div>
+      <div id="lab-signal-verdict" class="lab-verdict" hidden></div>
+    </div>
+
+    <div class="lab-block">
+      <h3 data-i18n="lab.timing">择时的代价</h3>
+      <p class="hint" data-i18n="lab.timingHint">“等回调再买”听起来很聪明——但如果因此错过涨得最猛的 5 天，会发生什么？用整段历史算给你看。</p>
+      <div class="lab-controls">
+        <select id="lab-stock-t"></select>
+        <button id="btn-lab-timing" data-i18n="lab.timingBtn">开始计算</button>
+      </div>
+      <div id="lab-timing-cards" class="lab-cards"></div>
+      <div id="lab-timing-verdict" class="lab-verdict" hidden></div>
+    </div>
+
+    <div class="lab-block">
+      <h3 data-i18n="lab.overview">市场风云榜</h3>
+      <p class="hint" data-i18n="lab.overviewHint">一键扫描全部 32 支股票：涨幅王、跳水王、今日异动、最妖与最稳、AI 的多空押注，七大榜单一网打尽。</p>
+      <div class="lab-controls">
+        <button id="btn-lab-overview" data-i18n="lab.overviewBtn">生成榜单</button>
+      </div>
+      <div id="lab-rank-cards" class="lab-ranks"></div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-quiz" hidden>
+  <section class="academy-panel">
+    <h2><span data-i18n="quiz.section">交易人格测试</span> <span class="sub" data-i18n="quiz.sectionHint">10 道灵魂拷问，测出你是哪种交易动物，人格可收集进称号图鉴。</span></h2>
+
+    <div id="quiz-start" class="quiz-box">
+      <p class="hint" data-i18n="quiz.intro">没有对错，凭直觉选。</p>
+      <p id="quiz-collected" class="hint"></p>
+      <button id="btn-quiz-start" data-i18n="quiz.start">开始测试</button>
+    </div>
+
+    <div id="quiz-run" class="quiz-box" hidden>
+      <div id="quiz-progress" class="hint"></div>
+      <p id="quiz-question" class="quiz-question"></p>
+      <div id="quiz-options" class="quiz-options"></div>
+    </div>
+
+    <div id="quiz-result" class="quiz-box" hidden>
+      <h3 id="quiz-persona" class="quiz-persona"></h3>
+      <p id="quiz-desc"></p>
+      <div id="quiz-radar" class="lab-chart"></div>
+      <p id="quiz-advice" class="lab-verdict"></p>
+      <button id="btn-quiz-retry" data-i18n="quiz.retry">再测一次</button>
+    </div>
+  </section>
+  </div>
+
+  <footer data-i18n="footer.text">仅供娱乐 / 学习，不构成投资建议</footer>
+
+  <div id="toast" hidden></div>
+
+  <div id="help-modal" class="modal-mask" hidden>
+    <div class="modal" role="dialog" aria-labelledby="help-title">
+      <div class="modal-head">
+        <h2 id="help-title" data-i18n="help.title">玩法说明</h2>
+        <button id="btn-help-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body" data-lang-block="zh">
+        <div class="help-intro">
+          <h3>三步上手（完全零基础也没关系）</h3>
+          <ol>
+            <li><b>买</b>：觉得会涨，就在交易面板点「买入」。</li>
+            <li><b>等</b>：点「下一天 ➜」，看第二天的价格揭晓。</li>
+            <li><b>卖</b>：觉得会跌或想落袋为安，点「卖出」。20 天后看你赚了多少！</li>
+          </ol>
+          <p class="hint">页面里所有<span class="term" data-term="kline">带虚线的词</span>都可以点击查看解释——遇到看不懂的名词点一下就行，不需要任何教程。</p>
+        </div>
+
+        <h3>这是个什么游戏？</h3>
+        <p>你将「穿越」回一段随机的历史行情，用 <b>10 万虚拟资金</b>交易 <b>20 个交易日</b>。低买高卖赚差价，目标是最终<span class="term" data-term="returnrate">收益率</span>尽可能高——并战胜和你同场操盘的 <b>AI 对手</b>。全程虚拟资金，随便亏，大胆试。</p>
+
+        <h3>游戏流程</h3>
+        <ol>
+          <li><b>开局</b>：输入用户名，选择市场（A股 / 美股 / 币圈 / 全部），点「开始新对局」。系统随机分配一个标的和起始日期，你能看到起始日之前 60 天的<span class="term" data-term="kline">K 线</span>，但看不到任何未来行情。</li>
+          <li><b>看盘决策</b>：结合 K 线、<span class="term" data-term="ma">均线</span>、<span class="term" data-term="volume">成交量</span>，以及 AI 给出的明日涨跌预测判断买卖时机。还可以点「问问 Agent」，让 AI 交易顾问用大白话分析当前局势（需服务器配置 <code>ANTHROPIC_API_KEY</code>）。</li>
+          <li><b>交易</b>：在交易面板填价格和数量，点「买入」或「卖出」。价格默认填好当天收盘价，直接点也行。</li>
+          <li><b>下一天</b>：点「下一天 ➜」揭晓次日行情。每天可交易任意次数。</li>
+          <li><b>结算</b>：满 20 天自动结算（也可随时「提前结算」）。收益率计入排行榜。</li>
+        </ol>
+
+        <h3>交易规则（很简单）</h3>
+        <ul>
+          <li>数量按市场规则：<b>A 股</b>按<span class="term" data-term="lot">一手</span>（100 股）的整数倍；<b>美股</b>按 1 股起买；<b>币圈</b>按 1 枚起买。</li>
+          <li>美股价格波动介于 A 股与币圈之间；币圈 7×24 交易且波动最大——高收益伴随高风险。</li>
+          <li>委托价必须在<b>当日最低价 ~ 最高价</b>之间（你不能用不存在的价格成交）。</li>
+          <li>买入受现金限制，卖出受持仓限制；不支持<span class="term" data-term="short">做空</span>和<span class="term" data-term="leverage">杠杆</span>。</li>
+          <li><span class="term" data-term="holdingcost">持仓成本</span>按加权平均计算，<span class="term" data-term="floatingpnl">浮动盈亏</span> = （最新价 − 成本）× 持仓。</li>
+        </ul>
+
+        <h3>AI 操盘手是谁？</h3>
+        <ul>
+          <li>AI 的预测来自一个机器学习模型，只用「当天及之前」的数据，绝无未来信息——和你站在同一起跑线。</li>
+          <li>面板每天显示 AI 对<b>明日涨跌</b>的预测方向和<span class="term" data-term="confidence">置信度</span>。</li>
+          <li>AI 用同样的 10 万资金自动操盘：置信度 ≥ 55% <span class="term" data-term="fullposition">全仓</span>买入，≤ 45% <span class="term" data-term="clearposition">清仓</span>，其余持有。</li>
+          <li>提示：预测只是参考，学会判断什么时候信 AI、什么时候反着做，才是本游戏的精髓。</li>
+        </ul>
+
+        <h3>看懂图表（一分钟版）</h3>
+        <ul>
+          <li><span class="term" data-term="kline">K 线</span>：红色空心 = 涨，绿色实心 = 跌。柱子中间是<span class="term" data-term="body">实体</span>，上下细线是<span class="term" data-term="shadow">影线</span>。</li>
+          <li><span class="term" data-term="ma">MA5 / MA20</span>：短期 / 中期均线。MA5 上穿 MA20 叫<span class="term" data-term="goldencross">金叉</span>（偏多），下穿叫<span class="term" data-term="deathcross">死叉</span>（偏空）。</li>
+          <li><span class="term" data-term="volume">成交量</span>：下方柱状图，放量时的涨跌更可信。</li>
+          <li>鼠标悬停查看每日详情；底部滑块可缩放区间；虚线「开局」标记你的起始日。</li>
+          <li>还是觉得抽象？开局后点图表上方的「<b>怎么看这张图？</b>」按钮，有带演示图的手把手分步教程。</li>
+        </ul>
+
+        <h3>结算对比</h3>
+        <p>结算时会对比四个成绩：<b>你</b>、<b>AI 操盘手</b>、<span class="term" data-term="buyhold">买入持有</span>、<span class="term" data-term="goldencross">均线金叉</span>策略。跑赢全部三个基准，才算真正的高手。</p>
+
+        <h3>策略回测竞技场</h3>
+        <p>顶部导航的「策略竞技场」标签页是独立玩法：选一只标的和一个量化策略，系统在<b>整段历史行情</b>上模拟交易（这叫<span class="term" data-term="backtest">回测</span>），给出<span class="term" data-term="sharpe">夏普比率</span>、<span class="term" data-term="drawdown">最大回撤</span>、<span class="term" data-term="winrate">胜率</span>等专业指标——都可以点击查看解释。</p>
+        <ul>
+          <li><b>均线交叉</b>：<span class="term" data-term="goldencross">金叉</span>买入，<span class="term" data-term="deathcross">死叉</span>卖出。</li>
+          <li><b>动量策略</b>：追涨杀跌流，赌<span class="term" data-term="momentum">动量</span>延续。</li>
+          <li><b>均值回归</b>：低买高卖流，赌价格向<span class="term" data-term="meanreversion">均值回归</span>。</li>
+          <li><b>买入持有</b>：无脑拿到底，是所有策略的对照基准。</li>
+          <li><b>自定义策略</b>：自己搭积木组合买卖条件，例如「MA5 上穿 MA20 时买入」。</li>
+        </ul>
+        <p>小心<span class="term" data-term="overfit">过拟合</span>：回测收益高不等于未来也高。调参跑赢买入持有并冲上排行榜，就是这里的目标。</p>
+
+        <h3>量化学堂</h3>
+        <p>不做选择题，全部动手玩：<b>实战教学关卡</b>（6 关，在真实走势上亲手买卖，边玩边学金叉、止损、别追高）、<b>K 线猜涨跌</b>（猜第二天涨跌，连击得分练盘感）、<b>名场面挑战</b>（穿越 2015 股灾、比特币疯牛、世纪轧空，通关赢称号）。全程积累经验值，段位从「韭菜」一路升到「股神」，还有成就徽章可以收集。<b>推荐新手先玩学堂再开对局</b>。</p>
+      </div>
+      <div class="modal-body" data-lang-block="en" hidden>
+        <div class="help-intro">
+          <h3>Three steps to start (zero experience needed)</h3>
+          <ol>
+            <li><b>Buy</b>: think the price will rise? Click "Buy" in the trade panel.</li>
+            <li><b>Wait</b>: click "Next Day ➜" to reveal tomorrow's price.</li>
+            <li><b>Sell</b>: think it will fall, or want to lock in profit? Click "Sell". After 20 days, see how much you made!</li>
+          </ol>
+          <p class="hint">Every <span class="term" data-term="kline">dotted-underline word</span> on this page is clickable — tap any unfamiliar term for a plain-language explanation. No outside tutorial needed.</p>
+        </div>
+
+        <h3>What is this game?</h3>
+        <p>You "time-travel" into a random slice of market history with <b>100,000 in virtual cash</b> and trade for <b>20 trading days</b>. Buy low, sell high, aim for the highest <span class="term" data-term="returnrate">return</span> — and beat the <b>AI trader</b> playing alongside you. It's all virtual money, so experiment freely.</p>
+
+        <h3>How a game works</h3>
+        <ol>
+          <li><b>Start</b>: enter a username, pick a market (A-shares / US / Crypto / All), click "New Game". You get a random stock and start date, and can see the 60 days of <span class="term" data-term="kline">candlesticks</span> before it — but nothing from the future.</li>
+          <li><b>Analyze</b>: read the candles, <span class="term" data-term="ma">moving averages</span>, <span class="term" data-term="volume">volume</span>, and the AI's forecast for tomorrow. You can also click "Ask the Agent" for a plain-language analysis from an AI trading advisor (requires <code>ANTHROPIC_API_KEY</code> on the server).</li>
+          <li><b>Trade</b>: fill in price and quantity, click "Buy" or "Sell". The price box is pre-filled with today's close, so one click works.</li>
+          <li><b>Next day</b>: click "Next Day ➜" to reveal tomorrow. Trade as many times per day as you like.</li>
+          <li><b>Settle</b>: the game settles automatically after 20 days (or click "Settle Now" anytime). Your return goes on the leaderboard.</li>
+        </ol>
+
+        <h3>Trading rules (kept simple)</h3>
+        <ul>
+          <li>Quantity follows the market: <b>A-shares</b> trade in <span class="term" data-term="lot">lots</span> of 100 shares; <b>US stocks</b> from 1 share; <b>crypto</b> from 1 coin.</li>
+          <li>US stocks are more volatile than A-shares; crypto trades 24/7 and swings hardest — big gains come with big risk.</li>
+          <li>Your order price must be within <b>the day's low ~ high</b> (you can't fill at a price that never existed).</li>
+          <li>Buys are limited by cash, sells by holdings; no <span class="term" data-term="short">short selling</span> or <span class="term" data-term="leverage">leverage</span>.</li>
+          <li><span class="term" data-term="holdingcost">Average cost</span> is weighted across buys; <span class="term" data-term="floatingpnl">unrealized P&L</span> = (last price − cost) × shares.</li>
+        </ul>
+
+        <h3>Who is the AI trader?</h3>
+        <ul>
+          <li>Its forecasts come from a machine-learning model that only sees data "up to today" — no future information, same starting line as you.</li>
+          <li>The panel shows the AI's forecast for <b>tomorrow</b> and its <span class="term" data-term="confidence">confidence</span>.</li>
+          <li>The AI trades the same 100k automatically: confidence ≥ 55% goes <span class="term" data-term="fullposition">all-in</span>, ≤ 45% <span class="term" data-term="clearposition">sells everything</span>, otherwise holds.</li>
+          <li>Tip: forecasts are hints, not truth. Learning when to trust the AI — and when to bet against it — is the heart of this game.</li>
+        </ul>
+
+        <h3>Reading the chart (one-minute version)</h3>
+        <ul>
+          <li><span class="term" data-term="kline">Candlesticks</span>: hollow red = up, solid green = down (Chinese convention). The thick middle is the <span class="term" data-term="body">body</span>, the thin lines are <span class="term" data-term="shadow">shadows</span>.</li>
+          <li><span class="term" data-term="ma">MA5 / MA20</span>: short / mid-term moving averages. MA5 crossing above MA20 is a <span class="term" data-term="goldencross">golden cross</span> (bullish); crossing below is a <span class="term" data-term="deathcross">death cross</span> (bearish).</li>
+          <li><span class="term" data-term="volume">Volume</span>: the bars below — moves on high volume are more trustworthy.</li>
+          <li>Hover for daily details; drag the bottom slider to zoom; the dashed "Start" line marks your first day.</li>
+          <li>Still fuzzy? After starting a game, click "<b>How do I read this chart?</b>" above the chart for an interactive step-by-step walkthrough.</li>
+        </ul>
+
+        <h3>The settlement comparison</h3>
+        <p>At settlement, four results are compared: <b>you</b>, the <b>AI trader</b>, <span class="term" data-term="buyhold">buy & hold</span>, and an <span class="term" data-term="goldencross">MA-cross</span> strategy. Beat all three benchmarks to call yourself a real trader.</p>
+
+        <h3>Strategy Backtest Arena</h3>
+        <p>The "Strategy Arena" tab in the top navigation is a separate mode: pick a stock and a quant strategy, and the system simulates it over the <b>entire price history</b> (that's a <span class="term" data-term="backtest">backtest</span>), reporting the <span class="term" data-term="sharpe">Sharpe ratio</span>, <span class="term" data-term="drawdown">max drawdown</span>, <span class="term" data-term="winrate">win rate</span> and more — all clickable for explanations.</p>
+        <ul>
+          <li><b>MA Crossover</b>: buy on the <span class="term" data-term="goldencross">golden cross</span>, sell on the <span class="term" data-term="deathcross">death cross</span>.</li>
+          <li><b>Momentum</b>: buy strength, sell weakness — betting <span class="term" data-term="momentum">momentum</span> continues.</li>
+          <li><b>Mean Reversion</b>: buy dips, sell spikes — betting on <span class="term" data-term="meanreversion">mean reversion</span>.</li>
+          <li><b>Buy & Hold</b>: just hold to the end — the benchmark every strategy must beat.</li>
+          <li><b>Custom Strategy</b>: build your own buy/sell rules, e.g. "buy when MA5 crosses above MA20".</li>
+        </ul>
+        <p>Beware of <span class="term" data-term="overfit">overfitting</span>: a great backtest doesn't guarantee future profits. Tune your parameters, beat buy & hold, and climb the arena leaderboard.</p>
+
+        <h3>Quant Academy</h3>
+        <p>No multiple choice — everything is hands-on: <b>teaching levels</b> (6 levels where you actually buy and sell on real-style charts, learning golden crosses, stop-losses and why not to chase spikes), <b>Guess the Candle</b> (call tomorrow's direction, build streaks and score), and <b>Famous Moments</b> (time-travel to the 2015 crash, the Bitcoin mania and the great short squeeze — clear them for exclusive titles). Everything earns XP: rank up from Fresh Leek to Market Legend and collect achievement badges. <b>New players: play the Academy first.</b></p>
+      </div>
+      <div class="modal-foot">
+        <button id="btn-help-ok" class="primary" data-i18n="help.ok">开始游戏</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="guide-modal" class="modal-mask" hidden>
+    <div class="modal guide-modal" role="dialog" aria-labelledby="guide-title">
+      <div class="modal-head">
+        <h2 id="guide-title" data-i18n="guide.title">怎么看这张图？</h2>
+        <button id="btn-guide-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body guide-body">
+        <div id="guide-chart"></div>
+        <h3 id="guide-step-title"></h3>
+        <p id="guide-step-text"></p>
+      </div>
+      <div class="modal-foot guide-foot">
+        <button id="btn-guide-prev" class="ghost">上一步</button>
+        <span id="guide-step-label" class="hint"></span>
+        <button id="btn-guide-next" class="primary">下一步</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="play-modal" class="modal-mask" hidden>
+    <div class="modal play-modal" role="dialog" aria-labelledby="play-title">
+      <div class="modal-head">
+        <h2 id="play-title">--</h2>
+        <button id="btn-play-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="play-story" class="play-story"></p>
+        <div class="play-bar">
+          <span><span data-i18n="play.day">进度</span> <strong id="play-day">--</strong></span>
+          <span><span data-i18n="play.cash">现金</span> <strong id="play-cash">--</strong></span>
+          <span><span data-i18n="play.shares">持仓</span> <strong id="play-shares">--</strong></span>
+          <span><span data-i18n="play.assets">总资产</span> <strong id="play-assets">--</strong></span>
+          <span><span data-i18n="play.return">收益率</span> <strong id="play-return">--</strong></span>
+        </div>
+        <div id="play-chart" class="play-chart"></div>
+        <p id="play-hint" class="play-hint" hidden></p>
+        <p id="play-result" class="play-result" hidden></p>
+        <p id="play-mentor" class="play-mentor" hidden></p>
+      </div>
+      <div class="modal-foot play-foot">
+        <button id="btn-play-buy" class="buy" data-i18n="play.buy">全仓买入</button>
+        <button id="btn-play-sell" class="sell" data-i18n="play.sell">全部卖出</button>
+        <button id="btn-play-next" data-i18n="play.next">下一天</button>
+        <button id="btn-play-finish" class="primary" hidden data-i18n="play.finish">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="story-modal" class="modal-mask" hidden>
+    <div class="modal story-modal" role="dialog" aria-labelledby="story-title">
+      <div class="modal-head">
+        <h2 id="story-title">--</h2>
+        <button id="btn-story-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="story-dialog" class="story-dialog">
+          <div id="story-avatar" class="cutscene-avatar">K</div>
+          <div class="cutscene-body">
+            <div id="story-name" class="cutscene-name">--</div>
+            <p id="story-text" class="cutscene-text"></p>
+          </div>
+        </div>
+        <div id="story-hub" hidden>
+          <p id="story-hub-hint" class="hint">挨个询问在场的人，收集线索。</p>
+          <div id="story-suspects" class="story-suspects"></div>
+          <p class="hint" data-i18n="story.cluesTitle">已获线索</p>
+          <ul id="story-clues" class="story-clues"></ul>
+        </div>
+        <p id="story-result" class="play-result" hidden></p>
+      </div>
+      <div class="modal-foot">
+        <button id="btn-story-next" class="primary" data-i18n="cutscene.next">继续</button>
+        <button id="btn-story-accuse" class="sell" hidden data-i18n="story.accuse">指认真凶</button>
+        <button id="btn-story-finish" class="primary" hidden data-i18n="play.finish">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cutscene" class="cutscene-mask" hidden>
+    <div class="cutscene-box">
+      <div class="cutscene-avatar">K</div>
+      <div class="cutscene-body">
+        <div id="cutscene-name" class="cutscene-name">老K</div>
+        <p id="cutscene-text" class="cutscene-text"></p>
+        <div class="cutscene-actions">
+          <button id="cutscene-skip" class="ghost" data-i18n="cutscene.skip">跳过</button>
+          <button id="cutscene-next" class="primary" data-i18n="cutscene.next">继续</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="recap-modal" class="modal-mask" hidden>
+    <div class="modal recap-modal" role="dialog" aria-labelledby="recap-title">
+      <div class="modal-head">
+        <h2 id="recap-title" data-i18n="recap.title">对局复盘报告</h2>
+        <button id="btn-recap-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body recap-body">
+        <div id="recap-chart"></div>
+        <div class="recap-stats">
+          <div class="recap-stat"><span class="hint" data-i18n="recap.stat.trades">交易次数</span><strong id="recap-trades">--</strong></div>
+          <div class="recap-stat"><span class="hint" data-i18n="recap.stat.winRate">卖出胜率</span><strong id="recap-winrate">--</strong></div>
+          <div class="recap-stat"><span class="hint" data-i18n="recap.stat.you">你的收益</span><strong id="recap-you">--</strong></div>
+          <div class="recap-stat"><span class="hint" data-i18n="recap.stat.hold">买入持有</span><strong id="recap-hold">--</strong></div>
+        </div>
+        <ul id="recap-verdicts" class="recap-verdicts"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="tour-mask" hidden></div>
+  <div id="tour-ring" hidden></div>
+  <div id="tour-pop" hidden>
+    <h3 id="tour-pop-title"></h3>
+    <p id="tour-pop-text"></p>
+    <div class="tour-foot">
+      <button id="btn-tour-skip" class="ghost" data-i18n="tour.skip">跳过</button>
+      <span id="tour-step-label" class="hint"></span>
+      <button id="btn-tour-prev" class="ghost" data-i18n="tour.prev">上一步</button>
+      <button id="btn-tour-next" class="primary" data-i18n="tour.next">下一步</button>
+    </div>
+  </div>
+
+  <script src="i18n.js?v=20260922l"></script>
+  <script src="glossary.js?v=20260922l"></script>
+  <script src="app.js?v=20260922l"></script>
+  <script src="academy.js?v=20260922l"></script>
+  <script src="lab.js?v=20260922l"></script>
+</body>
+</html>
