@@ -19,4 +19,7 @@ public class GameProperties {
     private int backtestMinDays = 30;
     private double aiBuyThreshold = 0.55;
     private double aiSellThreshold = 0.45;
+    private int maxOpenOrders = 5;       // 每局同时挂单上限
+    private double maxLeverage = 2.0;    // 进阶模式最大杠杆 (敞口/净值)
+    private int portfolioSize = 3;       // 组合模式标的数
 }

@@ -45,6 +45,10 @@ public class TradeTransaction {
     @Column(nullable = false)
     private Integer shares;
 
+    /** 本笔总费用 (佣金+印花税) */
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal fee = BigDecimal.ZERO;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

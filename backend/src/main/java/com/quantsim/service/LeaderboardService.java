@@ -21,9 +21,10 @@ public class LeaderboardService {
     private final GameProperties props;
 
     @Transactional(readOnly = true)
-    public List<LeaderboardEntry> topSessions() {
+    public List<LeaderboardEntry> topSessions(String season) {
+        String filter = season == null || season.isBlank() ? null : season.trim();
         return sessionRepository
-                .findLeaderboard(GameSession.Status.SETTLED, PageRequest.of(0, props.getLeaderboardSize()))
+                .findLeaderboard(GameSession.Status.SETTLED, filter, PageRequest.of(0, props.getLeaderboardSize()))
                 .stream()
                 .map(row -> {
                     GameSession s = (GameSession) row[0];
@@ -32,5 +33,10 @@ public class LeaderboardService {
                             s.getStartDate(), s.getFinalReturnRate());
                 })
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> seasons() {
+        return sessionRepository.findSeasons();
     }
 }

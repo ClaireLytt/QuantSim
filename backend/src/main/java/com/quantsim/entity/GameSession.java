@@ -64,6 +64,23 @@ public class GameSession {
     @Column(name = "final_return_rate", precision = 10, scale = 4)
     private BigDecimal finalReturnRate;
 
+    @Column(nullable = false, length = 16)
+    private String mode = "CLASSIC";
+
+    @Column(nullable = false)
+    private boolean advanced = false;
+
+    @Column(nullable = false)
+    private boolean liquidated = false;
+
+    /** 赛季 "YYYY-MM", 创建时盖章 */
+    @Column(length = 7)
+    private String season;
+
+    /** 每日挑战日期 (仅 DAILY 模式) */
+    @Column(name = "challenge_date")
+    private LocalDate challengeDate;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

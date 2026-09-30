@@ -1,5 +1,11 @@
 server:
   port: 8080
+  servlet:
+    session:
+      timeout: 7d            # 登录态保持一周; 内存会话, 重启后重新登录即可
+      cookie:
+        same-site: lax
+        http-only: true
 
 spring:
   datasource:
@@ -12,7 +18,7 @@ spring:
     open-in-view: false
   cache:
     type: caffeine
-    cache-names: stockData
+    cache-names: stockData,newsByDate
     caffeine:
       # 行情数据不可变, 缓存过期仅为管道重灌数据后能自动刷新
       spec: maximumSize=64,expireAfterWrite=10m
@@ -31,6 +37,24 @@ quantsim:
     backtest-min-days: 30    # 回测要求的最少历史天数
     ai-buy-threshold: 0.55   # AI 上涨概率 ≥ 此值全仓买入
     ai-sell-threshold: 0.45  # AI 上涨概率 ≤ 此值清仓
+  fees:
+    stock:                    # A股: 万 2.5 佣金 (最低 5 元) + 千 0.5 印花税 (仅卖出)
+      commission-rate: 0.00025
+      min-commission: 5
+      stamp-tax-rate: 0.0005
+    us:                       # 美股: 万 5 佣金
+      commission-rate: 0.0005
+      min-commission: 0
+      stamp-tax-rate: 0
+    crypto:                   # 币圈: 千 1 佣金
+      commission-rate: 0.001
+      min-commission: 0
+      stamp-tax-rate: 0
+  refresh:
+    enabled: false            # 开启后按 cron 自动跑数据管道 refresh.py
+    cron: "0 30 2 * * *"
+    command: "python refresh.py"
+    workdir: "../data-pipeline"
   advisor:
     api-key: ${ANTHROPIC_API_KEY:}   # 未配置时「问问 Agent」功能自动禁用
     model: claude-haiku-4-5-20251001

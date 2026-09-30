@@ -25,6 +25,13 @@ public class User {
     @Column(nullable = false, unique = true, length = 50)
     private String username;
 
+    /** 游客行此列为 NULL; 注册 (或认领游客名) 后为 BCrypt 哈希。 */
+    @Column(name = "password_hash", length = 60)
+    private String passwordHash;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

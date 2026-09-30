@@ -404,11 +404,51 @@ const GLOSSARY = {
     zh: { term: "退市", def: "股票被终止上市、从交易所摘牌，可能因为造假、持续亏损或私有化。对普通持有人来说退市几乎等于归零——「跌到退市」是持股最坏的结局之一。" },
     en: { term: "Delisting", def: "A stock removed from the exchange — for fraud, chronic losses or privatization. For an ordinary holder it's close to a total loss; 'falling until delisted' is one of the worst endings a position can have." },
   },
+  rsi: {
+    zh: { term: "RSI", def: "相对强弱指标（0~100）：衡量最近涨跌力量的对比。低于 30 常被视为超卖（可能反弹），高于 70 视为超买（可能回调）。" },
+    en: { term: "RSI", def: "Relative Strength Index (0-100): compares recent gains to losses. Below 30 is often read as oversold (bounce likely), above 70 as overbought (pullback likely)." },
+  },
+  macd: {
+    zh: { term: "MACD", def: "两条不同周期均线的差值（DIF）及其平滑线（DEA）。柱状图翻红（DIF 上穿 DEA）视为转多信号，翻绿视为转空——经典趋势跟随指标。" },
+    en: { term: "MACD", def: "The gap between two EMAs (DIF) and its smoothed line (DEA). Histogram turning positive is a bullish signal, negative bearish — the classic trend-following indicator." },
+  },
+  boll: {
+    zh: { term: "布林带", def: "以均线为中轨、上下各 k 倍标准差画出的通道。价格触到下轨常被视为超跌，触到上轨视为超涨——波动的\"橡皮筋\"。" },
+    en: { term: "Bollinger Bands", def: "A channel of k standard deviations around a moving average. Touching the lower band is often read as stretched-down, the upper band as stretched-up — a volatility rubber band." },
+  },
+  grid: {
+    zh: { term: "网格交易", def: "以某个基准价画出等间距的\"网格\"，每跌一格买一份、每涨一格卖一份。震荡市里反复收割价差，单边下跌时会越接越多。" },
+    en: { term: "Grid trading", def: "Draw evenly spaced price levels around a base: buy a slice each step down, sell each step up. Harvests range-bound swings, but keeps adding in a one-way decline." },
+  },
+  turtle: {
+    zh: { term: "海龟策略", def: "上世纪著名的趋势突破系统：价格突破 N 日高点入场、跌破 M 日低点离场。核心是\"让利润奔跑，快速认错\"。" },
+    en: { term: "Turtle rules", def: "The famous trend-breakout system: enter on an N-day high breakout, exit on an M-day low breakdown. The creed: let winners run, cut losers fast." },
+  },
+  pendingorder: {
+    zh: { term: "挂单", def: "预先设定价格条件的委托：限价买（跌到某价才买）、限价卖、止损（跌破某价止血卖出）、止盈（涨到某价落袋）。次日行情触及条件即自动成交。" },
+    en: { term: "Pending order", def: "An order with a preset trigger: limit buy (fills only at your price or better), limit sell, stop-loss (sell if price breaks down) and take-profit. It fills automatically when tomorrow's range touches the trigger." },
+  },
+  commission: {
+    zh: { term: "手续费", def: "每笔交易付给券商/交易所的成本：佣金（双向）+ 印花税（A 股卖出时收）。频繁交易时费用会显著吃掉收益——这也是\"少动多看\"的一个理由。" },
+    en: { term: "Fees", def: "What each trade costs you: commission (both ways) plus stamp tax (on A-share sells). Frequent trading lets fees quietly eat your returns — one more reason to trade less." },
+  },
+  positionpct: {
+    zh: { term: "仓位", def: "动用资金占总资产的比例。全仓 = 100%。降低仓位能摊平波动、留出补仓余地，是最朴素的风险管理工具。" },
+    en: { term: "Position size", def: "The share of your equity a strategy deploys. 100% = all-in. Smaller positions smooth the ride and leave dry powder — the simplest risk-management tool there is." },
+  },
 };
 
 // ---------- 术语自动标注 ----------
 // 文本中出现的已知术语自动包成可点击的 .term span; 长词优先, 避免"千股跌停"只匹配到"跌停"
 const TERM_WORDS = [
+  ["布林带", "boll"], ["bollinger bands", "boll"], ["bollinger", "boll"],
+  ["网格交易", "grid"], ["grid trading", "grid"],
+  ["海龟策略", "turtle"], ["turtle rules", "turtle"], ["turtle", "turtle"],
+  ["挂单", "pendingorder"], ["pending order", "pendingorder"],
+  ["限价单", "pendingorder"], ["limit order", "pendingorder"],
+  ["止损单", "pendingorder"], ["止盈单", "pendingorder"], ["stop-loss order", "pendingorder"],
+  ["手续费", "commission"], ["佣金", "commission"], ["印花税", "commission"], ["commission", "commission"], ["stamp tax", "commission"],
+  ["rsi", "rsi"], ["macd", "macd"],
   ["场外配资", "otcfinancing"], ["配资", "otcfinancing"],
   ["买入持有", "buyhold"], ["buy & hold", "buyhold"], ["buy and hold", "buyhold"],
   ["均值回归", "meanreversion"], ["mean-reversion", "meanreversion"], ["mean reversion", "meanreversion"],

@@ -32,6 +32,11 @@ const state = {
   market: "",
   aiLevel: "",
   daysElapsed: 0,
+  mode: "CLASSIC",
+  advanced: false,
+  stocks: [],        // 组合模式的标的清单 [{code,name}]
+  activeStock: "",   // 组合模式当前查看/交易的标的
+  orders: [],
   // 语言切换时重渲染动态区域所需的缓存
   lastStatus: null,
   lastSettle: null,
@@ -241,13 +246,25 @@ async function startGame() {
   try {
     const market = $("market-select").value;
     const aiLevel = $("ai-level-select").value;
-    const body = { username, aiLevel };
+    const mode = $("mode-select").value;
+    const advanced = $("adv-toggle").checked && (market === "US" || market === "CRYPTO");
+    const body = { username, aiLevel, mode, advanced };
     if (market) body.market = market;
     const res = await api("/game/start", {
       method: "POST",
       body: JSON.stringify(body),
     });
+    await enterGame(res);
+    toast(t("toast.gameStart", fmtMoney(res.initialCash), t("unit.money")));
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
+/** 用开局响应进入对局界面 (新局与房间/每日挑战接管共用)。 */
+async function enterGame(res) {
     state.sessionId = res.sessionId;
+    state.resumedSettled = res.status === "SETTLED";
     state.totalTicks = res.totalTicks;
     state.startDate = res.startDate;
     state.settled = false;
@@ -256,6 +273,11 @@ async function startGame() {
     state.stockCode = res.stockCode;
     state.market = res.market;
     state.aiLevel = res.aiLevel;
+    state.mode = res.mode || "CLASSIC";
+    state.advanced = !!res.advanced;
+    state.stocks = res.stocks || [];
+    state.activeStock = res.stockCode;
+    state.orders = [];
     state.daysElapsed = 0;
     state.lastStatus = null;
     state.lastSettle = null;
@@ -280,18 +302,29 @@ async function startGame() {
     const advisorBox = $("advisor-text");
     advisorBox.hidden = true;
     advisorBox.textContent = "";
+    if (window.qsResetAdvisorChat) window.qsResetAdvisorChat();
     setTradeEnabled(true);
+    renderPfTabs();
+    $("orders-card").hidden = false;
+    renderOrders();
+    $("news-banner").hidden = true;
 
     await loadHistory();
     await refreshStatus();
-    toast(t("toast.gameStart", fmtMoney(res.initialCash), t("unit.money")));
-  } catch (e) {
-    toast(e.message);
-  }
+    await loadOrders();
+    if (state.resumedSettled) {
+      // 回看已结算的房间/每日对局: 只读, 不开交易
+      state.settled = true;
+      setTradeEnabled(false);
+      toast(t("toast.resumedSettled"));
+    }
 }
+window.qsEnterGame = enterGame;
 
 async function loadHistory() {
-  const res = await api(`/game/${state.sessionId}/history`);
+  const q = state.mode === "PORTFOLIO" && state.activeStock
+    ? `?stockCode=${encodeURIComponent(state.activeStock)}` : "";
+  const res = await api(`/game/${state.sessionId}/history${q}`);
   state.klines = res.klines;
   renderChart();
   updateSessionBar(res.currentTradeDate);
@@ -301,12 +334,24 @@ async function loadHistory() {
 async function tick() {
   try {
     const res = await api(`/game/${state.sessionId}/tick`, { method: "POST" });
-    state.klines.push(res.newBar);
-    updateChartData();
+    if (state.mode === "PORTFOLIO") {
+      // 组合模式一次推进影响三只标的, 直接整段重载当前标的
+      await loadHistory();
+    } else {
+      state.klines.push(res.newBar);
+      updateChartData();
+    }
     updateSessionBar(res.currentTradeDate, res.daysElapsed);
     syncTradeInputs();
     // 后端已内嵌账户快照, 无需再请求 /status
     renderStatus(res.status);
+    (res.filledOrders || []).forEach((f) => {
+      toast(t("orders.filled", t(ORDER_TYPE_KEY[f.orderType] || f.orderType), f.shares, fmtMoney(f.price)));
+    });
+    if (res.autoCancelledOrders > 0) toast(t("orders.autoCancelled"));
+    if ((res.filledOrders || []).length || res.autoCancelledOrders > 0 || state.orders.length) loadOrders();
+    if (res.liquidated) toast(t("adv.liquidated"));
+    if (res.news && res.news.length && window.qsShowNews) window.qsShowNews(res.news, res.daysElapsed);
     if (res.settled) {
       showSettle(res.settleResult);
     }
@@ -327,14 +372,18 @@ async function trade(direction) {
     return;
   }
   try {
-    await api(`/game/${state.sessionId}/trade`, {
+    const body = { direction, price, shares };
+    if (state.mode === "PORTFOLIO" && state.activeStock) body.stockCode = state.activeStock;
+    const res = await api(`/game/${state.sessionId}/trade`, {
       method: "POST",
-      body: JSON.stringify({ direction, price, shares }),
+      body: JSON.stringify(body),
     });
     // 复盘报告需要在前端记录每笔成交对应的 K 线位置
     const idx = state.klines.length - 1;
     state.trades.push({ idx, date: state.klines[idx].tradeDate, dir: direction, price, shares });
-    toast(t(direction === "BUY" ? "toast.buyOk" : "toast.sellOk", shares));
+    let msg = t(direction === "BUY" ? "toast.buyOk" : "toast.sellOk", shares);
+    if (res.fee && Number(res.fee) > 0) msg += " · " + t("trade.fee", fmtMoney(res.fee));
+    toast(msg);
     await refreshStatus();
   } catch (e) {
     toast(e.message);
@@ -367,17 +416,89 @@ async function askReview() {
   }
 }
 
-async function askAdvisor() {
-  const box = $("advisor-text");
-  box.hidden = false;
-  box.textContent = t("ai.thinking");
-  try {
-    const res = await api(`/game/${state.sessionId}/advisor?lang=${LANG}`, { method: "POST" });
-    box.textContent = res.advice;
-  } catch (e) {
-    box.hidden = true;
-    toast(e.message);
+// ---------- AI 顾问: 流式多轮对话 (SSE), 失败时回退单发 POST ----------
+
+let advisorBusy = false;
+
+function advisorAppend(cls, text) {
+  const log = $("advisor-log");
+  const div = document.createElement("div");
+  div.className = "msg " + cls;
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return div;
+}
+
+function resetAdvisorChat() {
+  $("advisor-log").innerHTML = "";
+  $("advisor-chat").hidden = true;
+  if (state.sessionId) {
+    api(`/game/${state.sessionId}/advisor/reset`, { method: "POST" }).catch(() => { /* 尽力而为 */ });
   }
+}
+window.qsResetAdvisorChat = resetAdvisorChat;
+
+function streamAdvice(question) {
+  if (advisorBusy || !state.sessionId) return;
+  advisorBusy = true;
+  $("advisor-chat").hidden = false;
+  if (question) advisorAppend("q", question);
+  const el = advisorAppend("a", t("ai.thinking"));
+  const url = `${API}/game/${state.sessionId}/advisor/stream?lang=${LANG}&q=${encodeURIComponent(question || "")}`;
+  let text = "";
+  const finish = () => { advisorBusy = false; };
+  let es;
+  try {
+    es = new EventSource(url);
+  } catch (e) {
+    fallbackAdvice(question, el).finally(finish);
+    return;
+  }
+  let settled = false; // 防止多个错误回调重复落地/重复回退请求
+  const settle = (fn) => {
+    if (settled) return;
+    settled = true;
+    es.close();
+    fn();
+  };
+  es.onmessage = (ev) => {
+    text += ev.data;
+    el.textContent = text;
+    $("advisor-log").scrollTop = $("advisor-log").scrollHeight;
+  };
+  es.addEventListener("done", () => settle(finish));
+  es.addEventListener("advisor-error", (ev) => settle(() => {
+    // 服务端主动报错 (自定义事件带消息)
+    el.textContent = ev.data || t("err.badResp");
+    finish();
+  }));
+  es.onerror = () => settle(() => {
+    if (!text) fallbackAdvice(question, el).finally(finish);
+    else finish();
+  });
+}
+
+async function fallbackAdvice(question, el) {
+  try {
+    const q = question ? `&q=${encodeURIComponent(question)}` : "";
+    const res = await api(`/game/${state.sessionId}/advisor?lang=${LANG}${q}`, { method: "POST" });
+    el.textContent = res.advice;
+  } catch (e) {
+    el.textContent = e.message;
+  }
+}
+
+function askAdvisor() {
+  streamAdvice("");
+}
+
+function sendAdvisorQuestion() {
+  const input = $("advisor-q");
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = "";
+  streamAdvice(q);
 }
 
 async function refreshStatus() {
@@ -394,6 +515,8 @@ function renderStatus(s) {
   $("st-total").textContent = fmtMoney(s.totalAssets);
   setSigned($("st-pnl"), Number(s.floatingPnl), fmtMoney(Math.abs(s.floatingPnl)));
   setSigned($("st-return"), Number(s.returnRate), fmtPct(Number(s.returnRate)));
+  $("st-fees").textContent = fmtMoney(s.feesPaid || 0);
+  renderPositions(s.positions);
   state.daysElapsed = s.daysElapsed;
   state.totalTicks = s.totalTicks;
   updateDayLabel();
@@ -451,6 +574,112 @@ function syncTradeInputs() {
   if (last) {
     $("trade-price").value = last.close;
     $("price-range").textContent = t("trade.range", last.low, last.high);
+  }
+}
+
+// ---------- 组合模式: 标的切换与持仓明细 ----------
+
+function renderPfTabs() {
+  const wrap = $("pf-tabs");
+  const isPf = state.mode === "PORTFOLIO" && state.stocks.length > 1;
+  wrap.hidden = !isPf;
+  wrap.innerHTML = "";
+  if (!isPf) return;
+  state.stocks.forEach((st) => {
+    const b = document.createElement("button");
+    b.className = "pf-tab" + (st.code === state.activeStock ? " active" : "");
+    b.textContent = stockName(st.name, st.code);
+    b.addEventListener("click", () => guarded(async () => {
+      state.activeStock = st.code;
+      renderPfTabs();
+      await loadHistory();
+    }));
+    wrap.appendChild(b);
+  });
+}
+
+function renderPositions(positions) {
+  const box = $("pf-positions");
+  if (!positions || !positions.length) {
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+  box.hidden = false;
+  const rows = positions.map((p) => {
+    const shares = Number(p.shares);
+    return `<tr><td>${stockName(p.stockName, p.stockCode)}</td>
+      <td class="${shares < 0 ? "neg" : ""}">${shares}</td>
+      <td>${fmtMoney(p.avgCost)}</td><td>${fmtMoney(p.marketValue)}</td></tr>`;
+  }).join("");
+  box.innerHTML = `<table><thead><tr><th>${t("lb.stock")}</th><th>${t("status.shares")}</th>
+    <th>${t("status.cost")}</th><th>${t("status.value")}</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ---------- 挂单面板 ----------
+
+const ORDER_TYPE_KEY = {
+  LIMIT_BUY: "orders.limitBuy",
+  LIMIT_SELL: "orders.limitSell",
+  STOP_LOSS: "orders.stopLoss",
+  TAKE_PROFIT: "orders.takeProfit",
+};
+
+async function loadOrders() {
+  if (!state.sessionId) return;
+  try {
+    state.orders = await api(`/game/${state.sessionId}/orders`);
+    renderOrders();
+  } catch (e) { /* 挂单列表失败不打断游戏 */ }
+}
+
+function renderOrders() {
+  const ul = $("orders-list");
+  ul.innerHTML = "";
+  const open = state.orders.filter((o) => o.status === "OPEN");
+  if (!open.length) {
+    const li = document.createElement("li");
+    li.textContent = t("orders.empty");
+    ul.appendChild(li);
+    return;
+  }
+  open.forEach((o) => {
+    const li = document.createElement("li");
+    const label = document.createElement("span");
+    label.textContent = `${t(ORDER_TYPE_KEY[o.orderType] || o.orderType)} ${o.shares} @ ${fmtMoney(o.triggerPrice)}`;
+    const btn = document.createElement("button");
+    btn.className = "ghost order-cancel";
+    btn.textContent = t("orders.cancel");
+    btn.addEventListener("click", () => guarded(async () => {
+      try {
+        state.orders = await api(`/game/${state.sessionId}/orders/${o.orderId}/cancel`, { method: "POST" });
+        renderOrders();
+        toast(t("orders.cancelled"));
+      } catch (e) { toast(e.message); }
+    }));
+    li.appendChild(label);
+    li.appendChild(btn);
+    ul.appendChild(li);
+  });
+}
+
+async function placeOrder() {
+  const orderType = $("order-type").value;
+  const price = parseFloat($("order-price").value);
+  const shares = parseInt($("order-shares").value, 10);
+  if (!price || !shares || shares <= 0) {
+    toast(t("toast.invalidTrade"));
+    return;
+  }
+  try {
+    const body = { orderType, price, shares };
+    if (state.mode === "PORTFOLIO" && state.activeStock) body.stockCode = state.activeStock;
+    await api(`/game/${state.sessionId}/orders`, { method: "POST", body: JSON.stringify(body) });
+    toast(t("orders.placed"));
+    $("order-price").value = "";
+    await loadOrders();
+  } catch (e) {
+    toast(e.message);
   }
 }
 
@@ -551,7 +780,7 @@ function setTradeEnabled(enabled) {
 
 async function loadLeaderboard() {
   try {
-    state.lbRows = await api("/leaderboard");
+    state.lbRows = await api("/leaderboard" + (window.qsSeason ? "?season=" + window.qsSeason : ""));
     renderLeaderboard();
   } catch (e) {
     /* 排行榜加载失败不打断游戏 */
@@ -602,6 +831,26 @@ const STRATEGY_DESCS = {
     zh: '价格跌破均线阈值买入，涨超阈值卖出——赌<span class="term" data-term="meanreversion">均值回归</span>。',
     en: 'Buy when price dips below the MA by the threshold, sell when it rises above — betting on <span class="term" data-term="meanreversion">mean reversion</span>.',
   },
+  RSI: {
+    zh: '<span class="term" data-term="rsi">RSI</span> 低于买入阈值（超卖）建仓，高于卖出阈值（超买）清仓。',
+    en: 'Buy when <span class="term" data-term="rsi">RSI</span> drops below the buy threshold (oversold), sell above the sell threshold (overbought).',
+  },
+  MACD: {
+    zh: '<span class="term" data-term="macd">MACD</span> 柱翻红（DIF 上穿 DEA）买入，翻绿清仓——经典趋势跟随。',
+    en: 'Buy when the <span class="term" data-term="macd">MACD</span> histogram turns positive, sell when negative — classic trend following.',
+  },
+  BOLL: {
+    zh: '价格跌破<span class="term" data-term="boll">布林带</span>下轨买入，涨破上轨卖出——波带均值回归。',
+    en: 'Buy when price pierces the lower <span class="term" data-term="boll">Bollinger band</span>, sell above the upper band.',
+  },
+  GRID: {
+    zh: '以首日价为基准画<span class="term" data-term="grid">网格</span>：每跌一格加一份仓，每涨一格减一份——震荡市收割机。',
+    en: 'A price <span class="term" data-term="grid">grid</span> anchored at day one: add a slice every step down, trim every step up — a range-market harvester.',
+  },
+  TURTLE: {
+    zh: '<span class="term" data-term="turtle">海龟策略</span>：突破 N 日高点买入，跌破 M 日低点离场——趋势突破派鼻祖。',
+    en: 'The <span class="term" data-term="turtle">Turtle</span> rules: buy an N-day breakout, exit on an M-day breakdown — the granddaddy of trend systems.',
+  },
   BUY_HOLD: {
     zh: '首日<span class="term" data-term="fullposition">全仓</span>买入持有到底，作为对照基准。',
     en: 'Buy <span class="term" data-term="fullposition">all-in</span> on day one and hold to the end — the benchmark.',
@@ -614,7 +863,7 @@ const STRATEGY_DESCS = {
 
 // ---------- 自定义策略条件编辑器 ----------
 
-const COND_FIELDS = ["CLOSE", "MA5", "MA20", "PCT_CHANGE"];
+const COND_FIELDS = ["CLOSE", "MA5", "MA20", "PCT_CHANGE", "RSI", "MACD_HIST", "BOLL_UP", "BOLL_MID", "BOLL_LOW"];
 const COND_OPS = ["GT", "LT", "CROSS_UP", "CROSS_DOWN"];
 const MAX_CONDS = 5;
 
@@ -689,7 +938,75 @@ function updateStrategyUi() {
   document.querySelectorAll(".bt-param").forEach((el) => {
     el.hidden = el.dataset.for !== strategy;
   });
+  $("bt-pos-wrap").hidden = strategy === "BUY_HOLD";
   $("bt-strategy-desc").innerHTML = pick(STRATEGY_DESCS[strategy]);
+}
+
+$("bt-pos").addEventListener("input", () => {
+  $("bt-pos-val").textContent = $("bt-pos").value + "%";
+});
+
+/** 从竞技场表单读出完整回测参数 (runBacktest 与策略分享码共用)。 */
+function collectArenaBody(username) {
+  const stockCode = $("bt-stock").value;
+  const strategy = $("bt-strategy").value;
+  const body = { username, stockCode, strategy };
+  if (strategy !== "BUY_HOLD") body.positionPct = parseInt($("bt-pos").value, 10);
+  if (strategy === "MA_CROSS") {
+    body.fastWindow = parseInt($("bt-fast").value, 10);
+    body.slowWindow = parseInt($("bt-slow").value, 10);
+  } else if (strategy === "MOMENTUM") {
+    body.lookbackDays = parseInt($("bt-lookback").value, 10);
+  } else if (strategy === "MEAN_REVERSION") {
+    body.maWindow = parseInt($("bt-mawin").value, 10);
+    body.threshold = parseFloat($("bt-threshold").value);
+  } else if (strategy === "RSI") {
+    body.rsiPeriod = parseInt($("bt-rsi-period").value, 10);
+    body.rsiBuy = parseInt($("bt-rsi-buy").value, 10);
+    body.rsiSell = parseInt($("bt-rsi-sell").value, 10);
+  } else if (strategy === "MACD") {
+    body.macdFast = parseInt($("bt-macd-fast").value, 10);
+    body.macdSlow = parseInt($("bt-macd-slow").value, 10);
+    body.macdSignal = parseInt($("bt-macd-signal").value, 10);
+  } else if (strategy === "BOLL") {
+    body.bollWindow = parseInt($("bt-boll-win").value, 10);
+    body.bollK = parseFloat($("bt-boll-k").value);
+  } else if (strategy === "GRID") {
+    body.gridPct = parseFloat($("bt-grid-pct").value);
+    body.gridLevels = parseInt($("bt-grid-levels").value, 10);
+  } else if (strategy === "TURTLE") {
+    body.turtleEntry = parseInt($("bt-turtle-entry").value, 10);
+    body.turtleExit = parseInt($("bt-turtle-exit").value, 10);
+  } else if (strategy === "CUSTOM") {
+    body.buyConditions = collectConds("buy-conds");
+    body.sellConditions = collectConds("sell-conds");
+  }
+  return body;
+}
+
+/** 用参数对象回填竞技场表单 (策略分享码导入 / 调参回填共用)。 */
+function fillArenaForm(body) {
+  if (body.strategy) $("bt-strategy").value = body.strategy;
+  if (body.positionPct != null) {
+    $("bt-pos").value = body.positionPct;
+    $("bt-pos-val").textContent = body.positionPct + "%";
+  }
+  const set = (id, v) => { if (v != null) $(id).value = v; };
+  set("bt-fast", body.fastWindow); set("bt-slow", body.slowWindow);
+  set("bt-lookback", body.lookbackDays);
+  set("bt-mawin", body.maWindow); set("bt-threshold", body.threshold);
+  set("bt-rsi-period", body.rsiPeriod); set("bt-rsi-buy", body.rsiBuy); set("bt-rsi-sell", body.rsiSell);
+  set("bt-macd-fast", body.macdFast); set("bt-macd-slow", body.macdSlow); set("bt-macd-signal", body.macdSignal);
+  set("bt-boll-win", body.bollWindow); set("bt-boll-k", body.bollK);
+  set("bt-grid-pct", body.gridPct); set("bt-grid-levels", body.gridLevels);
+  set("bt-turtle-entry", body.turtleEntry); set("bt-turtle-exit", body.turtleExit);
+  if (body.strategy === "CUSTOM") {
+    $("buy-conds").innerHTML = "";
+    $("sell-conds").innerHTML = "";
+    (body.buyConditions || []).forEach((c) => addCondRow("buy-conds", c));
+    (body.sellConditions || []).forEach((c) => addCondRow("sell-conds", c));
+  }
+  updateStrategyUi();
 }
 
 async function loadArenaStocks() {
@@ -726,27 +1043,17 @@ async function runBacktest() {
     return;
   }
   const strategy = $("bt-strategy").value;
-  const body = { username, stockCode, strategy };
-  if (strategy === "MA_CROSS") {
-    body.fastWindow = parseInt($("bt-fast").value, 10);
-    body.slowWindow = parseInt($("bt-slow").value, 10);
-  } else if (strategy === "MOMENTUM") {
-    body.lookbackDays = parseInt($("bt-lookback").value, 10);
-  } else if (strategy === "MEAN_REVERSION") {
-    body.maWindow = parseInt($("bt-mawin").value, 10);
-    body.threshold = parseFloat($("bt-threshold").value);
-  } else if (strategy === "CUSTOM") {
-    try {
-      body.buyConditions = collectConds("buy-conds");
-      body.sellConditions = collectConds("sell-conds");
-    } catch (e) {
-      toast(e.message);
-      return;
-    }
-    if (body.buyConditions.length === 0 || body.sellConditions.length === 0) {
-      toast(t("cond.needBoth"));
-      return;
-    }
+  let body;
+  try {
+    body = collectArenaBody(username);
+  } catch (e) {
+    toast(e.message);
+    return;
+  }
+  if (strategy === "CUSTOM"
+      && (!body.buyConditions.length || !body.sellConditions.length)) {
+    toast(t("cond.needBoth"));
+    return;
   }
   const btn = $("btn-backtest");
   btn.disabled = true;
@@ -766,7 +1073,18 @@ async function runBacktest() {
   }
 }
 
-const TUNABLE_STRATEGIES = ["MA_CROSS", "MOMENTUM", "MEAN_REVERSION"];
+const TUNABLE_STRATEGIES = ["MA_CROSS", "MOMENTUM", "MEAN_REVERSION", "RSI", "MACD", "BOLL", "GRID", "TURTLE"];
+
+/** tune 返回的 bestParams (通用键名) -> 表单字段回填映射。 */
+const BEST_PARAM_FILL = {
+  fast: "bt-fast", slow: "bt-slow", lookback: "bt-lookback",
+  maWindow: "bt-mawin", threshold: "bt-threshold",
+  rsiPeriod: "bt-rsi-period", rsiBuy: "bt-rsi-buy", rsiSell: "bt-rsi-sell",
+  macdFast: "bt-macd-fast", macdSlow: "bt-macd-slow", macdSignal: "bt-macd-signal",
+  bollWindow: "bt-boll-win", bollK: "bt-boll-k",
+  gridPct: "bt-grid-pct", gridLevels: "bt-grid-levels",
+  turtleEntry: "bt-turtle-entry", turtleExit: "bt-turtle-exit",
+};
 
 async function runTune() {
   const username = $("username").value.trim();
@@ -796,12 +1114,13 @@ async function runTune() {
       method: "POST",
       body: JSON.stringify({ username, stockCode, strategy }),
     });
-    if (res.fastWindow != null) $("bt-fast").value = res.fastWindow;
-    if (res.slowWindow != null) $("bt-slow").value = res.slowWindow;
-    if (res.lookbackDays != null) $("bt-lookback").value = res.lookbackDays;
-    if (res.maWindow != null) $("bt-mawin").value = res.maWindow;
-    if (res.threshold != null) $("bt-threshold").value = Number(res.threshold);
+    Object.entries(res.bestParams || {}).forEach(([k, v]) => {
+      const id = BEST_PARAM_FILL[k];
+      if (id) $(id).value = Number(v);
+    });
+    if ($("bt-pos-val")) $("bt-pos-val").textContent = $("bt-pos").value + "%";
     msg.textContent = t("arena.tuneMsg", res.triedCount, res.result.params || "--");
+    if (window.qsRenderHeatmap) window.qsRenderHeatmap(res);
     renderBacktestResult(res.result);
     $("bt-result").scrollIntoView({ behavior: "smooth", block: "nearest" });
     loadArenaBoard();
@@ -915,7 +1234,7 @@ function renderEquityChart(curve) {
 
 async function loadArenaBoard() {
   try {
-    state.arenaRows = await api("/backtest/leaderboard");
+    state.arenaRows = await api("/backtest/leaderboard" + (window.qsSeason ? "?season=" + window.qsSeason : ""));
     renderArenaBoard();
   } catch (e) {
     /* 排行榜加载失败不打断页面 */
@@ -995,17 +1314,44 @@ try {
   if (localStorage.getItem("qs_tour_done") && !localStorage.getItem("qs_help_seen")) openHelp();
 } catch (e) { /* 隐私模式下忽略 */ }
 
-// ---------- 界面切换: 对局 / 竞技场 / 学堂 ----------
+// ---------- 界面切换: 两级导航 (分组 + 子标签) ----------
 
-const VIEWS = ["game", "arena", "academy", "famous", "story", "lab", "quiz", "profile"];
-const navTabs = document.querySelectorAll("#main-nav .nav-tab");
+const NAV_GROUPS = {
+  home: ["home"],
+  play: ["game", "daily", "rooms"],
+  arenaG: ["arena", "ranking"],
+  learn: ["academy", "guess", "famous", "story", "quiz"],
+  labG: ["lab"],
+  me: ["profile", "history", "account"],
+};
+const VIEWS = Object.values(NAV_GROUPS).flat();
+const VIEW_GROUP = {};
+Object.entries(NAV_GROUPS).forEach(([g, vs]) => vs.forEach((v) => { VIEW_GROUP[v] = g; }));
+const groupTabs = document.querySelectorAll("#nav-groups .nav-group");
+let currentView = "home";
+
+function renderSubtabs(group, active) {
+  const wrap = $("nav-subtabs");
+  const views = NAV_GROUPS[group] || [];
+  wrap.hidden = views.length <= 1;
+  wrap.innerHTML = "";
+  views.forEach((v) => {
+    const b = document.createElement("button");
+    b.className = "nav-tab" + (v === active ? " active" : "");
+    b.dataset.view = v;
+    b.textContent = t("nav." + v);
+    b.addEventListener("click", () => switchView(v));
+    wrap.appendChild(b);
+  });
+}
 
 function switchView(name) {
-  if (!VIEWS.includes(name)) name = "game";
+  if (!VIEWS.includes(name)) name = "home";
+  const group = VIEW_GROUP[name];
+  currentView = name;
   VIEWS.forEach((v) => { $("view-" + v).hidden = v !== name; });
-  navTabs.forEach((b) => {
-    b.classList.toggle("active", b.dataset.view === name);
-  });
+  groupTabs.forEach((b) => b.classList.toggle("active", b.dataset.group === group));
+  renderSubtabs(group, name);
   try { localStorage.setItem("qs_view", name); } catch (e) { /* 隐私模式下忽略 */ }
   // 图表在隐藏容器中初始化时尺寸为 0, 切换到可见后需重算
   if (name === "game") chart.resize();
@@ -1013,12 +1359,13 @@ function switchView(name) {
   document.dispatchEvent(new CustomEvent("qs:view", { detail: name }));
 }
 
-navTabs.forEach((b) => {
-  b.addEventListener("click", () => switchView(b.dataset.view));
+// 点分组标签 = 进入该组第一个子页
+groupTabs.forEach((b) => {
+  b.addEventListener("click", () => switchView(NAV_GROUPS[b.dataset.group][0]));
 });
 
-let savedView = "game";
-try { savedView = localStorage.getItem("qs_view") || "game"; } catch (e) { /* 隐私模式下忽略 */ }
+let savedView = "home";
+try { savedView = localStorage.getItem("qs_view") || "home"; } catch (e) { /* 隐私模式下忽略 */ }
 switchView(savedView);
 
 // ---------- 深色 / 浅色主题 ----------
@@ -1056,6 +1403,7 @@ renderThemeBtn();
 
 document.addEventListener("qs:lang", () => {
   renderThemeBtn();
+  renderSubtabs(VIEW_GROUP[currentView], currentView);
   if (state.klines.length) renderChart();
   renderStockLabel();
   renderAiLevelLabel();
@@ -1063,6 +1411,9 @@ document.addEventListener("qs:lang", () => {
   if (state.lastStatus) renderStatus(state.lastStatus);
   syncTradeInputs();
   if (state.lastSettle) renderSettle(state.lastSettle);
+  renderPfTabs();
+  renderOrders();
+  if (state.lastStatus) renderPositions(state.lastStatus.positions);
   updateStrategyUi();
   renderArenaStockOptions();
   refreshCondLabels();
@@ -1074,13 +1425,24 @@ document.addEventListener("qs:lang", () => {
 // ---------- 绑定 ----------
 
 $("btn-start").addEventListener("click", () => guarded(startGame));
+$("btn-order").addEventListener("click", () => guarded(placeOrder));
+$("market-select").addEventListener("change", () => {
+  const m = $("market-select").value;
+  const ok = m === "US" || m === "CRYPTO";
+  $("adv-wrap").hidden = !ok;
+  if (!ok) $("adv-toggle").checked = false;
+});
 $("btn-tick").addEventListener("click", () => guarded(tick));
 $("btn-buy").addEventListener("click", () => guarded(() => trade("BUY")));
 $("btn-sell").addEventListener("click", () => guarded(() => trade("SELL")));
 $("btn-settle").addEventListener("click", () => {
   if (confirm(t("confirm.settle"))) guarded(settle);
 });
-$("btn-advisor").addEventListener("click", () => guarded(askAdvisor));
+$("btn-advisor").addEventListener("click", askAdvisor);
+$("btn-advisor-send").addEventListener("click", sendAdvisorQuestion);
+$("advisor-q").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sendAdvisorQuestion();
+});
 $("btn-review").addEventListener("click", askReview);
 $("username").addEventListener("keydown", (e) => {
   if (e.key === "Enter") guarded(startGame);
@@ -1277,18 +1639,16 @@ window.addEventListener("resize", () => {
 
 // ---------- 新手引导 (可随时重新打开) ----------
 
-const tourTab = (v) => document.querySelector(`#main-nav .nav-tab[data-view="${v}"]`);
+const tourTab = (g) => document.querySelector(`#nav-groups .nav-group[data-group="${g}"]`);
 const TOUR_STEPS = [
   { key: "welcome" },
   { key: "start", el: () => document.querySelector("header .start-box") },
-  { key: "game", view: "game", el: () => tourTab("game") },
-  { key: "arena", view: "arena", el: () => tourTab("arena") },
-  { key: "academy", view: "academy", el: () => tourTab("academy") },
-  { key: "famous", view: "famous", el: () => tourTab("famous") },
-  { key: "story", view: "story", el: () => tourTab("story") },
-  { key: "lab", view: "lab", el: () => tourTab("lab") },
-  { key: "quiz", view: "quiz", el: () => tourTab("quiz") },
-  { key: "profile", view: "profile", el: () => tourTab("profile") },
+  { key: "home", view: "home", el: () => tourTab("home") },
+  { key: "play", view: "game", el: () => tourTab("play") },
+  { key: "arenaG", view: "arena", el: () => tourTab("arenaG") },
+  { key: "learn", view: "academy", el: () => tourTab("learn") },
+  { key: "labG", view: "lab", el: () => tourTab("labG") },
+  { key: "me", view: "profile", el: () => tourTab("me") },
   { key: "help", el: () => $("btn-help") },
   { key: "end", el: () => $("btn-tour") },
 ];

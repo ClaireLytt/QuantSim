@@ -24,6 +24,13 @@ import com.quantsim.entity.DailyPrediction;
 import com.quantsim.entity.DailyPrice;
 import com.quantsim.entity.Stock;
 import com.quantsim.repository.AccountRepository;
+import com.quantsim.repository.DailyChallengeRepository;
+import com.quantsim.repository.PendingOrderRepository;
+import com.quantsim.repository.PositionRepository;
+import com.quantsim.repository.RoomMemberRepository;
+import com.quantsim.repository.RoomRepository;
+import com.quantsim.repository.SessionStockRepository;
+import com.quantsim.repository.UserProgressRepository;
 import com.quantsim.repository.DailyIndicatorRepository;
 import com.quantsim.repository.DailyPredictionRepository;
 import com.quantsim.repository.DailyPriceRepository;
@@ -44,6 +51,10 @@ import com.quantsim.repository.UserRepository;
         "quantsim.game.total-ticks=3",
         "quantsim.game.history-days=5",
         "quantsim.game.min-history-days=5",
+        // 本测试断言的是无摩擦价格数学, 费用归零
+        "quantsim.fees.stock.commission-rate=0",
+        "quantsim.fees.stock.min-commission=0",
+        "quantsim.fees.stock.stamp-tax-rate=0",
 })
 class GameApiIntegrationTest {
 
@@ -52,6 +63,14 @@ class GameApiIntegrationTest {
     @Autowired CacheManager cacheManager;
 
     @Autowired TransactionRepository transactionRepository;
+    @Autowired PendingOrderRepository cleanupOrderRepository;
+    @Autowired PositionRepository cleanupPositionRepository;
+    @Autowired SessionStockRepository cleanupSessionStockRepository;
+    @Autowired RoomMemberRepository cleanupRoomMemberRepository;
+    @Autowired RoomRepository cleanupRoomRepository;
+    @Autowired DailyChallengeRepository cleanupDailyChallengeRepository;
+    @Autowired UserProgressRepository cleanupUserProgressRepository;
+
     @Autowired AccountRepository accountRepository;
     @Autowired GameSessionRepository sessionRepository;
     @Autowired UserRepository userRepository;
@@ -62,6 +81,13 @@ class GameApiIntegrationTest {
 
     @BeforeEach
     void seed() {
+        cleanupOrderRepository.deleteAll();
+        cleanupPositionRepository.deleteAll();
+        cleanupSessionStockRepository.deleteAll();
+        cleanupRoomMemberRepository.deleteAll();
+        cleanupRoomRepository.deleteAll();
+        cleanupDailyChallengeRepository.deleteAll();
+        cleanupUserProgressRepository.deleteAll();
         transactionRepository.deleteAll();
         accountRepository.deleteAll();
         sessionRepository.deleteAll();

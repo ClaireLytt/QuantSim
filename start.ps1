@@ -1,5 +1,5 @@
-# QuantSim 一键启动: 启动后端, 就绪后自动打开浏览器
-# 用法: 双击 start.bat, 或在 PowerShell 里执行 .\start.ps1
+# QuantSim one-click launcher: start the backend, open the browser when ready
+# Usage: double-click start.bat, or run .\start.ps1 in PowerShell
 $backend = Join-Path $PSScriptRoot "backend"
 $url = "http://localhost:8080"
 
@@ -13,12 +13,12 @@ function Test-Backend {
 }
 
 if (Test-Backend) {
-    Write-Host "后端已在运行, 直接打开页面 $url"
+    Write-Host "Backend already running, opening $url"
     Start-Process $url
     exit 0
 }
 
-Write-Host "正在启动后端 (首次启动需下载依赖, 可能较慢)..."
+Write-Host "Starting backend (first run downloads dependencies and may be slow)..."
 $proc = Start-Process -FilePath "mvn.cmd" -ArgumentList "spring-boot:run" `
     -WorkingDirectory $backend -PassThru
 
@@ -26,15 +26,15 @@ $deadline = (Get-Date).AddMinutes(5)
 while ((Get-Date) -lt $deadline) {
     Start-Sleep -Seconds 2
     if ($proc.HasExited) {
-        Write-Host "后端启动失败, 请查看弹出窗口的日志 (常见原因: MySQL 未启动)" -ForegroundColor Red
+        Write-Host "Backend failed to start. Check the mvn window log (common cause: MySQL not running, or wrong port - set QUANTSIM_DB_PORT if MySQL is not on 3306)" -ForegroundColor Red
         exit 1
     }
     if (Test-Backend) {
         Start-Process $url
-        Write-Host "游戏已就绪: $url (关闭 mvn 窗口即停止后端)"
+        Write-Host "Game ready: $url (close the mvn window to stop the backend)"
         exit 0
     }
 }
 
-Write-Host "等待超时, 后端仍未就绪, 请查看 mvn 窗口日志" -ForegroundColor Red
+Write-Host "Timed out waiting for backend. Check the mvn window log" -ForegroundColor Red
 exit 1

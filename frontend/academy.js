@@ -19,6 +19,8 @@ let prog = loadProg();
 
 function saveProg() {
   try { localStorage.setItem(PROG_KEY, JSON.stringify(prog)); } catch (e) { /* 隐私模式下忽略 */ }
+  // 登录后防抖同步到云端 (auth.js 提供; 未加载/未登录时为空操作)
+  if (window.qsSyncProgress) window.qsSyncProgress();
 }
 
 // ---------- 动效工具 ----------
@@ -2878,7 +2880,7 @@ document.addEventListener("qs:settled", (e) => {
 
 // 视图切换时图表重算尺寸 (隐藏容器中初始化尺寸为 0)
 document.addEventListener("qs:view", (e) => {
-  if (e.detail === "academy" && guessChart) guessChart.resize();
+  if ((e.detail === "academy" || e.detail === "guess") && guessChart) guessChart.resize();
 });
 
 window.addEventListener("resize", () => {
