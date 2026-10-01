@@ -31,6 +31,15 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
 
     Optional<GameSession> findByUserIdAndChallengeDate(Long userId, java.time.LocalDate challengeDate);
 
+    /** 某用户玩过的全部每日挑战日期 (降序), 用于计算连续挑战 streak。 */
+    @Query("""
+            select s.challengeDate
+            from GameSession s
+            where s.userId = :userId and s.challengeDate is not null
+            order by s.challengeDate desc
+            """)
+    List<java.time.LocalDate> findChallengeDatesDesc(Long userId);
+
     @Query("""
             select s, u.username, st.name, st.code
             from GameSession s

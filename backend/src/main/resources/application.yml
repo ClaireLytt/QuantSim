@@ -2,8 +2,10 @@ server:
   port: 8080
   servlet:
     session:
-      timeout: 7d            # 登录态保持一周; 内存会话, 重启后重新登录即可
+      timeout: 7d            # 登录态保持一周
       cookie:
+        # Spring Session 默认叫 SESSION; 显式沿用 JSESSIONID, 与既有测试/文档保持一致
+        name: JSESSIONID
         same-site: lax
         http-only: true
 
@@ -16,6 +18,12 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  session:
+    # 会话落库 (SPRING_SESSION 表自动建): 发版重启不掉线, 多实例共享登录态
+    store-type: jdbc
+    timeout: 7d
+    jdbc:
+      initialize-schema: always
   cache:
     type: caffeine
     cache-names: stockData,newsByDate
@@ -26,6 +34,25 @@ spring:
     resources:
       # 默认取 backend/ 目录下启动时的相对路径; 从别处启动 jar 时用环境变量指定绝对路径
       static-locations: file:${QUANTSIM_FRONTEND_DIR:../frontend}/, classpath:/static/
+
+# 只暴露健康检查, 供容器编排/反向代理探活; 其余 actuator 端点一律不开
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+logging:
+  file:
+    name: ${QUANTSIM_LOG_FILE:logs/quantsim.log}
+  logback:
+    rollingpolicy:
+      max-history: 14
+
+app:
+  cors:
+    # 前后端同源部署, 默认不开 CORS; 确需跨域时用环境变量配置显式白名单 (逗号分隔), 严禁上 *
+    allowed-origins: ${QUANTSIM_CORS_ORIGINS:}
 
 quantsim:
   game:
@@ -51,7 +78,8 @@ quantsim:
       min-commission: 0
       stamp-tax-rate: 0
   refresh:
-    enabled: false            # 开启后按 cron 自动跑数据管道 refresh.py
+    # 上线保鲜: 每天凌晨自动跑数据管道 (增量拉取 -> 指标 -> 预测 -> 入库), 失败只记日志不影响游戏
+    enabled: ${QUANTSIM_REFRESH_ENABLED:true}
     cron: "0 30 2 * * *"
     command: "python refresh.py"
     workdir: "../data-pipeline"
@@ -61,3 +89,4 @@ quantsim:
     max-tokens: 500
     recent-days: 20          # 提供给 Agent 的近期 K 线天数
     timeout-seconds: 30
+    daily-limit: 300         # 全站 LLM 调用日配额 (成本硬顶), 超限当天禁用并提示明日再来

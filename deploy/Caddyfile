@@ -1,0 +1,14 @@
+# QuantSim 生产入口。
+# QUANTSIM_DOMAIN 未配置时监听 :80 (纯 HTTP, 内网/测试用);
+# 配置为真实域名 (如 quantsim.example.com) 后 Caddy 自动向 Let's Encrypt 申请并续期 HTTPS 证书。
+{$QUANTSIM_DOMAIN} {
+    encode gzip
+    reverse_proxy backend:8080
+
+    header {
+        # 基础安全响应头
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+}

@@ -313,4 +313,88 @@ class TradingDepthIntegrationTest {
         assertThat(settle.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(json(settle).path("returnRate").decimalValue()).isEqualByComparingTo("0.0000");
     }
+
+    // ---------- 挂单校验与生命周期补充 ----------
+
+    @Test
+    void orderValidationRejectsBadInput() {
+        seedStock("000001", "测试股", Market.STOCK);
+        seedBars(stockRepository.findAll().get(0),
+                "10", "10", "10", "10", "10", "10", "10", "10", "10", "10", "10", "10");
+        long sid = startGame("");
+
+        record OrderCase(String body, String expectMsgPart) {}
+        OrderCase[] cases = {
+                new OrderCase("{\"orderType\":\"MARKET\",\"price\":9.5,\"shares\":100}", "未知挂单类型"),
+                new OrderCase("{\"orderType\":\"LIMIT_BUY\",\"price\":0,\"shares\":100}", "触发价"),
+                new OrderCase("{\"orderType\":\"LIMIT_BUY\",\"price\":9.555,\"shares\":100}", "两位小数"),
+                new OrderCase("{\"orderType\":\"LIMIT_BUY\",\"price\":9.5,\"shares\":150}", "整数倍"),
+        };
+        for (OrderCase c : cases) {
+            ResponseEntity<String> resp = postJson("/api/game/" + sid + "/orders", c.body());
+            assertThat(resp.getStatusCode()).as(c.body()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(json(resp).path("message").asText()).as(c.body()).contains(c.expectMsgPart());
+        }
+    }
+
+    @Test
+    void openOrdersAreCapped() {
+        seedStock("000001", "测试股", Market.STOCK);
+        seedBars(stockRepository.findAll().get(0),
+                "10", "10", "10", "10", "10", "10", "10", "10", "10", "10", "10", "10");
+        long sid = startGame("");
+
+        // 默认上限 5 笔: 前 5 笔成功, 第 6 笔被拒
+        for (int i = 0; i < 5; i++) {
+            ResponseEntity<String> resp = postJson("/api/game/" + sid + "/orders",
+                    "{\"orderType\":\"LIMIT_BUY\",\"price\":5,\"shares\":100}");
+            assertThat(resp.getStatusCode()).as("第 %d 笔", i + 1).isEqualTo(HttpStatus.OK);
+        }
+        ResponseEntity<String> sixth = postJson("/api/game/" + sid + "/orders",
+                "{\"orderType\":\"LIMIT_BUY\",\"price\":5,\"shares\":100}");
+        assertThat(sixth.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(json(sixth).path("message").asText()).contains("上限");
+    }
+
+    @Test
+    void untriggeredOrderStaysOpenAcrossTicks() {
+        seedStock("000001", "测试股", Market.STOCK);
+        seedBars(stockRepository.findAll().get(0),
+                "10", "10", "10", "10", "10", "10", "10", "10", "10", "10", "10", "10");
+        long sid = startGame("");
+
+        // 触发价 5 远低于当日最低 9, 永远不会成交
+        postJson("/api/game/" + sid + "/orders", "{\"orderType\":\"LIMIT_BUY\",\"price\":5,\"shares\":100}");
+        JsonNode tickRes = tick(sid);
+        assertThat(tickRes.path("filledOrders")).isEmpty();
+        assertThat(tickRes.path("autoCancelledOrders").asInt()).isZero();
+
+        JsonNode orders = json(rest.getForEntity("/api/game/" + sid + "/orders", String.class));
+        assertThat(orders).hasSize(1);
+        assertThat(orders.get(0).path("status").asText()).isEqualTo("OPEN");
+    }
+
+    @Test
+    void cancelIsScopedToOwnSession() {
+        seedStock("000001", "测试股", Market.STOCK);
+        seedBars(stockRepository.findAll().get(0),
+                "10", "10", "10", "10", "10", "10", "10", "10", "10", "10", "10", "10");
+        long sidA = startGame("");
+        long sidB = startGame("");
+
+        long orderId = json(postJson("/api/game/" + sidA + "/orders",
+                "{\"orderType\":\"LIMIT_BUY\",\"price\":5,\"shares\":100}")).path("orderId").asLong();
+
+        // 用 B 对局去撤 A 的挂单: 拒绝, 且挂单仍然 OPEN
+        ResponseEntity<String> resp = postJson("/api/game/" + sidB + "/orders/" + orderId + "/cancel", "{}");
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(json(resp).path("message").asText()).contains("不属于该对局");
+        JsonNode orders = json(rest.getForEntity("/api/game/" + sidA + "/orders", String.class));
+        assertThat(orders.get(0).path("status").asText()).isEqualTo("OPEN");
+
+        // 本对局撤单成功
+        ResponseEntity<String> ok = postJson("/api/game/" + sidA + "/orders/" + orderId + "/cancel", "{}");
+        assertThat(ok.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(json(ok).get(0).path("status").asText()).isEqualTo("CANCELLED");
+    }
 }

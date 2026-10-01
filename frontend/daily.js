@@ -15,7 +15,12 @@
       info.textContent = t("daily.loading");
       return;
     }
-    info.textContent = t("daily.info", stockName(today.stockName, today.stockCode));
+    // 连续挑战 streak: 留存钩子, 有连续记录就展示在标的信息后
+    let text = t("daily.info", stockName(today.stockName, today.stockCode));
+    if (today.streak > 0) {
+      text += "　" + t("daily.streak", today.streak);
+    }
+    info.textContent = text;
     if (today.played) {
       btn.disabled = true;
       $("daily-msg").hidden = false;

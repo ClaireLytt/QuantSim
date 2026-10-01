@@ -22,6 +22,11 @@ public final class CurrentUser {
     }
 
     public static void login(HttpServletRequest request, Long userId) {
+        // 登录成功先作废旧会话再新建: 防会话固定攻击 (攻击者预置 session id 骗受害者登录)
+        HttpSession old = request.getSession(false);
+        if (old != null) {
+            old.invalidate();
+        }
         request.getSession(true).setAttribute(SESSION_KEY, userId);
     }
 

@@ -56,8 +56,29 @@ const I18N = {
     "trade.shares": "数量 ",
     "trade.buy": "买入",
     "trade.sell": "卖出",
-    "trade.range": "当日价格区间: {0} ~ {1}",
-    "trade.rangeEmpty": "当日价格区间: --",
+    "trade.range": "按当日收盘价成交: {0}（其他价位请用挂单）",
+    "trade.rangeEmpty": "按当日收盘价成交: --",
+    "stock.mystery": "神秘标的",
+    "settle.reveal": "🎭 揭晓！本局标的是 {0}（{1}）",
+    "ai.persona.easy": "韭菜盒子",
+    "ai.persona.normal": "稳健老王",
+    "ai.persona.hard": "量化狂魔",
+    "ai.persona.hell": "华尔街之狼",
+    "settle.taunt.win.0": "{0}：「这波是我赢了，下次别追高哦。」",
+    "settle.taunt.win.1": "{0}：「数据不会说谎，你的操作还是有点毛躁。」",
+    "settle.taunt.win.2": "{0}：「就差一点点，要不要再来一局？」",
+    "settle.taunt.lose.0": "{0}：「服了，这波你是真有点东西。」",
+    "settle.taunt.lose.1": "{0}：「我得回去重新训练模型了……」",
+    "settle.taunt.lose.2": "{0}：「人类的直觉，有时候真可怕。」",
+    "settle.taunt.tie.0": "{0}：「平手！英雄惜英雄。」",
+    "daily.streak": "🔥 连续挑战 {0} 天",
+    "news.decideTitle": "📰 明日快讯",
+    "news.decideHint": "以下事件将在明日发生。现在的仓位，你还满意吗？",
+    "news.goAhead": "直接推进 ➜",
+    "news.holdOn": "先调仓",
+    "sound.on": "🔊",
+    "sound.off": "🔇",
+    "sound.title": "音效开关",
     "btn.tick": "下一天 ➜",
     "btn.settle": "提前结算",
     "confirm.settle": "确定提前结算本局吗？",
@@ -534,7 +555,6 @@ const I18N = {
     "room.playing": "第 {0} 天",
     "room.created": "房间已创建，把房间码发给朋友吧",
     "room.joined": "已加入房间",
-    "room.full": "房间已满",
 
     "mode.title": "对局模式",
     "mode.classic": "单股经典",
@@ -545,8 +565,6 @@ const I18N = {
     "ailevel.hell": "地狱 AI",
 
     "status.fees": "累计费用",
-    "pf.positions": "持仓明细",
-    "pf.switch": "查看",
 
     "orders.title": "挂单",
     "orders.limitBuy": "限价买入",
@@ -566,8 +584,6 @@ const I18N = {
     "trade.fee": "手续费 {0}",
 
     "share.btn": "生成战绩卡",
-    "share.download": "下载图片",
-    "share.copyImg": "复制图片",
     "share.copied": "战绩卡已复制到剪贴板",
     "share.copyFail": "复制失败，请用下载按钮",
     "share.card.title": "QuantSim 战绩卡",
@@ -684,8 +700,29 @@ const I18N = {
     "trade.shares": "Quantity ",
     "trade.buy": "Buy",
     "trade.sell": "Sell",
-    "trade.range": "Today's price range: {0} ~ {1}",
-    "trade.rangeEmpty": "Today's price range: --",
+    "trade.range": "Fills at today's close: {0} (use pending orders for other prices)",
+    "trade.rangeEmpty": "Fills at today's close: --",
+    "stock.mystery": "Mystery Stock",
+    "settle.reveal": "🎭 Revealed! You were trading {0} ({1})",
+    "ai.persona.easy": "Rookie Bot",
+    "ai.persona.normal": "Steady Wang",
+    "ai.persona.hard": "Quant Maniac",
+    "ai.persona.hell": "Wolf of Wall St.",
+    "settle.taunt.win.0": "{0}: \"I win this round — stop chasing rallies.\"",
+    "settle.taunt.win.1": "{0}: \"The data never lies. Your trades were jumpy.\"",
+    "settle.taunt.win.2": "{0}: \"So close! One more round?\"",
+    "settle.taunt.lose.0": "{0}: \"Respect. You've actually got skills.\"",
+    "settle.taunt.lose.1": "{0}: \"Time to retrain my model...\"",
+    "settle.taunt.lose.2": "{0}: \"Human intuition is scary sometimes.\"",
+    "settle.taunt.tie.0": "{0}: \"A tie! Great minds trade alike.\"",
+    "daily.streak": "🔥 {0}-day streak",
+    "news.decideTitle": "📰 Tomorrow's News",
+    "news.decideHint": "These events break tomorrow. Happy with your position?",
+    "news.goAhead": "Advance anyway ➜",
+    "news.holdOn": "Adjust first",
+    "sound.on": "🔊",
+    "sound.off": "🔇",
+    "sound.title": "Toggle sound",
     "btn.tick": "Next Day ➜",
     "btn.settle": "Settle Now",
     "confirm.settle": "Settle this game early?",
@@ -1162,7 +1199,6 @@ const I18N = {
     "room.playing": "Day {0}",
     "room.created": "Room created — share the code with friends",
     "room.joined": "Joined the room",
-    "room.full": "Room is full",
 
     "mode.title": "Game mode",
     "mode.classic": "Classic (1 stock)",
@@ -1173,8 +1209,6 @@ const I18N = {
     "ailevel.hell": "Hell AI",
 
     "status.fees": "Fees paid",
-    "pf.positions": "Positions",
-    "pf.switch": "View",
 
     "orders.title": "Pending Orders",
     "orders.limitBuy": "Limit buy",
@@ -1194,8 +1228,6 @@ const I18N = {
     "trade.fee": "Fee {0}",
 
     "share.btn": "Share Card",
-    "share.download": "Download",
-    "share.copyImg": "Copy image",
     "share.copied": "Share card copied to clipboard",
     "share.copyFail": "Copy failed — use Download instead",
     "share.card.title": "QuantSim Result Card",
@@ -1314,6 +1346,8 @@ const STOCK_EN_BY_ZH = {};
 STOCK_I18N.forEach(([code, zh, en]) => { STOCK_EN_BY_CODE[code] = en; STOCK_EN_BY_ZH[zh] = en; });
 
 function stockName(name, code) {
+  // 竞技模式匿名标的: 后端下发 "???", 按当前语言显示「神秘标的 / Mystery Stock」
+  if (code === "???" || name === "神秘标的") return t("stock.mystery");
   if (LANG !== "en") return name;
   return STOCK_EN_BY_CODE[code] || STOCK_EN_BY_ZH[name] || name;
 }

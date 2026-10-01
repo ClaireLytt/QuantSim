@@ -1,4 +1,5 @@
 # Java
+backend/logs/
 backend/target/
 *.class
 
@@ -28,3 +29,7 @@ start-local.bat
 # OS
 Thumbs.db
 .DS_Store
+
+# UI 冒烟测试依赖
+tools/ui_smoke/node_modules/
+tools/ui_smoke/package-lock.json

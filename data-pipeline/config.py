@@ -1,4 +1,5 @@
 import os
+from datetime import date
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RAW_DIR = os.path.join(BASE_DIR, "data", "raw")
@@ -43,7 +44,8 @@ STOCK_POOL = [
 ]
 
 START_DATE = "20240101"
-END_DATE = "20251231"
+# 结束日期取"今天": 定时增量刷新 (refresh.py) 才能一直拉到最新交易日, 不再写死过期日期
+END_DATE = date.today().strftime("%Y%m%d")
 
 DB_CONFIG = {
     "host": os.environ.get("QUANTSIM_DB_HOST", "127.0.0.1"),

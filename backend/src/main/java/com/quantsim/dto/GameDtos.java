@@ -155,6 +155,7 @@ public final class GameDtos {
     /** 本局某一天的 AI 预测复盘: 预测方向与实际是否命中。 */
     public record PredictionDay(LocalDate date, boolean predictedUp, boolean correct) {}
 
+    /** stockCode/stockName: 结算时的真实标的 —— 竞技模式全程匿名, 在这里才揭晓。 */
     public record SettleResponse(
             Long sessionId,
             BigDecimal initialCash,
@@ -165,7 +166,9 @@ public final class GameDtos {
             BigDecimal holdReturnRate,
             BigDecimal maCrossReturnRate,
             List<PredictionDay> predictionDays,
-            String styleTag) {}
+            String styleTag,
+            String stockCode,
+            String stockName) {}
 
     /** LLM 交易顾问的解说与建议。 */
     public record AdvisorResponse(String advice, String model) {}

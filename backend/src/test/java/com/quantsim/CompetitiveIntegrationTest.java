@@ -52,6 +52,7 @@ import com.quantsim.repository.UserRepository;
         "quantsim.game.total-ticks=3",
         "quantsim.game.history-days=5",
         "quantsim.game.min-history-days=5",
+        "quantsim.auth.per-minute=10000",
         "quantsim.fees.stock.commission-rate=0",
         "quantsim.fees.stock.min-commission=0",
         "quantsim.fees.stock.stamp-tax-rate=0",
@@ -305,5 +306,90 @@ class CompetitiveIntegrationTest {
             }
         }
         assertThat(sawNews).isTrue();
+    }
+
+    // ---------- 安全回归: 属主校验 / 冒名 / 日期脱敏 (2026-10 审计修复, 防回退) ----------
+
+    @Test
+    void sessionAccessControlBlocksOtherUsersAndGuests() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        String alice = register("对局主人");
+        String bob = register("隔壁老王");
+        long sid = json(postJson("/api/daily/start", "{}", alice)).path("sessionId").asLong();
+
+        // 本人一切正常
+        assertThat(get("/api/game/" + sid + "/status", alice).getStatusCode()).isEqualTo(HttpStatus.OK);
+        // 其他登录用户 / 未登录者: 一律 404, 不泄露对局存在性
+        assertThat(get("/api/game/" + sid + "/status", bob).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(get("/api/game/" + sid + "/status", null).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(postJson("/api/game/" + sid + "/tick", "{}", bob).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(postJson("/api/game/" + sid + "/trade",
+                "{\"direction\":\"BUY\",\"price\":10.00,\"shares\":100}", null).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(postJson("/api/game/" + sid + "/settle", "{}", bob).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        // 对局没有被别人推进
+        assertThat(sessionRepository.findById(sid).orElseThrow().getDaysElapsed()).isZero();
+    }
+
+    @Test
+    void guestCannotImpersonateRegisteredUser() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        register("注册真身");
+
+        ResponseEntity<String> resp = postJson("/api/game/start",
+                "{\"username\":\"注册真身\"}", null);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(json(resp).path("message").asText()).contains("已被注册");
+        // 没有任何对局被记到真身名下
+        assertThat(sessionRepository.count()).isZero();
+    }
+
+    @Test
+    void loggedInStartIgnoresBodyUsername() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        String alice = register("会话身份");
+
+        long sid = json(postJson("/api/game/start", "{\"username\":\"被顶替的人\"}", alice))
+                .path("sessionId").asLong();
+        Long aliceId = userRepository.findByUsername("会话身份").orElseThrow().getUserId();
+        assertThat(sessionRepository.findById(sid).orElseThrow().getUserId()).isEqualTo(aliceId);
+        // body 里的假名不会被创建成用户
+        assertThat(userRepository.findByUsername("被顶替的人")).isEmpty();
+    }
+
+    @Test
+    void dailyChallengeHidesRealDates() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        String alice = register("脱敏甲");
+        JsonNode start = json(postJson("/api/daily/start", "{}", alice));
+        long sid = start.path("sessionId").asLong();
+
+        // 起始日被平移到虚拟纪元 (BlindDates.BASE), 而非 2024 年的真实日期
+        assertThat(start.path("startDate").asText()).isEqualTo("2000-01-03");
+        // 标的匿名: 进行中不暴露是哪只股票
+        assertThat(start.path("stockCode").asText()).isEqualTo("???");
+
+        JsonNode history = json(get("/api/game/" + sid + "/history", alice));
+        assertThat(history.path("currentTradeDate").asText()).isEqualTo("2000-01-03");
+        for (JsonNode k : history.path("klines")) {
+            assertThat(k.path("tradeDate").asText()).doesNotStartWith("2024");
+        }
+
+        // 推进一天: 日期仍是虚拟纪元序列 (种子数据为连续日历日), 且竞技模式不下发新闻
+        JsonNode tick = json(postJson("/api/game/" + sid + "/tick", "{}", alice));
+        assertThat(tick.path("currentTradeDate").asText()).isEqualTo("2000-01-04");
+        assertThat(tick.path("newBar").path("tradeDate").asText()).isEqualTo("2000-01-04");
+        assertThat(tick.path("news")).isEmpty();
+        assertThat(tick.path("status").path("currentTradeDate").asText()).startsWith("2000-");
+
+        // 结算时揭晓真实标的
+        JsonNode settle = json(postJson("/api/game/" + sid + "/settle", "{}", alice));
+        assertThat(settle.path("stockCode").asText()).isEqualTo("000001");
+        assertThat(settle.path("stockName").asText()).isNotEqualTo("神秘标的");
+        // 结算后 today 接口也可见真身
+        JsonNode after = json(get("/api/daily/today", alice));
+        assertThat(after.path("stockCode").asText()).isEqualTo("000001");
     }
 }

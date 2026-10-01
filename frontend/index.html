@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuantSim 虚拟炒股</title>
-  <link rel="stylesheet" href="style.css?v=20260922l">
+  <link rel="stylesheet" href="style.css?v=20261001d">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -37,6 +37,7 @@
       <button id="btn-account" class="ghost" data-i18n="auth.navBtn">登录</button>
       <button id="btn-lang" class="ghost" title="中文 / English">EN</button>
       <button id="btn-theme" class="ghost">浅色模式</button>
+      <button id="btn-sound" class="ghost" data-i18n-title="sound.title" title="音效开关">🔇</button>
     </div>
     <nav id="main-nav">
       <div id="nav-groups">
@@ -112,13 +113,13 @@
 
       <div class="card" id="trade-card">
         <h2 data-i18n="trade.title">交易面板</h2>
-        <label><span data-i18n="trade.price">价格 </span><input id="trade-price" type="number" step="0.01" min="0"></label>
+        <label><span data-i18n="trade.price">价格 </span><input id="trade-price" type="number" step="0.01" min="0" readonly></label>
         <label><span data-i18n="trade.shares">数量 </span><input id="trade-shares" type="number" step="100" min="100" value="100"></label>
         <div class="trade-buttons">
           <button id="btn-buy" class="buy" data-i18n="trade.buy">买入</button>
           <button id="btn-sell" class="sell" data-i18n="trade.sell">卖出</button>
         </div>
-        <p class="hint" id="price-range" data-i18n="trade.rangeEmpty">当日价格区间: --</p>
+        <p class="hint" id="price-range" data-i18n="trade.rangeEmpty">按当日收盘价成交: --</p>
       </div>
 
       <div class="card" id="orders-card" hidden>
@@ -149,6 +150,7 @@
         <p><span data-i18n="settle.final">最终资产: </span><span id="settle-final">--</span></p>
         <p class="settle-return"><span class="term" data-term="returnrate" data-i18n="settle.return">收益率: </span><span id="settle-return">--</span></p>
         <p id="settle-verdict" class="verdict"></p>
+        <p id="settle-taunt" class="settle-style" hidden></p>
         <p id="settle-style" class="settle-style" hidden></p>
         <div id="settle-pred" hidden>
           <p class="hint"><span data-i18n="settle.predTitle">AI 本局预测命中: </span><span id="settle-pred-rate">--</span></p>
@@ -605,6 +607,24 @@
 
   <div id="toast" hidden></div>
 
+  <!-- 明日快讯决策卡: 推进前弹出, 给玩家"先调仓还是直接推进"的选择 -->
+  <div id="newsgate-modal" class="modal-mask" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h2 data-i18n="news.decideTitle">📰 明日快讯</h2>
+      </div>
+      <div class="modal-body">
+        <p><strong id="newsgate-title"></strong></p>
+        <p id="newsgate-body"></p>
+        <p class="hint" data-i18n="news.decideHint">以下事件将在明日发生。现在的仓位，你还满意吗？</p>
+        <div class="trade-buttons">
+          <button id="btn-newsgate-hold" class="replay" data-i18n="news.holdOn">先调仓</button>
+          <button id="btn-newsgate-go" class="primary" data-i18n="news.goAhead">直接推进 ➜</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="help-modal" class="modal-mask" hidden>
     <div class="modal" role="dialog" aria-labelledby="help-title">
       <div class="modal-head">
@@ -877,13 +897,13 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20260930a"></script>
+  <script src="i18n.js?v=20261001c"></script>
   <script src="glossary.js?v=20260930a"></script>
-  <script src="app.js?v=20260930a"></script>
+  <script src="app.js?v=20261001c"></script>
   <script src="auth.js?v=20260930a"></script>
   <script src="academy.js?v=20260930a"></script>
   <script src="lab.js?v=20260930a"></script>
-  <script src="daily.js?v=20260930a"></script>
+  <script src="daily.js?v=20261001b"></script>
   <script src="rooms.js?v=20260930a"></script>
   <script src="ranking.js?v=20260930a"></script>
   <script src="sharecard.js?v=20260930a"></script>

@@ -39,6 +39,7 @@ import com.quantsim.repository.UserRepository;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "spring.datasource.url=jdbc:mysql://${QUANTSIM_DB_HOST:127.0.0.1}:${QUANTSIM_DB_PORT:3306}/quantsim_test"
                 + "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8&createDatabaseIfNotExist=true",
+        "quantsim.auth.per-minute=10000",
         "quantsim.fees.stock.commission-rate=0",
         "quantsim.fees.stock.min-commission=0",
         "quantsim.fees.stock.stamp-tax-rate=0",
@@ -178,5 +179,53 @@ class BacktestStrategyIntegrationTest {
         JsonNode rsi = json(postJson("/api/backtest/tune",
                 "{\"username\":\"策略测试\",\"stockCode\":\"000001\",\"strategy\":\"RSI\"}"));
         assertThat(rsi.path("triedCount").asInt()).isEqualTo(25);
+    }
+
+    // ---------- 参数校验与身份 ----------
+
+    @Test
+    void invalidParamsRejected() {
+        record BadCase(String body, String expectMsgPart) {}
+        BadCase[] cases = {
+                new BadCase("{\"username\":\"策略测试\",\"stockCode\":\"000001\",\"strategy\":\"FOO\"}",
+                        "未知策略"),
+                new BadCase("{\"username\":\"策略测试\",\"stockCode\":\"000001\",\"strategy\":\"MA_CROSS\","
+                        + "\"fastWindow\":30,\"slowWindow\":10}", "快线窗口必须小于"),
+                new BadCase("{\"username\":\"策略测试\",\"stockCode\":\"000001\",\"strategy\":\"RSI\","
+                        + "\"rsiPeriod\":99}", "RSI 周期"),
+                new BadCase("{\"username\":\"策略测试\",\"stockCode\":\"000001\",\"strategy\":\"CUSTOM\"}",
+                        "至少需要一条"),
+                new BadCase("{\"username\":\"策略测试\",\"stockCode\":\"999999\",\"strategy\":\"BUY_HOLD\"}",
+                        "股票不存在"),
+        };
+        for (BadCase c : cases) {
+            ResponseEntity<String> resp = postJson("/api/backtest/run", c.body());
+            assertThat(resp.getStatusCode().is4xxClientError()).as(c.body()).isTrue();
+            assertThat(json(resp).path("message").asText()).as(c.body()).contains(c.expectMsgPart());
+        }
+    }
+
+    @Test
+    void buyHoldStrategyMatchesHoldBenchmark() {
+        // BUY_HOLD 策略与买入持有基准同规则同费用 (此处费用为 0), 两条曲线终点必须一致
+        JsonNode res = run(",\"strategy\":\"BUY_HOLD\"");
+        assertThat(res.path("totalReturn").decimalValue())
+                .isEqualByComparingTo(res.path("holdReturn").decimalValue());
+        assertThat(res.path("tradeCount").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    void guestRunWithRegisteredUsernameRejected() {
+        // 注册一个真实账户 (TestRestTemplate 不保留 cookie, 后续请求仍是游客)
+        ResponseEntity<String> reg = postJson("/api/auth/register",
+                "{\"username\":\"真身股神\",\"password\":\"secret66\"}");
+        assertThat(reg.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        // 游客用注册用户名入榜: 拒绝, 且不产生回测记录
+        ResponseEntity<String> resp = postJson("/api/backtest/run",
+                "{\"username\":\"真身股神\",\"stockCode\":\"000001\",\"strategy\":\"BUY_HOLD\"}");
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(json(resp).path("message").asText()).contains("已被注册");
+        assertThat(backtestRepository.count()).isZero();
     }
 }

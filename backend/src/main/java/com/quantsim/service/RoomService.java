@@ -188,9 +188,12 @@ public class RoomService {
             });
         }
 
+        // 标的匿名: 房间未结算前不暴露是哪只股票, 结算时揭晓
         Stock stock = marketData.load(room.getStockId()).stock();
         return new RoomView(room.getCode(), room.getStatus().name(),
-                stock.getName(), stock.getCode(), room.getAiLevel(),
+                settledRoom ? stock.getName() : BlindDates.MASK_NAME,
+                settledRoom ? stock.getCode() : BlindDates.MASK_CODE,
+                room.getAiLevel(),
                 members.size(), room.getMaxPlayers(), room.getExpiresAt(),
                 joined, mySessionId, mySettled, standings);
     }

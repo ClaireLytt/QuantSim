@@ -134,7 +134,7 @@ public class BacktestService {
     }
 
     @Transactional
-    public RunResponse run(RunRequest request) {
+    public RunResponse run(RunRequest request, Long authUserId) {
         Strategy strategy = parseStrategy(request.strategy());
         Stock stock = stockRepository.findByCode(request.stockCode().trim())
                 .orElseThrow(() -> new NotFoundException("股票不存在: " + request.stockCode()));
@@ -162,7 +162,8 @@ public class BacktestService {
         BigDecimal[] holdCurve = buyAndHoldCurve(prices, initial, market);
         BigDecimal holdReturn = TradeMath.returnRate(holdCurve[n - 1], initial);
 
-        User user = userService.findOrCreate(request.username().trim());
+        // 已登录记会话身份; 游客昵称撞注册用户名会被拒 (防冒名入榜)
+        User user = userService.resolve(request.username(), authUserId);
         BacktestResult result = new BacktestResult();
         result.setSeason(java.time.YearMonth.now(GameService.GAME_ZONE).toString());
         result.setUserId(user.getUserId());
@@ -193,7 +194,7 @@ public class BacktestService {
 
     /** 网格搜索最优参数 (先看总收益, 平手比夏普), 返回全网格供热力图, 再用最优参数正式回测入榜。 */
     @Transactional
-    public TuneResponse tune(TuneRequest request) {
+    public TuneResponse tune(TuneRequest request, Long authUserId) {
         Strategy strategy = parseStrategy(request.strategy());
         Stock stock = stockRepository.findByCode(request.stockCode().trim())
                 .orElseThrow(() -> new NotFoundException("股票不存在: " + request.stockCode()));
@@ -222,7 +223,7 @@ public class BacktestService {
             }
         }
 
-        RunResponse result = run(best.rebuild.apply(request));
+        RunResponse result = run(best.rebuild.apply(request), authUserId);
         StrategyParams bp = best.params;
         return new TuneResponse(strategy.name(), grid.points.size(),
                 strategy == Strategy.MA_CROSS ? bp.fast() : null,

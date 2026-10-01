@@ -53,6 +53,7 @@ import com.quantsim.repository.GameSessionRepository;
 import com.quantsim.repository.SessionStockRepository;
 import com.quantsim.repository.StockRepository;
 import com.quantsim.repository.TransactionRepository;
+import com.quantsim.repository.UserRepository;
 import com.quantsim.service.MarketDataService.StockData;
 import com.quantsim.service.OrderService.FillSummary;
 
@@ -66,6 +67,7 @@ public class GameService {
     private final DailyPriceRepository priceRepository;
     private final MarketDataService marketData;
     private final UserService userService;
+    private final UserRepository userRepository;
     private final GameSessionRepository sessionRepository;
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
@@ -93,13 +95,9 @@ public class GameService {
     private static final int HOLDER_MAX_TRADES = 2;
 
     @Transactional
-    public StartGameResponse startGame(StartGameRequest request) {
-        // trim 防止 " alice" 和 "alice" 被当成两个用户
-        String username = request.username().trim();
-        if (username.isEmpty()) {
-            throw new BusinessException("用户名不能为空");
-        }
-        User user = userService.findOrCreate(username);
+    public StartGameResponse startGame(StartGameRequest request, Long authUserId) {
+        // 已登录以会话身份为准; 游客昵称撞注册用户名会被拒 (防冒名刷榜)
+        User user = userService.resolve(request.username(), authUserId);
         Market market = parseMarket(request.market());
         AiLevel aiLevel = parseAiLevel(request.aiLevel());
         String mode = parseMode(request.mode());
@@ -127,6 +125,22 @@ public class GameService {
         int startIdx = randomStartIdx(counts.get(stockId), random);
         LocalDate startDate = marketData.load(stockId).prices().get(startIdx).getTradeDate();
         return persistSession(user, List.of(stockId), startDate, aiLevel, "CLASSIC", advanced, null);
+    }
+
+    /**
+     * 会话级访问控制: 注册用户的对局只有本人可读写, 其他人一律 404 (不泄露存在性)。
+     * 游客对局无法绑定身份, 保持开放 (sessionId 不可枚举性有限, 已在 CLAUDE.md 记录)。
+     */
+    @Transactional(readOnly = true)
+    public void requireAccess(Long sessionId, Long authUserId) {
+        GameSession session = getSession(sessionId);
+        if (session.getUserId() == null || session.getUserId().equals(authUserId)) {
+            return;
+        }
+        User owner = userRepository.findById(session.getUserId()).orElse(null);
+        if (owner != null && owner.getPasswordHash() != null) {
+            throw new NotFoundException("对局不存在: " + sessionId);
+        }
     }
 
     /** 每日挑战 / 房间等确定性开局: 由调用方指定标的与起始日。 */
@@ -242,7 +256,8 @@ public class GameService {
         List<StockLite> stocks = new ArrayList<>();
         for (int slot = 0; slot < stockIds.size(); slot++) {
             Stock st = marketData.load(stockIds.get(slot)).stock();
-            stocks.add(new StockLite(st.getCode(), st.getName()));
+            stocks.add(new StockLite(BlindDates.maskCode(session, st.getCode()),
+                    BlindDates.maskName(session, st.getName())));
             if ("PORTFOLIO".equals(mode)) {
                 SessionStock ss = new SessionStock();
                 ss.setSessionId(session.getSessionId());
@@ -254,9 +269,12 @@ public class GameService {
 
         Stock stock = marketData.load(stockIds.get(0)).stock();
         return new StartGameResponse(
-                session.getSessionId(), stock.getCode(), stock.getName(),
+                session.getSessionId(),
+                BlindDates.maskCode(session, stock.getCode()),
+                BlindDates.maskName(session, stock.getName()),
                 stock.getMarket().name(), stock.getMarket().getLotSize(),
-                startDate, props.getInitialCash(), props.getTotalTicks(), aiLevel.name(),
+                BlindDates.mask(session, startDate),
+                props.getInitialCash(), props.getTotalTicks(), aiLevel.name(),
                 mode, advanced, stocks, session.getStatus().name());
     }
 
@@ -268,7 +286,8 @@ public class GameService {
         List<StockLite> stocks = tradeEngine.stockIds(session).stream()
                 .map(sid -> {
                     Stock st = marketData.load(sid).stock();
-                    return new StockLite(st.getCode(), st.getName());
+                    return new StockLite(BlindDates.maskCode(session, st.getCode()),
+                            BlindDates.maskName(session, st.getName()));
                 })
                 .toList();
         String levelName = AiLevel.NORMAL.name();
@@ -278,9 +297,12 @@ public class GameService {
                 break;
             }
         }
-        return new StartGameResponse(session.getSessionId(), stock.getCode(), stock.getName(),
+        return new StartGameResponse(session.getSessionId(),
+                BlindDates.maskCode(session, stock.getCode()),
+                BlindDates.maskName(session, stock.getName()),
                 stock.getMarket().name(), stock.getMarket().getLotSize(),
-                session.getStartDate(), session.getInitialCash(), props.getTotalTicks(),
+                BlindDates.mask(session, session.getStartDate()),
+                session.getInitialCash(), props.getTotalTicks(),
                 levelName, session.getMode(), session.isAdvanced(), stocks,
                 session.getStatus().name());
     }
@@ -304,11 +326,14 @@ public class GameService {
         // 起始日往前 historyDays 根 + 起始日到当前日的已推进部分
         int fromIdx = Math.max(0, startIdx - props.getHistoryDays() + 1);
         List<KlinePoint> klines = sd.prices().subList(fromIdx, curIdx + 1).stream()
-                .map(p -> toKlinePoint(p, sd.indicators().get(p.getTradeDate())))
+                .map(p -> toKlinePoint(session, p, sd.indicators().get(p.getTradeDate())))
                 .toList();
         return new HistoryResponse(
-                sessionId, stock.getCode(), stock.getName(),
-                session.getStartDate(), session.getCurrentTradeDate(), klines);
+                sessionId,
+                BlindDates.maskCode(session, stock.getCode()),
+                BlindDates.maskName(session, stock.getName()),
+                BlindDates.mask(session, session.getStartDate()),
+                BlindDates.mask(session, session.getCurrentTradeDate()), klines);
     }
 
     @Transactional
@@ -330,7 +355,7 @@ public class GameService {
         session.setDaysElapsed(session.getDaysElapsed() + 1);
         int daysElapsed = session.getDaysElapsed();
 
-        KlinePoint bar = toKlinePoint(next, sd.indicators().get(next.getTradeDate()));
+        KlinePoint bar = toKlinePoint(session, next, sd.indicators().get(next.getTradeDate()));
 
         // 新交易日揭晓后: 撮合挂单 -> 进阶模式保证金检查
         Account account = accountRepository.findWithLockBySessionId(sessionId)
@@ -356,11 +381,31 @@ public class GameService {
 
         // 内嵌账户快照, 前端 tick 后无需再请求 /status
         StatusResponse status = buildStatus(session, account, sd);
-        List<NewsItem> news = newsService.eventsFor(sd.stock(), next.getTradeDate());
+        // 竞技模式不下发新闻: 事件文本 (如 "924行情") 会暴露隐藏窗口的真实时间
+        List<NewsItem> news = BlindDates.blind(session)
+                ? List.of() : newsService.eventsFor(sd.stock(), next.getTradeDate());
 
-        return new TickResponse(next.getTradeDate(), daysElapsed, props.getTotalTicks(),
+        return new TickResponse(BlindDates.mask(session, next.getTradeDate()), daysElapsed, props.getTotalTicks(),
                 settled, bar, settleResult, status,
                 fills.filled(), fills.autoCancelled(), liquidatedNow, news);
+    }
+
+    /**
+     * 明日快讯预告: 在揭晓次日 K 线之前先下发事件, 给玩家"要不要先调仓"的决策时刻。
+     * 只透露事件文本不透露行情, 是设计好的信息差玩法; 竞技模式 (防剧透) 不提供。
+     */
+    @Transactional(readOnly = true)
+    public List<NewsItem> upcomingNews(Long sessionId) {
+        GameSession session = getSession(sessionId);
+        if (session.getStatus() != GameSession.Status.IN_PROGRESS || BlindDates.blind(session)) {
+            return List.of();
+        }
+        StockData sd = marketData.load(session.getStockId());
+        Integer curIdx = sd.indexOf(session.getCurrentTradeDate());
+        if (curIdx == null || curIdx + 1 >= sd.prices().size()) {
+            return List.of();
+        }
+        return newsService.eventsFor(sd.stock(), sd.prices().get(curIdx + 1).getTradeDate());
     }
 
     /** 净值归零强平: 全部持仓按现价了结 (含费用), 现金落定。 */
@@ -405,9 +450,10 @@ public class GameService {
         if (bar == null) {
             throw new BusinessException("当前交易日行情缺失");
         }
-        if (price.compareTo(bar.getLow()) < 0 || price.compareTo(bar.getHigh()) > 0) {
-            throw new BusinessException(String.format(
-                    "委托价 %s 超出当日价格区间 [%s, %s]", price, bar.getLow(), bar.getHigh()));
+        // 当日 K 线已揭晓, 若仍允许区间内任意价成交, 玩家可每天低买高卖无风险套利刷榜。
+        // 手动交易一律按当日收盘价撮合; 想按其他价位成交请用挂单 (次日按 OHLC 触发)。
+        if (price.compareTo(bar.getClose()) != 0) {
+            throw new BusinessException("对局内交易按当日收盘价成交, 当前收盘价 " + bar.getClose().toPlainString());
         }
 
         Account account = accountRepository.findWithLockBySessionId(sessionId)
@@ -509,9 +555,10 @@ public class GameService {
         session.setStatus(GameSession.Status.SETTLED);
         session.setFinalReturnRate(returnRate);
 
+        // 已结算: 竞技模式在此揭晓真实标的 (进行中全程匿名)
         return new SettleResponse(session.getSessionId(), initial,
                 finalAssets, returnRate, aiFinal, aiReturn, holdReturn, maCrossReturn,
-                predictionDays, styleTag);
+                predictionDays, styleTag, sd.stock().getCode(), sd.stock().getName());
     }
 
     /** 逐日复盘 AI 预测: 每天的"次日涨跌"预测 vs 实际走势 (最后一天没有次日, 不计入)。 */
@@ -525,7 +572,8 @@ public class GameService {
             }
             boolean predictedUp = pred.getProbUp().doubleValue() >= PROB_UP_THRESHOLD;
             boolean actualUp = sd.prices().get(i + 1).getClose().compareTo(p.getClose()) > 0;
-            days.add(new PredictionDay(p.getTradeDate(), predictedUp, predictedUp == actualUp));
+            days.add(new PredictionDay(BlindDates.mask(session, p.getTradeDate()),
+                    predictedUp, predictedUp == actualUp));
         }
         return days;
     }
@@ -735,7 +783,8 @@ public class GameService {
         }
 
         return new StatusResponse(
-                session.getSessionId(), session.getStatus().name(), session.getCurrentTradeDate(),
+                session.getSessionId(), session.getStatus().name(),
+                BlindDates.mask(session, session.getCurrentTradeDate()),
                 session.getDaysElapsed(), props.getTotalTicks(),
                 account.getCashBalance(), account.getHoldingShares(), account.getHoldingCost(),
                 currentPrice, marketValue, totalAssets, floatingPnl, returnRate,
@@ -811,9 +860,11 @@ public class GameService {
         }
     }
 
-    private KlinePoint toKlinePoint(DailyPrice p, DailyIndicator ind) {
+    /** 组装 K 线点; 竞技模式日期脱敏 (见 BlindDates)。 */
+    private KlinePoint toKlinePoint(GameSession session, DailyPrice p, DailyIndicator ind) {
         return new KlinePoint(
-                p.getTradeDate(), p.getOpen(), p.getHigh(), p.getLow(), p.getClose(), p.getVolume(),
+                BlindDates.mask(session, p.getTradeDate()),
+                p.getOpen(), p.getHigh(), p.getLow(), p.getClose(), p.getVolume(),
                 ind == null ? null : ind.getMa5(),
                 ind == null ? null : ind.getMa20(),
                 ind == null ? null : ind.getPctChange());

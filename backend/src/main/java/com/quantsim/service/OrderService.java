@@ -75,13 +75,13 @@ public class OrderService {
         order.setShares(shares);
         order.setPlacedDate(session.getCurrentTradeDate());
         order = orderRepository.save(order);
-        return toInfo(order, sd.stock().getCode());
+        return toInfo(session, order, sd.stock().getCode());
     }
 
     @Transactional(readOnly = true)
     public List<OrderInfo> list(GameSession session) {
         return orderRepository.findBySessionIdOrderByCreatedAtAsc(session.getSessionId()).stream()
-                .map(o -> toInfo(o, marketData.load(o.getStockId()).stock().getCode()))
+                .map(o -> toInfo(session, o, marketData.load(o.getStockId()).stock().getCode()))
                 .toList();
     }
 
@@ -129,7 +129,7 @@ public class OrderService {
                 order.setFilledDate(session.getCurrentTradeDate());
                 order.setFilledPrice(fillPrice);
                 filled.add(new FilledOrder(order.getOrderType().name(), fillPrice,
-                        order.getShares(), sd.stock().getCode()));
+                        order.getShares(), BlindDates.maskCode(session, sd.stock().getCode())));
             }
             orderRepository.save(order);
         }
@@ -144,9 +144,11 @@ public class OrderService {
         };
     }
 
-    private OrderInfo toInfo(PendingOrder o, String stockCode) {
+    /** 竞技模式挂单日期与标的代码同样脱敏, 与 K 线口径一致。 */
+    private OrderInfo toInfo(GameSession session, PendingOrder o, String stockCode) {
         return new OrderInfo(o.getOrderId(), o.getOrderType().name(), o.getTriggerPrice(),
-                o.getShares(), o.getStatus().name(), stockCode, o.getPlacedDate(),
-                o.getFilledDate(), o.getFilledPrice());
+                o.getShares(), o.getStatus().name(), BlindDates.maskCode(session, stockCode),
+                BlindDates.mask(session, o.getPlacedDate()),
+                BlindDates.mask(session, o.getFilledDate()), o.getFilledPrice());
     }
 }

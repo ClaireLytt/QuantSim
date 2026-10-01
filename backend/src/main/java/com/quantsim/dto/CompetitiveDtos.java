@@ -14,6 +14,7 @@ public final class CompetitiveDtos {
 
     // ---------- 每日挑战 ----------
 
+    /** streak: 含今天在内的连续挑战天数 (今天没玩则按截止昨天计), 用于留存钩子展示。 */
     public record DailyToday(
             LocalDate date,
             String stockCode,
@@ -21,7 +22,8 @@ public final class CompetitiveDtos {
             String market,
             boolean played,
             Long sessionId,
-            boolean settled) {}
+            boolean settled,
+            int streak) {}
 
     public record DailyBoardEntry(
             String username,

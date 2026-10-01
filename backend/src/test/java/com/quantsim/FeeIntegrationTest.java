@@ -178,4 +178,36 @@ class FeeIntegrationTest {
         assertThat(holdReturn).isLessThan(0.0);
         assertThat(holdReturn).isGreaterThan(-0.001);
     }
+
+    @Test
+    void largeTradeUsesRateNotMinimum() {
+        long sid = json(postJson("/api/game/start", "{\"username\":\"费用测试\",\"aiLevel\":\"EASY\"}"))
+                .path("sessionId").asLong();
+
+        // 买 9900 股 @10: gross=99000, 佣金 99000×0.00025=24.75 (高于最低 5 元, 按费率收)
+        ResponseEntity<String> buy = postJson("/api/game/" + sid + "/trade",
+                "{\"direction\":\"BUY\",\"price\":10,\"shares\":9900}");
+        assertThat(buy.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(json(buy).path("fee").decimalValue()).isEqualByComparingTo("24.75");
+        assertThat(json(buy).path("cashBalance").decimalValue()).isEqualByComparingTo("975.25");
+
+        // 卖 9900 股 @10: 佣金 24.75 + 印花税 99000×0.0005=49.50 = 74.25
+        ResponseEntity<String> sell = postJson("/api/game/" + sid + "/trade",
+                "{\"direction\":\"SELL\",\"price\":10,\"shares\":9900}");
+        assertThat(json(sell).path("fee").decimalValue()).isEqualByComparingTo("74.25");
+        assertThat(json(sell).path("cashBalance").decimalValue()).isEqualByComparingTo("99901.00");
+    }
+
+    @Test
+    void feesAccumulateIntoSettleReturn() {
+        long sid = json(postJson("/api/game/start", "{\"username\":\"费用测试\",\"aiLevel\":\"EASY\"}"))
+                .path("sessionId").asLong();
+
+        // 一买一卖 (100 股 @10, 费用 5 + 5.50), 平价行情下收益率 = -10.50/100000 = -0.0001 (4 位舍入)
+        postJson("/api/game/" + sid + "/trade", "{\"direction\":\"BUY\",\"price\":10,\"shares\":100}");
+        postJson("/api/game/" + sid + "/trade", "{\"direction\":\"SELL\",\"price\":10,\"shares\":100}");
+        JsonNode settle = json(postJson("/api/game/" + sid + "/settle", "{}"));
+        assertThat(settle.path("finalAssets").decimalValue()).isEqualByComparingTo("99989.50");
+        assertThat(settle.path("returnRate").decimalValue()).isEqualByComparingTo("-0.0001");
+    }
 }

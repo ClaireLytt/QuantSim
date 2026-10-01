@@ -52,9 +52,15 @@ public class DailyChallengeService {
         DailyChallenge challenge = getOrCreate(date);
         Stock stock = marketData.load(challenge.getStockId()).stock();
         GameSession mine = sessionRepository.findByUserIdAndChallengeDate(userId, date).orElse(null);
-        return new DailyToday(date, stock.getCode(), stock.getName(), stock.getMarket().name(),
+        // 标的匿名: 自己结算前不暴露是哪只股票 (防拿代码去研究所查全量历史作弊)
+        boolean revealed = mine != null && mine.getStatus() == GameSession.Status.SETTLED;
+        return new DailyToday(date,
+                revealed ? stock.getCode() : BlindDates.MASK_CODE,
+                revealed ? stock.getName() : BlindDates.MASK_NAME,
+                stock.getMarket().name(),
                 mine != null, mine == null ? null : mine.getSessionId(),
-                mine != null && mine.getStatus() == GameSession.Status.SETTLED);
+                mine != null && mine.getStatus() == GameSession.Status.SETTLED,
+                streak(userId, date));
     }
 
     @Transactional
@@ -78,14 +84,36 @@ public class DailyChallengeService {
     @Transactional(readOnly = true)
     public List<DailyBoardEntry> leaderboard(LocalDate date) {
         LocalDate day = date == null ? LocalDate.now(GameService.GAME_ZONE) : date;
+        // 当天的榜单隐藏标的 (未玩的人看到会剧透), 历史日期正常展示
+        boolean maskStock = day.equals(LocalDate.now(GameService.GAME_ZONE));
         return sessionRepository.findDailyBoard(day, GameSession.Status.SETTLED,
                         PageRequest.of(0, props.getLeaderboardSize())).stream()
                 .map(row -> {
                     GameSession s = (GameSession) row[0];
-                    return new DailyBoardEntry((String) row[1], (String) row[2], (String) row[3],
+                    return new DailyBoardEntry((String) row[1],
+                            maskStock ? BlindDates.MASK_NAME : (String) row[2],
+                            maskStock ? BlindDates.MASK_CODE : (String) row[3],
                             s.getFinalReturnRate());
                 })
                 .toList();
+    }
+
+    /** 连续挑战天数: 从 today (没玩则从昨天) 往回数连续参与的日子。 */
+    private int streak(Long userId, LocalDate today) {
+        List<LocalDate> days = sessionRepository.findChallengeDatesDesc(userId);
+        if (days.isEmpty()) {
+            return 0;
+        }
+        LocalDate expect = days.get(0).equals(today) ? today : today.minusDays(1);
+        int count = 0;
+        for (LocalDate d : days) {
+            if (!d.equals(expect)) {
+                break;
+            }
+            count++;
+            expect = expect.minusDays(1);
+        }
+        return count;
     }
 
     private DailyChallenge getOrCreate(LocalDate date) {

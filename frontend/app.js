@@ -233,8 +233,10 @@ function updateDayLabel() {
 }
 
 function renderAiLevelLabel() {
-  $("ai-level-label").textContent =
-    state.aiLevel ? t("ailevel." + state.aiLevel.toLowerCase()) : "";
+  if (!state.aiLevel) { $("ai-level-label").textContent = ""; return; }
+  // AI 对手拟人化: 每档难度一个人格名, 让"对手"有实体感
+  const key = state.aiLevel.toLowerCase();
+  $("ai-level-label").textContent = `${t("ai.persona." + key)} · ${t("ailevel." + key)}`;
 }
 
 async function startGame() {
@@ -282,6 +284,8 @@ async function enterGame(res) {
     state.lastStatus = null;
     state.lastSettle = null;
     state.trades = [];
+    // 新对局重置快讯决策门, 否则上一局的拦截记录会让新局同天数时漏弹一次
+    newsGateDay = -1;
 
     switchView("game");
     $("game-intro").hidden = true;
@@ -348,9 +352,10 @@ async function tick() {
     (res.filledOrders || []).forEach((f) => {
       toast(t("orders.filled", t(ORDER_TYPE_KEY[f.orderType] || f.orderType), f.shares, fmtMoney(f.price)));
     });
+    if ((res.filledOrders || []).length) playSound("fill");
     if (res.autoCancelledOrders > 0) toast(t("orders.autoCancelled"));
     if ((res.filledOrders || []).length || res.autoCancelledOrders > 0 || state.orders.length) loadOrders();
-    if (res.liquidated) toast(t("adv.liquidated"));
+    if (res.liquidated) { toast(t("adv.liquidated")); flashScreen(); playSound("lose"); }
     if (res.news && res.news.length && window.qsShowNews) window.qsShowNews(res.news, res.daysElapsed);
     if (res.settled) {
       showSettle(res.settleResult);
@@ -381,6 +386,7 @@ async function trade(direction) {
     // 复盘报告需要在前端记录每笔成交对应的 K 线位置
     const idx = state.klines.length - 1;
     state.trades.push({ idx, date: state.klines[idx].tradeDate, dir: direction, price, shares });
+    playSound(direction === "BUY" ? "buy" : "sell");
     let msg = t(direction === "BUY" ? "toast.buyOk" : "toast.sellOk", shares);
     if (res.fee && Number(res.fee) > 0) msg += " · " + t("trade.fee", fmtMoney(res.fee));
     toast(msg);
@@ -572,8 +578,9 @@ function updateSessionBar(currentDate, daysElapsed) {
 function syncTradeInputs() {
   const last = state.klines[state.klines.length - 1];
   if (last) {
+    // 手动交易只按当日收盘价成交 (后端强校验, 防低买高卖套利), 输入框只读展示
     $("trade-price").value = last.close;
-    $("price-range").textContent = t("trade.range", last.low, last.high);
+    $("price-range").textContent = t("trade.range", last.close);
   }
 }
 
@@ -687,6 +694,8 @@ function showSettle(result) {
   state.settled = true;
   setTradeEnabled(false);
   renderSettle(result);
+  revealMysteryStock(result);
+  celebrateSettle(result);
   toast(t("settle.done"));
   loadLeaderboard();
   document.dispatchEvent(new CustomEvent("qs:settled", { detail: result }));
@@ -754,8 +763,10 @@ function renderComparison(result) {
   setCell("cmp-ma", result.maCrossReturnRate);
 
   const verdict = $("settle-verdict");
+  const taunt = $("settle-taunt");
   if (result.aiReturnRate == null) {
     verdict.textContent = "";
+    taunt.hidden = true;
     return;
   }
   const you = Number(result.returnRate);
@@ -770,10 +781,99 @@ function renderComparison(result) {
     verdict.textContent = t("verdict.tie");
     verdict.className = "verdict";
   }
+  // AI 人格按胜负说一句台词 (win 池 = AI 赢)
+  const persona = t("ai.persona." + (state.aiLevel || "NORMAL").toLowerCase());
+  const tauntKey = you > aiR
+    ? "settle.taunt.lose." + Math.floor(Math.random() * 3)
+    : you < aiR
+      ? "settle.taunt.win." + Math.floor(Math.random() * 3)
+      : "settle.taunt.tie.0";
+  taunt.textContent = t(tauntKey, persona);
+  taunt.hidden = false;
+}
+
+// ---------- 结算仪式感 ----------
+
+// 竞技模式结算揭晓真实标的 (进行中全程显示「神秘标的」)
+function revealMysteryStock(result) {
+  if (state.stockCode !== "???" || !result.stockCode) return;
+  state.stockCode = result.stockCode;
+  state.stockName = result.stockName;
+  state.activeStock = result.stockCode;
+  renderStockLabel();
+  toast(t("settle.reveal", stockName(result.stockName, result.stockCode), result.stockCode));
+}
+
+// 跑赢 AI 撒彩带 + 胜利音效; 输给 AI 低音提示 (动画走 CSS, reduced-motion 下已豁免)
+function celebrateSettle(result) {
+  if (result.aiReturnRate == null) return;
+  const you = Number(result.returnRate);
+  const aiR = Number(result.aiReturnRate);
+  if (you > aiR) {
+    spawnConfetti();
+    playSound("win");
+  } else if (you < aiR) {
+    playSound("lose");
+  }
+}
+
+function spawnConfetti() {
+  const layer = document.createElement("div");
+  layer.className = "confetti-layer";
+  document.body.appendChild(layer);
+  const colors = ["--up", "--accent", "--accent-2", "--warn", "--good"];
+  for (let i = 0; i < 40; i++) {
+    const piece = document.createElement("span");
+    piece.className = "confetti-piece";
+    piece.style.left = Math.random() * 100 + "%";
+    piece.style.background = cssVar(colors[i % colors.length]);
+    piece.style.animationDuration = (1.2 + Math.random() * 1.2) + "s";
+    piece.style.animationDelay = (Math.random() * 0.4) + "s";
+    layer.appendChild(piece);
+  }
+  setTimeout(() => layer.remove(), 3200);
+}
+
+// 强平红闪
+function flashScreen() {
+  document.body.classList.add("screen-flash");
+  setTimeout(() => document.body.classList.remove("screen-flash"), 750);
+}
+
+// ---------- 音效 (WebAudio 合成, 零素材; 默认关, 头部按钮开关) ----------
+
+let SOUND = false;
+try { SOUND = localStorage.getItem("qs_sound") === "on"; } catch (e) { /* 隐私模式下忽略 */ }
+let audioCtx = null;
+
+function playTone(freq, dur, delay = 0) {
+  const ctx = audioCtx || (audioCtx = new (window.AudioContext || window.webkitAudioContext)());
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "triangle";
+  osc.frequency.value = freq;
+  const t0 = ctx.currentTime + delay;
+  gain.gain.setValueAtTime(0.12, t0);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur);
+}
+
+function playSound(kind) {
+  if (!SOUND) return;
+  try {
+    if (kind === "buy") playTone(660, 0.12);
+    else if (kind === "sell") playTone(440, 0.12);
+    else if (kind === "fill") { playTone(523, 0.1); playTone(784, 0.12, 0.1); }
+    else if (kind === "win") { playTone(523, 0.12); playTone(659, 0.12, 0.12); playTone(784, 0.3, 0.24); }
+    else if (kind === "lose") { playTone(330, 0.18); playTone(262, 0.35, 0.18); }
+  } catch (e) { /* 浏览器自动播放策略阻止时静默 */ }
 }
 
 function setTradeEnabled(enabled) {
-  ["btn-buy", "btn-sell", "btn-tick", "btn-settle", "btn-advisor"].forEach((id) => {
+  // 挂单按钮一并禁用: 结算后下单后端会拒, 但按钮可点体验差
+  ["btn-buy", "btn-sell", "btn-tick", "btn-settle", "btn-advisor", "btn-order"].forEach((id) => {
     $(id).disabled = !enabled;
   });
 }
@@ -1397,6 +1497,20 @@ function toggleTheme() {
 }
 
 $("btn-theme").addEventListener("click", toggleTheme);
+
+function renderSoundBtn() {
+  const btn = $("btn-sound");
+  btn.textContent = t(SOUND ? "sound.on" : "sound.off");
+  btn.title = t("sound.title");
+}
+$("btn-sound").addEventListener("click", () => {
+  SOUND = !SOUND;
+  try { localStorage.setItem("qs_sound", SOUND ? "on" : "off"); } catch (e) { /* ignore */ }
+  renderSoundBtn();
+  playSound("buy"); // 开启时给一声反馈
+});
+renderSoundBtn();
+document.addEventListener("qs:lang", renderSoundBtn);
 renderThemeBtn();
 
 // ---------- 语言切换: 重渲染所有动态区域 ----------
@@ -1432,7 +1546,37 @@ $("market-select").addEventListener("change", () => {
   $("adv-wrap").hidden = !ok;
   if (!ok) $("adv-toggle").checked = false;
 });
-$("btn-tick").addEventListener("click", () => guarded(tick));
+// 推进前先看明日快讯: 有事件先弹决策卡 (信息差 -> 决策时刻), 每个交易日只拦一次
+let newsGateDay = -1;
+async function tickWithNewsGate() {
+  // 竞技模式 (每日挑战/房间) 后端不下发预告, 不必多打一次请求
+  const blind = state.mode === "DAILY" || state.mode === "ROOM";
+  if (!state.settled && !blind && newsGateDay !== state.daysElapsed) {
+    try {
+      const news = await api(`/game/${state.sessionId}/news/upcoming`);
+      if (news && news.length) {
+        newsGateDay = state.daysElapsed;
+        openNewsGate(news);
+        return;
+      }
+    } catch (e) { /* 预告接口失败不阻断推进 */ }
+  }
+  await tick();
+}
+
+function openNewsGate(news) {
+  const item = news[0];
+  $("newsgate-title").textContent = LANG === "en" ? item.titleEn : item.titleZh;
+  $("newsgate-body").textContent = (LANG === "en" ? item.bodyEn : item.bodyZh) || "";
+  $("newsgate-modal").hidden = false;
+}
+
+$("btn-newsgate-go").addEventListener("click", () => {
+  $("newsgate-modal").hidden = true;
+  guarded(tick);
+});
+$("btn-newsgate-hold").addEventListener("click", () => { $("newsgate-modal").hidden = true; });
+$("btn-tick").addEventListener("click", () => guarded(tickWithNewsGate));
 $("btn-buy").addEventListener("click", () => guarded(() => trade("BUY")));
 $("btn-sell").addEventListener("click", () => guarded(() => trade("SELL")));
 $("btn-settle").addEventListener("click", () => {

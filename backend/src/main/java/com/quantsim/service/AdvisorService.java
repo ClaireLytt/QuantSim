@@ -241,7 +241,8 @@ public class AdvisorService {
         BigDecimal returnRate = TradeMath.returnRate(finalAssets, session.getInitialCash());
 
         StringBuilder sb = new StringBuilder();
-        sb.append("标的: ").append(stock.getName()).append(" (").append(stock.getCode()).append("), 市场: ")
+        sb.append("标的: ").append(BlindDates.maskName(session, stock.getName()))
+                .append(" (").append(BlindDates.maskCode(session, stock.getCode())).append("), 市场: ")
                 .append(marketDesc(stock.getMarket())).append('\n');
         sb.append("成绩: 初始资金 ").append(session.getInitialCash())
                 .append(", 最终资产 ").append(finalAssets)
@@ -251,7 +252,8 @@ public class AdvisorService {
         for (int i = startIdx; i <= endIdx; i++) {
             DailyPrice p = sd.prices().get(i);
             DailyIndicator ind = sd.indicators().get(p.getTradeDate());
-            sb.append(p.getTradeDate()).append(' ').append(p.getClose()).append(' ')
+            // 竞技模式日期脱敏, 防止 LLM 回答里泄漏真实日历日
+            sb.append(BlindDates.mask(session, p.getTradeDate())).append(' ').append(p.getClose()).append(' ')
                     .append(ind == null || ind.getPctChange() == null ? "--"
                             : ind.getPctChange().multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP))
                     .append('\n');
@@ -264,7 +266,7 @@ public class AdvisorService {
         } else {
             sb.append("交易记录 (日期 方向 价格 数量):\n");
             for (TradeTransaction tx : txs) {
-                sb.append(tx.getTradeDate()).append(' ')
+                sb.append(BlindDates.mask(session, tx.getTradeDate())).append(' ')
                         .append(tx.getDirection() == TradeTransaction.Direction.BUY ? "买入" : "卖出")
                         .append(' ').append(tx.getPrice()).append(' ').append(tx.getShares()).append('\n');
             }
@@ -284,7 +286,8 @@ public class AdvisorService {
         BigDecimal returnRate = TradeMath.returnRate(totalAssets, session.getInitialCash());
 
         StringBuilder sb = new StringBuilder();
-        sb.append("标的: ").append(stock.getName()).append(" (").append(stock.getCode()).append("), 市场: ")
+        sb.append("标的: ").append(BlindDates.maskName(session, stock.getName()))
+                .append(" (").append(BlindDates.maskCode(session, stock.getCode())).append("), 市场: ")
                 .append(marketDesc(stock.getMarket()))
                 .append('\n');
         sb.append("对局进度: 第 ").append(session.getDaysElapsed()).append(" 天\n");
@@ -307,7 +310,8 @@ public class AdvisorService {
         for (int i = from; i <= curIdx; i++) {
             DailyPrice p = prices.get(i);
             DailyIndicator ind = sd.indicators().get(p.getTradeDate());
-            sb.append(p.getTradeDate()).append(' ').append(p.getClose()).append(' ')
+            // 竞技模式日期脱敏, 防止 LLM 回答里泄漏真实日历日
+            sb.append(BlindDates.mask(session, p.getTradeDate())).append(' ').append(p.getClose()).append(' ')
                     .append(ind == null || ind.getPctChange() == null ? "--"
                             : ind.getPctChange().multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP))
                     .append(' ').append(ind == null || ind.getMa5() == null ? "--" : ind.getMa5())

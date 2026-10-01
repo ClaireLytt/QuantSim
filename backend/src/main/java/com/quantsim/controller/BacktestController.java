@@ -16,7 +16,7 @@ import com.quantsim.dto.BacktestDtos.StockInfo;
 import com.quantsim.dto.BacktestDtos.TuneRequest;
 import com.quantsim.dto.BacktestDtos.TuneResponse;
 import com.quantsim.config.CurrentUser;
-import com.quantsim.repository.UserRepository;
+import com.quantsim.config.RateLimiter;
 import com.quantsim.service.BacktestService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,39 +28,24 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class BacktestController {
 
+    /** 网格调参 CPU 密集, 按调用方限频。 */
+    private static final int TUNE_PER_MINUTE = 6;
+
     private final BacktestService backtestService;
-    private final UserRepository userRepository;
+    private final RateLimiter rateLimiter;
 
     @PostMapping("/run")
     public RunResponse run(@Valid @RequestBody RunRequest request, HttpServletRequest http) {
-        String username = sessionUsername(http);
-        if (username != null) {
-            request = new RunRequest(username, request.stockCode(), request.strategy(),
-                    request.fastWindow(), request.slowWindow(), request.lookbackDays(),
-                    request.maWindow(), request.threshold(),
-                    request.buyConditions(), request.sellConditions(),
-                    request.rsiPeriod(), request.rsiBuy(), request.rsiSell(),
-                    request.macdFast(), request.macdSlow(), request.macdSignal(),
-                    request.bollWindow(), request.bollK(),
-                    request.gridPct(), request.gridLevels(),
-                    request.turtleEntry(), request.turtleExit(), request.positionPct());
-        }
-        return backtestService.run(request);
+        // 已登录以会话身份入榜 (忽略 body 用户名), 游客昵称由 service 校验
+        return backtestService.run(request, CurrentUser.idOrNull(http));
     }
 
     @PostMapping("/tune")
     public TuneResponse tune(@Valid @RequestBody TuneRequest request, HttpServletRequest http) {
-        String username = sessionUsername(http);
-        if (username != null) {
-            request = new TuneRequest(username, request.stockCode(), request.strategy());
-        }
-        return backtestService.tune(request);
-    }
-
-    /** 已登录返回会话用户名 (覆盖 body), 游客返回 null。 */
-    private String sessionUsername(HttpServletRequest http) {
         Long userId = CurrentUser.idOrNull(http);
-        return userId == null ? null : userRepository.findById(userId).orElseThrow().getUsername();
+        rateLimiter.check("tune", userId != null ? "u:" + userId : "ip:" + http.getRemoteAddr(),
+                TUNE_PER_MINUTE);
+        return backtestService.tune(request, userId);
     }
 
     @GetMapping("/leaderboard")
