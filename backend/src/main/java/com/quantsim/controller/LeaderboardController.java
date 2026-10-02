@@ -20,8 +20,9 @@ public class LeaderboardController {
     private final LeaderboardService leaderboardService;
 
     @GetMapping
-    public List<LeaderboardEntry> leaderboard(@RequestParam(required = false) String season) {
-        return leaderboardService.topSessions(season);
+    public List<LeaderboardEntry> leaderboard(@RequestParam(required = false) String season,
+                                              @RequestParam(required = false) String sort) {
+        return leaderboardService.topSessions(season, sort);
     }
 
     /** 全部赛季 (YYYY-MM, 降序) */

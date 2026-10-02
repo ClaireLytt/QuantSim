@@ -29,6 +29,20 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
             """)
     List<Object[]> findLeaderboard(GameSession.Status status, String season, Pageable pageable);
 
+    /** 夏普榜: 风险调整后收益排序, 防 all-in 赌徒霸榜; 老对局无夏普, 不入榜 */
+    @Query("""
+            select s, u.username, st.name, st.code
+            from GameSession s
+            join User u on u.userId = s.userId
+            join Stock st on st.stockId = s.stockId
+            where s.status = :status
+              and s.mode in ('CLASSIC', 'PORTFOLIO')
+              and s.finalSharpe is not null
+              and (:season is null or s.season = :season)
+            order by s.finalSharpe desc
+            """)
+    List<Object[]> findLeaderboardBySharpe(GameSession.Status status, String season, Pageable pageable);
+
     Optional<GameSession> findByUserIdAndChallengeDate(Long userId, java.time.LocalDate challengeDate);
 
     /** 某用户玩过的全部每日挑战日期 (降序), 用于计算连续挑战 streak。 */

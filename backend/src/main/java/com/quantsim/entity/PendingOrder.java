@@ -23,7 +23,8 @@ import lombok.Setter;
 @Table(name = "pending_orders")
 public class PendingOrder {
 
-    public enum Type { LIMIT_BUY, LIMIT_SELL, STOP_LOSS, TAKE_PROFIT }
+    /** TRAIL_STOP: 移动止损, 触发价随收盘价上移 (trailPct 跟踪距离), 触发规则同 STOP_LOSS */
+    public enum Type { LIMIT_BUY, LIMIT_SELL, STOP_LOSS, TAKE_PROFIT, TRAIL_STOP }
 
     public enum Status { OPEN, FILLED, CANCELLED }
 
@@ -60,6 +61,10 @@ public class PendingOrder {
 
     @Column(name = "filled_price", precision = 10, scale = 2)
     private BigDecimal filledPrice;
+
+    /** 移动止损跟踪百分比 (1~30); 其他类型为 null */
+    @Column(name = "trail_pct", precision = 5, scale = 2)
+    private BigDecimal trailPct;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

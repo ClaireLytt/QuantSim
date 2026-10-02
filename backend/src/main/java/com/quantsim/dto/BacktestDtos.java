@@ -71,6 +71,12 @@ public final class BacktestDtos {
             int tradeCount,
             BigDecimal winRate,
             BigDecimal holdReturn,
+            BigDecimal volatility,
+            BigDecimal sortinoRatio,
+            BigDecimal dayWinRate,
+            BigDecimal profitLossRatio,
+            BigDecimal inSampleReturn,
+            BigDecimal outSampleReturn,
             List<EquityPoint> equityCurve) {}
 
     /** 自动调参: 对指定策略做网格搜索, 仅支持 MA_CROSS / MOMENTUM / MEAN_REVERSION。 */

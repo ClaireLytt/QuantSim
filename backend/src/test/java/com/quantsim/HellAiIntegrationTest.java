@@ -31,6 +31,12 @@ import com.quantsim.repository.DailyPriceRepository;
 import com.quantsim.repository.GameSessionRepository;
 import com.quantsim.repository.PendingOrderRepository;
 import com.quantsim.repository.StockRepository;
+import com.quantsim.repository.PositionRepository;
+import com.quantsim.repository.SessionStockRepository;
+import com.quantsim.repository.RoomMemberRepository;
+import com.quantsim.repository.RoomRepository;
+import com.quantsim.repository.DailyChallengeRepository;
+import com.quantsim.repository.UserProgressRepository;
 import com.quantsim.repository.TransactionRepository;
 import com.quantsim.repository.UserRepository;
 import com.quantsim.service.DataRefreshService;
@@ -45,10 +51,15 @@ import com.quantsim.service.DataRefreshService;
         "quantsim.game.total-ticks=3",
         "quantsim.game.history-days=5",
         "quantsim.game.min-history-days=5",
+        // 断言无摩擦资金数学: 现金计息同样归零 (与费用归零同理)
+        "quantsim.game.guest-start-per-minute=10000",
+        "quantsim.game.cash-rate-annual=0",
+        "quantsim.game.borrow-rate-annual=0",
         "quantsim.fees.stock.commission-rate=0",
         "quantsim.fees.stock.min-commission=0",
         "quantsim.fees.stock.stamp-tax-rate=0",
         // 刷新服务桩命令 (echo 任意平台可用)
+        "quantsim.refresh.enabled=false",
         "quantsim.refresh.command=cmd /c echo refresh-stub-ok",
         "quantsim.refresh.workdir=.",
 })
@@ -61,6 +72,12 @@ class HellAiIntegrationTest {
     @Autowired com.quantsim.config.RefreshProperties refreshProperties;
 
     @Autowired PendingOrderRepository orderRepository;
+    @Autowired PositionRepository cleanupPositionRepository;
+    @Autowired SessionStockRepository cleanupSessionStockRepository;
+    @Autowired RoomMemberRepository cleanupRoomMemberRepository;
+    @Autowired RoomRepository cleanupRoomRepository;
+    @Autowired DailyChallengeRepository cleanupDailyChallengeRepository;
+    @Autowired UserProgressRepository cleanupUserProgressRepository;
     @Autowired TransactionRepository transactionRepository;
     @Autowired AccountRepository accountRepository;
     @Autowired GameSessionRepository sessionRepository;
@@ -72,7 +89,14 @@ class HellAiIntegrationTest {
 
     @BeforeEach
     void clean() {
+        // 同 BacktestStrategyIntegrationTest: 共库测试需全量清理子表残留
         orderRepository.deleteAll();
+        cleanupPositionRepository.deleteAll();
+        cleanupSessionStockRepository.deleteAll();
+        cleanupRoomMemberRepository.deleteAll();
+        cleanupRoomRepository.deleteAll();
+        cleanupDailyChallengeRepository.deleteAll();
+        cleanupUserProgressRepository.deleteAll();
         transactionRepository.deleteAll();
         accountRepository.deleteAll();
         sessionRepository.deleteAll();
@@ -157,8 +181,8 @@ class HellAiIntegrationTest {
     }
 
     @Test
-    void refreshServiceRunsStubAndDefaultsDisabled() {
-        // 默认关闭
+    void refreshServiceRunsStubAndToggleOff() {
+        // 生产默认开启 (上线保鲜), 测试环境显式关闭 —— 验证开关生效
         assertThat(refreshProperties.isEnabled()).isFalse();
         // 桩命令执行成功并清缓存
         assertThat(refreshService.refreshNow()).isTrue();

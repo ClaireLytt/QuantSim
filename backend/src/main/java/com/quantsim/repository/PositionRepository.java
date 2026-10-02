@@ -14,6 +14,8 @@ public interface PositionRepository extends JpaRepository<Position, Long> {
 
     List<Position> findBySessionId(Long sessionId);
 
+    Optional<Position> findBySessionIdAndStockId(Long sessionId, Long stockId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Position> findWithLockBySessionIdAndStockId(Long sessionId, Long stockId);
 }

@@ -3,6 +3,7 @@ package com.quantsim.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +45,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class BacktestService {
 
-    public enum Strategy { MA_CROSS, MOMENTUM, MEAN_REVERSION, RSI, MACD, BOLL, GRID, TURTLE, BUY_HOLD, CUSTOM }
+    public enum Strategy { MA_CROSS, MOMENTUM, MEAN_REVERSION, RSI, MACD, BOLL, GRID, TURTLE, DCA, BUY_HOLD, CUSTOM }
 
     /** 自定义策略可选字段。 */
     public enum CustomField {
@@ -65,7 +66,6 @@ public class BacktestService {
         CustomOp(String label) { this.label = label; }
     }
 
-    private static final double TRADING_DAYS_PER_YEAR = 252.0;
 
     // 各策略参数默认值与合法范围
     private static final int DEFAULT_FAST = 5, MIN_FAST = 2, MAX_FAST = 60;
@@ -158,6 +158,22 @@ public class BacktestService {
                 ? BigDecimal.valueOf((double) sim.wins / sim.roundTrips).setScale(4, RoundingMode.HALF_UP)
                 : null;
 
+        // 与结算复盘同口径的扩展风险指标 (仅随响应下发, 不落库)
+        double[] dailyReturns = RiskMath.dailyReturns(Arrays.asList(sim.equity));
+        BigDecimal volatility = RiskMath.volatility(dailyReturns);
+        BigDecimal sortino = RiskMath.sortino(dailyReturns);
+        BigDecimal dayWinRate = RiskMath.winRate(dailyReturns);
+        BigDecimal plRatio = RiskMath.profitLossRatio(dailyReturns);
+
+        // 前 70% / 后 30% 分段收益: 两段差距悬殊往往意味着参数只拟合了前段行情 (过拟合预警)
+        int split = (int) (n * 0.7);
+        BigDecimal inSampleReturn = null;
+        BigDecimal outSampleReturn = null;
+        if (split >= 2 && n - split >= 2 && sim.equity[split - 1].signum() > 0) {
+            inSampleReturn = TradeMath.returnRate(sim.equity[split - 1], initial);
+            outSampleReturn = TradeMath.returnRate(sim.finalEquity, sim.equity[split - 1]);
+        }
+
         // 买入持有基准曲线 (同规则: 首日收盘整手全仓, 含买入费用)
         BigDecimal[] holdCurve = buyAndHoldCurve(prices, initial, market);
         BigDecimal holdReturn = TradeMath.returnRate(holdCurve[n - 1], initial);
@@ -189,7 +205,8 @@ public class BacktestService {
                 strategy.name(), sp.label,
                 prices.get(0).getTradeDate(), prices.get(n - 1).getTradeDate(), n,
                 totalReturn, annualReturn, sharpe, maxDd, sim.tradeCount, winRate,
-                holdReturn, curve);
+                holdReturn, volatility, sortino, dayWinRate, plRatio,
+                inSampleReturn, outSampleReturn, curve);
     }
 
     /** 网格搜索最优参数 (先看总收益, 平手比夏普), 返回全网格供热力图, 再用最优参数正式回测入榜。 */
@@ -575,6 +592,16 @@ public class BacktestService {
                 double steps = (gridBase - ctx.closes[i]) / (gridBase * sp.threshold());
                 double frac = Math.max(0, Math.min(1, steps / sp.levels()));
                 targetShares = wholeShares(equityNow.doubleValue() * frac * posFraction, ctx.closes[i], lotSize);
+            } else if (strategy == Strategy.DCA) {
+                // 定投: 每 lookback 天投一期 (预算 = 初始资金均分), 只买不卖, 纪律代替择时
+                if (i % sp.lookback() == 0) {
+                    double tranche = props.getInitialCash().doubleValue() * posFraction
+                            / (n / sp.lookback() + 1);
+                    int add = wholeShares(Math.min(tranche, cash.doubleValue()), ctx.closes[i], lotSize);
+                    if (add > 0) {
+                        targetShares = shares + add;
+                    }
+                }
             } else {
                 int signal = signal(strategy, sp, ctx, i);
                 if (signal > 0) {
@@ -792,51 +819,18 @@ public class BacktestService {
             return null;
         }
         double growth = finalEquity.doubleValue() / initial.doubleValue();
-        double annual = Math.pow(growth, TRADING_DAYS_PER_YEAR / days) - 1;
+        double annual = Math.pow(growth, RiskMath.TRADING_DAYS_PER_YEAR / days) - 1;
         return BigDecimal.valueOf(annual).setScale(4, RoundingMode.HALF_UP);
     }
 
-    /** 年化夏普比率 (无风险利率取 0): mean(日收益)/std(日收益)*sqrt(252)。波动为 0 时无意义, 返回 null。 */
+    /** 年化夏普比率, 口径与结算复盘共用 RiskMath (无风险利率取 0, 波动为 0 时 null)。 */
     private BigDecimal sharpeRatio(BigDecimal[] equity) {
-        int n = equity.length;
-        if (n < 3) {
-            return null;
-        }
-        double[] returns = new double[n - 1];
-        for (int i = 1; i < n; i++) {
-            returns[i - 1] = equity[i].doubleValue() / equity[i - 1].doubleValue() - 1;
-        }
-        double mean = 0;
-        for (double r : returns) {
-            mean += r;
-        }
-        mean /= returns.length;
-        double var = 0;
-        for (double r : returns) {
-            var += (r - mean) * (r - mean);
-        }
-        var /= (returns.length - 1);
-        double std = Math.sqrt(var);
-        if (std < 1e-12) {
-            return null;
-        }
-        double sharpe = mean / std * Math.sqrt(TRADING_DAYS_PER_YEAR);
-        return BigDecimal.valueOf(sharpe).setScale(4, RoundingMode.HALF_UP);
+        return RiskMath.sharpe(RiskMath.dailyReturns(Arrays.asList(equity)));
     }
 
-    /** 最大回撤 (正数, 0.15 表示曾从峰值回撤 15%)。 */
+    /** 最大回撤 (正数, 0.15 表示曾从峰值回撤 15%), 口径与结算复盘共用 RiskMath。 */
     private BigDecimal maxDrawdown(BigDecimal[] equity) {
-        double peak = equity[0].doubleValue();
-        double maxDd = 0;
-        for (BigDecimal e : equity) {
-            double v = e.doubleValue();
-            if (v > peak) {
-                peak = v;
-            } else if (peak > 0) {
-                maxDd = Math.max(maxDd, (peak - v) / peak);
-            }
-        }
-        return BigDecimal.valueOf(maxDd).setScale(4, RoundingMode.HALF_UP);
+        return RiskMath.maxDrawdown(Arrays.asList(equity));
     }
 
     // ---------- 参数解析 ----------
@@ -846,7 +840,8 @@ public class BacktestService {
             return Strategy.valueOf(raw.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new BusinessException("未知策略: " + raw
-                    + "（可选 MA_CROSS / MOMENTUM / MEAN_REVERSION / RSI / MACD / BOLL / GRID / TURTLE / BUY_HOLD / CUSTOM）");
+                    + "（可选 MA_CROSS / MOMENTUM / MEAN_REVERSION / RSI / MACD / BOLL / GRID / TURTLE"
+                    + " / DCA / BUY_HOLD / CUSTOM）");
         }
     }
 
@@ -915,6 +910,12 @@ public class BacktestService {
                 int exit = intParam(r.turtleExit(),
                         DEFAULT_TURTLE_EXIT, MIN_TURTLE_EXIT, MAX_TURTLE_EXIT, "离场突破日数");
                 return turtleParams(entry, exit, pos);
+            }
+            case DCA -> {
+                // 定投: lookbackDays 复用为投入间隔 (交易日)
+                int interval = intParam(r.lookbackDays(), 5, 2, 60, "定投间隔");
+                return new StrategyParams(0, 0, interval, 0, 0, 0, 0, 0, pos, null, null,
+                        "every " + interval + "d" + posLabel(pos));
             }
             case CUSTOM -> {
                 List<Rule> buy = compileRules(r.buyConditions(), "买入");

@@ -23,6 +23,7 @@ import com.quantsim.dto.GameDtos.TradeRequest;
 import com.quantsim.dto.GameDtos.TradeResponse;
 import com.quantsim.config.AdvisorProperties;
 import com.quantsim.config.CurrentUser;
+import com.quantsim.config.GameProperties;
 import com.quantsim.config.RateLimiter;
 import com.quantsim.service.AdvisorService;
 import com.quantsim.service.GameService;
@@ -46,6 +47,7 @@ public class GameController {
     private final GameService gameService;
     private final AdvisorService advisorService;
     private final RateLimiter rateLimiter;
+    private final GameProperties gameProps;
     private final AdvisorProperties advisorProps;
 
     /** 每调用方限频 + 全站日配额 (LLM API 成本硬顶)。 */
@@ -58,7 +60,12 @@ public class GameController {
     public StartGameResponse start(@Valid @RequestBody StartGameRequest request,
                                    HttpServletRequest http) {
         // 已登录以会话身份为准, 防止顶别人用户名开局; 游客昵称在 service 层校验
-        return gameService.startGame(request, CurrentUser.idOrNull(http));
+        Long userId = CurrentUser.idOrNull(http);
+        if (userId == null) {
+            // 游客开局会 findOrCreate users 行, 不限频可被刷库 (审计遗留项#10)
+            rateLimiter.check("guest-start", "ip:" + http.getRemoteAddr(), gameProps.getGuestStartPerMinute());
+        }
+        return gameService.startGame(request, userId);
     }
 
     @GetMapping("/{sessionId}/history")

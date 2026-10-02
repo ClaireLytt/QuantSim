@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,6 +43,51 @@ public class LabController {
             List<BigDecimal> volatility,
             List<BigDecimal> pctChange,
             Map<String, List<BigDecimal>> probUp) {}
+
+    /** probUp 分桶 vs 实际次日上涨频率: 校准好的模型两者应接近 (全部标的聚合)。 */
+    public record CalibrationBucket(double probFrom, double probTo, int samples, double actualUpRate) {}
+
+    public record CalibrationRow(String model, List<CalibrationBucket> buckets) {}
+
+    @GetMapping("/calibration")
+    public List<CalibrationRow> calibration() {
+        Map<String, int[][]> agg = new TreeMap<>(); // model -> [10桶][命中, 样本]
+        for (Stock stock : stockRepository.findAll()) {
+            MarketDataService.StockData data = marketDataService.load(stock.getStockId());
+            List<DailyPrice> prices = data.prices();
+            for (int i = 0; i + 1 < prices.size(); i++) {
+                boolean actualUp = prices.get(i + 1).getClose().compareTo(prices.get(i).getClose()) > 0;
+                LocalDate d = prices.get(i).getTradeDate();
+                for (Map.Entry<String, Map<LocalDate, DailyPrediction>> e
+                        : data.predictionsByModel().entrySet()) {
+                    DailyPrediction pred = e.getValue().get(d);
+                    if (pred == null || pred.getProbUp() == null) {
+                        continue;
+                    }
+                    int bucket = Math.min(9, (int) (pred.getProbUp().doubleValue() * 10));
+                    int[][] cells = agg.computeIfAbsent(e.getKey(), k -> new int[10][2]);
+                    cells[bucket][1]++;
+                    if (actualUp) {
+                        cells[bucket][0]++;
+                    }
+                }
+            }
+        }
+        List<CalibrationRow> rows = new ArrayList<>();
+        for (Map.Entry<String, int[][]> e : agg.entrySet()) {
+            List<CalibrationBucket> buckets = new ArrayList<>();
+            for (int b = 0; b < 10; b++) {
+                int total = e.getValue()[b][1];
+                if (total == 0) {
+                    continue;
+                }
+                buckets.add(new CalibrationBucket(b / 10.0, (b + 1) / 10.0, total,
+                        (double) e.getValue()[b][0] / total));
+            }
+            rows.add(new CalibrationRow(e.getKey(), buckets));
+        }
+        return rows;
+    }
 
     public record OverviewRow(
             String code,

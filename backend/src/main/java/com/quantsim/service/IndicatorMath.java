@@ -66,6 +66,35 @@ public final class IndicatorMath {
     }
 
     /** MACD 柱 (DIF - DEA): ema(fast) - ema(slow) 再对 DIF 做 signal 期 EMA。 */
+    /** MACD 完整输出: [0]=DIF (快慢 EMA 差) [1]=DEA (DIF 的 signal 期 EMA), 柱 = DIF-DEA。 */
+    public static double[][] macd(double[] closes, int fast, int slow, int signal) {
+        int n = closes.length;
+        double[] emaFast = ema(closes, fast);
+        double[] emaSlow = ema(closes, slow);
+        double[] dif = new double[n];
+        double[] dea = new double[n];
+        java.util.Arrays.fill(dif, Double.NaN);
+        java.util.Arrays.fill(dea, Double.NaN);
+        int difStart = slow - 1;
+        for (int i = difStart; i < n; i++) {
+            dif[i] = emaFast[i] - emaSlow[i];
+        }
+        if (n - difStart >= signal) {
+            double sum = 0;
+            for (int i = difStart; i < difStart + signal; i++) {
+                sum += dif[i];
+            }
+            double d = sum / signal;
+            dea[difStart + signal - 1] = d;
+            double k = 2.0 / (signal + 1);
+            for (int i = difStart + signal; i < n; i++) {
+                d = dif[i] * k + d * (1 - k);
+                dea[i] = d;
+            }
+        }
+        return new double[][] { dif, dea };
+    }
+
     public static double[] macdHist(double[] closes, int fast, int slow, int signal) {
         int n = closes.length;
         double[] emaFast = ema(closes, fast);

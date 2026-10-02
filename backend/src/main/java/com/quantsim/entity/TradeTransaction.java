@@ -32,6 +32,10 @@ public class TradeTransaction {
     @Column(name = "session_id", nullable = false)
     private Long sessionId;
 
+    /** 标的 ID; 旧数据为 null (单股模式回退到会话主标的) */
+    @Column(name = "stock_id")
+    private Long stockId;
+
     @Column(name = "trade_date", nullable = false)
     private LocalDate tradeDate;
 

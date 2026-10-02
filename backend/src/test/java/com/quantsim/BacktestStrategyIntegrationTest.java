@@ -29,6 +29,13 @@ import com.quantsim.repository.DailyPredictionRepository;
 import com.quantsim.repository.DailyPriceRepository;
 import com.quantsim.repository.GameSessionRepository;
 import com.quantsim.repository.StockRepository;
+import com.quantsim.repository.PendingOrderRepository;
+import com.quantsim.repository.PositionRepository;
+import com.quantsim.repository.SessionStockRepository;
+import com.quantsim.repository.RoomMemberRepository;
+import com.quantsim.repository.RoomRepository;
+import com.quantsim.repository.DailyChallengeRepository;
+import com.quantsim.repository.UserProgressRepository;
 import com.quantsim.repository.TransactionRepository;
 import com.quantsim.repository.UserRepository;
 
@@ -51,6 +58,13 @@ class BacktestStrategyIntegrationTest {
     @Autowired CacheManager cacheManager;
 
     @Autowired BacktestResultRepository backtestRepository;
+    @Autowired PendingOrderRepository cleanupOrderRepository;
+    @Autowired PositionRepository cleanupPositionRepository;
+    @Autowired SessionStockRepository cleanupSessionStockRepository;
+    @Autowired RoomMemberRepository cleanupRoomMemberRepository;
+    @Autowired RoomRepository cleanupRoomRepository;
+    @Autowired DailyChallengeRepository cleanupDailyChallengeRepository;
+    @Autowired UserProgressRepository cleanupUserProgressRepository;
     @Autowired TransactionRepository transactionRepository;
     @Autowired AccountRepository accountRepository;
     @Autowired GameSessionRepository sessionRepository;
@@ -62,7 +76,16 @@ class BacktestStrategyIntegrationTest {
 
     @BeforeEach
     void seed() {
+        // 全量清理所有引用 game_sessions/users 的子表 —— 测试套件共用一个库,
+        // 上一套件最后一个用例的残留 (如组合模式的 positions) 会卡住本套件的外键
         backtestRepository.deleteAll();
+        cleanupOrderRepository.deleteAll();
+        cleanupPositionRepository.deleteAll();
+        cleanupSessionStockRepository.deleteAll();
+        cleanupRoomMemberRepository.deleteAll();
+        cleanupRoomRepository.deleteAll();
+        cleanupDailyChallengeRepository.deleteAll();
+        cleanupUserProgressRepository.deleteAll();
         transactionRepository.deleteAll();
         accountRepository.deleteAll();
         sessionRepository.deleteAll();

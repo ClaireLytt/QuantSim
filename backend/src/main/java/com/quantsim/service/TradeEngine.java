@@ -47,12 +47,15 @@ public class TradeEngine {
                 .toList();
     }
 
-    /** 读某标的当前持仓 (shares, avgCost)。 */
+    /**
+     * 读某标的当前持仓 (shares, avgCost)。不加行锁: 只读事务 (/status) 里 FOR UPDATE
+     * 会被 MySQL 直接拒绝; 写路径的串行化由会话级悲观锁保证, writePosition 落库前仍带行锁。
+     */
     public PositionMath.Fill position(GameSession session, Account account, Long stockId) {
         if (!"PORTFOLIO".equals(session.getMode())) {
             return new PositionMath.Fill(account.getHoldingShares(), account.getHoldingCost());
         }
-        return positionRepository.findWithLockBySessionIdAndStockId(session.getSessionId(), stockId)
+        return positionRepository.findBySessionIdAndStockId(session.getSessionId(), stockId)
                 .map(p -> new PositionMath.Fill(p.getShares(), p.getAvgCost()))
                 .orElse(new PositionMath.Fill(0, BigDecimal.ZERO));
     }
@@ -88,8 +91,8 @@ public class TradeEngine {
         return closes;
     }
 
-    /** date 当天有 bar 取当天收盘; 否则二分找之前最近一根; 全无则 0。 */
-    private BigDecimal lastCloseOnOrBefore(StockData sd, java.time.LocalDate date) {
+    /** date 当天有 bar 取当天收盘; 否则二分找之前最近一根; 全无则 0。结算重放资金曲线也用它。 */
+    public BigDecimal lastCloseOnOrBefore(StockData sd, java.time.LocalDate date) {
         var bar = sd.bar(date);
         if (bar != null) {
             return bar.getClose();
@@ -153,6 +156,13 @@ public class TradeEngine {
         BigDecimal gross = price.multiply(BigDecimal.valueOf(shares));
         BigDecimal fee = feeCalculator.fee(market, direction, gross);
 
+        if (session.isRealRules()) {
+            String error = realRulesError(session, account, stockId, direction, shares);
+            if (error != null) {
+                return error;
+            }
+        }
+
         if (!session.isAdvanced()) {
             if (direction == TradeTransaction.Direction.BUY) {
                 if (account.getCashBalance().compareTo(gross.add(fee)) < 0) {
@@ -192,6 +202,60 @@ public class TradeEngine {
         return null;
     }
 
+    /** 当日涨跌幅达到 ±9.95% 视为封板 (日级近似, 不细分 ST/一字板)。 */
+    private static final double LIMIT_BAND = 0.0995;
+
+    /**
+     * A股真实规则 (仅 realRules 对局, 全为 A股标的):
+     * 涨停板买不进、跌停板卖不出 (手动交易与挂单都按"当日是否封板"的日级口径判定);
+     * T+1 当日买入的股数不可卖出。AI 对手走同样的涨跌停限制 (applyAiTrade 处)。
+     */
+    public String realRulesError(GameSession session, Account account, Long stockId,
+                                 TradeTransaction.Direction direction, int shares) {
+        StockData sd = marketData.load(stockId);
+        String limitError = limitBandError(sd, session.getCurrentTradeDate(), direction);
+        if (limitError != null) {
+            return limitError;
+        }
+        if (direction == TradeTransaction.Direction.SELL) {
+            int boughtToday = 0;
+            for (TradeTransaction tx : transactionRepository
+                    .findBySessionIdAndTradeDate(session.getSessionId(), session.getCurrentTradeDate())) {
+                Long sid = tx.getStockId() != null ? tx.getStockId() : session.getStockId();
+                if (tx.getDirection() == TradeTransaction.Direction.BUY && sid.equals(stockId)) {
+                    boughtToday += tx.getShares();
+                }
+            }
+            int sellable = position(session, account, stockId).shares() - boughtToday;
+            if (shares > sellable) {
+                return "T+1 规则: 当日买入的 " + boughtToday + " 股今天不能卖, 可卖 "
+                        + Math.max(sellable, 0) + " 股";
+            }
+        }
+        return null;
+    }
+
+    /** 封板判定: 相对前收盘涨跌 ≥9.95% 视为涨/跌停。首日无前收盘则不限。 */
+    public String limitBandError(StockData sd, java.time.LocalDate date,
+                                 TradeTransaction.Direction direction) {
+        Integer idx = sd.indexOf(date);
+        if (idx == null || idx == 0) {
+            return null;
+        }
+        double prev = sd.prices().get(idx - 1).getClose().doubleValue();
+        if (prev <= 0) {
+            return null;
+        }
+        double chg = sd.prices().get(idx).getClose().doubleValue() / prev - 1;
+        if (direction == TradeTransaction.Direction.BUY && chg >= LIMIT_BAND) {
+            return "涨停板封死, 今天买不进 (真实规则)";
+        }
+        if (direction == TradeTransaction.Direction.SELL && chg <= -LIMIT_BAND) {
+            return "跌停板封死, 今天卖不出 (真实规则)";
+        }
+        return null;
+    }
+
     /** 执行成交 (调用方已完成校验): 扣现金/费用、更新仓位、写交易流水。返回本笔费用。 */
     public BigDecimal execute(GameSession session, Account account, Long stockId,
                               TradeTransaction.Direction direction, BigDecimal price, int shares) {
@@ -209,6 +273,7 @@ public class TradeEngine {
 
         TradeTransaction tx = new TradeTransaction();
         tx.setSessionId(session.getSessionId());
+        tx.setStockId(stockId);
         tx.setTradeDate(session.getCurrentTradeDate());
         tx.setDirection(direction);
         tx.setPrice(price);

@@ -1,5 +1,6 @@
 package com.quantsim.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -42,7 +43,9 @@ public class MarketDataService {
             List<DailyPrice> prices,
             Map<LocalDate, Integer> indexByDate,
             Map<LocalDate, DailyIndicator> indicators,
-            Map<String, Map<LocalDate, DailyPrediction>> predictionsByModel) {
+            Map<String, Map<LocalDate, DailyPrediction>> predictionsByModel,
+            double[] rsi14,
+            double[][] macdDifDea) {
 
         public DailyPrice bar(LocalDate date) {
             Integer i = indexByDate.get(date);
@@ -51,6 +54,25 @@ public class MarketDataService {
 
         public Integer indexOf(LocalDate date) {
             return indexByDate.get(date);
+        }
+
+        /** 某日 RSI14; 预热期内 (NaN) 返回 null。 */
+        public BigDecimal rsiAt(LocalDate date) {
+            Integer i = indexByDate.get(date);
+            return i == null || Double.isNaN(rsi14[i]) ? null : round4(rsi14[i]);
+        }
+
+        /** 某日 MACD [DIF, DEA]; 预热期内返回 null。 */
+        public BigDecimal[] macdAt(LocalDate date) {
+            Integer i = indexByDate.get(date);
+            if (i == null || Double.isNaN(macdDifDea[0][i]) || Double.isNaN(macdDifDea[1][i])) {
+                return null;
+            }
+            return new BigDecimal[] { round4(macdDifDea[0][i]), round4(macdDifDea[1][i]) };
+        }
+
+        private static BigDecimal round4(double v) {
+            return BigDecimal.valueOf(v).setScale(4, java.math.RoundingMode.HALF_UP);
         }
 
         /** 指定模型无预测数据时退回默认模型 (数据管道未重训多模型前的兼容)。 */
@@ -78,6 +100,14 @@ public class MarketDataService {
         Map<String, Map<LocalDate, DailyPrediction>> predictions = predictionRepository.findByStockId(stockId).stream()
                 .collect(Collectors.groupingBy(DailyPrediction::getModel,
                         Collectors.toMap(DailyPrediction::getTradeDate, Function.identity())));
-        return new StockData(stock, prices, Map.copyOf(index), Map.copyOf(indicators), Map.copyOf(predictions));
+        // K 线副图指标: 加载时从收盘序列一次算好 (标准参数), 随整股缓存, 不依赖数据管道加列
+        double[] closes = new double[prices.size()];
+        for (int i = 0; i < prices.size(); i++) {
+            closes[i] = prices.get(i).getClose().doubleValue();
+        }
+        double[] rsi14 = IndicatorMath.rsi(closes, 14);
+        double[][] macd = IndicatorMath.macd(closes, 12, 26, 9);
+        return new StockData(stock, prices, Map.copyOf(index), Map.copyOf(indicators), Map.copyOf(predictions),
+                rsi14, macd);
     }
 }

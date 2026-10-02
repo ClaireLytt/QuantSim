@@ -30,6 +30,7 @@ import lombok.RequiredArgsConstructor;
  *   LIMIT_SELL:  high ≥ p 时成交, 成交价 max(open, p)
  *   STOP_LOSS:   low ≤ p 时卖出, 成交价 min(open, p)   —— 跳空破位按开盘价止损
  *   TAKE_PROFIT: high ≥ p 时卖出, 成交价 max(open, p)
+ *   TRAIL_STOP:  触发同 STOP_LOSS, 但每个未触发交易日把 p 上移到 max(p, 收盘*(1-trailPct%))
  * 成交时现金/持仓不足 -> 自动撤单 (不做资金冻结)。
  */
 @Service
@@ -44,20 +45,38 @@ public class OrderService {
     public record FillSummary(List<FilledOrder> filled, int autoCancelled) {}
 
     @Transactional
-    public OrderInfo place(GameSession session, Long stockId, String type, BigDecimal price, int shares) {
+    public OrderInfo place(GameSession session, Long stockId, String type, BigDecimal price, int shares,
+                           BigDecimal trailPct) {
         PendingOrder.Type orderType;
         try {
             orderType = PendingOrder.Type.valueOf(type.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new BusinessException("未知挂单类型: " + type);
-        }
-        if (price == null || price.signum() <= 0) {
-            throw new BusinessException("触发价必须大于 0");
-        }
-        if (price.stripTrailingZeros().scale() > 2) {
-            throw new BusinessException("触发价最多两位小数");
+            throw new BusinessException(
+                    "未知挂单类型: " + type + "（可选 LIMIT_BUY / LIMIT_SELL / STOP_LOSS / TAKE_PROFIT / TRAIL_STOP）");
         }
         StockData sd = marketData.load(stockId);
+        if (orderType == PendingOrder.Type.TRAIL_STOP) {
+            // 移动止损按跟踪距离下单, 初始触发价从当日收盘推出, 忽略传入 price
+            if (trailPct == null || trailPct.doubleValue() < 1 || trailPct.doubleValue() > 30) {
+                throw new BusinessException("移动止损跟踪距离需在 1% ~ 30% 之间");
+            }
+            DailyPrice bar = sd.bar(session.getCurrentTradeDate());
+            if (bar == null) {
+                throw new BusinessException("当前交易日行情缺失");
+            }
+            price = bar.getClose()
+                    .multiply(BigDecimal.ONE.subtract(trailPct.movePointLeft(2)))
+                    .setScale(2, RoundingMode.HALF_UP);
+        } else {
+            trailPct = null;
+            if (price == null || price.signum() <= 0) {
+                throw new BusinessException("触发价必须大于 0");
+            }
+            if (price.stripTrailingZeros().scale() > 2) {
+                throw new BusinessException("触发价最多两位小数");
+            }
+            price = price.setScale(2, RoundingMode.UNNECESSARY);
+        }
         int lotSize = sd.stock().getMarket().getLotSize();
         if (shares <= 0 || shares % lotSize != 0) {
             throw new BusinessException("数量必须为 " + lotSize + " 的整数倍（整手交易）");
@@ -71,8 +90,9 @@ public class OrderService {
         order.setSessionId(session.getSessionId());
         order.setStockId(stockId);
         order.setOrderType(orderType);
-        order.setTriggerPrice(price.setScale(2, RoundingMode.UNNECESSARY));
+        order.setTriggerPrice(price);
         order.setShares(shares);
+        order.setTrailPct(trailPct);
         order.setPlacedDate(session.getCurrentTradeDate());
         order = orderRepository.save(order);
         return toInfo(session, order, sd.stock().getCode());
@@ -114,10 +134,25 @@ public class OrderService {
             }
             BigDecimal fillPrice = fillPrice(order, bar);
             if (fillPrice == null) {
+                // 未触发: 移动止损把触发价上移到 max(当前, 收盘*(1-trail%)), 只升不降
+                if (order.getOrderType() == PendingOrder.Type.TRAIL_STOP) {
+                    BigDecimal ratchet = bar.getClose()
+                            .multiply(BigDecimal.ONE.subtract(order.getTrailPct().movePointLeft(2)))
+                            .setScale(2, RoundingMode.HALF_UP);
+                    if (ratchet.compareTo(order.getTriggerPrice()) > 0) {
+                        order.setTriggerPrice(ratchet);
+                        orderRepository.save(order);
+                    }
+                }
                 continue; // 未触发, 继续挂
             }
             TradeTransaction.Direction dir = order.getOrderType() == PendingOrder.Type.LIMIT_BUY
-                    ? TradeTransaction.Direction.BUY : TradeTransaction.Direction.SELL;
+                    ? TradeTransaction.Direction.BUY : TradeTransaction.Direction.SELL; // TRAIL_STOP 是卖单
+            // 真实规则 (封板/T+1) 只是"今天不能成交", 继续挂到明天, 不作废单处理
+            if (session.isRealRules() && tradeEngine.realRulesError(session, account,
+                    order.getStockId(), dir, order.getShares()) != null) {
+                continue;
+            }
             String error = tradeEngine.validate(session, account, order.getStockId(),
                     dir, fillPrice, order.getShares());
             if (error != null) {
@@ -139,7 +174,8 @@ public class OrderService {
     private BigDecimal fillPrice(PendingOrder order, DailyPrice bar) {
         BigDecimal p = order.getTriggerPrice();
         return switch (order.getOrderType()) {
-            case LIMIT_BUY, STOP_LOSS -> bar.getLow().compareTo(p) <= 0 ? bar.getOpen().min(p) : null;
+            case LIMIT_BUY, STOP_LOSS, TRAIL_STOP ->
+                    bar.getLow().compareTo(p) <= 0 ? bar.getOpen().min(p) : null;
             case LIMIT_SELL, TAKE_PROFIT -> bar.getHigh().compareTo(p) >= 0 ? bar.getOpen().max(p) : null;
         };
     }
@@ -149,6 +185,6 @@ public class OrderService {
         return new OrderInfo(o.getOrderId(), o.getOrderType().name(), o.getTriggerPrice(),
                 o.getShares(), o.getStatus().name(), BlindDates.maskCode(session, stockCode),
                 BlindDates.mask(session, o.getPlacedDate()),
-                BlindDates.mask(session, o.getFilledDate()), o.getFilledPrice());
+                BlindDates.mask(session, o.getFilledDate()), o.getFilledPrice(), o.getTrailPct());
     }
 }

@@ -51,6 +51,10 @@ import com.quantsim.repository.UserRepository;
         "quantsim.game.total-ticks=3",
         "quantsim.game.history-days=5",
         "quantsim.game.min-history-days=5",
+        // 断言无摩擦资金数学: 现金计息同样归零 (与费用归零同理)
+        "quantsim.game.guest-start-per-minute=10000",
+        "quantsim.game.cash-rate-annual=0",
+        "quantsim.game.borrow-rate-annual=0",
         // 本测试断言的是无摩擦价格数学, 费用归零
         "quantsim.fees.stock.commission-rate=0",
         "quantsim.fees.stock.min-commission=0",
