@@ -10,7 +10,34 @@
     return label === key ? (mode || "CLASSIC") : label;
   }
 
+  // 生涯统计: 从已结算对局聚合, 纯前端计算
+  function renderCareer() {
+    const box = $("career-box");
+    const settled = (games || []).filter((g) => g.status === "SETTLED" && g.returnRate != null);
+    if (settled.length === 0) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    const rates = settled.map((g) => Number(g.returnRate));
+    const avg = rates.reduce((a, b) => a + b, 0) / rates.length;
+    const best = Math.max(...rates);
+    const worst = Math.min(...rates);
+    const pos = rates.filter((v) => v > 0).length;
+    $("career-games").textContent = settled.length;
+    const setPct = (id, v) => {
+      const el = $(id);
+      el.textContent = fmtPct(v);
+      el.className = v >= 0 ? "pos" : "neg";
+    };
+    setPct("career-avg", avg);
+    setPct("career-best", best);
+    setPct("career-worst", worst);
+    $("career-pos").textContent = ((pos / rates.length) * 100).toFixed(0) + "%";
+  }
+
   function render() {
+    renderCareer();
     const gBody = $("hist-games").querySelector("tbody");
     const bBody = $("hist-bt").querySelector("tbody");
     gBody.innerHTML = "";

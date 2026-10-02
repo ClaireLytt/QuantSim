@@ -17,6 +17,8 @@ const COLORS = {
   muted: cssVar("--text-muted"),
   border: cssVar("--border"),
   panel: cssVar("--panel-raised"),
+  accent: cssVar("--accent"),
+  accent2: cssVar("--accent-2"),
 };
 
 const state = {
@@ -110,25 +112,73 @@ function chartData() {
       value: k.volume,
       itemStyle: { color: k.close >= k.open ? COLORS.up : COLORS.down, opacity: 0.55 },
     })),
+    rsi: state.klines.map((k) => (k.rsi14 == null ? null : Number(k.rsi14))),
+    macdHist: state.klines.map((k) => {
+      if (k.macdDif == null || k.macdDea == null) return null;
+      const h = Number(k.macdDif) - Number(k.macdDea);
+      return { value: h, itemStyle: { color: h >= 0 ? COLORS.up : COLORS.down, opacity: 0.7 } };
+    }),
+    macdDif: state.klines.map((k) => (k.macdDif == null ? null : Number(k.macdDif))),
+    macdDea: state.klines.map((k) => (k.macdDea == null ? null : Number(k.macdDea))),
   };
+}
+
+// K 线买卖点 + 涨跌停封板标记 (组合模式图表随标的切换, 不标交易点以免错位)
+function buildKlineMarks() {
+  const marks = [];
+  if (state.mode !== "PORTFOLIO") {
+    state.trades.forEach((tr) => {
+      const buy = tr.dir === "BUY";
+      marks.push({
+        coord: [tr.idx, buy ? state.klines[tr.idx].low : state.klines[tr.idx].high],
+        value: buy ? "B" : "S",
+        symbol: "pin",
+        symbolSize: 26,
+        symbolRotate: buy ? 0 : 180,
+        itemStyle: { color: buy ? COLORS.up : COLORS.down },
+        label: { color: "#fff", fontSize: 11, offset: buy ? [0, 0] : [0, 2] },
+      });
+    });
+  }
+  if (state.market === "STOCK") {
+    state.klines.forEach((k, i) => {
+      const pct = k.pctChange == null ? null : Number(k.pctChange);
+      if (pct == null || Math.abs(pct) < 0.0995) return;
+      const up = pct > 0;
+      marks.push({
+        coord: [i, up ? k.high : k.low],
+        value: t(up ? "chart.limitUp" : "chart.limitDown"),
+        symbol: "rect",
+        symbolSize: [30, 14],
+        symbolOffset: [0, up ? -12 : 12],
+        itemStyle: { color: "transparent" },
+        label: { color: up ? COLORS.up : COLORS.down, fontSize: 10 },
+      });
+    });
+  }
+  return marks;
 }
 
 // tick 后只增量更新数据 (merge 模式), 不做整图重建
 function updateChartData() {
-  const { dates, candles, ma5, ma20, volumes } = chartData();
+  const { dates, candles, ma5, ma20, volumes, rsi, macdHist, macdDif, macdDea } = chartData();
   chart.setOption({
-    xAxis: [{ data: dates }, { data: dates }],
+    xAxis: [{ data: dates }, { data: dates }, { data: dates }],
     series: [
-      { data: candles },
+      { data: candles, markPoint: { data: buildKlineMarks() } },
       { data: ma5 },
       { data: ma20 },
       { data: volumes },
+      { data: macdHist },
+      { data: macdDif },
+      { data: macdDea },
+      { data: rsi },
     ],
   });
 }
 
 function renderChart() {
-  const { dates, candles, ma5, ma20, volumes } = chartData();
+  const { dates, candles, ma5, ma20, volumes, rsi, macdHist, macdDif, macdDea } = chartData();
 
   chart.setOption({
     backgroundColor: "transparent",
@@ -144,14 +194,19 @@ function renderChart() {
         const bar = state.klines[params[0].dataIndex];
         if (!bar) return "";
         const pct = bar.pctChange == null ? "--" : fmtPct(Number(bar.pctChange));
-        return [
+        const lines = [
           `<b>${bar.tradeDate}</b>`,
           `${t("chart.open")} ${bar.open}  ${t("chart.close")} ${bar.close}`,
           `${t("chart.low")} ${bar.low}  ${t("chart.high")} ${bar.high}`,
           `${t("chart.pct")} ${pct}`,
           `MA5 ${bar.ma5 ?? "--"}  MA20 ${bar.ma20 ?? "--"}`,
           `${t("chart.volume")} ${Number(bar.volume).toLocaleString()}`,
-        ].join("<br>");
+        ];
+        if (bar.rsi14 != null) lines.push(`RSI ${Number(bar.rsi14).toFixed(1)}`);
+        if (bar.macdDif != null && bar.macdDea != null) {
+          lines.push(`DIF ${Number(bar.macdDif).toFixed(3)}  DEA ${Number(bar.macdDea).toFixed(3)}`);
+        }
+        return lines.join("<br>");
       },
     },
     legend: {
@@ -160,8 +215,9 @@ function renderChart() {
       top: 0,
     },
     grid: [
-      { left: 60, right: 20, top: 32, height: "58%" },
-      { left: 60, right: 20, top: "74%", height: "16%" },
+      { left: 60, right: 44, top: 32, height: "44%" },
+      { left: 60, right: 44, top: "56%", height: "10%" },
+      { left: 60, right: 44, top: "70%", height: "16%" },
     ],
     xAxis: [
       {
@@ -171,6 +227,11 @@ function renderChart() {
       },
       {
         type: "category", data: dates, gridIndex: 1,
+        axisLine: { lineStyle: { color: COLORS.border } },
+        axisLabel: { show: false },
+      },
+      {
+        type: "category", data: dates, gridIndex: 2,
         axisLine: { lineStyle: { color: COLORS.border } },
         axisLabel: { show: false },
       },
@@ -186,10 +247,22 @@ function renderChart() {
         splitLine: { show: false },
         axisLabel: { show: false },
       },
+      {
+        // MACD 轴 (左): 与 RSI 共用副图网格
+        scale: true, gridIndex: 2,
+        splitLine: { show: false },
+        axisLabel: { color: COLORS.muted, fontSize: 10 },
+      },
+      {
+        // RSI 轴 (右): 固定 0~100, 画 30/70 参考区间
+        min: 0, max: 100, gridIndex: 2, position: "right",
+        splitLine: { show: false },
+        axisLabel: { color: COLORS.muted, fontSize: 10 },
+      },
     ],
     dataZoom: [
-      { type: "inside", xAxisIndex: [0, 1], start: 0, end: 100 },
-      { type: "slider", xAxisIndex: [0, 1], bottom: 0, height: 18,
+      { type: "inside", xAxisIndex: [0, 1, 2], start: 0, end: 100 },
+      { type: "slider", xAxisIndex: [0, 1, 2], bottom: 0, height: 18,
         borderColor: COLORS.border, textStyle: { color: COLORS.muted } },
     ],
     series: [
@@ -211,12 +284,27 @@ function renderChart() {
           lineStyle: { color: COLORS.muted, type: "dashed" },
           data: [{ xAxis: state.startDate }],
         } : undefined,
+        markPoint: { data: buildKlineMarks(), animation: false },
       },
       { name: "MA5", type: "line", data: ma5, smooth: true, showSymbol: false,
         lineStyle: { width: 2, color: COLORS.ma5 }, itemStyle: { color: COLORS.ma5 } },
       { name: "MA20", type: "line", data: ma20, smooth: true, showSymbol: false,
         lineStyle: { width: 2, color: COLORS.ma20 }, itemStyle: { color: COLORS.ma20 } },
       { name: t("chart.volume"), type: "bar", data: volumes, xAxisIndex: 1, yAxisIndex: 1, barWidth: "60%" },
+      // 副图: MACD 柱 (DIF-DEA, 左轴) + DIF/DEA 线 + RSI14 (右轴 0~100)
+      { name: "MACD", type: "bar", data: macdHist, xAxisIndex: 2, yAxisIndex: 2, barWidth: "50%" },
+      { name: "DIF", type: "line", data: macdDif, xAxisIndex: 2, yAxisIndex: 2, showSymbol: false,
+        lineStyle: { width: 1.5, color: COLORS.ma5 }, itemStyle: { color: COLORS.ma5 } },
+      { name: "DEA", type: "line", data: macdDea, xAxisIndex: 2, yAxisIndex: 2, showSymbol: false,
+        lineStyle: { width: 1.5, color: COLORS.ma20 }, itemStyle: { color: COLORS.ma20 } },
+      { name: "RSI", type: "line", data: rsi, xAxisIndex: 2, yAxisIndex: 3, showSymbol: false,
+        lineStyle: { width: 1.5, color: COLORS.accent2 }, itemStyle: { color: COLORS.accent2 },
+        markLine: {
+          symbol: "none", silent: true,
+          label: { show: false },
+          lineStyle: { color: COLORS.muted, type: "dotted", opacity: 0.6 },
+          data: [{ yAxis: 30 }, { yAxis: 70 }],
+        } },
     ],
   }, { notMerge: true });
 }
@@ -225,7 +313,8 @@ function renderChart() {
 
 function renderStockLabel() {
   if (!state.stockName) return;
-  $("stock-label").textContent = `${stockName(state.stockName, state.stockCode)} (${state.stockCode})${marketTag(state.market)}`;
+  const rules = state.realRules ? ` · ${t("real.tag")}` : "";
+  $("stock-label").textContent = `${stockName(state.stockName, state.stockCode)} (${state.stockCode})${marketTag(state.market)}${rules}`;
 }
 
 function updateDayLabel() {
@@ -250,7 +339,8 @@ async function startGame() {
     const aiLevel = $("ai-level-select").value;
     const mode = $("mode-select").value;
     const advanced = $("adv-toggle").checked && (market === "US" || market === "CRYPTO");
-    const body = { username, aiLevel, mode, advanced };
+    const realRules = $("real-toggle").checked && market === "STOCK";
+    const body = { username, aiLevel, mode, advanced, realRules };
     if (market) body.market = market;
     const res = await api("/game/start", {
       method: "POST",
@@ -277,6 +367,7 @@ async function enterGame(res) {
     state.aiLevel = res.aiLevel;
     state.mode = res.mode || "CLASSIC";
     state.advanced = !!res.advanced;
+    state.realRules = !!res.realRules;
     state.stocks = res.stocks || [];
     state.activeStock = res.stockCode;
     state.orders = [];
@@ -284,6 +375,11 @@ async function enterGame(res) {
     state.lastStatus = null;
     state.lastSettle = null;
     state.trades = [];
+    state.aiMoves = [];
+    $("ai-moves-box").hidden = true;
+    $("ai-moves").innerHTML = "";
+    $("t1-hint").hidden = true;
+    $("settle-curve-box").hidden = true;
     // 新对局重置快讯决策门, 否则上一局的拦截记录会让新局同天数时漏弹一次
     newsGateDay = -1;
 
@@ -351,7 +447,16 @@ async function tick() {
     renderStatus(res.status);
     (res.filledOrders || []).forEach((f) => {
       toast(t("orders.filled", t(ORDER_TYPE_KEY[f.orderType] || f.orderType), f.shares, fmtMoney(f.price)));
+      // 挂单成交也计入成交标记/复盘 (成交日 = 刚揭晓的这根 K 线)
+      const idx = state.klines.length - 1;
+      state.trades.push({
+        idx, date: state.klines[idx].tradeDate,
+        dir: f.orderType === "LIMIT_BUY" ? "BUY" : "SELL",
+        price: Number(f.price), shares: f.shares,
+      });
     });
+    recordAiMove(res.daysElapsed, res.aiTradeShares);
+    if (state.mode !== "PORTFOLIO") updateChartData();
     if ((res.filledOrders || []).length) playSound("fill");
     if (res.autoCancelledOrders > 0) toast(t("orders.autoCancelled"));
     if ((res.filledOrders || []).length || res.autoCancelledOrders > 0 || state.orders.length) loadOrders();
@@ -363,6 +468,29 @@ async function tick() {
   } catch (e) {
     toast(e.message);
   }
+}
+
+// AI 操作时间线: 只记有动作的日子 (正=买, 负=卖), 最新在最上
+function recordAiMove(day, shares) {
+  if (!shares) return;
+  state.aiMoves = state.aiMoves || [];
+  state.aiMoves.unshift({ day, shares });
+  if (state.aiMoves.length > 20) state.aiMoves.pop();
+  renderAiMoves();
+}
+
+function renderAiMoves() {
+  const box = $("ai-moves-box");
+  const list = $("ai-moves");
+  const moves = state.aiMoves || [];
+  box.hidden = moves.length === 0;
+  list.innerHTML = "";
+  moves.forEach((m) => {
+    const li = document.createElement("li");
+    li.className = m.shares > 0 ? "pos" : "neg";
+    li.textContent = t(m.shares > 0 ? "ai.move.buy" : "ai.move.sell", m.day, Math.abs(m.shares));
+    list.appendChild(li);
+  });
 }
 
 async function trade(direction) {
@@ -386,6 +514,7 @@ async function trade(direction) {
     // 复盘报告需要在前端记录每笔成交对应的 K 线位置
     const idx = state.klines.length - 1;
     state.trades.push({ idx, date: state.klines[idx].tradeDate, dir: direction, price, shares });
+    if (state.mode !== "PORTFOLIO") updateChartData(); // 买卖点即时上图
     playSound(direction === "BUY" ? "buy" : "sell");
     let msg = t(direction === "BUY" ? "toast.buyOk" : "toast.sellOk", shares);
     if (res.fee && Number(res.fee) > 0) msg += " · " + t("trade.fee", fmtMoney(res.fee));
@@ -522,6 +651,15 @@ function renderStatus(s) {
   setSigned($("st-pnl"), Number(s.floatingPnl), fmtMoney(Math.abs(s.floatingPnl)));
   setSigned($("st-return"), Number(s.returnRate), fmtPct(Number(s.returnRate)));
   $("st-fees").textContent = fmtMoney(s.feesPaid || 0);
+  setSigned($("st-interest"), Number(s.interestTotal || 0), fmtMoney(Math.abs(s.interestTotal || 0)));
+  // 真实规则: 提示 T+1 今日可卖数, 免得玩家靠报错试探
+  const t1 = $("t1-hint");
+  if (s.sellableShares != null) {
+    t1.hidden = false;
+    t1.textContent = t("trade.t1Hint", s.sellableShares);
+  } else {
+    t1.hidden = true;
+  }
   renderPositions(s.positions);
   state.daysElapsed = s.daysElapsed;
   state.totalTicks = s.totalTicks;
@@ -630,6 +768,7 @@ const ORDER_TYPE_KEY = {
   LIMIT_SELL: "orders.limitSell",
   STOP_LOSS: "orders.stopLoss",
   TAKE_PROFIT: "orders.takeProfit",
+  TRAIL_STOP: "orders.trailStop",
 };
 
 async function loadOrders() {
@@ -653,7 +792,8 @@ function renderOrders() {
   open.forEach((o) => {
     const li = document.createElement("li");
     const label = document.createElement("span");
-    label.textContent = `${t(ORDER_TYPE_KEY[o.orderType] || o.orderType)} ${o.shares} @ ${fmtMoney(o.triggerPrice)}`;
+    label.textContent = `${t(ORDER_TYPE_KEY[o.orderType] || o.orderType)} ${o.shares} @ ${fmtMoney(o.triggerPrice)}`
+      + (o.trailPct != null ? ` (${Number(o.trailPct)}%)` : "");
     const btn = document.createElement("button");
     btn.className = "ghost order-cancel";
     btn.textContent = t("orders.cancel");
@@ -672,14 +812,20 @@ function renderOrders() {
 
 async function placeOrder() {
   const orderType = $("order-type").value;
-  const price = parseFloat($("order-price").value);
+  const trailing = orderType === "TRAIL_STOP";
+  // 移动止损不填触发价 (后端按当日收盘与跟踪距离推出), price 仅占位
+  const price = trailing
+    ? Number(state.lastStatus?.currentPrice || 1)
+    : parseFloat($("order-price").value);
   const shares = parseInt($("order-shares").value, 10);
-  if (!price || !shares || shares <= 0) {
+  const trailPct = parseFloat($("order-trail").value);
+  if (!price || !shares || shares <= 0 || (trailing && !(trailPct >= 1 && trailPct <= 30))) {
     toast(t("toast.invalidTrade"));
     return;
   }
   try {
     const body = { orderType, price, shares };
+    if (trailing) body.trailPct = trailPct;
     if (state.mode === "PORTFOLIO" && state.activeStock) body.stockCode = state.activeStock;
     await api(`/game/${state.sessionId}/orders`, { method: "POST", body: JSON.stringify(body) });
     toast(t("orders.placed"));
@@ -706,11 +852,20 @@ function renderSettle(result) {
   $("settle-card").hidden = false;
   $("settle-initial").textContent = fmtMoney(result.initialCash) + t("unit.money");
   $("settle-final").textContent = fmtMoney(result.finalAssets) + t("unit.money");
+  // 累计利息为 0 (未开计息或全程满仓) 时不展示, 避免噪音
+  const interest = Number(result.interestTotal || 0);
+  $("settle-interest").hidden = interest === 0;
+  if (interest !== 0) {
+    const vEl = $("settle-interest-val");
+    vEl.textContent = (interest > 0 ? "+" : "-") + fmtMoney(Math.abs(interest)) + t("unit.money");
+    vEl.className = interest > 0 ? "pos" : "neg";
+  }
   const el = $("settle-return");
   el.textContent = fmtPct(Number(result.returnRate));
   el.className = Number(result.returnRate) >= 0 ? "pos" : "neg";
   renderComparison(result);
   renderSettleExtras(result);
+  renderSettleCurve(result);
 }
 
 function renderSettleExtras(result) {
@@ -741,8 +896,82 @@ function renderSettleExtras(result) {
     });
   }
 
+  renderRiskPanel(result);
+
   $("btn-review").hidden = false;
   $("btn-recap").hidden = false;
+}
+
+// 结算风险指标表: 你 vs 买入持有。回撤/波动率/日胜率是正分数 → 百分比,
+// 夏普/索提诺/盈亏比是纯数 → 两位小数; 后端算不出 (样本不足等) 的字段为 null → "--"
+function renderRiskPanel(result) {
+  const box = $("settle-risk");
+  const risk = result.risk;
+  const hold = result.holdRisk;
+  if (!risk && !hold) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  const pct = (v) => (v == null ? "--" : (Number(v) * 100).toFixed(2) + "%");
+  const num = (v) => (v == null ? "--" : Number(v).toFixed(2));
+  const fill = (suffix, m) => {
+    $("risk-dd-" + suffix).textContent = pct(m && m.maxDrawdown);
+    $("risk-vol-" + suffix).textContent = pct(m && m.volatility);
+    $("risk-sharpe-" + suffix).textContent = num(m && m.sharpe);
+    $("risk-sortino-" + suffix).textContent = num(m && m.sortino);
+    $("risk-win-" + suffix).textContent = pct(m && m.winRate);
+    $("risk-pl-" + suffix).textContent = num(m && m.profitLossRatio);
+  };
+  fill("you", risk);
+  fill("hold", hold);
+}
+
+// 结算资金曲线小图: 你 vs 买入持有, 横轴为对局内第 N 天 (后端已算好, 纯展示)
+let settleChart = null;
+function renderSettleCurve(result) {
+  const box = $("settle-curve-box");
+  const curve = result.equityCurve;
+  if (!curve || curve.length < 2) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  if (!settleChart) {
+    settleChart = echarts.init($("settle-curve"));
+    window.addEventListener("resize", () => settleChart.resize());
+  }
+  const days = curve.map((_, i) => "D" + i);
+  const series = [
+    { name: t("cmp.you"), type: "line", data: curve.map(Number), showSymbol: false,
+      lineStyle: { width: 2, color: COLORS.accent }, itemStyle: { color: COLORS.accent },
+      areaStyle: { opacity: 0.08, color: COLORS.accent } },
+  ];
+  if (result.holdEquityCurve && result.holdEquityCurve.length === curve.length) {
+    series.push({ name: t("cmp.hold"), type: "line", data: result.holdEquityCurve.map(Number),
+      showSymbol: false, lineStyle: { width: 1.5, color: COLORS.muted, type: "dashed" },
+      itemStyle: { color: COLORS.muted } });
+  }
+  settleChart.setOption({
+    backgroundColor: "transparent",
+    animation: false,
+    textStyle: { color: COLORS.text },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: COLORS.panel, borderColor: COLORS.border,
+      textStyle: { color: COLORS.text },
+      valueFormatter: (v) => fmtMoney(v) + t("unit.money"),
+    },
+    legend: { data: series.map((s) => s.name), textStyle: { color: COLORS.muted }, top: 0 },
+    grid: { left: 56, right: 10, top: 26, bottom: 20 },
+    xAxis: { type: "category", data: days,
+      axisLine: { lineStyle: { color: COLORS.border } }, axisLabel: { color: COLORS.muted, fontSize: 10 } },
+    yAxis: { scale: true,
+      splitLine: { lineStyle: { color: COLORS.border, opacity: 0.4 } },
+      axisLabel: { color: COLORS.muted, fontSize: 10 } },
+    series,
+  }, { notMerge: true });
+  settleChart.resize();
 }
 
 function renderComparison(result) {
@@ -761,6 +990,7 @@ function renderComparison(result) {
   setCell("cmp-ai", result.aiReturnRate);
   setCell("cmp-hold", result.holdReturnRate);
   setCell("cmp-ma", result.maCrossReturnRate);
+  setCell("cmp-dca", result.dcaReturnRate);
 
   const verdict = $("settle-verdict");
   const taunt = $("settle-taunt");
@@ -880,7 +1110,11 @@ function setTradeEnabled(enabled) {
 
 async function loadLeaderboard() {
   try {
-    state.lbRows = await api("/leaderboard" + (window.qsSeason ? "?season=" + window.qsSeason : ""));
+    const params = new URLSearchParams();
+    if (window.qsSeason) params.set("season", window.qsSeason);
+    if (window.qsRankSort) params.set("sort", window.qsRankSort);
+    const q = params.toString();
+    state.lbRows = await api("/leaderboard" + (q ? "?" + q : ""));
     renderLeaderboard();
   } catch (e) {
     /* 排行榜加载失败不打断游戏 */
@@ -893,7 +1127,7 @@ function renderLeaderboard() {
   const tbody = $("leaderboard").querySelector("tbody");
   tbody.innerHTML = "";
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty-row"></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-row"></td></tr>`;
     tbody.querySelector(".empty-row").textContent = t("lb.empty");
     return;
   }
@@ -905,7 +1139,8 @@ function renderLeaderboard() {
       <td></td>
       <td></td>
       <td>${r.startDate}</td>
-      <td class="${rate >= 0 ? "pos" : "neg"}">${fmtPct(rate)}</td>`;
+      <td class="${rate >= 0 ? "pos" : "neg"}">${fmtPct(rate)}</td>
+      <td>${r.sharpe == null ? "--" : Number(r.sharpe).toFixed(2)}</td>`;
     tr.children[1].textContent = r.username;
     tr.children[2].textContent = stockName(r.stockName, r.stockCode);
     tbody.appendChild(tr);
@@ -950,6 +1185,10 @@ const STRATEGY_DESCS = {
   TURTLE: {
     zh: '<span class="term" data-term="turtle">海龟策略</span>：突破 N 日高点买入，跌破 M 日低点离场——趋势突破派鼻祖。',
     en: 'The <span class="term" data-term="turtle">Turtle</span> rules: buy an N-day breakout, exit on an M-day breakdown — the granddaddy of trend systems.',
+  },
+  DCA: {
+    zh: '每隔固定交易日投入一期等额资金（<span class="term" data-term="dca">定投</span>），只买不卖——用纪律代替择时。',
+    en: 'Invest an equal slice every fixed interval (<span class="term" data-term="dca">DCA</span>), never selling — discipline instead of timing.',
   },
   BUY_HOLD: {
     zh: '首日<span class="term" data-term="fullposition">全仓</span>买入持有到底，作为对照基准。',
@@ -1077,6 +1316,8 @@ function collectArenaBody(username) {
   } else if (strategy === "TURTLE") {
     body.turtleEntry = parseInt($("bt-turtle-entry").value, 10);
     body.turtleExit = parseInt($("bt-turtle-exit").value, 10);
+  } else if (strategy === "DCA") {
+    body.lookbackDays = parseInt($("bt-dca-interval").value, 10); // 后端把 lookbackDays 当定投间隔
   } else if (strategy === "CUSTOM") {
     body.buyConditions = collectConds("buy-conds");
     body.sellConditions = collectConds("sell-conds");
@@ -1094,6 +1335,7 @@ function fillArenaForm(body) {
   const set = (id, v) => { if (v != null) $(id).value = v; };
   set("bt-fast", body.fastWindow); set("bt-slow", body.slowWindow);
   set("bt-lookback", body.lookbackDays);
+  if (body.strategy === "DCA") set("bt-dca-interval", body.lookbackDays);
   set("bt-mawin", body.maWindow); set("bt-threshold", body.threshold);
   set("bt-rsi-period", body.rsiPeriod); set("bt-rsi-buy", body.rsiBuy); set("bt-rsi-sell", body.rsiSell);
   set("bt-macd-fast", body.macdFast); set("bt-macd-slow", body.macdSlow); set("bt-macd-signal", body.macdSignal);
@@ -1246,6 +1488,19 @@ function renderBacktestResult(res) {
   setDrawdown($("bt-drawdown"), Number(res.maxDrawdown));
   $("bt-trades").textContent = res.tradeCount;
   setOptional($("bt-winrate"), res.winRate, (v) => (v * 100).toFixed(1) + "%", false);
+  setOptional($("bt-vol"), res.volatility, (v) => (v * 100).toFixed(1) + "%", false);
+  setOptional($("bt-sortino"), res.sortinoRatio, (v) => v.toFixed(2), true);
+  setOptional($("bt-daywin"), res.dayWinRate, (v) => (v * 100).toFixed(1) + "%", false);
+  setOptional($("bt-pl"), res.profitLossRatio, (v) => v.toFixed(2), false);
+  // 前 70% / 后 30% 分段收益: 两段差距悬殊 = 过拟合预警
+  const sample = $("bt-sample");
+  if (res.inSampleReturn == null || res.outSampleReturn == null) {
+    sample.textContent = "--";
+    sample.className = "";
+  } else {
+    sample.textContent = `${fmtPct(Number(res.inSampleReturn))} → ${fmtPct(Number(res.outSampleReturn))}`;
+    sample.className = Number(res.outSampleReturn) >= 0 ? "pos" : "neg";
+  }
   setSigned($("bt-hold"), Number(res.holdReturn), fmtPct(Number(res.holdReturn)));
 
   const verdict = $("bt-verdict");
@@ -1264,8 +1519,21 @@ function renderBacktestResult(res) {
     verdict.className = "verdict";
   }
 
-  renderEquityChart(res.equityCurve);
+  // 双策略对比: 记录上一次 (不同的) 回测曲线, 勾选后叠加到图上
+  if (!lastBtRun || lastBtRun.id !== res.backtestId) {
+    prevBtRun = lastBtRun;
+    lastBtRun = {
+      id: res.backtestId,
+      label: `${t("strat." + res.strategy)}${res.params ? " [" + res.params + "]" : ""}`,
+      curve: res.equityCurve.map((p) => p.strategy),
+    };
+  }
+  renderEquityChart(res.equityCurve, prevBtRun);
 }
+
+// 最近/上一次回测的资金曲线 (「叠加上次曲线」对比用, 主题重绘不滚动窗口)
+let lastBtRun = null;
+let prevBtRun = null;
 
 // 最大回撤为正数分数, 展示为负百分比; 为 0 时不带负号也不标红
 function setDrawdown(el, dd) {
@@ -1288,7 +1556,10 @@ function setOptional(el, value, fmt, signed) {
   }
 }
 
-function renderEquityChart(curve) {
+function renderEquityChart(curve, prev) {
+  const overlay = prev && $("bt-compare").checked && prev.curve.length;
+  const legendData = [t("bt.legendStrategy"), t("bt.legendHold")];
+  if (overlay) legendData.push(t("bt.legendPrev", prev.label));
   btChart.setOption({
     backgroundColor: "transparent",
     animation: false,
@@ -1301,7 +1572,7 @@ function renderEquityChart(curve) {
       valueFormatter: (v) => fmtMoney(v) + t("unit.money"),
     },
     legend: {
-      data: [t("bt.legendStrategy"), t("bt.legendHold")],
+      data: legendData,
       textStyle: { color: COLORS.muted },
       top: 0,
     },
@@ -1327,6 +1598,9 @@ function renderEquityChart(curve) {
         showSymbol: false, lineStyle: { width: 2, color: COLORS.ma20 }, itemStyle: { color: COLORS.ma20 } },
       { name: t("bt.legendHold"), type: "line", data: curve.map((p) => p.hold),
         showSymbol: false, lineStyle: { width: 2, color: COLORS.ma5, type: "dashed" }, itemStyle: { color: COLORS.ma5 } },
+      ...(overlay ? [{ name: t("bt.legendPrev", prev.label), type: "line", data: prev.curve,
+        showSymbol: false, lineStyle: { width: 1.5, color: COLORS.accent2, opacity: 0.8 },
+        itemStyle: { color: COLORS.accent2 } }] : []),
     ],
   }, { notMerge: true });
   btChart.resize();
@@ -1488,11 +1762,14 @@ function toggleTheme() {
     muted: cssVar("--text-muted"),
     border: cssVar("--border"),
     panel: cssVar("--panel-raised"),
+    accent: cssVar("--accent"),
+    accent2: cssVar("--accent-2"),
   });
   renderThemeBtn();
   if (state.klines.length) renderChart();
   if (state.lastStatus) renderStatus(state.lastStatus);
   if (state.lastBt) renderBacktestResult(state.lastBt);
+  if (state.lastSettle) renderSettleCurve(state.lastSettle);
   document.dispatchEvent(new CustomEvent("qs:theme"));
 }
 
@@ -1540,11 +1817,25 @@ document.addEventListener("qs:lang", () => {
 
 $("btn-start").addEventListener("click", () => guarded(startGame));
 $("btn-order").addEventListener("click", () => guarded(placeOrder));
+// 移动止损填「跟踪 %」而不是触发价, 两个输入框互换显示
+$("order-type").addEventListener("change", () => {
+  const trailing = $("order-type").value === "TRAIL_STOP";
+  $("order-price").hidden = trailing;
+  $("order-trail").hidden = !trailing;
+});
+// 勾选/取消「叠加上次曲线」立即重绘资金曲线
+$("bt-compare").addEventListener("change", () => {
+  if (state.lastBt) renderEquityChart(state.lastBt.equityCurve, prevBtRun);
+});
 $("market-select").addEventListener("change", () => {
   const m = $("market-select").value;
   const ok = m === "US" || m === "CRYPTO";
   $("adv-wrap").hidden = !ok;
   if (!ok) $("adv-toggle").checked = false;
+  // 真实规则 (T+1/涨跌停) 只对 A股有意义
+  const cn = m === "STOCK";
+  $("real-wrap").hidden = !cn;
+  if (!cn) $("real-toggle").checked = false;
 });
 // 推进前先看明日快讯: 有事件先弹决策卡 (信息差 -> 决策时刻), 每个交易日只拦一次
 let newsGateDay = -1;

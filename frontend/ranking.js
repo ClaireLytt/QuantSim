@@ -32,6 +32,13 @@
     refreshBoards();
   });
 
+  // 收益榜 / 夏普榜切换 (夏普榜只收录有风险指标的新对局)
+  window.qsRankSort = "";
+  $("rank-sort").addEventListener("change", (e) => {
+    window.qsRankSort = e.target.value;
+    loadLeaderboard();
+  });
+
   document.addEventListener("qs:view", (e) => {
     if (e.detail !== "ranking") return;
     loadSeasons();

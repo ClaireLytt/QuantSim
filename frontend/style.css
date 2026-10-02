@@ -911,6 +911,12 @@ button.small { width: auto; margin-top: 8px; padding: 4px 12px; font-size: 12px;
 .arena-chart-card { flex: 1 1 500px; min-width: 0; }
 #bt-chart { width: 100%; height: 320px; }
 
+/* 结算卡资金曲线小图 / 每日挑战收益分布直方图 */
+#settle-curve { width: 100%; height: 180px; }
+#daily-dist { width: 100%; height: 220px; }
+/* AI 操作时间线: 条目多时内部滚动, 不顶高侧栏 */
+#ai-moves { max-height: 140px; overflow-y: auto; }
+
 .arena-board-title { margin-top: 24px; }
 .param-cell { color: var(--text-muted); font-size: 12px; }
 

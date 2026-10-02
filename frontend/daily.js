@@ -19,6 +19,8 @@
     let text = t("daily.info", stockName(today.stockName, today.stockCode));
     if (today.streak > 0) {
       text += "　" + t("daily.streak", today.streak);
+      // 成就联动: academy 监听该事件发放「连续挑战」徽章
+      document.dispatchEvent(new CustomEvent("qs:dailyStreak", { detail: today.streak }));
     }
     info.textContent = text;
     if (today.played) {
@@ -61,7 +63,64 @@
         tr.children[2].textContent = stockName(r.stockName, r.stockCode);
         tbody.appendChild(tr);
       });
+      renderDist(rows);
     } catch (e) { /* 未登录/网络异常时榜单留空 */ }
+  }
+
+  // 今日收益分布直方图 + 你的百分位 (样本太少不画, 没有统计意义)
+  let distChart = null;
+  function renderDist(rows) {
+    const box = $("daily-dist-box");
+    if (!rows || rows.length < 5) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    const rates = rows.map((r) => Number(r.returnRate));
+    const min = Math.min(...rates);
+    const max = Math.max(...rates);
+    const bins = 10;
+    const width = (max - min) / bins || 1;
+    const counts = new Array(bins).fill(0);
+    rates.forEach((v) => {
+      counts[Math.min(bins - 1, Math.floor((v - min) / width))]++;
+    });
+    const labels = counts.map((_, i) => fmtPct(min + width * (i + 0.5)));
+    if (!distChart) {
+      distChart = echarts.init($("daily-dist"));
+      window.addEventListener("resize", () => distChart.resize());
+    }
+    const accent = cssVar("--accent");
+    const muted = cssVar("--text-muted");
+    const border = cssVar("--border");
+    distChart.setOption({
+      backgroundColor: "transparent",
+      animation: false,
+      tooltip: { backgroundColor: cssVar("--panel-raised"), borderColor: border,
+        textStyle: { color: cssVar("--text") } },
+      grid: { left: 40, right: 16, top: 16, bottom: 30 },
+      xAxis: { type: "category", data: labels,
+        axisLine: { lineStyle: { color: border } },
+        axisLabel: { color: muted, fontSize: 10, interval: 1 } },
+      yAxis: { type: "value", minInterval: 1,
+        splitLine: { lineStyle: { color: border, opacity: 0.4 } },
+        axisLabel: { color: muted, fontSize: 10 } },
+      series: [{ type: "bar", data: counts, barWidth: "70%",
+        itemStyle: { color: accent, opacity: 0.8, borderRadius: [3, 3, 0, 0] } }],
+    }, { notMerge: true });
+    distChart.resize();
+
+    // 我的百分位: 已登录且今日已入榜时展示
+    const pctEl = $("daily-pct");
+    const myName = window.Auth && Auth.user && Auth.user.username;
+    const mine = myName ? rows.find((r) => r.username === myName) : null;
+    if (mine) {
+      const below = rates.filter((v) => v < Number(mine.returnRate)).length;
+      pctEl.hidden = false;
+      pctEl.textContent = t("daily.pct", Math.round((below / rates.length) * 100));
+    } else {
+      pctEl.hidden = true;
+    }
   }
 
   async function start() {

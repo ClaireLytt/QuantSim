@@ -95,6 +95,7 @@ const BADGES = [
   { id: "famous_1", name: { zh: "历史见证者", en: "History Witness" }, desc: { zh: "通过任意一个名场面挑战", en: "Clear any famous-moment challenge" } },
   { id: "famous_all", name: { zh: "传奇操盘手", en: "Living Legend" }, desc: { zh: "通过全部名场面挑战", en: "Clear all famous-moment challenges" } },
   { id: "daily_first", name: { zh: "每日打卡", en: "Daily Debut" }, desc: { zh: "完成一次每日挑战", en: "Complete a daily challenge" } },
+  { id: "daily_streak3", name: { zh: "风雨无阻", en: "Rain or Shine" }, desc: { zh: "连续 3 天完成每日挑战", en: "Complete daily challenges 3 days in a row" } },
   { id: "daily_150", name: { zh: "手感火热", en: "On Fire" }, desc: { zh: "单次每日挑战得分 ≥ 150", en: "Score 150+ in one daily challenge" } },
   { id: "settle_1", name: { zh: "实盘首秀", en: "Debut Settled" }, desc: { zh: "在模拟对局中完成一次结算", en: "Settle a full trading game" } },
   { id: "beat_ai", name: { zh: "人机对决", en: "AI Slayer" }, desc: { zh: "结算收益率跑赢 AI 操盘手", en: "Beat the AI trader at settlement" } },
@@ -2866,6 +2867,11 @@ $("guide-modal").addEventListener("click", (e) => {
 });
 
 // ---------- 事件联动 ----------
+
+// 每日挑战连续天数 (daily.js 派发): 连续 3 天发徽章
+document.addEventListener("qs:dailyStreak", (e) => {
+  if (Number(e.detail) >= 3) awardBadge("daily_streak3");
+});
 
 // 模拟对局结算时发放经验与成就 (app.js 派发)
 document.addEventListener("qs:settled", (e) => {

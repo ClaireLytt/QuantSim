@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuantSim 虚拟炒股</title>
-  <link rel="stylesheet" href="style.css?v=20261001d">
+  <link rel="stylesheet" href="style.css?v=20261002a">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -30,6 +30,9 @@
       </select>
       <label id="adv-wrap" class="adv-wrap" hidden data-i18n-title="adv.title" title="允许做空与 2 倍杠杆, 净值归零强制平仓">
         <input type="checkbox" id="adv-toggle"> <span data-i18n="adv.label">进阶</span>
+      </label>
+      <label id="real-wrap" class="adv-wrap" hidden data-i18n-title="real.title" title="A股真实规则: 当日买入不可卖 (T+1), 涨停买不进、跌停卖不出">
+        <input type="checkbox" id="real-toggle"> <span data-i18n="real.label">真实规则</span>
       </label>
       <button id="btn-start" class="primary" data-i18n="btn.start">开始新对局</button>
       <button id="btn-help" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
@@ -84,6 +87,7 @@
           <dt data-i18n="status.total">总资产</dt><dd id="st-total">--</dd>
           <dt><span class="term" data-term="returnrate" data-i18n="status.return">收益率</span></dt><dd id="st-return">--</dd>
           <dt><span class="term" data-term="commission" data-i18n="status.fees">累计费用</span></dt><dd id="st-fees">--</dd>
+          <dt data-i18n="status.interest">累计利息</dt><dd id="st-interest">--</dd>
         </dl>
         <div id="pf-positions" class="pf-positions" hidden></div>
       </div>
@@ -100,6 +104,10 @@
           <dt data-i18n="ai.shares">AI 持仓</dt><dd id="ai-shares">--</dd>
           <dt data-i18n="ai.return">AI 收益率</dt><dd id="ai-return">--</dd>
         </dl>
+        <div id="ai-moves-box" hidden>
+          <p class="hint" data-i18n="ai.movesTitle">AI 操作时间线</p>
+          <ul id="ai-moves" class="orders-list"></ul>
+        </div>
         <button id="btn-advisor" class="ghost" disabled data-i18n="ai.ask">问问 Agent</button>
         <p id="advisor-text" hidden></p>
         <div id="advisor-chat" hidden>
@@ -120,6 +128,7 @@
           <button id="btn-sell" class="sell" data-i18n="trade.sell">卖出</button>
         </div>
         <p class="hint" id="price-range" data-i18n="trade.rangeEmpty">按当日收盘价成交: --</p>
+        <p class="hint" id="t1-hint" hidden></p>
       </div>
 
       <div class="card" id="orders-card" hidden>
@@ -130,8 +139,10 @@
             <option value="LIMIT_SELL" data-i18n="orders.limitSell">限价卖出</option>
             <option value="STOP_LOSS" data-i18n="orders.stopLoss">止损卖出</option>
             <option value="TAKE_PROFIT" data-i18n="orders.takeProfit">止盈卖出</option>
+            <option value="TRAIL_STOP" data-i18n="orders.trailStop">移动止损</option>
           </select>
           <input id="order-price" type="number" step="0.01" min="0" data-i18n-placeholder="orders.pricePh" placeholder="触发价">
+          <input id="order-trail" type="number" step="0.5" min="1" max="30" value="5" data-i18n-placeholder="orders.trailPh" placeholder="跟踪 %" hidden>
           <input id="order-shares" type="number" min="1" data-i18n-placeholder="orders.sharesPh" placeholder="数量">
           <button id="btn-order" class="ghost" data-i18n="orders.place">挂单</button>
         </div>
@@ -148,6 +159,7 @@
         <h2 data-i18n="settle.title">对局结算</h2>
         <p><span data-i18n="settle.initial">初始资金: </span><span id="settle-initial">--</span></p>
         <p><span data-i18n="settle.final">最终资产: </span><span id="settle-final">--</span></p>
+        <p class="hint" id="settle-interest" hidden><span data-i18n="settle.interest">其中闲置现金利息: </span><span id="settle-interest-val">--</span></p>
         <p class="settle-return"><span class="term" data-term="returnrate" data-i18n="settle.return">收益率: </span><span id="settle-return">--</span></p>
         <p id="settle-verdict" class="verdict"></p>
         <p id="settle-taunt" class="settle-style" hidden></p>
@@ -163,8 +175,27 @@
             <tr><td data-i18n="cmp.ai">AI 操盘手</td><td id="cmp-ai">--</td></tr>
             <tr><td><span class="term" data-term="buyhold" data-i18n="cmp.hold">买入持有</span></td><td id="cmp-hold">--</td></tr>
             <tr><td><span class="term" data-term="goldencross" data-i18n="cmp.ma">均线金叉</span></td><td id="cmp-ma">--</td></tr>
+            <tr><td><span class="term" data-term="dca" data-i18n="cmp.dca">定投</span></td><td id="cmp-dca">--</td></tr>
           </tbody>
         </table>
+        <div id="settle-risk" hidden>
+          <p class="hint"><span class="term" data-term="equitycurve" data-i18n="risk.title">风险指标</span></p>
+          <table class="compare-table">
+            <thead><tr><th data-i18n="risk.metric">指标</th><th data-i18n="cmp.you">你</th><th data-i18n="cmp.hold">买入持有</th></tr></thead>
+            <tbody>
+              <tr><td><span class="term" data-term="drawdown" data-i18n="risk.dd">最大回撤</span></td><td id="risk-dd-you">--</td><td id="risk-dd-hold">--</td></tr>
+              <tr><td><span class="term" data-term="volatility" data-i18n="risk.vol">年化波动率</span></td><td id="risk-vol-you">--</td><td id="risk-vol-hold">--</td></tr>
+              <tr><td><span class="term" data-term="sharpe" data-i18n="risk.sharpe">夏普比率</span></td><td id="risk-sharpe-you">--</td><td id="risk-sharpe-hold">--</td></tr>
+              <tr><td><span class="term" data-term="sortino" data-i18n="risk.sortino">索提诺比率</span></td><td id="risk-sortino-you">--</td><td id="risk-sortino-hold">--</td></tr>
+              <tr><td><span class="term" data-term="daywinrate" data-i18n="risk.winRate">日胜率</span></td><td id="risk-win-you">--</td><td id="risk-win-hold">--</td></tr>
+              <tr><td><span class="term" data-term="plratio" data-i18n="risk.plRatio">盈亏比</span></td><td id="risk-pl-you">--</td><td id="risk-pl-hold">--</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="settle-curve-box" hidden>
+          <p class="hint"><span class="term" data-term="equitycurve" data-i18n="settle.curveTitle">本局资金曲线</span></p>
+          <div id="settle-curve"></div>
+        </div>
         <button id="btn-recap" class="ghost" hidden data-i18n="recap.btn">复盘报告</button>
         <button id="btn-review" class="ghost" hidden data-i18n="review.ask">AI 复盘本局</button>
         <button id="btn-sharecard" class="ghost" hidden data-i18n="share.btn">生成战绩卡</button>
@@ -190,6 +221,7 @@
           <option value="MEAN_REVERSION" data-i18n="strat.MEAN_REVERSION">均值回归</option>
           <option value="RSI" data-i18n="strat.RSI">RSI 超买超卖</option>
           <option value="MACD" data-i18n="strat.MACD">MACD 趋势</option>
+          <option value="DCA" data-i18n="strat.DCA">定投</option>
           <option value="BOLL" data-i18n="strat.BOLL">布林带</option>
           <option value="GRID" data-i18n="strat.GRID">网格交易</option>
           <option value="TURTLE" data-i18n="strat.TURTLE">海龟策略</option>
@@ -230,6 +262,9 @@
         <label><span data-i18n="arena.turtleEntry">入场突破日 </span><input id="bt-turtle-entry" type="number" min="10" max="60" value="20"></label>
         <label><span data-i18n="arena.turtleExit">离场突破日 </span><input id="bt-turtle-exit" type="number" min="5" max="30" value="10"></label>
       </span>
+      <span class="bt-param" data-for="DCA" hidden>
+        <label><span class="term" data-term="dca" data-i18n="arena.dcaInterval">定投间隔(交易日) </span><input id="bt-dca-interval" type="number" min="2" max="60" value="5"></label>
+      </span>
       <label class="bt-pos-label" id="bt-pos-wrap"><span class="term" data-term="positionpct" data-i18n="arena.pos">仓位</span>
         <input id="bt-pos" type="range" min="10" max="100" step="10" value="100">
         <span id="bt-pos-val">100%</span>
@@ -250,6 +285,7 @@
       <button id="btn-tune" class="ghost" data-i18n="arena.tune">自动调参</button>
       <button id="btn-code-copy" class="ghost" data-i18n="code.copy">复制策略码</button>
       <button id="btn-code-import" class="ghost" data-i18n="code.import">导入策略码</button>
+      <label class="adv-wrap"><input type="checkbox" id="bt-compare"> <span data-i18n="arena.compare">叠加上次曲线</span></label>
       <p class="hint" id="bt-strategy-desc"></p>
       <p class="hint" id="bt-tune-msg" hidden></p>
     </div>
@@ -266,6 +302,11 @@
           <dt><span class="term" data-term="drawdown" data-i18n="bt.drawdown">最大回撤</span></dt><dd id="bt-drawdown">--</dd>
           <dt data-i18n="bt.trades">交易次数</dt><dd id="bt-trades">--</dd>
           <dt><span class="term" data-term="winrate" data-i18n="bt.winrate">胜率</span></dt><dd id="bt-winrate">--</dd>
+          <dt><span class="term" data-term="volatility" data-i18n="bt.vol">年化波动率</span></dt><dd id="bt-vol">--</dd>
+          <dt><span class="term" data-term="sortino" data-i18n="bt.sortino">索提诺比率</span></dt><dd id="bt-sortino">--</dd>
+          <dt><span class="term" data-term="daywinrate" data-i18n="bt.dayWin">日胜率</span></dt><dd id="bt-daywin">--</dd>
+          <dt><span class="term" data-term="plratio" data-i18n="bt.plRatio">盈亏比</span></dt><dd id="bt-pl">--</dd>
+          <dt><span class="term" data-term="overfit" data-i18n="bt.sample">前70% → 后30%</span></dt><dd id="bt-sample">--</dd>
           <dt><span class="term" data-term="buyhold" data-i18n="bt.hold">买入持有基准</span></dt><dd id="bt-hold">--</dd>
         </dl>
         <p id="bt-verdict" class="verdict"></p>
@@ -388,6 +429,15 @@
     </div>
 
     <div class="lab-block">
+      <h3 data-i18n="lab.calib">预测置信度校准</h3>
+      <p class="hint" data-i18n="lab.calibHint">AI 说「70% 概率上涨」时，历史上真的有七成在涨吗？把全部预测分桶对照实际涨跌，一眼看出模型是自信过头还是过于保守。</p>
+      <div class="lab-controls">
+        <button id="btn-lab-calib" data-i18n="lab.calibBtn">生成校准图</button>
+      </div>
+      <div id="lab-calib-chart" class="lab-chart" hidden></div>
+    </div>
+
+    <div class="lab-block">
       <h3 data-i18n="lab.timing">择时的代价</h3>
       <p class="hint" data-i18n="lab.timingHint">“等回调再买”听起来很聪明——但如果因此错过涨得最猛的 5 天，会发生什么？用整段历史算给你看。</p>
       <div class="lab-controls">
@@ -457,6 +507,11 @@
       <thead><tr><th>#</th><th data-i18n="lb.user">用户</th><th data-i18n="lb.stock">股票</th><th data-i18n="lb.return">收益率</th></tr></thead>
       <tbody></tbody>
     </table>
+    <div id="daily-dist-box" hidden>
+      <h3 class="section-title" data-i18n="daily.dist">今日收益分布</h3>
+      <p class="hint" id="daily-pct" hidden></p>
+      <div id="daily-dist"></div>
+    </div>
   </section>
   </div>
 
@@ -516,12 +571,18 @@
       <label><span data-i18n="rank.season">赛季</span>
         <select id="season-select"><option value="" data-i18n="rank.allTime">全部时间</option></select>
       </label>
+      <label><span data-i18n="rank.sort">榜单</span>
+        <select id="rank-sort">
+          <option value="" data-i18n="rank.byReturn">收益榜</option>
+          <option value="sharpe" data-i18n="rank.bySharpe">夏普榜</option>
+        </select>
+      </label>
     </div>
   <section class="leaderboard-panel">
     <h2><span data-i18n="lb.title">排行榜</span> <span class="sub" data-i18n="lb.sub">按收益率排名（已结算对局）</span></h2>
     <table id="leaderboard">
       <thead>
-        <tr><th>#</th><th data-i18n="lb.user">用户</th><th data-i18n="lb.stock">股票</th><th data-i18n="lb.startDate">起始日</th><th data-i18n="lb.return">收益率</th></tr>
+        <tr><th>#</th><th data-i18n="lb.user">用户</th><th data-i18n="lb.stock">股票</th><th data-i18n="lb.startDate">起始日</th><th data-i18n="lb.return">收益率</th><th><span class="term" data-term="sharpe" data-i18n="arena.sharpe">夏普</span></th></tr>
       </thead>
       <tbody></tbody>
     </table>
@@ -561,6 +622,16 @@
   <div id="view-history" hidden>
   <section class="academy-panel">
     <h2><span data-i18n="me.historyTitle">战绩历史</span> <span class="sub" data-i18n="me.historySub">你的每一局与每一次回测都在这里（需登录）</span></h2>
+    <div id="career-box" class="card" hidden>
+      <h3 data-i18n="me.career">生涯统计</h3>
+      <dl>
+        <dt data-i18n="me.cGames">已结算对局</dt><dd id="career-games">--</dd>
+        <dt data-i18n="me.cAvg">平均收益率</dt><dd id="career-avg">--</dd>
+        <dt data-i18n="me.cBest">最佳一局</dt><dd id="career-best">--</dd>
+        <dt data-i18n="me.cWorst">最差一局</dt><dd id="career-worst">--</dd>
+        <dt data-i18n="me.cPos">正收益占比</dt><dd id="career-pos">--</dd>
+      </dl>
+    </div>
     <h3 class="section-title" data-i18n="me.games">对局记录</h3>
     <table id="hist-games">
       <thead><tr><th data-i18n="lb.stock">股票</th><th data-i18n="me.mode">模式</th><th data-i18n="lb.startDate">起始日</th><th data-i18n="me.status">状态</th><th data-i18n="lb.return">收益率</th><th data-i18n="me.playedAt">时间</th></tr></thead>
@@ -897,20 +968,20 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261001c"></script>
-  <script src="glossary.js?v=20260930a"></script>
-  <script src="app.js?v=20261001c"></script>
+  <script src="i18n.js?v=20261002b"></script>
+  <script src="glossary.js?v=20261002a"></script>
+  <script src="app.js?v=20261002b"></script>
   <script src="auth.js?v=20260930a"></script>
-  <script src="academy.js?v=20260930a"></script>
-  <script src="lab.js?v=20260930a"></script>
-  <script src="daily.js?v=20261001b"></script>
+  <script src="academy.js?v=20261002a"></script>
+  <script src="lab.js?v=20261002a"></script>
+  <script src="daily.js?v=20261002a"></script>
   <script src="rooms.js?v=20260930a"></script>
-  <script src="ranking.js?v=20260930a"></script>
+  <script src="ranking.js?v=20261002a"></script>
   <script src="sharecard.js?v=20260930a"></script>
   <script src="sharecode.js?v=20260930a"></script>
   <script src="heatmap.js?v=20260930a"></script>
   <script src="news.js?v=20260930a"></script>
-  <script src="history.js?v=20260930a"></script>
+  <script src="history.js?v=20261002a"></script>
   <script src="home.js?v=20260930a"></script>
 </body>
 </html>

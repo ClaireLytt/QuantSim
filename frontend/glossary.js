@@ -92,6 +92,22 @@ const GLOSSARY = {
     zh: { term: "胜率", def: "完整的「买入→卖出」回合中，赚钱回合所占的比例。胜率高不等于赚得多——还要看单次盈亏的大小。" },
     en: { term: "Win rate", def: "The fraction of complete buy-then-sell round trips that made money. A high win rate doesn't guarantee high profit — the size of wins vs losses matters too." },
   },
+  volatility: {
+    zh: { term: "年化波动率", def: "日收益波动折算成年率，衡量资金曲线有多颠簸。波动率越高，坐的「过山车」越刺激，心态越难稳。" },
+    en: { term: "Annualized volatility", def: "The standard deviation of daily returns scaled to a yearly rate — how bumpy your equity curve is. Higher volatility means a wilder ride." },
+  },
+  sortino: {
+    zh: { term: "索提诺比率", def: "夏普比率的改良版：只把「下跌的波动」算作风险，不惩罚上涨。两个策略收益相同，亏损日更少更浅的那个索提诺更高。" },
+    en: { term: "Sortino ratio", def: "A refinement of Sharpe: only downside volatility counts as risk, so upside swings aren't penalized. Same return with shallower losing days → higher Sortino." },
+  },
+  daywinrate: {
+    zh: { term: "日胜率", def: "有涨跌的交易日里，资产上涨的天数占比（空仓躺平的日子不计）。它看的是「赢的频率」，要配合盈亏比一起读。" },
+    en: { term: "Daily win rate", def: "Among days when your assets moved, the fraction that moved up (flat all-cash days don't count). It measures how often you win — read it together with the profit/loss ratio." },
+  },
+  plratio: {
+    zh: { term: "盈亏比", def: "平均盈利日赚的幅度 ÷ 平均亏损日亏的幅度。大于 1 说明「赚时赚得多、亏时亏得少」——低胜率配高盈亏比同样能赚钱。" },
+    en: { term: "Profit/loss ratio", def: "Average gain on up days divided by average loss on down days. Above 1 means wins run bigger than losses — even a low win rate can be profitable with a high P/L ratio." },
+  },
   annual: {
     zh: { term: "年化收益", def: "把一段时间的收益按复利折算成「一年能赚多少」，方便不同时长的策略互相比较。" },
     en: { term: "Annualized return", def: "The return converted to a per-year rate (with compounding), so strategies tested over different periods can be compared fairly." },
@@ -460,6 +476,10 @@ const TERM_WORDS = [
   ["主升浪", "mainwave"], ["main wave", "mainwave"],
   ["资金曲线", "equitycurve"], ["equity curve", "equitycurve"],
   ["夏普比率", "sharpe"], ["sharpe", "sharpe"],
+  ["年化波动率", "volatility"], ["波动率", "volatility"], ["volatility", "volatility"],
+  ["索提诺比率", "sortino"], ["索提诺", "sortino"], ["sortino", "sortino"],
+  ["日胜率", "daywinrate"], ["daily win rate", "daywinrate"],
+  ["盈亏比", "plratio"], ["profit/loss ratio", "plratio"], ["p/l ratio", "plratio"],
   ["涨跌幅", "pctchange"], ["pct change", "pctchange"],
   ["年化收益", "annual"], ["annualized", "annual"],
   ["过拟合", "overfit"], ["overfitting", "overfit"], ["overfit", "overfit"],
