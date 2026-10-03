@@ -137,8 +137,30 @@ h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: .3px; }
   flex: none;
 }
 
-/* 手机宽度必须允许换行, 否则头部工具条把页面横向撑出 800+px */
-.start-box { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+/* 顶栏工具簇 (登录/语言/主题/音效): 锁定头部第一行右端, 与开局控件分层 */
+.header-tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto; /* 把整簇推到右上角 */
+}
+.header-tools button {
+  width: auto;
+  min-width: 0;
+  margin-top: 0;
+  padding: 4px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+/* 登录后按钮显示账户名: 超长截断省略, 不挤占旁边按钮 */
+#btn-account {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 开局控件独占第二行 (手机宽度允许内部换行, 否则会把页面横向撑出 800+px) */
+.start-box { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; flex: 1 1 100%; }
 .start-box button { width: auto; min-width: 100px; margin-top: 0; padding: 7px 12px; white-space: nowrap; }
 
 /* ---------- 顶部导航 ---------- */
@@ -1472,6 +1494,103 @@ footer {
 /* ---------- 账户 / 房间 双卡布局 ---------- */
 
 .room-actions { display: flex; gap: 16px; flex-wrap: wrap; }
+/* 聚焦型页面 (账户/每日挑战/好友房间): 内容窄栏居中, 不占满整屏 */
+.center-panel { max-width: 720px; margin: 0 auto; }
+
+/* 聚焦页标题: 标题/副标题竖排居中, 左侧装饰条改为标题下的居中渐变短横线 */
+.auth-panel > h2,
+.center-panel > h2 {
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.auth-panel > h2::before,
+.center-panel > h2::before { display: none; }
+.auth-panel > h2::after,
+.center-panel > h2::after {
+  content: "";
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+
+/* 积分卡与兑换商城: emoji 瓷砖当奖品图, 档位对标市面积分商城 */
+.points-balance {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.points-balance-inline { color: var(--accent); font-variant-numeric: tabular-nums; }
+.points-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+.points-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+.points-item .pic {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  line-height: 1;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg,
+      color-mix(in srgb, var(--accent) 14%, transparent),
+      color-mix(in srgb, var(--accent-2) 14%, transparent));
+}
+.points-item .name { font-size: 13px; font-weight: 600; }
+.points-item .cost {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--warn);
+  font-variant-numeric: tabular-nums;
+}
+.points-item button { width: 100%; padding: 4px 12px; font-size: 12px; margin-top: 2px; }
+
+/* 好友房间: 创建/加入单卡切换后只剩一张卡, 收窄并居中 */
+#room-create-card,
+#room-join-card { flex: 0 1 400px; margin: 0 auto; }
+
+/* 账户页 (已登录资料卡 / 未登录提示卡): 居中窄卡, 不占满整屏 */
+#auth-me,
+#auth-guest {
+  max-width: 400px;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#auth-me h3 { margin: 0; font-size: 15px; color: var(--accent); overflow-wrap: anywhere; }
+#auth-me button, #auth-guest button { align-self: center; width: auto; min-width: 120px; }
+
+/* 登录/注册弹窗: 窄版 modal, 登录默认展示, 小字链接切到注册 (主流登录范式) */
+.auth-modal { width: 400px; }
+.auth-forms section { display: flex; flex-direction: column; gap: 10px; }
+.auth-forms h3 { margin: 0; }
+.auth-forms label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-muted); }
+.auth-forms input { width: 100%; }
+.auth-switch { text-align: center; margin: 2px 0 0; }
+.auth-switch a { color: var(--accent); cursor: pointer; text-decoration: none; }
+.auth-switch a:hover { text-decoration: underline; }
 .room-actions .card { flex: 1 1 280px; display: flex; flex-direction: column; gap: 10px; }
 .room-actions label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-muted); }
 .room-actions input, .room-actions select { width: 100%; }
@@ -1482,8 +1601,18 @@ footer {
 
 /* ---------- 每日挑战 ---------- */
 
-.daily-card { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
-.daily-actions { display: flex; gap: 8px; }
+/* 每日挑战卡: 窄栏内整体居中, 文案与按钮都走中轴 */
+.daily-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 560px;
+  margin: 0 auto;
+  align-items: center;
+  text-align: center;
+}
+.daily-actions { display: flex; gap: 8px; justify-content: center; }
+.daily-actions button { width: auto; min-width: 150px; }
 
 /* ---------- 排行榜视图 ---------- */
 

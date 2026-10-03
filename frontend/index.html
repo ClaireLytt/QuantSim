@@ -4,19 +4,28 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuantSim 虚拟炒股</title>
-  <link rel="stylesheet" href="style.css?v=20261002a">
+  <link rel="stylesheet" href="style.css?v=20261003j">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
   <header>
     <h1>QuantSim <span class="sub" data-i18n="header.sub">虚拟炒股游戏</span></h1>
+    <div class="header-tools">
+      <button id="btn-points-head" class="ghost" data-i18n-title="points.shopTitle" title="积分兑换">🎁 <span id="points-balance-head">0</span></button>
+      <button id="btn-account" class="ghost" data-i18n="auth.navBtn">登录</button>
+      <button id="btn-lang" class="ghost" title="中文 / English">EN</button>
+      <button id="btn-theme" class="ghost">浅色模式</button>
+      <button id="btn-sound" class="ghost" data-i18n-title="sound.title" title="音效开关">🔇</button>
+    </div>
     <div class="start-box">
-      <input id="username" type="text" data-i18n-placeholder="header.username" placeholder="输入用户名" maxlength="50">
       <select id="market-select" data-i18n-title="market.title" title="选择市场">
         <option value="" data-i18n="market.all">全部市场</option>
         <option value="STOCK" data-i18n="market.stock">A股</option>
         <option value="US" data-i18n="market.us">美股</option>
         <option value="CRYPTO" data-i18n="market.crypto">币圈</option>
+      </select>
+      <select id="industry-select" data-i18n-title="industry.title" title="挑选喜欢的行业">
+        <option value="" data-i18n="industry.all">全部行业</option>
       </select>
       <select id="ai-level-select" data-i18n-title="ailevel.title" title="AI 对手难度">
         <option value="EASY" data-i18n="ailevel.easy">简单 AI</option>
@@ -37,10 +46,6 @@
       <button id="btn-start" class="primary" data-i18n="btn.start">开始新对局</button>
       <button id="btn-help" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
       <button id="btn-tour" data-i18n="tour.btn" data-i18n-title="tour.btn">新手引导</button>
-      <button id="btn-account" class="ghost" data-i18n="auth.navBtn">登录</button>
-      <button id="btn-lang" class="ghost" title="中文 / English">EN</button>
-      <button id="btn-theme" class="ghost">浅色模式</button>
-      <button id="btn-sound" class="ghost" data-i18n-title="sound.title" title="音效开关">🔇</button>
     </div>
     <nav id="main-nav">
       <div id="nav-groups">
@@ -154,6 +159,7 @@
         <button id="btn-tick" class="primary big" data-i18n="btn.tick">下一天 ➜</button>
         <button id="btn-settle" class="ghost" data-i18n="btn.settle">提前结算</button>
       </div>
+
 
       <div class="card" id="settle-card" hidden>
         <h2 data-i18n="settle.title">对局结算</h2>
@@ -493,7 +499,7 @@
   </div>
 
   <div id="view-daily" hidden>
-  <section class="academy-panel">
+  <section class="academy-panel center-panel">
     <h2><span data-i18n="daily.title">每日挑战</span> <span class="sub" data-i18n="daily.sub">全服每天同一标的、同一隐藏区间，公平竞技，每人每天一局</span></h2>
     <section class="card daily-card">
       <p id="daily-info" class="hint" data-i18n="daily.loading">加载中…</p>
@@ -516,10 +522,10 @@
   </div>
 
   <div id="view-rooms" hidden>
-  <section class="academy-panel">
+  <section class="academy-panel center-panel">
     <h2><span data-i18n="room.title">好友房间</span> <span class="sub" data-i18n="room.sub">建房拿房间码发给朋友，同一隐藏行情各自操盘，结算后一起看排名</span></h2>
     <div class="room-actions">
-      <section class="card">
+      <section class="card" id="room-create-card">
         <h3 data-i18n="room.create">创建房间</h3>
         <label><span data-i18n="market.title">选择市场</span>
           <select id="room-market">
@@ -538,13 +544,15 @@
           </select>
         </label>
         <button id="btn-room-create" class="primary" data-i18n="room.createBtn">创建并生成房间码</button>
+        <p class="hint auth-switch"><span data-i18n="room.haveCode">拿到朋友的房间码了？</span><a href="#" id="link-room-join" data-i18n="room.toJoin">加入房间</a></p>
       </section>
-      <section class="card">
+      <section class="card" id="room-join-card" hidden>
         <h3 data-i18n="room.join">加入房间</h3>
         <label><span data-i18n="room.code">房间码</span>
           <input id="room-code-input" type="text" maxlength="6" data-i18n-placeholder="room.codePh" placeholder="6 位房间码">
         </label>
         <button id="btn-room-join" class="primary" data-i18n="room.joinBtn">加入</button>
+        <p class="hint auth-switch"><span data-i18n="room.wantCreate">想自己开一局？</span><a href="#" id="link-room-create" data-i18n="room.toCreate">创建房间</a></p>
       </section>
     </div>
     <section id="room-panel" class="card" hidden>
@@ -647,24 +655,12 @@
   </div>
 
   <div id="view-account" hidden>
-  <section class="academy-panel">
+  <section class="academy-panel auth-panel">
     <h2><span data-i18n="auth.title">账户</span> <span class="sub" data-i18n="auth.sub">注册后战绩、学堂进度云端同步，还能玩每日挑战和好友房间</span></h2>
-    <div id="auth-forms" class="room-actions">
-      <section class="card">
-        <h3 data-i18n="auth.login">登录</h3>
-        <label><span data-i18n="auth.username">用户名</span><input id="login-name" type="text" maxlength="50" autocomplete="username"></label>
-        <label><span data-i18n="auth.password">密码</span><input id="login-pass" type="password" maxlength="72" autocomplete="current-password"></label>
-        <button id="btn-login" class="primary" data-i18n="auth.loginBtn">登录</button>
-      </section>
-      <section class="card">
-        <h3 data-i18n="auth.register">注册</h3>
-        <label><span data-i18n="auth.username">用户名</span><input id="reg-name" type="text" maxlength="50" autocomplete="username"></label>
-        <label><span data-i18n="auth.password">密码</span><input id="reg-pass" type="password" maxlength="72" autocomplete="new-password"></label>
-        <label><span data-i18n="auth.password2">确认密码</span><input id="reg-pass2" type="password" maxlength="72" autocomplete="new-password"></label>
-        <button id="btn-register" class="primary" data-i18n="auth.registerBtn">注册</button>
-        <p class="hint" data-i18n="auth.claimHint">用过的游客昵称也能注册——注册即认领它的历史战绩。</p>
-      </section>
-    </div>
+    <section id="auth-guest" class="card">
+      <p class="hint" data-i18n="auth.guestHint">登录后战绩、学堂进度云端同步，还能玩每日挑战和好友房间。</p>
+      <button id="btn-open-auth" class="primary" data-i18n="auth.openBtn">登录 / 注册</button>
+    </section>
     <section id="auth-me" class="card" hidden>
       <h3 id="me-name">--</h3>
       <p id="me-since" class="hint"></p>
@@ -692,6 +688,52 @@
           <button id="btn-newsgate-hold" class="replay" data-i18n="news.holdOn">先调仓</button>
           <button id="btn-newsgate-go" class="primary" data-i18n="news.goAhead">直接推进 ➜</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 积分兑换商城: 模拟演示, 奖品不真实发放 -->
+  <div id="points-modal" class="modal-mask" hidden>
+    <div class="modal" role="dialog" aria-labelledby="points-shop-title">
+      <div class="modal-head">
+        <h2 id="points-shop-title" data-i18n="points.shopTitle">积分兑换</h2>
+        <button id="btn-points-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <p><span data-i18n="points.balanceLabel">当前积分：</span><b id="shop-balance" class="points-balance-inline">0</b></p>
+        <p class="hint"><span data-i18n="points.rulesLabel">攒积分：</span><span data-i18n="points.rules">签到 +10 · 结算一局 +50 · 战胜 AI +30 · 跑赢买入持有 +20 · 每日挑战 +40</span></p>
+        <div id="points-grid" class="points-grid"></div>
+        <h3 data-i18n="points.history">兑换记录</h3>
+        <ul id="points-history" class="orders-list"></ul>
+        <p class="hint" data-i18n="points.disclaimer">⚠️ 本兑换为游戏内模拟演示，所有奖品均为虚拟道具，不发放任何真实商品或话费。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 登录/注册弹窗: 不占整页, 小字链接在登录与注册面板间切换 -->
+  <div id="auth-modal" class="modal-mask" hidden>
+    <div class="modal auth-modal" role="dialog" aria-labelledby="auth-modal-title">
+      <div class="modal-head">
+        <h2 id="auth-modal-title" data-i18n="auth.title">账户</h2>
+        <button id="btn-auth-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body auth-forms" id="auth-forms">
+        <section id="login-card">
+          <h3 data-i18n="auth.login">登录</h3>
+          <label><span data-i18n="auth.username">用户名</span><input id="login-name" type="text" maxlength="50" autocomplete="username"></label>
+          <label><span data-i18n="auth.password">密码</span><input id="login-pass" type="password" maxlength="72" autocomplete="current-password"></label>
+          <button id="btn-login" class="primary" data-i18n="auth.loginBtn">登录</button>
+          <p class="hint auth-switch"><span data-i18n="auth.noAccount">还没有账号？</span><a href="#" id="link-register" data-i18n="auth.toRegister">立即注册</a></p>
+        </section>
+        <section id="register-card" hidden>
+          <h3 data-i18n="auth.register">注册</h3>
+          <label><span data-i18n="auth.username">用户名</span><input id="reg-name" type="text" maxlength="50" autocomplete="username"></label>
+          <label><span data-i18n="auth.password">密码</span><input id="reg-pass" type="password" maxlength="72" autocomplete="new-password"></label>
+          <label><span data-i18n="auth.password2">确认密码</span><input id="reg-pass2" type="password" maxlength="72" autocomplete="new-password"></label>
+          <button id="btn-register" class="primary" data-i18n="auth.registerBtn">注册</button>
+          <p class="hint" data-i18n="auth.claimHint">用过的游客昵称也能注册——注册即认领它的历史战绩。</p>
+          <p class="hint auth-switch"><span data-i18n="auth.hasAccount">已有账号？</span><a href="#" id="link-login" data-i18n="auth.toLogin">去登录</a></p>
+        </section>
       </div>
     </div>
   </div>
@@ -968,14 +1010,14 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261002b"></script>
+  <script src="i18n.js?v=20261003f"></script>
   <script src="glossary.js?v=20261002a"></script>
-  <script src="app.js?v=20261002b"></script>
-  <script src="auth.js?v=20260930a"></script>
+  <script src="app.js?v=20261003b"></script>
+  <script src="auth.js?v=20261003c"></script>
   <script src="academy.js?v=20261002a"></script>
   <script src="lab.js?v=20261002a"></script>
   <script src="daily.js?v=20261002a"></script>
-  <script src="rooms.js?v=20260930a"></script>
+  <script src="rooms.js?v=20261003a"></script>
   <script src="ranking.js?v=20261002a"></script>
   <script src="sharecard.js?v=20260930a"></script>
   <script src="sharecode.js?v=20260930a"></script>
@@ -983,5 +1025,6 @@
   <script src="news.js?v=20260930a"></script>
   <script src="history.js?v=20261002a"></script>
   <script src="home.js?v=20260930a"></script>
+  <script src="points.js?v=20261003c"></script>
 </body>
 </html>

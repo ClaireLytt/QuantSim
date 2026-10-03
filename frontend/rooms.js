@@ -119,6 +119,15 @@
     }
   }
 
+  // 创建/加入单卡切换: 默认展示创建, 小字链接切到加入 (与登录弹窗同范式)
+  function showRoomCard(join) {
+    $("room-create-card").hidden = join;
+    $("room-join-card").hidden = !join;
+    if (join) $("room-code-input").focus();
+  }
+  $("link-room-join").addEventListener("click", (e) => { e.preventDefault(); showRoomCard(true); });
+  $("link-room-create").addEventListener("click", (e) => { e.preventDefault(); showRoomCard(false); });
+
   $("btn-room-create").addEventListener("click", create);
   $("btn-room-join").addEventListener("click", join);
   $("btn-room-play").addEventListener("click", () => guarded(play));

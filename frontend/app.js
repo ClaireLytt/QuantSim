@@ -328,12 +328,49 @@ function renderAiLevelLabel() {
   $("ai-level-label").textContent = `${t("ai.persona." + key)} · ${t("ailevel." + key)}`;
 }
 
-async function startGame() {
-  const username = $("username").value.trim();
-  if (!username) {
-    toast(t("toast.needUsername"));
-    return;
+// 头部不再放用户名输入框: 已登录用账户名, 游客自动生成持久昵称 (localStorage)
+function currentUsername() {
+  if (window.Auth && Auth.user) return Auth.user.username;
+  let name = null;
+  try { name = localStorage.getItem("qs_guest_name"); } catch (e) { /* 隐私模式下忽略 */ }
+  if (!name) {
+    name = t("guest.prefix") + Math.floor(1000 + Math.random() * 9000);
+    try { localStorage.setItem("qs_guest_name", name); } catch (e) { /* ignore */ }
   }
+  return name;
+}
+
+// 行业筛选候选 (开局挑喜欢的行业), 启动时拉一次, 随市场选择联动过滤
+let industryOptions = [];
+async function loadIndustries() {
+  try {
+    industryOptions = await api("/game/industries");
+    renderIndustryOptions();
+  } catch (e) { /* 行业列表加载失败不影响开局 (退化为全部行业) */ }
+}
+
+function renderIndustryOptions() {
+  const sel = $("industry-select");
+  const market = $("market-select").value;
+  const prev = sel.value;
+  // 保留第一项「全部行业」, 其余按当前市场重建
+  while (sel.options.length > 1) sel.remove(1);
+  const seen = new Set();
+  industryOptions
+    .filter((o) => !market || o.market === market)
+    .forEach((o) => {
+      if (seen.has(o.industry)) return;
+      seen.add(o.industry);
+      const opt = document.createElement("option");
+      opt.value = o.industry;
+      opt.textContent = o.industry;
+      sel.appendChild(opt);
+    });
+  if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
+}
+
+async function startGame() {
+  const username = currentUsername();
   try {
     const market = $("market-select").value;
     const aiLevel = $("ai-level-select").value;
@@ -342,6 +379,7 @@ async function startGame() {
     const realRules = $("real-toggle").checked && market === "STOCK";
     const body = { username, aiLevel, mode, advanced, realRules };
     if (market) body.market = market;
+    if ($("industry-select").value) body.industry = $("industry-select").value;
     const res = await api("/game/start", {
       method: "POST",
       body: JSON.stringify(body),
@@ -1374,11 +1412,7 @@ function renderArenaStockOptions() {
 }
 
 async function runBacktest() {
-  const username = $("username").value.trim();
-  if (!username) {
-    toast(t("toast.needUsernameTop"));
-    return;
-  }
+  const username = currentUsername();
   const stockCode = $("bt-stock").value;
   if (!stockCode) {
     toast(t("toast.noStock"));
@@ -1429,11 +1463,7 @@ const BEST_PARAM_FILL = {
 };
 
 async function runTune() {
-  const username = $("username").value.trim();
-  if (!username) {
-    toast(t("toast.needUsernameTop"));
-    return;
-  }
+  const username = currentUsername();
   const stockCode = $("bt-stock").value;
   if (!stockCode) {
     toast(t("toast.noStock"));
@@ -1836,7 +1866,10 @@ $("market-select").addEventListener("change", () => {
   const cn = m === "STOCK";
   $("real-wrap").hidden = !cn;
   if (!cn) $("real-toggle").checked = false;
+  // 行业候选随市场联动 (切市场后不保留另一市场的行业选择)
+  renderIndustryOptions();
 });
+loadIndustries();
 // 推进前先看明日快讯: 有事件先弹决策卡 (信息差 -> 决策时刻), 每个交易日只拦一次
 let newsGateDay = -1;
 async function tickWithNewsGate() {
@@ -1879,10 +1912,6 @@ $("advisor-q").addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendAdvisorQuestion();
 });
 $("btn-review").addEventListener("click", askReview);
-$("username").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") guarded(startGame);
-});
-
 // ---------- 对局复盘报告 ----------
 
 let recapChart = null;

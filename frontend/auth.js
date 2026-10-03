@@ -6,11 +6,11 @@
   const Auth = {
     user: null,
     onChange(fn) { listeners.push(fn); },
-    /** 需要登录的入口统一走这里: 已登录执行回调, 未登录跳账户页。 */
+    /** 需要登录的入口统一走这里: 已登录执行回调, 未登录弹登录窗。 */
     require(fn) {
       if (Auth.user) { fn(); return true; }
       toast(t("auth.needLogin"));
-      switchView("account");
+      openAuthModal(false);
       return false;
     },
   };
@@ -22,18 +22,32 @@
     const btn = $("btn-account");
     btn.textContent = Auth.user ? Auth.user.username : t("auth.navBtn");
     btn.classList.toggle("logged-in", !!Auth.user);
-    // 登录后用户名输入框锁定为账户名, 防止顶别人昵称
-    const input = $("username");
-    if (Auth.user) {
-      input.value = Auth.user.username;
-      input.disabled = true;
-    } else {
-      input.disabled = false;
-    }
+    // 头部已无用户名输入框: 身份由 app.js currentUsername() 统一解析 (登录名 / 游客持久昵称)
   }
 
+  // 登录 / 注册弹窗: 默认展示登录, 小字链接切到注册 (主流登录范式)
+  function showAuthPanel(register) {
+    $("login-card").hidden = register;
+    $("register-card").hidden = !register;
+  }
+  function openAuthModal(register) {
+    showAuthPanel(!!register);
+    $("auth-modal").hidden = false;
+    $(register ? "reg-name" : "login-name").focus();
+  }
+  function closeAuthModal() {
+    $("auth-modal").hidden = true;
+  }
+  $("link-register").addEventListener("click", (e) => { e.preventDefault(); showAuthPanel(true); });
+  $("link-login").addEventListener("click", (e) => { e.preventDefault(); showAuthPanel(false); });
+  $("btn-auth-close").addEventListener("click", closeAuthModal);
+  $("auth-modal").addEventListener("click", (e) => {
+    if (e.target === $("auth-modal")) closeAuthModal(); // 点遮罩关闭
+  });
+  $("btn-open-auth").addEventListener("click", () => openAuthModal(false));
+
   function renderAccountView() {
-    $("auth-forms").hidden = !!Auth.user;
+    $("auth-guest").hidden = !!Auth.user;
     $("auth-me").hidden = !Auth.user;
     if (Auth.user) {
       $("me-name").textContent = Auth.user.username;
@@ -94,6 +108,7 @@
       setUser(res.user);
       toast(t("auth.welcome", res.user.username));
       $("login-pass").value = "";
+      closeAuthModal();
       syncOnLogin();
     } catch (e) {
       toast(e.message);
@@ -113,6 +128,7 @@
       toast(t("auth.registered", res.user.username));
       $("reg-pass").value = "";
       $("reg-pass2").value = "";
+      closeAuthModal();
       syncOnLogin();
     } catch (e) {
       toast(e.message);
@@ -125,7 +141,11 @@
     toast(t("auth.loggedOut"));
   }
 
-  $("btn-account").addEventListener("click", () => switchView("account"));
+  // 未登录点「登录」弹小窗即可, 不整页跳转; 已登录才进账户页看资料
+  $("btn-account").addEventListener("click", () => {
+    if (Auth.user) switchView("account");
+    else openAuthModal(false);
+  });
   $("btn-login").addEventListener("click", doLogin);
   $("btn-register").addEventListener("click", doRegister);
   $("btn-logout").addEventListener("click", doLogout);
