@@ -64,6 +64,31 @@ public class GameSession {
     @Column(name = "final_return_rate", precision = 10, scale = 4)
     private BigDecimal finalReturnRate;
 
+    /** 结算时的年化夏普 (夏普榜用); 样本不足时为 null */
+    @Column(name = "final_sharpe", precision = 10, scale = 4)
+    private BigDecimal finalSharpe;
+
+    @Column(nullable = false, length = 16)
+    private String mode = "CLASSIC";
+
+    @Column(nullable = false)
+    private boolean advanced = false;
+
+    /** A股真实规则: T+1 (当日买入不可卖) + 涨跌停封板限制 */
+    @Column(name = "real_rules", nullable = false)
+    private boolean realRules = false;
+
+    @Column(nullable = false)
+    private boolean liquidated = false;
+
+    /** 赛季 "YYYY-MM", 创建时盖章 */
+    @Column(length = 7)
+    private String season;
+
+    /** 每日挑战日期 (仅 DAILY 模式) */
+    @Column(name = "challenge_date")
+    private LocalDate challengeDate;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

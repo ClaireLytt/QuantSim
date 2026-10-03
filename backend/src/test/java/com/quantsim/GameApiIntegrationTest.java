@@ -24,6 +24,13 @@ import com.quantsim.entity.DailyPrediction;
 import com.quantsim.entity.DailyPrice;
 import com.quantsim.entity.Stock;
 import com.quantsim.repository.AccountRepository;
+import com.quantsim.repository.DailyChallengeRepository;
+import com.quantsim.repository.PendingOrderRepository;
+import com.quantsim.repository.PositionRepository;
+import com.quantsim.repository.RoomMemberRepository;
+import com.quantsim.repository.RoomRepository;
+import com.quantsim.repository.SessionStockRepository;
+import com.quantsim.repository.UserProgressRepository;
 import com.quantsim.repository.DailyIndicatorRepository;
 import com.quantsim.repository.DailyPredictionRepository;
 import com.quantsim.repository.DailyPriceRepository;
@@ -44,6 +51,14 @@ import com.quantsim.repository.UserRepository;
         "quantsim.game.total-ticks=3",
         "quantsim.game.history-days=5",
         "quantsim.game.min-history-days=5",
+        // 断言无摩擦资金数学: 现金计息同样归零 (与费用归零同理)
+        "quantsim.game.guest-start-per-minute=10000",
+        "quantsim.game.cash-rate-annual=0",
+        "quantsim.game.borrow-rate-annual=0",
+        // 本测试断言的是无摩擦价格数学, 费用归零
+        "quantsim.fees.stock.commission-rate=0",
+        "quantsim.fees.stock.min-commission=0",
+        "quantsim.fees.stock.stamp-tax-rate=0",
 })
 class GameApiIntegrationTest {
 
@@ -52,6 +67,14 @@ class GameApiIntegrationTest {
     @Autowired CacheManager cacheManager;
 
     @Autowired TransactionRepository transactionRepository;
+    @Autowired PendingOrderRepository cleanupOrderRepository;
+    @Autowired PositionRepository cleanupPositionRepository;
+    @Autowired SessionStockRepository cleanupSessionStockRepository;
+    @Autowired RoomMemberRepository cleanupRoomMemberRepository;
+    @Autowired RoomRepository cleanupRoomRepository;
+    @Autowired DailyChallengeRepository cleanupDailyChallengeRepository;
+    @Autowired UserProgressRepository cleanupUserProgressRepository;
+
     @Autowired AccountRepository accountRepository;
     @Autowired GameSessionRepository sessionRepository;
     @Autowired UserRepository userRepository;
@@ -62,6 +85,13 @@ class GameApiIntegrationTest {
 
     @BeforeEach
     void seed() {
+        cleanupOrderRepository.deleteAll();
+        cleanupPositionRepository.deleteAll();
+        cleanupSessionStockRepository.deleteAll();
+        cleanupRoomMemberRepository.deleteAll();
+        cleanupRoomRepository.deleteAll();
+        cleanupDailyChallengeRepository.deleteAll();
+        cleanupUserProgressRepository.deleteAll();
         transactionRepository.deleteAll();
         accountRepository.deleteAll();
         sessionRepository.deleteAll();
@@ -190,7 +220,7 @@ class GameApiIntegrationTest {
         Case[] cases = {
                 new Case("{\"direction\":\"BUY\",\"price\":10.00,\"shares\":50}", "整数倍"),
                 new Case("{\"direction\":\"BUY\",\"price\":10.123,\"shares\":100}", "两位小数"),
-                new Case("{\"direction\":\"BUY\",\"price\":20.00,\"shares\":100}", "价格区间"),
+                new Case("{\"direction\":\"BUY\",\"price\":20.00,\"shares\":100}", "收盘价"),
                 new Case("{\"direction\":\"HOLD\",\"price\":10.00,\"shares\":100}", "BUY 或 SELL"),
                 new Case("{\"direction\":\"BUY\",\"price\":10.00,\"shares\":20000}", "现金"),
                 new Case("{\"direction\":\"SELL\",\"price\":10.00,\"shares\":100}", "持仓"),
@@ -237,12 +267,13 @@ class GameApiIntegrationTest {
     @Test
     void settle_withHoldingsAndLeaderboard() throws Exception {
         long id = startGame("it_settle");
-        postJson("/api/game/" + id + "/trade", "{\"direction\":\"BUY\",\"price\":9.00,\"shares\":100}");
+        // 手动交易只按当日收盘价 (10.00) 成交
+        postJson("/api/game/" + id + "/trade", "{\"direction\":\"BUY\",\"price\":10.00,\"shares\":100}");
 
         JsonNode settle = json(postJson("/api/game/" + id + "/settle", ""));
-        // 现金 99100 + 100 股 × 收盘 10 = 100100, 收益率 0.001
-        assertThat(settle.get("finalAssets").decimalValue()).isEqualByComparingTo("100100.00");
-        assertThat(settle.get("returnRate").decimalValue()).isEqualByComparingTo("0.0010");
+        // 现金 99000 + 100 股 × 收盘 10 = 100000, 收益率 0
+        assertThat(settle.get("finalAssets").decimalValue()).isEqualByComparingTo("100000.00");
+        assertThat(settle.get("returnRate").decimalValue()).isEqualByComparingTo("0.0000");
 
         JsonNode lb = json(rest.getForEntity("/api/leaderboard", String.class));
         assertThat(lb.isArray()).isTrue();
@@ -280,6 +311,62 @@ class GameApiIntegrationTest {
         assertThat(settle.get("holdReturnRate").decimalValue()).isEqualByComparingTo("0");
         // 未种指标数据 → 均线策略全程空仓, 收益率 0
         assertThat(settle.get("maCrossReturnRate").decimalValue()).isEqualByComparingTo("0");
+    }
+
+    // ---------- 收盘价成交规则 ----------
+
+    @Test
+    void trade_rejectsInRangeNonClosePrice() throws Exception {
+        long id = startGame("it_close");
+        // 9.00 在当日 [9, 11] 区间内, 但不是收盘价 10.00 -> 拒绝 (防当日低买高卖无风险套利)
+        ResponseEntity<String> resp = postJson("/api/game/" + id + "/trade",
+                "{\"direction\":\"BUY\",\"price\":9.00,\"shares\":100}");
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(json(resp).get("message").asText()).contains("收盘价");
+    }
+
+    @Test
+    void trade_acceptsExactClosePrice() throws Exception {
+        long id = startGame("it_close_ok");
+        // 10 与 10.00 数值相等即可 (compareTo 语义, 不因 scale 拒绝)
+        ResponseEntity<String> resp = postJson("/api/game/" + id + "/trade",
+                "{\"direction\":\"BUY\",\"price\":10,\"shares\":100}");
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(json(resp).get("holdingShares").asInt()).isEqualTo(100);
+    }
+
+    // ---------- 枚举参数解析 ----------
+
+    @Test
+    void startGame_rejectsUnknownEnums() throws Exception {
+        record EnumCase(String body, String expectMsgPart) {}
+        EnumCase[] cases = {
+                new EnumCase("{\"username\":\"it_enum\",\"market\":\"MOON\"}", "未知市场"),
+                new EnumCase("{\"username\":\"it_enum\",\"aiLevel\":\"GOD\"}", "未知 AI 难度"),
+                new EnumCase("{\"username\":\"it_enum\",\"mode\":\"WEIRD\"}", "未知模式"),
+        };
+        for (EnumCase c : cases) {
+            ResponseEntity<String> resp = postJson("/api/game/start", c.body());
+            assertThat(resp.getStatusCode()).as(c.body()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(json(resp).get("message").asText()).as(c.body()).contains(c.expectMsgPart());
+        }
+    }
+
+    // ---------- 历史行情窗口 ----------
+
+    @Test
+    void history_returnsWindowAndGrowsWithTicks() throws Exception {
+        long id = startGame("it_histgrow");
+        JsonNode h0 = json(rest.getForEntity("/api/game/" + id + "/history", String.class));
+        int before = h0.get("klines").size();
+        assertThat(before).isGreaterThanOrEqualTo(5); // history-days=5
+
+        postJson("/api/game/" + id + "/tick", "");
+        JsonNode h1 = json(rest.getForEntity("/api/game/" + id + "/history", String.class));
+        assertThat(h1.get("klines").size()).isEqualTo(before + 1);
+        // 最后一根 K 线就是当前交易日
+        String last = h1.get("klines").get(h1.get("klines").size() - 1).get("tradeDate").asText();
+        assertThat(last).isEqualTo(h1.get("currentTradeDate").asText());
     }
 
     // ---------- 错误处理 ----------

@@ -32,6 +32,10 @@ public class TradeTransaction {
     @Column(name = "session_id", nullable = false)
     private Long sessionId;
 
+    /** 标的 ID; 旧数据为 null (单股模式回退到会话主标的) */
+    @Column(name = "stock_id")
+    private Long stockId;
+
     @Column(name = "trade_date", nullable = false)
     private LocalDate tradeDate;
 
@@ -44,6 +48,10 @@ public class TradeTransaction {
 
     @Column(nullable = false)
     private Integer shares;
+
+    /** 本笔总费用 (佣金+印花税) */
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal fee = BigDecimal.ZERO;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

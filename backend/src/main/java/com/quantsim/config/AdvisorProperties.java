@@ -17,4 +17,6 @@ public class AdvisorProperties {
     /** 提供给 Agent 的近期 K 线天数 */
     private int recentDays = 20;
     private int timeoutSeconds = 30;
+    /** 全站 LLM 调用日配额 (24h 滑动窗口), API 成本硬顶 */
+    private int dailyLimit = 300;
 }

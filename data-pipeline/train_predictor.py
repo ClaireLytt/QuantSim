@@ -3,7 +3,7 @@
 用法: python train_predictor.py   (需先运行 compute_indicators.py)
 输出: data/predictions/predictions.csv  (code, trade_date, model, prob_up, predicted_direction)
 
-三档模型对应游戏内 AI 难度: LOGISTIC(简单) / FOREST(普通) / BOOST(困难)。
+四档模型对应游戏内 AI 难度: LOGISTIC(简单) / FOREST(普通) / BOOST(困难) / MLP(地狱)。
 防未来泄漏: 滚动窗口 —— 按日期切成 20 天一块, 预测第 k 块时只用该块之前的数据训练。
 最早 60 天只做训练不做预测 (游戏开局至少有 60 天历史, 不受影响)。
 """
@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -29,6 +30,11 @@ MODELS = {
     "FOREST": lambda: RandomForestClassifier(
         n_estimators=120, min_samples_leaf=20, random_state=42, n_jobs=-1),
     "BOOST": lambda: GradientBoostingClassifier(random_state=42),
+    # 地狱难度: 多层感知机 (仅 sklearn, 不引深度学习框架)
+    "MLP": lambda: make_pipeline(
+        StandardScaler(),
+        MLPClassifier(hidden_layer_sizes=(32, 16), max_iter=500,
+                      early_stopping=True, random_state=42)),
 }
 
 

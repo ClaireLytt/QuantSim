@@ -38,7 +38,20 @@ public final class BacktestDtos {
             Integer maWindow,
             BigDecimal threshold,
             @Valid List<CustomCondition> buyConditions,
-            @Valid List<CustomCondition> sellConditions) {}
+            @Valid List<CustomCondition> sellConditions,
+            Integer rsiPeriod,
+            Integer rsiBuy,
+            Integer rsiSell,
+            Integer macdFast,
+            Integer macdSlow,
+            Integer macdSignal,
+            Integer bollWindow,
+            BigDecimal bollK,
+            BigDecimal gridPct,
+            Integer gridLevels,
+            Integer turtleEntry,
+            Integer turtleExit,
+            Integer positionPct) {}
 
     public record EquityPoint(LocalDate date, BigDecimal strategy, BigDecimal hold) {}
 
@@ -58,6 +71,12 @@ public final class BacktestDtos {
             int tradeCount,
             BigDecimal winRate,
             BigDecimal holdReturn,
+            BigDecimal volatility,
+            BigDecimal sortinoRatio,
+            BigDecimal dayWinRate,
+            BigDecimal profitLossRatio,
+            BigDecimal inSampleReturn,
+            BigDecimal outSampleReturn,
             List<EquityPoint> equityCurve) {}
 
     /** 自动调参: 对指定策略做网格搜索, 仅支持 MA_CROSS / MOMENTUM / MEAN_REVERSION。 */
@@ -66,7 +85,13 @@ public final class BacktestDtos {
             @NotBlank String stockCode,
             @NotBlank String strategy) {}
 
-    /** 最优参数按策略只填对应字段, 其余为 null; result 为用最优参数正式回测并入榜的结果。 */
+    /** 调参网格中的一个点: x/y 为两个参数轴取值 (单参数策略 y=0)。 */
+    public record TunePoint(double x, double y, BigDecimal totalReturn, BigDecimal sharpeRatio) {}
+
+    /**
+     * 最优参数按策略只填对应字段, 其余为 null; result 为用最优参数正式回测并入榜的结果;
+     * bestParams 为通用参数名 -> 值 (新策略用它回填表单); paramKeys + grid 供热力图。
+     */
     public record TuneResponse(
             String strategy,
             int triedCount,
@@ -75,6 +100,9 @@ public final class BacktestDtos {
             Integer lookbackDays,
             Integer maWindow,
             BigDecimal threshold,
+            java.util.Map<String, BigDecimal> bestParams,
+            List<String> paramKeys,
+            List<TunePoint> grid,
             RunResponse result) {}
 
     public record StockInfo(String code, String name, String market) {}
