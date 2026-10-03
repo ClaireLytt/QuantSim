@@ -362,8 +362,8 @@ function renderIndustryOptions() {
       if (seen.has(o.industry)) return;
       seen.add(o.industry);
       const opt = document.createElement("option");
-      opt.value = o.industry;
-      opt.textContent = o.industry;
+      opt.value = o.industry; // 发给后端的值保持原始中文
+      opt.textContent = industryName(o.industry);
       sel.appendChild(opt);
     });
   if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
@@ -1873,6 +1873,7 @@ document.addEventListener("qs:lang", () => {
   if (state.lastStatus) renderPositions(state.lastStatus.positions);
   updateStrategyUi();
   renderArenaStockOptions();
+  renderIndustryOptions();
   refreshCondLabels();
   if (state.lastBt) renderBacktestResult(state.lastBt);
   renderLeaderboard();

@@ -1525,6 +1525,20 @@ const STOCK_EN_BY_CODE = {};
 const STOCK_EN_BY_ZH = {};
 STOCK_I18N.forEach(([code, zh, en]) => { STOCK_EN_BY_CODE[code] = en; STOCK_EN_BY_ZH[zh] = en; });
 
+// 行业名是数据库里的中文数据 (数据管道标注), EN 界面用映射表翻译, 未命中原样显示
+const INDUSTRY_EN = {
+  "白酒": "Baijiu", "保险": "Insurance", "银行": "Banking", "家电": "Appliances",
+  "汽车": "Autos", "电池": "Batteries", "有色": "Metals", "科技": "Tech",
+  "半导体": "Semiconductors", "加密货币": "Crypto", "券商": "Brokerage",
+  "免税": "Duty-Free", "医药": "Pharma", "光伏": "Solar", "安防": "Security",
+  "电力": "Utilities", "电商": "E-commerce", "社交": "Social Media", "流媒体": "Streaming",
+};
+
+function industryName(ind) {
+  if (LANG !== "en") return ind;
+  return INDUSTRY_EN[ind] || ind;
+}
+
 function stockName(name, code) {
   // 竞技模式匿名标的: 后端下发 "???", 按当前语言显示「神秘标的 / Mystery Stock」
   if (code === "???" || name === "神秘标的") return t("stock.mystery");
