@@ -4,11 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuantSim 虚拟炒股</title>
-  <link rel="stylesheet" href="style.css?v=20261003j">
+  <link rel="stylesheet" href="style.css?v=20261004k">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
+  <!-- 登录门禁: 未登录只能看到这层, 登录后才进入应用 (auth.js 控制显隐) -->
+  <div id="login-gate" class="login-gate">
+    <div class="gate-box">
+      <h1>QuantSim</h1>
+      <p class="sub" data-i18n="gate.sub">虚拟炒股游戏 · 登录后开始你的操盘之旅</p>
+      <p id="gate-loading" class="hint" data-i18n="gate.loading">正在恢复会话…</p>
+      <button id="btn-gate-login" class="primary big" hidden data-i18n="gate.loginBtn">登录 / 注册</button>
+      <p class="hint" data-i18n="gate.hint">注册后战绩与学堂进度云端同步，还能玩每日挑战和好友房间</p>
+    </div>
+  </div>
+
   <header>
+    <button id="btn-header-fold" class="fold-btn" data-i18n-title="fold.title" title="折叠 / 展开导航">⌃ 收起导航</button>
     <h1>QuantSim <span class="sub" data-i18n="header.sub">虚拟炒股游戏</span></h1>
     <div class="header-tools">
       <button id="btn-points-head" class="ghost" data-i18n-title="points.shopTitle" title="积分兑换">🎁 <span id="points-balance-head">0</span></button>
@@ -72,6 +84,8 @@
         <span id="stock-label">--</span>
         <span id="day-label">--</span>
         <span id="date-label">--</span>
+        <button id="btn-status-pop" class="fold-btn">💰 <span id="status-pop-label" data-i18n="status.title">账户状态</span></button>
+        <button id="btn-ai-pop" class="fold-btn">🤖 <span data-i18n="ai.title">AI 操盘手</span></button>
         <button id="btn-chart-guide" class="ghost" data-i18n="guide.btn">怎么看这张图？</button>
       </div>
       <div id="news-banner" class="news-banner" hidden></div>
@@ -80,49 +94,6 @@
     </section>
 
     <aside class="side-panel">
-      <div class="card">
-        <h2 data-i18n="status.title">账户状态</h2>
-        <dl>
-          <dt data-i18n="status.cash">现金余额</dt><dd id="st-cash">--</dd>
-          <dt data-i18n="status.shares">持仓股数</dt><dd id="st-shares">--</dd>
-          <dt><span class="term" data-term="holdingcost" data-i18n="status.cost">持仓成本</span></dt><dd id="st-cost">--</dd>
-          <dt data-i18n="status.price">最新价</dt><dd id="st-price">--</dd>
-          <dt><span class="term" data-term="marketvalue" data-i18n="status.value">持仓市值</span></dt><dd id="st-value">--</dd>
-          <dt><span class="term" data-term="floatingpnl" data-i18n="status.pnl">浮动盈亏</span></dt><dd id="st-pnl">--</dd>
-          <dt data-i18n="status.total">总资产</dt><dd id="st-total">--</dd>
-          <dt><span class="term" data-term="returnrate" data-i18n="status.return">收益率</span></dt><dd id="st-return">--</dd>
-          <dt><span class="term" data-term="commission" data-i18n="status.fees">累计费用</span></dt><dd id="st-fees">--</dd>
-          <dt data-i18n="status.interest">累计利息</dt><dd id="st-interest">--</dd>
-        </dl>
-        <div id="pf-positions" class="pf-positions" hidden></div>
-      </div>
-
-      <div class="card">
-        <h2><span data-i18n="ai.title">AI 操盘手</span> <span id="ai-level-label" class="sub"></span> <span class="sub" data-i18n="ai.sub">与你同场竞技</span></h2>
-        <div id="ai-pred-box">
-          <p id="ai-pred-label"><span data-i18n="ai.predLabel">AI 预测明日: </span><span id="ai-pred-dir">--</span></p>
-          <div class="conf-bar"><div id="ai-conf-fill"></div></div>
-          <p class="hint" id="ai-conf-text" data-i18n="ai.noPred">暂无预测</p>
-        </div>
-        <dl>
-          <dt data-i18n="ai.total">AI 总资产</dt><dd id="ai-total">--</dd>
-          <dt data-i18n="ai.shares">AI 持仓</dt><dd id="ai-shares">--</dd>
-          <dt data-i18n="ai.return">AI 收益率</dt><dd id="ai-return">--</dd>
-        </dl>
-        <div id="ai-moves-box" hidden>
-          <p class="hint" data-i18n="ai.movesTitle">AI 操作时间线</p>
-          <ul id="ai-moves" class="orders-list"></ul>
-        </div>
-        <button id="btn-advisor" class="ghost" disabled data-i18n="ai.ask">问问 Agent</button>
-        <p id="advisor-text" hidden></p>
-        <div id="advisor-chat" hidden>
-          <div id="advisor-log" class="advisor-log"></div>
-          <div class="advisor-input">
-            <input id="advisor-q" type="text" maxlength="200" data-i18n-placeholder="ai.askPh" placeholder="追问 Agent…">
-            <button id="btn-advisor-send" class="ghost" data-i18n="ai.send">发送</button>
-          </div>
-        </div>
-      </div>
 
       <div class="card" id="trade-card">
         <h2 data-i18n="trade.title">交易面板</h2>
@@ -214,7 +185,7 @@
   </div>
 
   <div id="view-arena" hidden>
-  <section class="arena-panel">
+  <section class="arena-panel center-panel arena-center">
     <h2><span data-i18n="arena.title">策略回测竞技场</span> <span class="sub" data-i18n="arena.sub">用经典量化策略在整段历史行情上一决高下</span></h2>
     <div class="arena-config card">
       <label><span data-i18n="arena.stock">股票</span>
@@ -378,8 +349,12 @@
 
   <div id="view-famous" hidden>
   <section class="academy-panel">
-    <h2><span data-i18n="tl.section">市场大事记</span> <span class="sub" data-i18n="tl.sectionHint">一条时间线读完百年市场史，带关卡的节点可以直接穿越进去。</span></h2>
-    <div id="timeline" class="timeline"></div>
+    <details class="fold-section">
+      <summary>
+        <h2><span data-i18n="tl.section">市场大事记</span> <span class="sub" data-i18n="tl.sectionHint">一条时间线读完百年市场史，带关卡的节点可以直接穿越进去。</span></h2>
+      </summary>
+      <div id="timeline" class="timeline"></div>
+    </details>
   </section>
   <section class="academy-panel">
     <h2><span data-i18n="famous.section">名场面挑战</span> <span class="sub" data-i18n="famous.sectionHint">穿越回市场史上的著名时刻，通关赢取专属称号。</span></h2>
@@ -398,7 +373,16 @@
   <section class="academy-panel">
     <h2><span data-i18n="lab.section">量化研究所</span> <span class="sub" data-i18n="lab.sectionHint">亲手用真数据做研究：对比股票、审视 AI、检验那些江湖传闻的技术信号。</span></h2>
 
-    <div class="lab-block">
+    <div id="lab-tiles" class="lab-tiles">
+      <button class="lab-tile" data-lab="lab-b-compare">🆚 <strong data-i18n="lab.compare">双股对比</strong><span class="sub" data-i18n="lab.compareHint">把两支股票放在同一起跑线（起点=100），看谁跑得远、走势像不像。</span></button>
+      <button class="lab-tile" data-lab="lab-b-models">🤖 <strong data-i18n="lab.models">AI 模型分歧</strong><span class="sub" data-i18n="lab.modelsHint">三个 AI 模型每天都预测次日涨跌。它们到底准不准？互相吵架吗？</span></button>
+      <button class="lab-tile" data-lab="lab-b-signal">📐 <strong data-i18n="lab.signals">指标信号胜率</strong><span class="sub" data-i18n="lab.signalsHint">“金叉必涨”“大跌必反弹”……这些江湖传闻到底靠不靠谱？用历史数据当场验证。</span></button>
+      <button class="lab-tile" data-lab="lab-b-calib">🎯 <strong data-i18n="lab.calib">预测置信度校准</strong><span class="sub" data-i18n="lab.calibHint">AI 说「70% 概率上涨」时，历史上真的有七成在涨吗？把全部预测分桶对照实际涨跌，一眼看出模型是自信过头还是过于保守。</span></button>
+      <button class="lab-tile" data-lab="lab-b-timing">⏳ <strong data-i18n="lab.timing">择时的代价</strong><span class="sub" data-i18n="lab.timingHint">“等回调再买”听起来很聪明——但如果因此错过涨得最猛的 5 天，会发生什么？用整段历史算给你看。</span></button>
+      <button class="lab-tile" data-lab="lab-b-overview">🏆 <strong data-i18n="lab.overview">市场风云榜</strong><span class="sub" data-i18n="lab.overviewHint2">全部标的一键横评。</span></button>
+    </div>
+
+    <div class="lab-block" id="lab-b-compare" hidden>
       <h3 data-i18n="lab.compare">双股对比</h3>
       <p class="hint" data-i18n="lab.compareHint">把两支股票放在同一起跑线（起点=100），看谁跑得远、走势像不像。</p>
       <div class="lab-controls">
@@ -411,7 +395,7 @@
       <div id="lab-compare-chart" class="lab-chart" hidden></div>
     </div>
 
-    <div class="lab-block">
+    <div class="lab-block" id="lab-b-models" hidden>
       <h3 data-i18n="lab.models">AI 模型分歧</h3>
       <p class="hint" data-i18n="lab.modelsHint">三个 AI 模型每天都预测次日涨跌。它们到底准不准？互相吵架吗？</p>
       <div class="lab-controls">
@@ -422,7 +406,7 @@
       <div id="lab-model-verdict" class="lab-verdict" hidden></div>
     </div>
 
-    <div class="lab-block">
+    <div class="lab-block" id="lab-b-signal" hidden>
       <h3 data-i18n="lab.signals">指标信号胜率</h3>
       <p class="hint" data-i18n="lab.signalsHint">“金叉必涨”“大跌必反弹”……这些江湖传闻到底靠不靠谱？用历史数据当场验证。</p>
       <div class="lab-controls">
@@ -434,7 +418,7 @@
       <div id="lab-signal-verdict" class="lab-verdict" hidden></div>
     </div>
 
-    <div class="lab-block">
+    <div class="lab-block" id="lab-b-calib" hidden>
       <h3 data-i18n="lab.calib">预测置信度校准</h3>
       <p class="hint" data-i18n="lab.calibHint">AI 说「70% 概率上涨」时，历史上真的有七成在涨吗？把全部预测分桶对照实际涨跌，一眼看出模型是自信过头还是过于保守。</p>
       <div class="lab-controls">
@@ -443,7 +427,7 @@
       <div id="lab-calib-chart" class="lab-chart" hidden></div>
     </div>
 
-    <div class="lab-block">
+    <div class="lab-block" id="lab-b-timing" hidden>
       <h3 data-i18n="lab.timing">择时的代价</h3>
       <p class="hint" data-i18n="lab.timingHint">“等回调再买”听起来很聪明——但如果因此错过涨得最猛的 5 天，会发生什么？用整段历史算给你看。</p>
       <div class="lab-controls">
@@ -454,7 +438,7 @@
       <div id="lab-timing-verdict" class="lab-verdict" hidden></div>
     </div>
 
-    <div class="lab-block">
+    <div class="lab-block" id="lab-b-overview" hidden>
       <h3 data-i18n="lab.overview">市场风云榜</h3>
       <p class="hint" data-i18n="lab.overviewHint">一键扫描全部 32 支股票：涨幅王、跳水王、今日异动、最妖与最稳、AI 的多空押注，七大榜单一网打尽。</p>
       <div class="lab-controls">
@@ -687,6 +671,70 @@
         <div class="trade-buttons">
           <button id="btn-newsgate-hold" class="replay" data-i18n="news.holdOn">先调仓</button>
           <button id="btn-newsgate-go" class="primary" data-i18n="news.goAhead">直接推进 ➜</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 账户状态弹窗: 对局左上角按钮唤起 -->
+  <div id="status-modal" class="modal-mask" hidden>
+    <div class="modal auth-modal" role="dialog" aria-labelledby="status-modal-title">
+      <div class="modal-head">
+        <h2 id="status-modal-title" data-i18n="status.title">账户状态</h2>
+        <button id="btn-status-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="card" id="status-card">
+          <dl>
+            <dt data-i18n="status.cash">现金余额</dt><dd id="st-cash">--</dd>
+            <dt data-i18n="status.shares">持仓股数</dt><dd id="st-shares">--</dd>
+            <dt><span class="term" data-term="holdingcost" data-i18n="status.cost">持仓成本</span></dt><dd id="st-cost">--</dd>
+            <dt data-i18n="status.price">最新价</dt><dd id="st-price">--</dd>
+            <dt><span class="term" data-term="marketvalue" data-i18n="status.value">持仓市值</span></dt><dd id="st-value">--</dd>
+            <dt><span class="term" data-term="floatingpnl" data-i18n="status.pnl">浮动盈亏</span></dt><dd id="st-pnl">--</dd>
+            <dt data-i18n="status.total">总资产</dt><dd id="st-total">--</dd>
+            <dt><span class="term" data-term="returnrate" data-i18n="status.return">收益率</span></dt><dd id="st-return">--</dd>
+            <dt><span class="term" data-term="commission" data-i18n="status.fees">累计费用</span></dt><dd id="st-fees">--</dd>
+            <dt data-i18n="status.interest">累计利息</dt><dd id="st-interest">--</dd>
+          </dl>
+          <div id="pf-positions" class="pf-positions" hidden></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 操盘手弹窗: 预测/持仓/时间线/问答 -->
+  <div id="ai-modal" class="modal-mask" hidden>
+    <div class="modal ai-modal" role="dialog" aria-labelledby="ai-modal-title">
+      <div class="modal-head">
+        <h2 id="ai-modal-title"><span data-i18n="ai.title">AI 操盘手</span> <span id="ai-level-label" class="sub"></span></h2>
+        <button id="btn-ai-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="card" id="ai-card">
+          <div id="ai-pred-box">
+            <p id="ai-pred-label"><span data-i18n="ai.predLabel">AI 预测明日: </span><span id="ai-pred-dir">--</span></p>
+            <div class="conf-bar"><div id="ai-conf-fill"></div></div>
+            <p class="hint" id="ai-conf-text" data-i18n="ai.noPred">暂无预测</p>
+          </div>
+          <dl>
+            <dt data-i18n="ai.total">AI 总资产</dt><dd id="ai-total">--</dd>
+            <dt data-i18n="ai.shares">AI 持仓</dt><dd id="ai-shares">--</dd>
+            <dt data-i18n="ai.return">AI 收益率</dt><dd id="ai-return">--</dd>
+          </dl>
+          <div id="ai-moves-box" hidden>
+            <p class="hint" data-i18n="ai.movesTitle">AI 操作时间线</p>
+            <ul id="ai-moves" class="orders-list"></ul>
+          </div>
+          <button id="btn-advisor" class="ghost" disabled data-i18n="ai.ask">问问 Agent</button>
+          <p id="advisor-text" hidden></p>
+          <div id="advisor-chat" hidden>
+            <div id="advisor-log" class="advisor-log"></div>
+            <div class="advisor-input">
+              <input id="advisor-q" type="text" maxlength="200" data-i18n-placeholder="ai.askPh" placeholder="追问 Agent…">
+              <button id="btn-advisor-send" class="ghost" data-i18n="ai.send">发送</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1010,12 +1058,12 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261003f"></script>
+  <script src="i18n.js?v=20261004f"></script>
   <script src="glossary.js?v=20261002a"></script>
-  <script src="app.js?v=20261003b"></script>
-  <script src="auth.js?v=20261003c"></script>
+  <script src="app.js?v=20261004d"></script>
+  <script src="auth.js?v=20261004b"></script>
   <script src="academy.js?v=20261002a"></script>
-  <script src="lab.js?v=20261002a"></script>
+  <script src="lab.js?v=20261004a"></script>
   <script src="daily.js?v=20261002a"></script>
   <script src="rooms.js?v=20261003a"></script>
   <script src="ranking.js?v=20261002a"></script>

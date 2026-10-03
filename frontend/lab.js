@@ -798,6 +798,26 @@ async function runCalibration() {
   }
 }
 
+// ---------- 研究所导航瓷砖: 单开手风琴, 点当前瓷砖收起 ----------
+
+const LAB_BLOCK_IDS = ["lab-b-compare", "lab-b-models", "lab-b-signal",
+  "lab-b-calib", "lab-b-timing", "lab-b-overview"];
+
+function openLabBlock(id) {
+  LAB_BLOCK_IDS.forEach((b) => { $(b).hidden = b !== id; });
+  document.querySelectorAll(".lab-tile").forEach((tile) => {
+    tile.classList.toggle("active", tile.dataset.lab === id);
+  });
+  if (id) $(id).scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+document.querySelectorAll(".lab-tile").forEach((tile) => {
+  tile.addEventListener("click", () => {
+    const id = tile.dataset.lab;
+    openLabBlock($(id).hidden ? id : null); // 再点一次当前块 = 收起
+  });
+});
+
 // ---------- 事件绑定与联动 ----------
 
 $("btn-lab-calib").addEventListener("click", runCalibration);

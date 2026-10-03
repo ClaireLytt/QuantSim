@@ -56,10 +56,16 @@
     }
   }
 
+  // 登录门禁: 未登录只见门禁页, 登录后放行; 登出即重新落闸
+  function renderGate() {
+    $("login-gate").hidden = !!Auth.user;
+  }
+
   function setUser(user) {
     Auth.user = user;
     renderHeader();
     renderAccountView();
+    renderGate();
     emit();
   }
 
@@ -163,9 +169,20 @@
         syncOnLogin();
       } else {
         renderHeader();
+        gateReady();
+        openAuthModal(false); // 门禁页直接弹出登录窗, 少点一次
       }
     } catch (e) {
       renderHeader();
+      gateReady(); // 后端不可达也要亮出按钮, 别让用户卡在「恢复会话」
     }
   })();
+
+  // 门禁从「恢复会话」切到可登录态 (已登录用户刷新时不闪登录按钮)
+  function gateReady() {
+    $("gate-loading").hidden = true;
+    $("btn-gate-login").hidden = false;
+  }
+
+  $("btn-gate-login").addEventListener("click", () => openAuthModal(false));
 })();

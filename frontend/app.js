@@ -422,8 +422,11 @@ async function enterGame(res) {
     newsGateDay = -1;
 
     switchView("game");
+    setHeaderFold(true); // 开局即进入专注模式 (switchView 时 sessionId 可能尚未就位)
     $("game-intro").hidden = true;
     $("game-area").hidden = false;
+    // 容器刚从 hidden 解除, 此前的 resize 都发生在隐藏态 (canvas 回退 100px), 必须再算一次
+    chart.resize();
     $("settle-card").hidden = true;
     renderStockLabel();
     updateDayLabel();
@@ -688,6 +691,8 @@ function renderStatus(s) {
   $("st-total").textContent = fmtMoney(s.totalAssets);
   setSigned($("st-pnl"), Number(s.floatingPnl), fmtMoney(Math.abs(s.floatingPnl)));
   setSigned($("st-return"), Number(s.returnRate), fmtPct(Number(s.returnRate)));
+  // 左上角账户按钮实时显示总资产, 不点开也能瞄一眼
+  $("status-pop-label").textContent = fmtMoney(s.totalAssets) + t("unit.money");
   $("st-fees").textContent = fmtMoney(s.feesPaid || 0);
   setSigned($("st-interest"), Number(s.interestTotal || 0), fmtMoney(Math.abs(s.interestTotal || 0)));
   // 真实规则: 提示 T+1 今日可卖数, 免得玩家靠报错试探
@@ -1749,6 +1754,19 @@ function renderSubtabs(group, active) {
   });
 }
 
+// 对局专注模式: 折叠头部三行导航只留品牌行, K 线顶上去; 箭头按钮可随时展开
+function setHeaderFold(fold) {
+  document.querySelector("header").classList.toggle("collapsed", fold);
+  renderFoldBtn();
+  chart.resize();
+}
+
+function renderFoldBtn() {
+  const fold = document.querySelector("header").classList.contains("collapsed");
+  $("btn-header-fold").textContent = (fold ? "⌄ " : "⌃ ") + t(fold ? "fold.expand" : "fold.collapse");
+}
+document.addEventListener("qs:lang", renderFoldBtn);
+
 function switchView(name) {
   if (!VIEWS.includes(name)) name = "home";
   const group = VIEW_GROUP[name];
@@ -1757,11 +1775,28 @@ function switchView(name) {
   groupTabs.forEach((b) => b.classList.toggle("active", b.dataset.group === group));
   renderSubtabs(group, name);
   try { localStorage.setItem("qs_view", name); } catch (e) { /* 隐私模式下忽略 */ }
+  // 进行中的对局视图自动进入专注模式, 离开自动展开
+  setHeaderFold(name === "game" && !!state.sessionId);
   // 图表在隐藏容器中初始化时尺寸为 0, 切换到可见后需重算
   if (name === "game") chart.resize();
   else if (name === "arena") btChart.resize();
   document.dispatchEvent(new CustomEvent("qs:view", { detail: name }));
 }
+$("btn-header-fold").addEventListener("click", () => {
+  setHeaderFold(!document.querySelector("header").classList.contains("collapsed"));
+});
+
+// 账户状态 / AI 操盘手: 左上角胶囊按钮唤起弹窗 (侧栏只留高频交易操作)
+$("btn-status-pop").addEventListener("click", () => { $("status-modal").hidden = false; });
+$("btn-status-close").addEventListener("click", () => { $("status-modal").hidden = true; });
+$("status-modal").addEventListener("click", (e) => {
+  if (e.target === $("status-modal")) $("status-modal").hidden = true;
+});
+$("btn-ai-pop").addEventListener("click", () => { $("ai-modal").hidden = false; });
+$("btn-ai-close").addEventListener("click", () => { $("ai-modal").hidden = true; });
+$("ai-modal").addEventListener("click", (e) => {
+  if (e.target === $("ai-modal")) $("ai-modal").hidden = true;
+});
 
 // 点分组标签 = 进入该组第一个子页
 groupTabs.forEach((b) => {

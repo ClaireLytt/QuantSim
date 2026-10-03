@@ -41,7 +41,7 @@ async function step(name, fn) {
   }
 }
 
-await step("首页加载 (含首访新手引导跳过)", async () => {
+await step("首页加载 (过登录门禁 + 首访弹层)", async () => {
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("#nav-groups .nav-group", { timeout: 15000 });
   await page.waitForTimeout(800);
@@ -53,6 +53,18 @@ await step("首页加载 (含首访新手引导跳过)", async () => {
   // 部分版本还会弹玩法说明
   if (await page.isVisible("#help-modal")) {
     await page.click("#btn-help-close");
+  }
+  // 登录门禁: 注册一次性账号过闸 (门禁上线后不登录看不到应用)
+  if (await page.isVisible("#login-gate")) {
+    if (!(await page.isVisible("#auth-modal"))) {
+      await page.click("#btn-gate-login");
+    }
+    await page.click("#link-register");
+    await page.fill("#reg-name", "smoke_" + Date.now().toString().slice(-8));
+    await page.fill("#reg-pass", "smoke123");
+    await page.fill("#reg-pass2", "smoke123");
+    await page.click("#btn-register");
+    await page.waitForSelector("#login-gate[hidden]", { state: "attached", timeout: 10000 });
   }
 });
 
@@ -113,7 +125,7 @@ await step("玩法说明弹窗开关", async () => {
 await step("经典对局: 开局→买入→推进→结算", async () => {
   await page.click('#nav-groups .nav-group[data-group="play"]');
   await page.waitForTimeout(200);
-  await page.fill("#username", "smoke_test");
+  // 头部已无用户名输入框: 已登录直接以账号身份开局
   await page.click("#btn-start");
   await page.waitForSelector("#game-area:not([hidden])", { timeout: 15000 });
   await page.waitForTimeout(500); // 等历史 K 线与状态加载
@@ -136,6 +148,11 @@ await step("经典对局: 开局→买入→推进→结算", async () => {
 });
 
 await step("回测工坊: 默认策略跑通出曲线", async () => {
+  // 对局专注模式会折叠导航, 先点「展开导航」才能切页
+  if (await page.locator("header.collapsed").count()) {
+    await page.click("#btn-header-fold");
+    await page.waitForTimeout(200);
+  }
   await page.click('#nav-groups .nav-group[data-group="arenaG"]');
   await page.waitForTimeout(300);
   await page.click("#btn-backtest");
