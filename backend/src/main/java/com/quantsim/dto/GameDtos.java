@@ -24,7 +24,11 @@ public final class GameDtos {
             @Size(max = 10) String aiLevel,
             @Size(max = 16) String mode,
             Boolean advanced,
-            Boolean realRules) {}
+            Boolean realRules,
+            @Size(max = 50) String industry) {}
+
+    /** 开局行业筛选的候选项 (按市场分组展示) */
+    public record IndustryOption(String industry, String market) {}
 
     public record StockLite(String code, String name) {}
 

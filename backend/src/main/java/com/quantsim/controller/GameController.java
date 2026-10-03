@@ -56,6 +56,12 @@ public class GameController {
         rateLimiter.checkDaily("advisor-global", "all", advisorProps.getDailyLimit());
     }
 
+    /** 开局行业筛选候选项 (游客可用) */
+    @GetMapping("/industries")
+    public List<com.quantsim.dto.GameDtos.IndustryOption> industries() {
+        return gameService.listIndustries();
+    }
+
     @PostMapping("/start")
     public StartGameResponse start(@Valid @RequestBody StartGameRequest request,
                                    HttpServletRequest http) {

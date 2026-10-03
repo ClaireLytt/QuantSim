@@ -113,13 +113,29 @@ public class GameService {
         }
 
         Map<Long, Long> counts = eligibleCounts();
-        Map<Long, Market> marketById = stockRepository.findAll().stream()
+        List<Stock> allStocks = stockRepository.findAll();
+        Map<Long, Market> marketById = allStocks.stream()
                 .collect(Collectors.toMap(Stock::getStockId, Stock::getMarket));
         List<Long> eligible = filterEligible(counts, marketById, market);
+        // 行业偏好: 在市场过滤之上再收一层 (玩家挑喜欢的行业开局)
+        String industry = request.industry() == null ? "" : request.industry().trim();
+        if (!industry.isEmpty()) {
+            Map<Long, String> industryById = new HashMap<>();
+            for (Stock st : allStocks) {
+                if (st.getIndustry() != null) {
+                    industryById.put(st.getStockId(), st.getIndustry());
+                }
+            }
+            eligible = eligible.stream()
+                    .filter(id -> industry.equals(industryById.get(id)))
+                    .toList();
+        }
         if (eligible.isEmpty()) {
-            throw new BusinessException(market == null
-                    ? "没有数据量足够的股票, 请检查行情数据"
-                    : "该市场暂无数据量足够的标的, 请先运行数据管道导入行情数据");
+            throw new BusinessException(!industry.isEmpty()
+                    ? "该行业暂无数据量足够的标的, 换个行业试试"
+                    : market == null
+                            ? "没有数据量足够的股票, 请检查行情数据"
+                            : "该市场暂无数据量足够的标的, 请先运行数据管道导入行情数据");
         }
         ThreadLocalRandom random = ThreadLocalRandom.current();
 
@@ -131,6 +147,20 @@ public class GameService {
         int startIdx = randomStartIdx(counts.get(stockId), random);
         LocalDate startDate = marketData.load(stockId).prices().get(startIdx).getTradeDate();
         return persistSession(user, List.of(stockId), startDate, aiLevel, "CLASSIC", advanced, realRules, null);
+    }
+
+    /** 行业筛选候选: 去重排序, 只含有行业标注的标的 (前端按所选市场二次过滤)。 */
+    @Transactional(readOnly = true)
+    public List<com.quantsim.dto.GameDtos.IndustryOption> listIndustries() {
+        return stockRepository.findAll().stream()
+                .filter(st -> st.getIndustry() != null && !st.getIndustry().isBlank())
+                .map(st -> new com.quantsim.dto.GameDtos.IndustryOption(
+                        st.getIndustry(), st.getMarket().name()))
+                .distinct()
+                .sorted(java.util.Comparator
+                        .comparing(com.quantsim.dto.GameDtos.IndustryOption::market)
+                        .thenComparing(com.quantsim.dto.GameDtos.IndustryOption::industry))
+                .toList();
     }
 
     /**
