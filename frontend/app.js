@@ -882,6 +882,7 @@ async function placeOrder() {
 function showSettle(result) {
   state.settled = true;
   setTradeEnabled(false);
+  setHeaderFold(false); // 结算即退出专注模式, 导航回来 (下一步通常是看榜/再来一局)
   renderSettle(result);
   revealMysteryStock(result);
   celebrateSettle(result);
@@ -1775,8 +1776,8 @@ function switchView(name) {
   groupTabs.forEach((b) => b.classList.toggle("active", b.dataset.group === group));
   renderSubtabs(group, name);
   try { localStorage.setItem("qs_view", name); } catch (e) { /* 隐私模式下忽略 */ }
-  // 进行中的对局视图自动进入专注模式, 离开自动展开
-  setHeaderFold(name === "game" && !!state.sessionId);
+  // 进行中的对局自动进入专注模式, 离开或已结算则展开 (结算后还折叠会把导航藏死)
+  setHeaderFold(name === "game" && !!state.sessionId && !state.settled);
   // 图表在隐藏容器中初始化时尺寸为 0, 切换到可见后需重算
   if (name === "game") chart.resize();
   else if (name === "arena") btChart.resize();
