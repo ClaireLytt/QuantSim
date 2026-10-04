@@ -140,9 +140,13 @@ h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: .3px; }
 /* 顶栏工具簇 (登录/语言/主题/音效): 锁定头部第一行右端, 与开局控件分层 */
 .header-tools {
   display: flex;
+  flex-wrap: wrap; /* 窄屏 (或 Linux 宽字体) 下允许折行, 否则 390px 会被撑出横向滚动 */
+  justify-content: flex-end;
   gap: 8px;
   align-items: center;
   margin-left: auto; /* 把整簇推到右上角 */
+  max-width: 100%;
+  min-width: 0;
 }
 .header-tools button {
   width: auto;
