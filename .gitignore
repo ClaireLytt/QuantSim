@@ -33,3 +33,6 @@ Thumbs.db
 # UI 冒烟测试依赖
 tools/ui_smoke/node_modules/
 tools/ui_smoke/package-lock.json
+
+# 本机通知脚本含私人 ntfy 主题名, 不入库
+tools/notify_done.py
