@@ -538,8 +538,10 @@ main {
 .guess-head strong { color: var(--text); font-size: 14px; margin-left: 4px; }
 .guess-chart { height: 300px; margin-top: 12px; }
 .guess-msg { min-height: 20px; margin: 10px 0; font-size: 13px; color: var(--text-muted); text-align: center; }
-.guess-actions { display: flex; gap: 10px; justify-content: center; max-width: 420px; margin: 0 auto; }
-.guess-actions .primary { flex: 1; }
+.guess-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 420px; margin: 0 auto; }
+/* 开始 / 每日挑战: 上下各占一行, 等宽等大 (basis 100% 独占一行, 再钳到 240px 居中) */
+#btn-guess-start, #btn-guess-daily { flex: 0 0 100%; max-width: 240px; margin-top: 0; }
+/* 看涨 / 看跌: 保持左右对称一组 */
 .guess-actions .buy, .guess-actions .sell { flex: 0 1 150px; }
 
 /* 实战关卡弹窗 */
