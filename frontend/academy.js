@@ -2410,7 +2410,12 @@ function newGuessRound(seedRnd) {
 }
 
 function refreshGuessChart() {
-  if (!guessChart) guessChart = echarts.init($("guess-chart"));
+  // 开局才显示图表 (空壳 300px 很难看); 容器刚解除 hidden 时必须 resize, 否则画布是 100px
+  const el = $("guess-chart");
+  const wasHidden = el.hidden;
+  el.hidden = false;
+  if (!guessChart) guessChart = echarts.init(el);
+  if (wasHidden) guessChart.resize();
   const from = Math.max(0, guess.visible - GUESS_WINDOW);
   const windowData = guess.data.slice(from, guess.visible).map((c, i) => ({ ...c, day: i + 1 }));
   guessChart.setOption(buildKlineOption(windowData, windowData.length, false, null), true);
