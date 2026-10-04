@@ -63,7 +63,7 @@ def main():
                     lo = min(o, c) * (1 - abs(rng.gauss(0, 0.005)))
                     vol = rng.randint(1_000_000, 9_000_000)
                     cur.execute(
-                        "INSERT INTO daily_prices (stock_id, trade_date, open, high, low, close, volume) "
+                        "INSERT INTO daily_price (stock_id, trade_date, open, high, low, close, volume) "
                         "VALUES (%s, %s, %s, %s, %s, %s, %s) "
                         "ON DUPLICATE KEY UPDATE open=VALUES(open), high=VALUES(high), "
                         "low=VALUES(low), close=VALUES(close), volume=VALUES(volume)",
@@ -77,7 +77,7 @@ def main():
                     ma20 = round(sum(x[1] for x in closes[max(0, i - 19):i + 1]) / min(i + 1, 20), 2) if i >= 19 else None
                     pct = round(c / closes[i - 1][1] - 1, 4) if i > 0 else None
                     cur.execute(
-                        "INSERT INTO daily_indicators (stock_id, trade_date, ma5, ma20, volatility, pct_change) "
+                        "INSERT INTO daily_indicator (stock_id, trade_date, ma5, ma20, volatility, pct_change) "
                         "VALUES (%s, %s, %s, %s, %s, %s) "
                         "ON DUPLICATE KEY UPDATE ma5=VALUES(ma5), ma20=VALUES(ma20), pct_change=VALUES(pct_change)",
                         (stock_id, d, ma5, ma20, None, pct))
@@ -87,7 +87,7 @@ def main():
                     for m in MODELS:
                         prob = round(min(0.95, max(0.05, rng.gauss(0.5, 0.15))), 4)
                         cur.execute(
-                            "INSERT INTO daily_predictions (stock_id, trade_date, model, predicted_direction, prob_up) "
+                            "INSERT INTO daily_prediction (stock_id, trade_date, model, predicted_direction, prob_up) "
                             "VALUES (%s, %s, %s, %s, %s) "
                             "ON DUPLICATE KEY UPDATE prob_up=VALUES(prob_up), "
                             "predicted_direction=VALUES(predicted_direction)",

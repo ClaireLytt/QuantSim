@@ -60,10 +60,18 @@ import com.quantsim.service.DataRefreshService;
         "quantsim.fees.stock.stamp-tax-rate=0",
         // 刷新服务桩命令 (echo 任意平台可用)
         "quantsim.refresh.enabled=false",
-        "quantsim.refresh.command=cmd /c echo refresh-stub-ok",
         "quantsim.refresh.workdir=.",
 })
 class HellAiIntegrationTest {
+
+    /** refresh 桩命令跨平台: Windows 没有独立的 echo 可执行文件, Linux 没有 cmd */
+    @org.springframework.test.context.DynamicPropertySource
+    static void refreshStub(org.springframework.test.context.DynamicPropertyRegistry registry) {
+        boolean windows = System.getProperty("os.name", "").toLowerCase().contains("win");
+        registry.add("quantsim.refresh.command",
+                () -> windows ? "cmd /c echo refresh-stub-ok" : "echo refresh-stub-ok");
+    }
+
 
     @Autowired TestRestTemplate rest;
     @Autowired ObjectMapper objectMapper;
