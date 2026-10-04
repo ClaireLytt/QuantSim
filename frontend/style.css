@@ -1463,9 +1463,14 @@ footer {
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--shadow);
+  text-align: center; /* 引导语/进度/结果沿中轴, 选项按钮单独保持左对齐 */
 }
-.quiz-box > button { margin-top: 14px; }
-
+.quiz-box > button {
+  margin: 14px auto 0;
+  display: block;
+  width: auto;
+  min-width: 160px;
+}
 .quiz-question { margin: 10px 0 0; font-size: 16px; font-weight: 600; line-height: 1.6; }
 
 .quiz-options {
