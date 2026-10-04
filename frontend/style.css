@@ -544,23 +544,39 @@ main {
 /* 看涨 / 看跌: 保持左右对称一组 */
 .guess-actions .buy, .guess-actions .sell { flex: 0 1 150px; }
 
-/* 富豪场下注条: 注金/杠杆两组胶囊, 选中态主题色描边 */
+/* 富豪场下注条: 注金/杠杆分组收进一块小面板, 像筹码台; 选中筹码主题色点亮 */
 .rich-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 18px;
+  gap: 8px 22px;
   justify-content: center;
   align-items: center;
-  margin: 10px 0 2px;
+  max-width: 480px;
+  margin: 10px auto 4px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
-.rich-group { display: flex; gap: 6px; align-items: center; }
+.rich-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; }
 .rich-bar button { margin-top: 0; min-width: 52px; }
 .rich-bar button.active {
   border-color: var(--accent);
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 600;
 }
-#btn-guess-rich, #btn-rich-exit, #btn-rich-reborn { flex: 0 0 100%; max-width: 240px; margin-top: 0; }
+#btn-guess-rich, #btn-rich-reborn { flex: 0 0 100%; max-width: 240px; margin-top: 0; }
+/* 收手离场: 弱化为小字按钮, 排在看涨/看跌下方独立一行, 不和大按钮抢视线 */
+#btn-rich-exit {
+  order: 9;
+  flex: 0 0 100%;
+  max-width: 130px;
+  margin-top: 0;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+#btn-rich-reborn { order: 9; }
 /* 每日挑战入口: 品牌青主题, 与紫色主按钮/金色富豪场构成三级层次, 互不抢戏 */
 #btn-guess-daily {
   font-weight: 600;
