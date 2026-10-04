@@ -56,9 +56,14 @@
     }
   }
 
-  // 登录门禁: 未登录只见门禁页, 登录后放行; 登出即重新落闸
+  // 登录门禁: 登录或游客试玩放行; 登出即重新落闸 (游客标记只活在本次会话)
+  let guestOk = false;
+  try { guestOk = sessionStorage.getItem("qs_guest") === "1"; } catch (e) { /* ignore */ }
+
   function renderGate() {
-    $("login-gate").hidden = !!Auth.user;
+    const pass = !!Auth.user || guestOk;
+    $("login-gate").hidden = pass;
+    if (pass && window.qsMaybeOnboard) qsMaybeOnboard();
   }
 
   function setUser(user) {
@@ -143,6 +148,8 @@
 
   async function doLogout() {
     try { await api("/auth/logout", { method: "POST" }); } catch (e) { /* 会话已失效也算登出成功 */ }
+    guestOk = false;
+    try { sessionStorage.removeItem("qs_guest"); } catch (e) { /* ignore */ }
     setUser(null);
     toast(t("auth.loggedOut"));
   }
@@ -185,4 +192,15 @@
   }
 
   $("btn-gate-login").addEventListener("click", () => openAuthModal(false));
+  // 游客试玩: 本次会话内免登录逛逛 (每日挑战/房间等仍会就地弹登录)。
+  // 入口有两个: 门禁页小字 + 登录弹窗小字 (弹窗自动打开时会盖住门禁, 必须双入口)
+  function enterGuest(e) {
+    e.preventDefault();
+    guestOk = true;
+    try { sessionStorage.setItem("qs_guest", "1"); } catch (e2) { /* ignore */ }
+    closeAuthModal();
+    renderGate();
+  }
+  $("link-guest").addEventListener("click", enterGuest);
+  $("link-guest2").addEventListener("click", enterGuest);
 })();

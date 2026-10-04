@@ -166,6 +166,13 @@
   $("link-room-join").addEventListener("click", (e) => { e.preventDefault(); showRoomCard(true); });
   $("link-room-create").addEventListener("click", (e) => { e.preventDefault(); showRoomCard(false); });
 
+  // 同题挑战 (app.js 发起): 带着 RoomView 直接进入房间面板
+  window.qsEnterRoom = (view) => {
+    room = view;
+    renderRoom();
+    startPoll();
+  };
+
   $("btn-room-create").addEventListener("click", create);
   $("btn-room-join").addEventListener("click", join);
   $("btn-room-play").addEventListener("click", () => guarded(play));

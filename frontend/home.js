@@ -13,6 +13,7 @@
     { view: "famous", icon: "🌋" },
     { view: "story", icon: "🕵️" },
     { view: "quiz", icon: "🧬" },
+    { view: "option", icon: "🎟️" },
     { view: "lab", icon: "🔬" },
     { view: "profile", icon: "📜" },
     { view: "history", icon: "🗂️" },

@@ -32,6 +32,13 @@ public class RoomController {
         return roomService.create(CurrentUser.idOrNull(http), req.market(), req.aiLevel());
     }
 
+    /** 好友同题挑战: 从我的已结算对局建房 (同标的同窗口) */
+    @PostMapping("/challenge")
+    public com.quantsim.dto.CompetitiveDtos.RoomView challenge(
+            @RequestBody java.util.Map<String, Long> body, HttpServletRequest http) {
+        return roomService.createChallenge(CurrentUser.idOrNull(http), body.get("sessionId"));
+    }
+
     @PostMapping("/{code}/join")
     public RoomView join(@PathVariable String code, HttpServletRequest http) {
         return roomService.join(CurrentUser.idOrNull(http), code);

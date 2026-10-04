@@ -78,6 +78,46 @@ public class RoomService {
         return view(userId, room.getCode());
     }
 
+    /**
+     * 好友同题挑战: 把"我刚玩完的那局"变成房间 —— 同标的同隐藏窗口, 朋友盲打同题,
+     * 发起者的已结算成绩直接挂进战况表。只允许单股非竞技局 (竞技局禁止套娃)。
+     */
+    @Transactional
+    public RoomView createChallenge(Long userId, Long sessionId) {
+        GameSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new NotFoundException("对局不存在: " + sessionId));
+        if (!java.util.Objects.equals(session.getUserId(), userId)) {
+            throw new NotFoundException("对局不存在: " + sessionId);
+        }
+        if (session.getStatus() != GameSession.Status.SETTLED) {
+            throw new BusinessException("结算后才能发起同题挑战");
+        }
+        if ("PORTFOLIO".equals(session.getMode()) || BlindDates.blind(session)) {
+            throw new BusinessException("该模式的对局不支持发起同题挑战");
+        }
+        AiLevel level = AiLevel.NORMAL;
+        for (AiLevel l : AiLevel.values()) {
+            if (l.getModel().equals(session.getAiModel())) {
+                level = l;
+                break;
+            }
+        }
+        Room room = new Room();
+        room.setCreatorUserId(userId);
+        room.setStockId(session.getStockId());
+        room.setStartDate(session.getStartDate());
+        room.setAiLevel(level.name());
+        room.setExpiresAt(LocalDateTime.now().plusHours(EXPIRE_HOURS));
+        room = saveWithUniqueCode(room);
+
+        RoomMember member = new RoomMember();
+        member.setRoomId(room.getRoomId());
+        member.setUserId(userId);
+        member.setSessionId(session.getSessionId()); // 发起者不再重打, 挂既有成绩
+        memberRepository.save(member);
+        return view(userId, room.getCode());
+    }
+
     private Room saveWithUniqueCode(Room room) {
         for (int attempt = 0; attempt < 5; attempt++) {
             room.setCode(randomCode());

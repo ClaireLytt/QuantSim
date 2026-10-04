@@ -744,6 +744,19 @@ public class GameService {
                 account.getHoldingShares(), account.getHoldingCost(), BigDecimal.ZERO);
     }
 
+    /** 已结算对局的风险指标 (LLM 复盘上下文用); 旧组合流水缺 stock_id 时返回 null。 */
+    @Transactional(readOnly = true)
+    public RiskMetrics riskForSettled(GameSession session) {
+        StockData sd = marketData.load(session.getStockId());
+        Integer startIdx = sd.indexOf(session.getStartDate());
+        Integer endIdx = sd.indexOf(session.getCurrentTradeDate());
+        if (startIdx == null || endIdx == null) {
+            return null;
+        }
+        List<BigDecimal> curve = equityCurve(session, sd, startIdx, endIdx);
+        return curve == null ? null : riskMetrics(curve);
+    }
+
     /** 从初始资金重放全部流水, 重建账户现金/持仓/均价/累计利息 (undo 用)。 */
     private void replayAccount(GameSession session, Account account) {
         StockData sd = marketData.load(session.getStockId());

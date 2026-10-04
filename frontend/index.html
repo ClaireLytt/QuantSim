@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuantSim 虚拟炒股</title>
-  <link rel="stylesheet" href="style.css?v=20261004m">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css?v=20261004n">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -16,6 +17,7 @@
       <p id="gate-loading" class="hint" data-i18n="gate.loading">正在恢复会话…</p>
       <button id="btn-gate-login" class="primary big" hidden data-i18n="gate.loginBtn">登录 / 注册</button>
       <p class="hint" data-i18n="gate.hint">注册后战绩与学堂进度云端同步，还能玩每日挑战和好友房间</p>
+      <p class="hint auth-switch"><a href="#" id="link-guest" data-i18n="gate.guest">先逛逛，游客试玩 →</a></p>
     </div>
   </div>
 
@@ -188,6 +190,7 @@
         <button id="btn-recap" class="ghost" hidden data-i18n="recap.btn">复盘报告</button>
         <button id="btn-review" class="ghost" hidden data-i18n="review.ask">AI 复盘本局</button>
         <button id="btn-sharecard" class="ghost" hidden data-i18n="share.btn">生成战绩卡</button>
+        <button id="btn-challenge" class="ghost" hidden data-i18n="challenge.btn">⚔️ 发起同题挑战</button>
         <p id="review-text" hidden></p>
       </div>
     </aside>
@@ -461,6 +464,28 @@
   </section>
   </div>
 
+  <div id="view-option" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="opt.title">期权入门沙盒</span> <span class="sub" data-i18n="opt.sub">买一张看涨/看跌期权，拖动滑杆看到期损益——亏损有底、收益看方向，这就是期权</span></h2>
+    <div class="card opt-card">
+      <div class="opt-controls">
+        <div class="trade-buttons">
+          <button id="btn-opt-call" class="buy" data-i18n="opt.call">看涨 Call</button>
+          <button id="btn-opt-put" class="sell" data-i18n="opt.put">看跌 Put</button>
+        </div>
+        <label><span data-i18n="opt.strike">行权价</span>
+          <input id="opt-strike" type="range" min="80" max="120" step="1" value="100">
+          <span id="opt-strike-val" class="hint">100</span>
+        </label>
+        <p class="hint"><span data-i18n="opt.premium">权利金（BS 定价，波动率 30%，30 天到期）：</span><b id="opt-premium">--</b></p>
+      </div>
+      <div id="opt-chart"></div>
+      <p id="opt-verdict" class="hint"></p>
+      <p class="hint" data-i18n="opt.note">教学演示：现价固定 100，不接入对局。期权买方最大亏损 = 权利金，收益随方向放大——这是和买股票最大的区别。</p>
+    </div>
+  </section>
+  </div>
+
   <div id="view-quiz" hidden>
   <section class="academy-panel">
     <h2><span data-i18n="quiz.section">交易人格测试</span> <span class="sub" data-i18n="quiz.sectionHint">10 道灵魂拷问，测出你是哪种交易动物，人格可收集进称号图鉴。</span></h2>
@@ -729,6 +754,8 @@
             <dt data-i18n="status.interest">累计利息</dt><dd id="st-interest">--</dd>
           </dl>
           <div id="pf-positions" class="pf-positions" hidden></div>
+          <div id="pf-pie" hidden></div>
+          <p id="pf-corr" class="hint" hidden></p>
         </div>
       </div>
     </div>
@@ -815,6 +842,7 @@
           <label><span data-i18n="auth.password">密码</span><input id="login-pass" type="password" maxlength="72" autocomplete="current-password"></label>
           <button id="btn-login" class="primary" data-i18n="auth.loginBtn">登录</button>
           <p class="hint auth-switch"><span data-i18n="auth.noAccount">还没有账号？</span><a href="#" id="link-register" data-i18n="auth.toRegister">立即注册</a></p>
+          <p class="hint auth-switch"><a href="#" id="link-guest2" data-i18n="gate.guest">先逛逛，游客试玩 →</a></p>
         </section>
         <section id="register-card" hidden>
           <h3 data-i18n="auth.register">注册</h3>
@@ -1101,21 +1129,21 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261004i"></script>
+  <script src="i18n.js?v=20261004j"></script>
   <script src="glossary.js?v=20261002a"></script>
-  <script src="app.js?v=20261004h"></script>
-  <script src="auth.js?v=20261004b"></script>
-  <script src="academy.js?v=20261004b"></script>
+  <script src="app.js?v=20261004i"></script>
+  <script src="auth.js?v=20261004d"></script>
+  <script src="academy.js?v=20261004c"></script>
   <script src="lab.js?v=20261004a"></script>
   <script src="daily.js?v=20261002a"></script>
-  <script src="rooms.js?v=20261004a"></script>
+  <script src="rooms.js?v=20261004b"></script>
   <script src="ranking.js?v=20261004a"></script>
   <script src="sharecard.js?v=20260930a"></script>
   <script src="sharecode.js?v=20260930a"></script>
   <script src="heatmap.js?v=20260930a"></script>
   <script src="news.js?v=20260930a"></script>
   <script src="history.js?v=20261002a"></script>
-  <script src="home.js?v=20261004a"></script>
+  <script src="home.js?v=20261004b"></script>
   <script src="points.js?v=20261004c"></script>
 </body>
 </html>

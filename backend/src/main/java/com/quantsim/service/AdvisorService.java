@@ -74,6 +74,7 @@ public class AdvisorService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final MarketDataService marketData;
+    private final GameService gameService;
     private final AdvisorProperties props;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
@@ -99,11 +100,12 @@ public class AdvisorService {
 
     public AdvisorService(GameSessionRepository sessionRepository, AccountRepository accountRepository,
             TransactionRepository transactionRepository, MarketDataService marketData,
-            AdvisorProperties props, ObjectMapper objectMapper) {
+            GameService gameService, AdvisorProperties props, ObjectMapper objectMapper) {
         this.sessionRepository = sessionRepository;
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.marketData = marketData;
+        this.gameService = gameService;
         this.props = props;
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
@@ -228,6 +230,14 @@ public class AdvisorService {
         return new AdvisorResponse(advice, props.getModel());
     }
 
+    private static String pct(BigDecimal v) {
+        return v == null ? "N/A" : v.multiply(BigDecimal.valueOf(100)).setScale(1, java.math.RoundingMode.HALF_UP) + "%";
+    }
+
+    private static String nvl(BigDecimal v) {
+        return v == null ? "N/A" : v.toPlainString();
+    }
+
     private String buildReviewContext(GameSession session, Account account, StockData sd) {
         Stock stock = sd.stock();
         Integer startIdx = sd.indexOf(session.getStartDate());
@@ -247,6 +257,16 @@ public class AdvisorService {
         sb.append("成绩: 初始资金 ").append(session.getInitialCash())
                 .append(", 最终资产 ").append(finalAssets)
                 .append(", 收益率 ").append(returnRate.multiply(BigDecimal.valueOf(100))).append("%\n");
+        // 风险指标入上下文: 让复盘点评能谈回撤/风险收益比, 而不只看收益
+        com.quantsim.dto.GameDtos.RiskMetrics risk = gameService.riskForSettled(session);
+        if (risk != null) {
+            sb.append("风险指标: 最大回撤 ").append(pct(risk.maxDrawdown()))
+                    .append(", 年化波动率 ").append(pct(risk.volatility()))
+                    .append(", 夏普 ").append(nvl(risk.sharpe()))
+                    .append(", 索提诺 ").append(nvl(risk.sortino()))
+                    .append(", 日胜率 ").append(pct(risk.winRate()))
+                    .append(", 盈亏比 ").append(nvl(risk.profitLossRatio())).append('\n');
+        }
 
         sb.append("本局行情 (日期 收盘 涨跌幅%):\n");
         for (int i = startIdx; i <= endIdx; i++) {

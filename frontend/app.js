@@ -839,6 +839,71 @@ function renderPositions(positions) {
   }).join("");
   box.innerHTML = `<table><thead><tr><th>${t("lb.stock")}</th><th>${t("status.shares")}</th>
     <th>${t("status.cost")}</th><th>${t("status.value")}</th></tr></thead><tbody>${rows}</tbody></table>`;
+  renderPfPie(positions);
+  renderPfCorr(positions);
+}
+
+// 组合权重饼图: 看资金有没有押在一个篮子里 (含现金一片)
+let pfPieChart = null;
+function renderPfPie(positions) {
+  const el = $("pf-pie");
+  const held = positions.filter((p) => Number(p.marketValue) > 0);
+  if (!held.length) { el.hidden = true; return; }
+  el.hidden = false;
+  if (!pfPieChart) {
+    pfPieChart = echarts.init(el);
+    window.addEventListener("resize", () => pfPieChart.resize());
+  }
+  const cash = state.lastStatus ? Math.max(0, Number(state.lastStatus.cashBalance)) : 0;
+  const data = held.map((p) => ({ name: stockName(p.stockName, p.stockCode), value: Number(p.marketValue) }));
+  if (cash > 0) data.push({ name: t("status.cash"), value: cash });
+  pfPieChart.setOption({
+    backgroundColor: "transparent",
+    tooltip: { valueFormatter: (v) => fmtMoney(v) + t("unit.money") },
+    series: [{ type: "pie", radius: ["38%", "68%"],
+      label: { color: COLORS.muted, fontSize: 11, formatter: "{b}\n{d}%" },
+      itemStyle: { borderColor: COLORS.panel, borderWidth: 2 },
+      color: [COLORS.accent, COLORS.accent2, COLORS.ma5, COLORS.muted, COLORS.ma20],
+      data }],
+  }, true);
+  pfPieChart.resize();
+}
+
+// 两两相关性提示: 三只都涨跌同步 ≈ 只买了一只 (竞技模式组合不开放, 代码可直查 lab 历史)
+let pfCorrCache = null;
+async function renderPfCorr(positions) {
+  const el = $("pf-corr");
+  const codes = (state.stocks || []).map((s) => s.code).filter((c) => c && c !== "???");
+  if (codes.length < 2) { el.hidden = true; return; }
+  try {
+    if (!pfCorrCache || pfCorrCache.key !== codes.join(",")) {
+      const hists = await Promise.all(codes.map((c) => api("/lab/history/" + encodeURIComponent(c))));
+      pfCorrCache = { key: codes.join(","), hists };
+    }
+    const rets = pfCorrCache.hists.map((h) => {
+      const closes = h.close.slice(-60).map(Number);
+      return closes.slice(1).map((c, i) => c / closes[i] - 1);
+    });
+    let maxCorr = -1;
+    let pair = ["", ""];
+    for (let i = 0; i < rets.length; i++) {
+      for (let j = i + 1; j < rets.length; j++) {
+        const n = Math.min(rets[i].length, rets[j].length);
+        const a = rets[i].slice(-n);
+        const b = rets[j].slice(-n);
+        const ma = a.reduce((x, y) => x + y, 0) / n;
+        const mb = b.reduce((x, y) => x + y, 0) / n;
+        let cov = 0, va = 0, vb = 0;
+        for (let k = 0; k < n; k++) { cov += (a[k] - ma) * (b[k] - mb); va += (a[k] - ma) ** 2; vb += (b[k] - mb) ** 2; }
+        const corr = cov / Math.sqrt(va * vb || 1);
+        if (corr > maxCorr) { maxCorr = corr; pair = [codes[i], codes[j]]; }
+      }
+    }
+    el.hidden = false;
+    el.textContent = maxCorr > 0.7
+      ? t("pf.corrHigh", pair[0], pair[1], maxCorr.toFixed(2))
+      : t("pf.corrOk", maxCorr.toFixed(2));
+  } catch (e) { el.hidden = true; }
 }
 
 // ---------- 挂单面板 ----------
@@ -926,6 +991,11 @@ function showSettle(result) {
   celebrateSettle(result);
   toast(t("settle.done"));
   loadLeaderboard();
+
+// PWA: 注册极简 Service Worker (网络优先, 不缓存 API), 让站点可安装
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => { /* 不支持/失败不影响使用 */ });
+}
   document.dispatchEvent(new CustomEvent("qs:settled", { detail: result }));
 }
 
@@ -989,6 +1059,25 @@ function renderSettleExtras(result) {
 
   $("btn-review").hidden = false;
   $("btn-recap").hidden = false;
+  // 同题挑战: 单股非竞技局才可发起 (竞技局禁止套娃, 组合模式房间不支持)
+  $("btn-challenge").hidden = state.mode === "PORTFOLIO" || state.mode === "DAILY" || state.mode === "ROOM";
+}
+
+async function startChallenge() {
+  if (!window.Auth) return;
+  Auth.require(async () => {
+    try {
+      const view = await api("/rooms/challenge", {
+        method: "POST", body: JSON.stringify({ sessionId: state.sessionId }),
+      });
+      try { await navigator.clipboard.writeText(view.code); } catch (e) { /* 剪贴板不可用忽略 */ }
+      toast(t("challenge.created", view.code));
+      if (window.qsEnterRoom) qsEnterRoom(view);
+      switchView("rooms");
+    } catch (e) {
+      toast(e.message);
+    }
+  });
 }
 
 // 结算风险指标表: 你 vs 买入持有。回撤/波动率/日胜率是正分数 → 百分比,
@@ -1764,10 +1853,7 @@ document.addEventListener("keydown", (e) => {
   else if (!$("help-modal").hidden) closeHelp();
 });
 
-// 首次访问自动弹出玩法说明 (新手引导优先, 见文件末尾的自动启动逻辑)
-try {
-  if (localStorage.getItem("qs_tour_done") && !localStorage.getItem("qs_help_seen")) openHelp();
-} catch (e) { /* 隐私模式下忽略 */ }
+// 首访引导改为过登录门禁后再弹 (auth.js 放行时调 qsMaybeOnboard), 避免叠在登录窗上
 
 // ---------- 界面切换: 两级导航 (分组 + 子标签) ----------
 
@@ -1775,7 +1861,7 @@ const NAV_GROUPS = {
   home: ["home"],
   play: ["game", "daily", "rooms"],
   arenaG: ["arena", "ranking"],
-  learn: ["academy", "guess", "famous", "story", "quiz"],
+  learn: ["academy", "guess", "famous", "story", "quiz", "option"],
   labG: ["lab"],
   me: ["profile", "history", "account"],
 };
@@ -1946,6 +2032,7 @@ $("btn-blindbox-start").addEventListener("click", () => guarded(async () => {
   await startGame();
 }));
 $("btn-order").addEventListener("click", () => guarded(placeOrder));
+$("btn-challenge").addEventListener("click", () => guarded(startChallenge));
 // 移动止损填「跟踪 %」而不是触发价, 两个输入框互换显示
 $("order-type").addEventListener("change", () => {
   const trailing = $("order-type").value === "TRAIL_STOP";
@@ -2305,9 +2392,15 @@ document.addEventListener("qs:lang", () => {
   if (tourActive()) renderTourStep();
 });
 
-// 首次访问自动开启引导 (优先于玩法说明弹窗)
-try {
-  if (!localStorage.getItem("qs_tour_done")) startTour();
-} catch (e) { /* 隐私模式下忽略 */ }
+// 首访引导: 过门禁 (登录或游客试玩) 后才弹, 新手引导优先于玩法说明
+let onboarded = false;
+window.qsMaybeOnboard = () => {
+  if (onboarded) return;
+  onboarded = true;
+  try {
+    if (!localStorage.getItem("qs_tour_done")) startTour();
+    else if (!localStorage.getItem("qs_help_seen")) openHelp();
+  } catch (e) { /* 隐私模式下忽略 */ }
+};
 
 loadLeaderboard();

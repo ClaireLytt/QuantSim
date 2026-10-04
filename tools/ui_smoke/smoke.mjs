@@ -65,6 +65,15 @@ await step("首页加载 (过登录门禁 + 首访弹层)", async () => {
     await page.fill("#reg-pass2", "smoke123");
     await page.click("#btn-register");
     await page.waitForSelector("#login-gate[hidden]", { state: "attached", timeout: 10000 });
+    // 首访引导在过闸后才弹 (登录前不打扰), 这里再跳一次
+    await page.waitForTimeout(800);
+    if (await page.isVisible("#btn-tour-skip")) {
+      await page.click("#btn-tour-skip");
+      await page.waitForTimeout(300);
+    }
+    if (await page.isVisible("#help-modal")) {
+      await page.click("#btn-help-close");
+    }
   }
 });
 
