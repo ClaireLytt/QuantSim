@@ -524,14 +524,23 @@ main {
 /* 名场面称号 */
 .level-award { margin: 10px 0 0; font-size: 12px; color: var(--ma5); }
 
-/* K线猜涨跌 */
+/* K线猜涨跌: 聚焦居中布局, 统计/提示/按钮全部沿中轴, 字号收敛 */
 .guess-card { margin-top: 14px; }
-.guess-head { display: flex; gap: 22px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); }
-.guess-head strong { color: var(--text); font-size: 15px; margin-left: 4px; }
+.guess-head {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.guess-head strong { color: var(--text); font-size: 14px; margin-left: 4px; }
 .guess-chart { height: 300px; margin-top: 12px; }
-.guess-msg { min-height: 20px; margin: 10px 0; font-size: 13px; color: var(--text-muted); }
-.guess-actions { display: flex; gap: 10px; max-width: 420px; }
+.guess-msg { min-height: 20px; margin: 10px 0; font-size: 13px; color: var(--text-muted); text-align: center; }
+.guess-actions { display: flex; gap: 10px; justify-content: center; max-width: 420px; margin: 0 auto; }
 .guess-actions .primary { flex: 1; }
+.guess-actions .buy, .guess-actions .sell { flex: 0 1 150px; }
 
 /* 实战关卡弹窗 */
 .play-modal { width: min(860px, 94vw); }
