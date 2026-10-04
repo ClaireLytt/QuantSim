@@ -2419,6 +2419,11 @@ function refreshGuessChart() {
   const from = Math.max(0, guess.visible - GUESS_WINDOW);
   const windowData = guess.data.slice(from, guess.visible).map((c, i) => ({ ...c, day: i + 1 }));
   const opt = buildKlineOption(windowData, windowData.length, false, null);
+  // 右侧补一段"未来空位": 基准 K 线落在视野约 2/3 处而不是贴死右缘, 下一根有落点可想象
+  const FUTURE_SLOTS = 12;
+  const future = [];
+  for (let i = 0; i < FUTURE_SLOTS; i++) future.push(i === 0 ? "?" : "");
+  opt.xAxis.data = opt.xAxis.data.concat(future);
   // 指示当前待猜的基准 K 线: 最后一根顶上挂「猜它的下一根」箭头标签
   const lastIdx = windowData.length - 1;
   const lastBar = windowData[lastIdx];
