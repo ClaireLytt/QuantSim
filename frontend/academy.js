@@ -2280,7 +2280,7 @@ document.addEventListener("keydown", (e) => {
 const GUESS_WINDOW = 30;
 const DAILY_GUESSES = 10;
 let guessChart = null;
-const guess = { data: [], visible: 0, score: 0, streak: 0, playing: false, waiting: false, mode: "free", dailyLeft: 0, shieldUsed: false };
+const guess = { data: [], visible: 0, score: 0, streak: 0, lossStreak: 0, playing: false, waiting: false, mode: "free", dailyLeft: 0, shieldUsed: false };
 
 function todayStr() {
   const d = new Date();
@@ -2292,7 +2292,8 @@ function todayStr() {
 //   1. 读最近 3 局涨跌 → 判趋势/震荡/变盘;
 //   2. 概率加权: 趋势局 70% 延续 / 震荡局 50-50 / 变盘局 (每5~8局) 80% 反向突破;
 //      另有假动作 (每4~7局) 诱多诱空打断惯性;
-//   3. 胜率修正 (见下); 4. 输出唯一结果。
+//   3. 胜率修正: 新手前 10 局 ≈55% 利好 → 连赢/连输 3 局后 65% 反转补救 →
+//      近 100 局滚动回中 48%~52%; 4. 输出唯一结果。
 //   胜率回中: 近 100 局玩家胜率偏出 48%~52% 时按偏差概率往回拉;
 //   极端抑制: 同向 ≥5 根强制大概率反转、≥7 根必反 (杜绝十连涨跌),
 //            完美交替 ≥6 根强制延续一根 (杜绝天地板反复)。
@@ -2353,14 +2354,24 @@ function engineNext(guessUp) {
     dir = rnd() < 0.5 ? 1 : -1; // 震荡: 涨跌对半
   }
 
-  // ③ 胜率回中: 只在玩家真实下注时干预, 偏差越大拉力越强
+  // ③ 胜率修正 (只在真实下注时干预), 优先级: 新手保护 > 连胜/连输补救 > 全局回中
   if (guessUp !== null) {
-    const wr = recentWinRate();
-    if (wr !== null && Math.abs(wr - 0.5) > 0.015) {
-      // 偏差 3% 时拉力约 0.18, 偏差 6% 时约 0.54 —— 足以把各种玩家风格摁回 48%~52%
-      const pull = Math.min(0.9, (Math.abs(wr - 0.5) - 0.015) * 12);
-      if (rnd() < pull) {
-        dir = wr > 0.5 ? (guessUp ? -1 : 1) : (guessUp ? 1 : -1);
+    const guessDir = guessUp ? 1 : -1;
+    if (prog.guessTotal < 10) {
+      // 新手局: 前 10 局小幅利好, 胜率 ≈55%, 之后自动回归均衡
+      dir = rnd() < 0.55 ? guessDir : -guessDir;
+    } else if (guess.streak >= 3) {
+      dir = rnd() < 0.65 ? -guessDir : guessDir; // 连赢 3 局: 下一局 65% 反转 / 35% 继续让赢
+    } else if (guess.lossStreak >= 3) {
+      dir = rnd() < 0.65 ? guessDir : -guessDir; // 连输 3 局: 下一局 65% 送回 / 35% 继续压
+    } else {
+      const wr = recentWinRate();
+      if (wr !== null && Math.abs(wr - 0.5) > 0.015) {
+        // 偏差 3% 时拉力约 0.18, 偏差 6% 时约 0.54 —— 把各种玩家风格摁回 48%~52%
+        const pull = Math.min(0.9, (Math.abs(wr - 0.5) - 0.015) * 12);
+        if (rnd() < pull) {
+          dir = wr > 0.5 ? -guessDir : guessDir;
+        }
       }
     }
   }
@@ -2420,6 +2431,7 @@ function startGuess() {
   guess.mode = "free";
   guess.score = 0;
   guess.streak = 0;
+  guess.lossStreak = 0;
   guess.shieldUsed = false;
   newGuessRound();
   refreshGuessChart();
@@ -2445,6 +2457,7 @@ function startDaily() {
   guess.dailyLeft = DAILY_GUESSES + (hasGear("coin") ? 2 : 0);
   guess.score = 0;
   guess.streak = 0;
+  guess.lossStreak = 0;
   guess.shieldUsed = false;
   refreshGuessChart();
   refreshGuessStats();
@@ -2493,6 +2506,7 @@ function makeGuess(up) {
   let msg = t(wentUp ? "guess.wentUp" : "guess.wentDown", movePct) + "「" + cmt + "」 ";
   if (correct) {
     guess.streak++;
+    guess.lossStreak = 0;
     const pts = 10 + 2 * Math.min(guess.streak, 10) + (hasGear("finger") ? 5 : 0);
     guess.score += pts;
     prog.guessHit++;
@@ -2509,10 +2523,12 @@ function makeGuess(up) {
     if (guess.streak >= 3) spawnFloat(card, "combo-pop", t("guess.combo", guess.streak));
   } else if (hasGear("amulet") && !guess.shieldUsed) {
     guess.shieldUsed = true;
+    guess.lossStreak++;
     msg += t("gear.shielded");
     replayAnim($("guess-msg"), "anim-shake");
   } else {
     guess.streak = 0;
+    guess.lossStreak++;
     msg += t("guess.miss");
     replayAnim($("guess-chart"), "anim-shake");
     replayAnim($("guess-msg"), "anim-shake");
