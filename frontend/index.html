@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuantSim 虚拟炒股</title>
-  <link rel="stylesheet" href="style.css?v=20261004k">
+  <link rel="stylesheet" href="style.css?v=20261004l">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -76,6 +76,11 @@
   <section id="game-intro" class="card game-intro">
     <h2 data-i18n="intro.title">开始你的第一局</h2>
     <p data-i18n="intro.text">在顶部输入用户名、选择市场，点「开始新对局」穿越回历史行情。不确定怎么玩？点右上角「玩法说明」，或先去「量化学堂」闯关。</p>
+    <div class="daily-actions">
+      <button id="btn-survival" class="ghost" data-i18n="survival.btn">🐻 熊市生存挑战</button>
+      <button id="btn-blindbox-start" class="ghost" data-i18n="blindstart.btn">🎲 盲盒开局</button>
+    </div>
+    <p class="hint" data-i18n="intro.modesHint">熊市生存：穿越到历史暴跌段，目标是亏得比「买入持有」少；盲盒开局：市场/行业/AI 全随机。</p>
   </section>
 
   <main id="game-area" hidden>
@@ -84,10 +89,12 @@
         <span id="stock-label">--</span>
         <span id="day-label">--</span>
         <span id="date-label">--</span>
+        <span id="streak-flame" class="streak-flame" hidden></span>
         <button id="btn-status-pop" class="fold-btn">💰 <span id="status-pop-label" data-i18n="status.title">账户状态</span></button>
         <button id="btn-ai-pop" class="fold-btn">🤖 <span data-i18n="ai.title">AI 操盘手</span></button>
         <button id="btn-chart-guide" class="ghost" data-i18n="guide.btn">怎么看这张图？</button>
       </div>
+      <div id="ai-bubble" class="ai-bubble" hidden></div>
       <div id="news-banner" class="news-banner" hidden></div>
       <div id="pf-tabs" class="pf-tabs" hidden></div>
       <div id="chart"></div>
@@ -129,6 +136,11 @@
       <div class="card action-card">
         <button id="btn-tick" class="primary big" data-i18n="btn.tick">下一天 ➜</button>
         <button id="btn-settle" class="ghost" data-i18n="btn.settle">提前结算</button>
+        <div id="item-bar" class="item-bar" hidden>
+          <button id="btn-item-peek" class="ghost small">🔮</button>
+          <button id="btn-item-undo" class="ghost small">💊</button>
+          <button id="btn-item-fast" class="ghost small">⏩</button>
+        </div>
       </div>
 
 
@@ -477,6 +489,13 @@
 
   <div id="view-home" hidden>
   <section class="academy-panel">
+    <h2><span data-i18n="senti.title">市场情绪温度计</span> <span class="sub" data-i18n="senti.sub">全部标的的涨跌广度、近期动量与波动聚合成一个「恐慌 ↔ 贪婪」读数，每日变化</span></h2>
+    <div class="card senti-card">
+      <div id="senti-gauge"></div>
+      <p id="senti-text" class="hint" data-i18n="senti.loading">计算中…</p>
+    </div>
+  </section>
+  <section class="academy-panel">
     <h2><span data-i18n="home.title">功能总览</span> <span class="sub" data-i18n="home.sub">所有玩法一目了然，点卡片直达</span></h2>
     <div id="home-cards" class="home-cards"></div>
   </section>
@@ -547,6 +566,7 @@
         <thead><tr><th>#</th><th data-i18n="lb.user">用户</th><th data-i18n="room.progress">进度</th><th data-i18n="lb.return">收益率</th></tr></thead>
         <tbody></tbody>
       </table>
+      <div id="room-chart" hidden></div>
       <div class="daily-actions">
         <button id="btn-room-play" class="primary" data-i18n="room.play">开始我的对局</button>
         <button id="btn-room-refresh" class="ghost" data-i18n="room.refresh">刷新战况</button>
@@ -748,8 +768,14 @@
         <button id="btn-points-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
       </div>
       <div class="modal-body">
-        <p><span data-i18n="points.balanceLabel">当前积分：</span><b id="shop-balance" class="points-balance-inline">0</b></p>
+        <p><span data-i18n="points.balanceLabel">当前积分：</span><b id="shop-balance" class="points-balance-inline">0</b>
+           <span class="hint" id="my-items"></span></p>
         <p class="hint"><span data-i18n="points.rulesLabel">攒积分：</span><span data-i18n="points.rules">签到 +10 · 结算一局 +50 · 战胜 AI +30 · 跑赢买入持有 +20 · 每日挑战 +40</span></p>
+        <div class="wheel-box">
+          <div class="wheel-pointer">▼</div>
+          <div id="wheel" class="wheel"></div>
+          <button id="btn-wheel-spin" class="primary" data-i18n="wheel.spin">🎡 每日免费转一次</button>
+        </div>
         <div id="points-grid" class="points-grid"></div>
         <h3 data-i18n="points.history">兑换记录</h3>
         <ul id="points-history" class="orders-list"></ul>
@@ -1058,21 +1084,21 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261004g"></script>
+  <script src="i18n.js?v=20261004h"></script>
   <script src="glossary.js?v=20261002a"></script>
-  <script src="app.js?v=20261004f"></script>
+  <script src="app.js?v=20261004g"></script>
   <script src="auth.js?v=20261004b"></script>
-  <script src="academy.js?v=20261002a"></script>
+  <script src="academy.js?v=20261004a"></script>
   <script src="lab.js?v=20261004a"></script>
   <script src="daily.js?v=20261002a"></script>
-  <script src="rooms.js?v=20261003a"></script>
+  <script src="rooms.js?v=20261004a"></script>
   <script src="ranking.js?v=20261002a"></script>
   <script src="sharecard.js?v=20260930a"></script>
   <script src="sharecode.js?v=20260930a"></script>
   <script src="heatmap.js?v=20260930a"></script>
   <script src="news.js?v=20260930a"></script>
   <script src="history.js?v=20261002a"></script>
-  <script src="home.js?v=20260930a"></script>
-  <script src="points.js?v=20261003c"></script>
+  <script src="home.js?v=20261004a"></script>
+  <script src="points.js?v=20261004a"></script>
 </body>
 </html>

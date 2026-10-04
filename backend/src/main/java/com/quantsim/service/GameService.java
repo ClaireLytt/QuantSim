@@ -43,6 +43,7 @@ import com.quantsim.entity.DailyPrediction;
 import com.quantsim.entity.DailyPrice;
 import com.quantsim.entity.GameSession;
 import com.quantsim.entity.Market;
+import com.quantsim.entity.Position;
 import com.quantsim.entity.SessionStock;
 import com.quantsim.entity.Stock;
 import com.quantsim.entity.TradeTransaction;
@@ -52,6 +53,7 @@ import com.quantsim.exception.NotFoundException;
 import com.quantsim.repository.AccountRepository;
 import com.quantsim.repository.DailyPriceRepository;
 import com.quantsim.repository.GameSessionRepository;
+import com.quantsim.repository.PositionRepository;
 import com.quantsim.repository.SessionStockRepository;
 import com.quantsim.repository.StockRepository;
 import com.quantsim.repository.TransactionRepository;
@@ -74,6 +76,7 @@ public class GameService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final SessionStockRepository sessionStockRepository;
+    private final PositionRepository positionRepository;
     private final TradeEngine tradeEngine;
     private final FeeCalculator feeCalculator;
     private final OrderService orderService;
@@ -141,6 +144,12 @@ public class GameService {
 
         if ("PORTFOLIO".equals(mode)) {
             return startPortfolio(user, eligible, marketById, counts, aiLevel, advanced, realRules, random);
+        }
+        if ("SURVIVAL".equals(mode)) {
+            // 熊市生存: 专挑历史上买入持有亏得最惨的窗口, 目标是跑赢基准 (亏得比它少)
+            long[] pick = pickCrashWindow(eligible, random);
+            LocalDate crashStart = marketData.load(pick[0]).prices().get((int) pick[1]).getTradeDate();
+            return persistSession(user, List.of(pick[0]), crashStart, aiLevel, "SURVIVAL", advanced, realRules, null);
         }
 
         Long stockId = eligible.get(random.nextInt(eligible.size()));
@@ -220,6 +229,35 @@ public class GameService {
                 .filter(e -> market == null || marketById.get(e.getKey()) == market)
                 .map(Map.Entry::getKey)
                 .toList();
+    }
+
+    /**
+     * 熊市生存窗口: 扫全部合格标的的每个可开局窗口, 收集跌幅最深的前 20 个,
+     * 随机挑一个 (返回 [stockId, startIdx])。没有明显下跌段就退回最差的那个。
+     */
+    private long[] pickCrashWindow(List<Long> eligible, Random random) {
+        record Window(long stockId, int startIdx, double ret) {}
+        List<Window> worst = new ArrayList<>();
+        int span = props.getTotalTicks();
+        int minIdx = props.getMinHistoryDays() - 1;
+        for (Long sid : eligible) {
+            List<DailyPrice> prices = marketData.load(sid).prices();
+            for (int i = minIdx; i + span < prices.size(); i++) {
+                double start = prices.get(i).getClose().doubleValue();
+                if (start <= 0) {
+                    continue;
+                }
+                double ret = prices.get(i + span).getClose().doubleValue() / start - 1;
+                worst.add(new Window(sid, i, ret));
+            }
+        }
+        if (worst.isEmpty()) {
+            throw new BusinessException("没有数据量足够的股票, 请检查行情数据");
+        }
+        worst.sort(java.util.Comparator.comparingDouble(Window::ret));
+        List<Window> pool = worst.subList(0, Math.min(20, worst.size()));
+        Window w = pool.get(random.nextInt(pool.size()));
+        return new long[] { w.stockId(), w.startIdx() };
     }
 
     private int randomStartIdx(long total, Random random) {
@@ -644,6 +682,111 @@ public class GameService {
                 predictionDays, styleTag, sd.stock().getCode(), sd.stock().getName());
     }
 
+    /**
+     * 道具「预知卡」: 返回明日收盘相对今日的方向 (UP/DOWN/FLAT)。
+     * 只开放给休闲对局 —— 竞技模式 (每日/房间) 防剧透, 一律拒绝。
+     * 次数限制在前端道具层, 服务端不计费 (休闲模拟, 无榜可刷: SURVIVAL/CLASSIC 同场不同题)。
+     */
+    @Transactional(readOnly = true)
+    public String peekTomorrow(Long sessionId) {
+        GameSession session = getSession(sessionId);
+        requireInProgress(session);
+        if (BlindDates.blind(session)) {
+            throw new BusinessException("竞技对局不能使用预知道具");
+        }
+        StockData sd = marketData.load(session.getStockId());
+        Integer curIdx = sd.indexOf(session.getCurrentTradeDate());
+        if (curIdx == null || curIdx + 1 >= sd.prices().size()) {
+            throw new BusinessException("行情数据已到尽头");
+        }
+        int cmp = sd.prices().get(curIdx + 1).getClose()
+                .compareTo(sd.prices().get(curIdx).getClose());
+        return cmp > 0 ? "UP" : cmp < 0 ? "DOWN" : "FLAT";
+    }
+
+    /**
+     * 道具「后悔药」: 撤销今天最后一笔成交。删掉流水后从头重放 (含每日利息),
+     * 现金/持仓/均价/累计利息全部重算, 与结算用的 equityCurve 同一口径。
+     */
+    @Transactional
+    public TradeResponse undoLastTradeToday(Long sessionId) {
+        GameSession session = getSessionWithLock(sessionId);
+        requireInProgress(session);
+        if (BlindDates.blind(session)) {
+            throw new BusinessException("竞技对局不能使用后悔药");
+        }
+        Account account = accountRepository.findWithLockBySessionId(sessionId)
+                .orElseThrow(() -> new NotFoundException("账户不存在"));
+        List<TradeTransaction> todays = transactionRepository
+                .findBySessionIdAndTradeDate(sessionId, session.getCurrentTradeDate());
+        if (todays.isEmpty()) {
+            throw new BusinessException("今天还没有成交, 没什么可后悔的");
+        }
+        TradeTransaction last = todays.get(todays.size() - 1);
+        transactionRepository.delete(last);
+        transactionRepository.flush();
+        replayAccount(session, account);
+        accountRepository.save(account);
+        return new TradeResponse(account.getCashBalance(),
+                account.getHoldingShares(), account.getHoldingCost(), BigDecimal.ZERO);
+    }
+
+    /** 从初始资金重放全部流水, 重建账户现金/持仓/均价/累计利息 (undo 用)。 */
+    private void replayAccount(GameSession session, Account account) {
+        StockData sd = marketData.load(session.getStockId());
+        Integer startIdx = sd.indexOf(session.getStartDate());
+        Integer endIdx = sd.indexOf(session.getCurrentTradeDate());
+        if (startIdx == null || endIdx == null) {
+            throw new BusinessException("行情数据缺失, 无法重算账户");
+        }
+        List<TradeTransaction> txs =
+                transactionRepository.findBySessionIdOrderByCreatedAtAsc(session.getSessionId());
+        Map<LocalDate, List<TradeTransaction>> byDate =
+                txs.stream().collect(Collectors.groupingBy(TradeTransaction::getTradeDate));
+        BigDecimal cash = session.getInitialCash();
+        BigDecimal interestTotal = BigDecimal.ZERO;
+        Map<Long, PositionMath.Fill> fills = new HashMap<>();
+        for (int i = startIdx; i <= endIdx; i++) {
+            LocalDate day = sd.prices().get(i).getTradeDate();
+            if (i > startIdx) {
+                BigDecimal interest = dailyInterest(cash);
+                cash = cash.add(interest);
+                interestTotal = interestTotal.add(interest);
+            }
+            for (TradeTransaction tx : byDate.getOrDefault(day, List.of())) {
+                BigDecimal gross = tx.getPrice().multiply(BigDecimal.valueOf(tx.getShares()));
+                boolean buy = tx.getDirection() == TradeTransaction.Direction.BUY;
+                cash = cash.add(buy ? gross.negate() : gross).subtract(tx.getFee());
+                Long sid = tx.getStockId() != null ? tx.getStockId() : session.getStockId();
+                PositionMath.Fill cur = fills.getOrDefault(sid, new PositionMath.Fill(0, BigDecimal.ZERO));
+                fills.put(sid, PositionMath.apply(cur.shares(), cur.avgCost(),
+                        tx.getDirection(), tx.getPrice(), tx.getShares()));
+            }
+        }
+        account.setCashBalance(cash);
+        account.setInterestTotal(interestTotal);
+        if ("PORTFOLIO".equals(session.getMode())) {
+            for (Map.Entry<Long, PositionMath.Fill> e : fills.entrySet()) {
+                Position pos = positionRepository
+                        .findWithLockBySessionIdAndStockId(session.getSessionId(), e.getKey())
+                        .orElseGet(() -> {
+                            Position np = new Position();
+                            np.setSessionId(session.getSessionId());
+                            np.setStockId(e.getKey());
+                            return np;
+                        });
+                pos.setShares(e.getValue().shares());
+                pos.setAvgCost(e.getValue().avgCost());
+                positionRepository.save(pos);
+            }
+        } else {
+            PositionMath.Fill f = fills.getOrDefault(session.getStockId(),
+                    new PositionMath.Fill(0, BigDecimal.ZERO));
+            account.setHoldingShares(f.shares());
+            account.setHoldingCost(f.avgCost());
+        }
+    }
+
     /** 逐日复盘 AI 预测: 每天的"次日涨跌"预测 vs 实际走势 (最后一天没有次日, 不计入)。 */
     private List<PredictionDay> predictionDays(GameSession session, StockData sd, int startIdx, int endIdx) {
         List<PredictionDay> days = new ArrayList<>();
@@ -1044,8 +1187,8 @@ public class GameService {
             return "CLASSIC";
         }
         String mode = raw.trim().toUpperCase();
-        if (!mode.equals("CLASSIC") && !mode.equals("PORTFOLIO")) {
-            throw new BusinessException("未知模式: " + raw + "（可选 CLASSIC / PORTFOLIO）");
+        if (!mode.equals("CLASSIC") && !mode.equals("PORTFOLIO") && !mode.equals("SURVIVAL")) {
+            throw new BusinessException("未知模式: " + raw + "（可选 CLASSIC / PORTFOLIO / SURVIVAL）");
         }
         return mode;
     }

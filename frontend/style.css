@@ -1652,6 +1652,72 @@ header.collapsed h1 .sub { display: none; }
 .gate-box h1 { margin: 0; }
 .gate-box button { width: 100%; }
 
+/* 连胜火焰: 对局会话栏里的战绩炫耀位 */
+.streak-flame { color: var(--warn); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* AI 实时垃圾话气泡: 浮在 K 线区顶部, 5 秒自动消失 */
+.chart-panel { position: relative; }
+.ai-bubble {
+  position: absolute;
+  top: 44px;
+  right: 8px;
+  z-index: 8;
+  max-width: 320px;
+  padding: 8px 14px;
+  font-size: 13px;
+  background: var(--panel-raised);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  animation: bubble-in .25s ease;
+}
+@keyframes bubble-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; } }
+
+/* 道具栏: 预知卡/后悔药/时间加速, 计数清零时按钮置灰 */
+.item-bar { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+.item-bar button { flex: 1; margin-top: 0; white-space: nowrap; }
+
+/* 幸运大转盘: conic-gradient 8 扇区转盘, JS 控制旋转角度 */
+.wheel-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 16px;
+}
+.wheel-pointer { color: var(--warn); font-size: 18px; line-height: 1; margin-bottom: -6px; z-index: 2; }
+.wheel {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 3px solid var(--border-strong);
+  transition: transform 3s cubic-bezier(.17, .67, .12, .99);
+  background: conic-gradient(
+    color-mix(in srgb, var(--accent) 22%, var(--panel)) 0 45deg,
+    var(--panel) 45deg 90deg,
+    color-mix(in srgb, var(--accent-2) 22%, var(--panel)) 90deg 135deg,
+    var(--panel) 135deg 180deg,
+    color-mix(in srgb, var(--accent) 22%, var(--panel)) 180deg 225deg,
+    var(--panel) 225deg 270deg,
+    color-mix(in srgb, var(--accent-2) 22%, var(--panel)) 270deg 315deg,
+    var(--panel) 315deg 360deg);
+}
+.wheel .seg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-size: 18px;
+  transform-origin: 0 0;
+}
+
+/* 市场情绪温度计 (首页) */
+.senti-card { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#senti-gauge { width: 100%; max-width: 420px; height: 220px; }
+
+/* 房间终局收益对比图 */
+#room-chart { width: 100%; height: 200px; margin-top: 10px; }
+
 /* 积分卡与兑换商城: emoji 瓷砖当奖品图, 档位对标市面积分商城 */
 .points-balance {
   margin: 0;

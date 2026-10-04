@@ -96,6 +96,8 @@ const BADGES = [
   { id: "famous_all", name: { zh: "传奇操盘手", en: "Living Legend" }, desc: { zh: "通过全部名场面挑战", en: "Clear all famous-moment challenges" } },
   { id: "daily_first", name: { zh: "每日打卡", en: "Daily Debut" }, desc: { zh: "完成一次每日挑战", en: "Complete a daily challenge" } },
   { id: "daily_streak3", name: { zh: "风雨无阻", en: "Rain or Shine" }, desc: { zh: "连续 3 天完成每日挑战", en: "Complete daily challenges 3 days in a row" } },
+  { id: "survivor", name: { zh: "熊市幸存者", en: "Bear Survivor" }, desc: { zh: "熊市生存挑战中跑赢买入持有", en: "Beat buy & hold in a Bear Survival run" } },
+  { id: "ai_streak3", name: { zh: "AI 克星", en: "AI Nemesis" }, desc: { zh: "连续 3 局战胜 AI 操盘手", en: "Beat the AI trader 3 games in a row" } },
   { id: "daily_150", name: { zh: "手感火热", en: "On Fire" }, desc: { zh: "单次每日挑战得分 ≥ 150", en: "Score 150+ in one daily challenge" } },
   { id: "settle_1", name: { zh: "实盘首秀", en: "Debut Settled" }, desc: { zh: "在模拟对局中完成一次结算", en: "Settle a full trading game" } },
   { id: "beat_ai", name: { zh: "人机对决", en: "AI Slayer" }, desc: { zh: "结算收益率跑赢 AI 操盘手", en: "Beat the AI trader at settlement" } },
@@ -2882,6 +2884,17 @@ document.addEventListener("qs:settled", (e) => {
     awardBadge("beat_ai");
     addXp(30);
   }
+  // 熊市生存: 亏得比买入持有少即算通关
+  if (window.state && state.mode === "SURVIVAL" && result.holdReturnRate != null
+      && Number(result.returnRate) > Number(result.holdReturnRate)) {
+    awardBadge("survivor");
+    addXp(60);
+  }
+});
+
+// 连胜 AI 徽章 (points.js 派发连胜数)
+document.addEventListener("qs:aiStreak", (e) => {
+  if (Number(e.detail) >= 3) awardBadge("ai_streak3");
 });
 
 // 视图切换时图表重算尺寸 (隐藏容器中初始化尺寸为 0)

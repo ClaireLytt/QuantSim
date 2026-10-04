@@ -140,6 +140,22 @@ function buildKlineMarks() {
       });
     });
   }
+  // 结算后叠加 AI 的操作轨迹 (幽灵标记): 和你的 B/S 同图对照
+  if (state.settled && state.mode !== "PORTFOLIO") {
+    (state.aiMoves || []).forEach((m) => {
+      if (m.idx == null || !state.klines[m.idx]) return;
+      const buy = m.shares > 0;
+      marks.push({
+        coord: [m.idx, buy ? state.klines[m.idx].low : state.klines[m.idx].high],
+        value: "AI",
+        symbol: "circle",
+        symbolSize: 16,
+        symbolOffset: [0, buy ? 16 : -16],
+        itemStyle: { color: buy ? COLORS.up : COLORS.down, opacity: 0.45 },
+        label: { color: "#fff", fontSize: 8 },
+      });
+    });
+  }
   if (state.market === "STOCK") {
     state.klines.forEach((k, i) => {
       const pct = k.pctChange == null ? null : Number(k.pctChange);
@@ -314,7 +330,8 @@ function renderChart() {
 function renderStockLabel() {
   if (!state.stockName) return;
   const rules = state.realRules ? ` · ${t("real.tag")}` : "";
-  $("stock-label").textContent = `${stockName(state.stockName, state.stockCode)} (${state.stockCode})${marketTag(state.market)}${rules}`;
+  const survival = state.mode === "SURVIVAL" ? ` · ${t("survival.tag")}` : "";
+  $("stock-label").textContent = `${stockName(state.stockName, state.stockCode)} (${state.stockCode})${marketTag(state.market)}${rules}${survival}`;
 }
 
 function updateDayLabel() {
@@ -369,7 +386,7 @@ function renderIndustryOptions() {
   if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
 }
 
-async function startGame() {
+async function startGame(overrides) {
   const username = currentUsername();
   try {
     const market = $("market-select").value;
@@ -380,6 +397,7 @@ async function startGame() {
     const body = { username, aiLevel, mode, advanced, realRules };
     if (market) body.market = market;
     if ($("industry-select").value) body.industry = $("industry-select").value;
+    Object.assign(body, overrides || {}); // 熊市生存等特殊开局覆盖表单值
     const res = await api("/game/start", {
       method: "POST",
       body: JSON.stringify(body),
@@ -486,6 +504,7 @@ async function tick() {
     syncTradeInputs();
     // 后端已内嵌账户快照, 无需再请求 /status
     renderStatus(res.status);
+    aiTrashTalk(res.status);
     (res.filledOrders || []).forEach((f) => {
       toast(t("orders.filled", t(ORDER_TYPE_KEY[f.orderType] || f.orderType), f.shares, fmtMoney(f.price)));
       // 挂单成交也计入成交标记/复盘 (成交日 = 刚揭晓的这根 K 线)
@@ -511,11 +530,29 @@ async function tick() {
   }
 }
 
+// AI 实时垃圾话: 按领先/落后/胶着三种战况随机冒泡, 3 天冷却防刷屏
+let lastTauntDay = -9;
+let bubbleTimer = null;
+function aiTrashTalk(s) {
+  if (!s || !s.ai || state.settled) return;
+  if (state.daysElapsed - lastTauntDay < 3 || Math.random() > 0.5) return;
+  const you = Number(s.returnRate);
+  const ai = Number(s.ai.returnRate);
+  const cat = ai - you > 0.02 ? "lead" : you - ai > 0.02 ? "behind" : "flat";
+  lastTauntDay = state.daysElapsed;
+  const persona = t("ai.persona." + (state.aiLevel || "NORMAL").toLowerCase());
+  const bubble = $("ai-bubble");
+  bubble.textContent = `${persona}: ${t("ai.live." + cat + "." + Math.floor(Math.random() * 3))}`;
+  bubble.hidden = false;
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(() => { bubble.hidden = true; }, 5000);
+}
+
 // AI 操作时间线: 只记有动作的日子 (正=买, 负=卖), 最新在最上
 function recordAiMove(day, shares) {
   if (!shares) return;
   state.aiMoves = state.aiMoves || [];
-  state.aiMoves.unshift({ day, shares });
+  state.aiMoves.unshift({ day, shares, idx: state.klines.length - 1 });
   if (state.aiMoves.length > 20) state.aiMoves.pop();
   renderAiMoves();
 }
@@ -883,6 +920,7 @@ function showSettle(result) {
   state.settled = true;
   setTradeEnabled(false);
   setHeaderFold(false); // 结算即退出专注模式, 导航回来 (下一步通常是看榜/再来一局)
+  if (state.mode !== "PORTFOLIO") updateChartData(); // 幽灵标记 (AI 轨迹) 上图
   renderSettle(result);
   revealMysteryStock(result);
   celebrateSettle(result);
@@ -908,6 +946,13 @@ function renderSettle(result) {
   el.textContent = fmtPct(Number(result.returnRate));
   el.className = Number(result.returnRate) >= 0 ? "pos" : "neg";
   renderComparison(result);
+  // 熊市生存的胜负口径是「亏得比买入持有少」, 覆盖默认的人机判词
+  if (state.mode === "SURVIVAL" && result.holdReturnRate != null) {
+    const win = Number(result.returnRate) > Number(result.holdReturnRate);
+    const verdict = $("settle-verdict");
+    verdict.textContent = t(win ? "survival.win" : "survival.lose");
+    verdict.className = "verdict " + (win ? "win" : "lose");
+  }
   renderSettleExtras(result);
   renderSettleCurve(result);
 }
@@ -1882,7 +1927,21 @@ document.addEventListener("qs:lang", () => {
 
 // ---------- 绑定 ----------
 
-$("btn-start").addEventListener("click", () => guarded(startGame));
+$("btn-start").addEventListener("click", () => guarded(() => startGame()));
+// 熊市生存: 后端挑历史暴跌窗口, 目标是亏得比买入持有少
+$("btn-survival").addEventListener("click", () => guarded(() => startGame({ mode: "SURVIVAL", market: undefined, industry: undefined })));
+// 盲盒开局: 市场/行业/AI 难度全随机, roguelike 手气局
+$("btn-blindbox-start").addEventListener("click", () => guarded(async () => {
+  const markets = ["", "STOCK", "US", "CRYPTO"];
+  $("market-select").value = markets[Math.floor(Math.random() * markets.length)];
+  $("market-select").dispatchEvent(new Event("change"));
+  const ais = ["EASY", "NORMAL", "HARD", "HELL"];
+  $("ai-level-select").value = ais[Math.floor(Math.random() * ais.length)];
+  const inds = $("industry-select").options;
+  $("industry-select").selectedIndex = Math.floor(Math.random() * inds.length);
+  toast(t("blindstart.rolling"));
+  await startGame();
+}));
 $("btn-order").addEventListener("click", () => guarded(placeOrder));
 // 移动止损填「跟踪 %」而不是触发价, 两个输入框互换显示
 $("order-type").addEventListener("change", () => {

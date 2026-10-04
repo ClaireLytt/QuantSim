@@ -48,6 +48,8 @@
       tbody.appendChild(tr);
     });
 
+    renderRoomChart(room);
+
     const playBtn = $("btn-room-play");
     playBtn.disabled = room.status === "SETTLED" && !room.mySessionId;
     playBtn.textContent = room.mySessionId
@@ -119,7 +121,43 @@
     }
   }
 
-  // 创建/加入单卡切换: 默认展示创建, 小字链接切到加入 (与登录弹窗同范式)
+  // 终局对比: 全员收益揭晓后画一张柱状图, 你的柱子用主题色高亮
+  let roomChart = null;
+  function renderRoomChart(room) {
+    const box = $("room-chart");
+    const rows = (room.standings || []).filter((m) => m.returnRate != null);
+    if (rows.length < 2) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    if (!roomChart) {
+      roomChart = echarts.init(box);
+      window.addEventListener("resize", () => roomChart.resize());
+    }
+    const me = window.Auth && Auth.user && Auth.user.username;
+    roomChart.setOption({
+      backgroundColor: "transparent",
+      animation: false,
+      tooltip: { valueFormatter: (v) => fmtPct(v / 100) },
+      grid: { left: 50, right: 16, top: 12, bottom: 24 },
+      xAxis: { type: "category", data: rows.map((m) => m.username),
+        axisLabel: { color: cssVar("--text-muted"), fontSize: 11 },
+        axisLine: { lineStyle: { color: cssVar("--border") } } },
+      yAxis: { type: "value", axisLabel: { color: cssVar("--text-muted"), formatter: "{value}%" },
+        splitLine: { lineStyle: { color: cssVar("--border"), opacity: 0.4 } } },
+      series: [{ type: "bar", barWidth: "55%",
+        data: rows.map((m) => ({
+          value: +(Number(m.returnRate) * 100).toFixed(2),
+          itemStyle: { color: m.username === me ? cssVar("--accent")
+            : Number(m.returnRate) >= 0 ? cssVar("--up") : cssVar("--down"),
+            opacity: m.username === me ? 1 : 0.7, borderRadius: [3, 3, 0, 0] },
+        })) }],
+    }, true);
+    roomChart.resize();
+  }
+
+  // 创建/加入单卡切换: 默认展示登录, 小字链接切到加入 (与登录弹窗同范式)
   function showRoomCard(join) {
     $("room-create-card").hidden = join;
     $("room-join-card").hidden = !join;

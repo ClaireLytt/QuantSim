@@ -96,6 +96,20 @@ public class GameController {
         return gameService.upcomingNews(sessionId);
     }
 
+    /** 道具「预知卡」: 偷看明日方向 (竞技对局 service 层拒绝) */
+    @PostMapping("/{sessionId}/peek")
+    public java.util.Map<String, String> peek(@PathVariable Long sessionId, HttpServletRequest http) {
+        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+        return java.util.Map.of("direction", gameService.peekTomorrow(sessionId));
+    }
+
+    /** 道具「后悔药」: 撤销今天最后一笔成交 */
+    @PostMapping("/{sessionId}/undo-trade")
+    public TradeResponse undoTrade(@PathVariable Long sessionId, HttpServletRequest http) {
+        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+        return gameService.undoLastTradeToday(sessionId);
+    }
+
     @PostMapping("/{sessionId}/trade")
     public TradeResponse trade(@PathVariable Long sessionId,
                                @Valid @RequestBody TradeRequest request,
