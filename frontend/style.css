@@ -561,6 +561,23 @@ main {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 #btn-guess-rich, #btn-rich-exit, #btn-rich-reborn { flex: 0 0 100%; max-width: 240px; margin-top: 0; }
+/* 富豪场入口: 金色渐变 + 柔光呼吸, 一眼看到的"高注桌" */
+#btn-guess-rich {
+  border: none;
+  font-weight: 700;
+  color: var(--on-accent);
+  background: linear-gradient(120deg, var(--warn), color-mix(in srgb, var(--warn) 45%, var(--accent)));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--warn) 40%, transparent);
+  animation: rich-glow 2.4s ease-in-out infinite;
+}
+#btn-guess-rich:hover:not(:disabled) { filter: brightness(1.1); }
+@keyframes rich-glow {
+  0%, 100% { box-shadow: 0 0 10px color-mix(in srgb, var(--warn) 30%, transparent); }
+  50% { box-shadow: 0 0 20px color-mix(in srgb, var(--warn) 55%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #btn-guess-rich { animation: none; }
+}
 
 /* 实战关卡弹窗 */
 .play-modal { width: min(860px, 94vw); }
