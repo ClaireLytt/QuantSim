@@ -722,7 +722,10 @@ public class GameService {
         if (todays.isEmpty()) {
             throw new BusinessException("今天还没有成交, 没什么可后悔的");
         }
-        TradeTransaction last = todays.get(todays.size() - 1);
+        // 查询方法不保证顺序, 按主键取真正的最后一笔
+        TradeTransaction last = todays.stream()
+                .max(java.util.Comparator.comparing(TradeTransaction::getTxId))
+                .orElseThrow();
         transactionRepository.delete(last);
         transactionRepository.flush();
         replayAccount(session, account);
@@ -766,6 +769,11 @@ public class GameService {
         account.setCashBalance(cash);
         account.setInterestTotal(interestTotal);
         if ("PORTFOLIO".equals(session.getMode())) {
+            // 先把全部已有仓位行归入重放结果: 不在剩余流水里的标的必须清零,
+            // 否则撤销某标的唯一一笔交易后旧仓位会凭空残留
+            for (Position p : positionRepository.findBySessionId(session.getSessionId())) {
+                fills.putIfAbsent(p.getStockId(), new PositionMath.Fill(0, BigDecimal.ZERO));
+            }
             for (Map.Entry<Long, PositionMath.Fill> e : fills.entrySet()) {
                 Position pos = positionRepository
                         .findWithLockBySessionIdAndStockId(session.getSessionId(), e.getKey())

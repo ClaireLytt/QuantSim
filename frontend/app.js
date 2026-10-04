@@ -1929,7 +1929,10 @@ document.addEventListener("qs:lang", () => {
 
 $("btn-start").addEventListener("click", () => guarded(() => startGame()));
 // 熊市生存: 后端挑历史暴跌窗口, 目标是亏得比买入持有少
-$("btn-survival").addEventListener("click", () => guarded(() => startGame({ mode: "SURVIVAL", market: undefined, industry: undefined })));
+$("btn-survival").addEventListener("click", () => guarded(() => startGame({
+  mode: "SURVIVAL", market: undefined, industry: undefined,
+  advanced: false, realRules: false, // 表单残留的勾选会和"全市场随机"冲突, 生存模式一律素身开局
+})));
 // 盲盒开局: 市场/行业/AI 难度全随机, roguelike 手气局
 $("btn-blindbox-start").addEventListener("click", () => guarded(async () => {
   const markets = ["", "STOCK", "US", "CRYPTO"];

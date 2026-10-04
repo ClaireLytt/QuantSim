@@ -121,27 +121,31 @@
 
   async function usePeek() {
     if (data.items.peek <= 0) return;
+    const btn = $("btn-item-peek");
+    btn.disabled = true; // 防双击双发, renderItemBar 会按余量恢复
     try {
       const res = await api(`/game/${state.sessionId}/peek`, { method: "POST" });
       data.items.peek--;
       save();
-      renderItemBar();
       toast(t("item.peekResult." + res.direction));
     } catch (e) { toast(e.message); }
+    renderItemBar();
   }
 
   async function useUndo() {
     if (data.items.undo <= 0) return;
+    const btn = $("btn-item-undo");
+    btn.disabled = true;
     try {
       await api(`/game/${state.sessionId}/undo-trade`, { method: "POST" });
       data.items.undo--;
       save();
-      renderItemBar();
       if (state.trades.length) state.trades.pop();
       if (state.mode !== "PORTFOLIO") updateChartData();
       await refreshStatus();
       toast(t("item.undoOk"));
     } catch (e) { toast(e.message); }
+    renderItemBar();
   }
 
   async function useFast() {
