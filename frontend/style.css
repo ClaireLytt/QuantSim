@@ -544,6 +544,24 @@ main {
 /* 看涨 / 看跌: 保持左右对称一组 */
 .guess-actions .buy, .guess-actions .sell { flex: 0 1 150px; }
 
+/* 富豪场下注条: 注金/杠杆两组胶囊, 选中态主题色描边 */
+.rich-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  justify-content: center;
+  align-items: center;
+  margin: 10px 0 2px;
+}
+.rich-group { display: flex; gap: 6px; align-items: center; }
+.rich-bar button { margin-top: 0; min-width: 52px; }
+.rich-bar button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+#btn-guess-rich, #btn-rich-exit, #btn-rich-reborn { flex: 0 0 100%; max-width: 240px; margin-top: 0; }
+
 /* 实战关卡弹窗 */
 .play-modal { width: min(860px, 94vw); }
 .play-story {

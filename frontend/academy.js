@@ -6,7 +6,7 @@
 const PROG_KEY = "qs_progress";
 
 function loadProg() {
-  const def = { xp: 0, badges: [], titles: [], teach: [], famous: [], bestStreak: 0, guessTotal: 0, guessHit: 0, guessRecent: [], daily: { date: "", score: 0, best: 0 }, dailyCount: 0, gear: [], equipped: [], cases: [] };
+  const def = { xp: 0, badges: [], titles: [], teach: [], famous: [], bestStreak: 0, guessTotal: 0, guessHit: 0, guessRecent: [], daily: { date: "", score: 0, best: 0 }, dailyCount: 0, gear: [], equipped: [], cases: [], wealth: 1000000, wealthBest: 1000000 };
   try {
     const p = JSON.parse(localStorage.getItem(PROG_KEY));
     return p && typeof p === "object" ? Object.assign(def, p) : def;
@@ -99,6 +99,9 @@ const BADGES = [
   { id: "survivor", name: { zh: "熊市幸存者", en: "Bear Survivor" }, desc: { zh: "熊市生存挑战中跑赢买入持有", en: "Beat buy & hold in a Bear Survival run" } },
   { id: "ai_streak3", name: { zh: "AI 克星", en: "AI Nemesis" }, desc: { zh: "连续 3 局战胜 AI 操盘手", en: "Beat the AI trader 3 games in a row" } },
   { id: "season_podium", name: { zh: "载入史册", en: "Hall of Fame" }, desc: { zh: "登上赛季收益榜前三的颁奖台", en: "Finish a season in the return top 3" } },
+  { id: "rich_double", name: { zh: "身家翻倍", en: "Doubled Up" }, desc: { zh: "富豪场身家冲上 200 万", en: "Grow your fortune to 2,000,000" } },
+  { id: "rich_streak5", name: { zh: "富豪五连", en: "Hot Hand" }, desc: { zh: "富豪场连赢 5 注", en: "Win 5 bets in a row in Tycoon mode" } },
+  { id: "rich_reborn", name: { zh: "东山再起", en: "Back From Broke" }, desc: { zh: "破产后选择重生再战", en: "Go broke and come back for more" } },
   { id: "daily_150", name: { zh: "手感火热", en: "On Fire" }, desc: { zh: "单次每日挑战得分 ≥ 150", en: "Score 150+ in one daily challenge" } },
   { id: "settle_1", name: { zh: "实盘首秀", en: "Debut Settled" }, desc: { zh: "在模拟对局中完成一次结算", en: "Settle a full trading game" } },
   { id: "beat_ai", name: { zh: "人机对决", en: "AI Slayer" }, desc: { zh: "结算收益率跑赢 AI 操盘手", en: "Beat the AI trader at settlement" } },
@@ -2471,6 +2474,10 @@ function startGuess() {
   refreshGuessStats();
   $("btn-guess-start").hidden = true;
   $("btn-guess-daily").hidden = true; // 对局中只留看涨/看跌一行, 别和大按钮挤在一起
+  $("btn-guess-rich").hidden = true;
+  $("rich-bar").hidden = true;
+  $("rich-wealth-wrap").hidden = true;
+  $("rich-best-wrap").hidden = true;
   $("btn-guess-up").hidden = false;
   $("btn-guess-down").hidden = false;
   $("guess-msg").textContent = t("guess.prompt");
@@ -2497,6 +2504,8 @@ function startDaily() {
   refreshGuessStats();
   $("btn-guess-start").hidden = true;
   $("btn-guess-daily").hidden = true;
+  $("btn-guess-rich").hidden = true;
+  $("rich-bar").hidden = true;
   $("btn-guess-up").hidden = false;
   $("btn-guess-down").hidden = false;
   $("guess-msg").textContent = t("guess.prompt") + " " + t("guess.dailyLeft", guess.dailyLeft);
@@ -2518,10 +2527,12 @@ function finishDaily(prefix) {
   $("btn-guess-down").hidden = true;
   $("btn-guess-start").hidden = false;
   $("btn-guess-daily").hidden = false;
+  $("btn-guess-rich").hidden = false;
 }
 
 function makeGuess(up) {
   if (!guess.playing || guess.waiting) return;
+  if (guess.mode === "rich" && !richStakeOk()) return; // 保证金不足, 不开这一注
   guess.waiting = true;
   const prev = guess.data[guess.visible - 1].close;
   const next = engineNext(up); // 猜完才生成下一根 (引擎含胜率回中与极端抑制)
@@ -2541,7 +2552,8 @@ function makeGuess(up) {
   if (correct) {
     guess.streak++;
     guess.lossStreak = 0;
-    const pts = 10 + 2 * Math.min(guess.streak, 10) + (hasGear("finger") ? 5 : 0);
+    const pts = guess.mode === "rich" ? 0
+      : 10 + 2 * Math.min(guess.streak, 10) + (hasGear("finger") ? 5 : 0);
     guess.score += pts;
     prog.guessHit++;
     if (guess.streak > prog.bestStreak) prog.bestStreak = guess.streak;
@@ -2549,7 +2561,9 @@ function makeGuess(up) {
     if (guess.streak >= 3) awardBadge("streak_3");
     if (guess.streak >= 10) awardBadge("streak_10");
     if (prog.guessHit >= 50) awardBadge("guess_50");
-    msg += t("guess.hit", pts) + (guess.streak >= 2 ? " " + t("guess.combo", guess.streak) : "");
+    msg += guess.mode === "rich"
+      ? settleRichBet(true) + (guess.streak >= 2 ? " " + t("guess.combo", guess.streak) : "")
+      : t("guess.hit", pts) + (guess.streak >= 2 ? " " + t("guess.combo", guess.streak) : "");
     replayAnim($("guess-score"), "anim-pop");
     replayAnim($("guess-streak"), "anim-pop");
     const card = document.querySelector(".guess-card");
@@ -2563,7 +2577,7 @@ function makeGuess(up) {
   } else {
     guess.streak = 0;
     guess.lossStreak++;
-    msg += t("guess.miss");
+    msg += guess.mode === "rich" ? settleRichBet(false) : t("guess.miss");
     replayAnim($("guess-chart"), "anim-shake");
     replayAnim($("guess-msg"), "anim-shake");
   }
@@ -2571,6 +2585,14 @@ function makeGuess(up) {
   refreshGuessStats();
   checkGearUnlocks();
 
+  if (guess.mode === "rich") {
+    saveProg();
+    if (checkBankrupt()) {
+      $("guess-msg").textContent = msg + " " + t("rich.bankrupt");
+      guess.waiting = false;
+      return;
+    }
+  }
   if (guess.mode === "daily") {
     guess.dailyLeft--;
     if (guess.dailyLeft <= 0) {
@@ -3011,6 +3033,126 @@ $("btn-guide-next").addEventListener("click", () => {
 $("guide-modal").addEventListener("click", (e) => {
   if (e.target === $("guide-modal")) closeGuide();
 });
+
+// ---------- 富豪场 (交易所·短线预判): 大额身家 + 高倍杠杆下注, 共用均衡引擎 ----------
+
+const rich = { stake: 100000, lev: 1 };
+const RICH_START = 1000000;
+const RICH_MIN_STAKE = 10000;
+
+function fmtWan(v) {
+  // 身家按「万」展示, 富豪场的数字要有分量感
+  return (v / 10000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + t("rich.wan");
+}
+
+function refreshRichStats() {
+  $("rich-wealth").textContent = fmtWan(prog.wealth);
+  $("rich-best").textContent = fmtWan(prog.wealthBest);
+}
+
+function startRich() {
+  guess.playing = true;
+  guess.waiting = false;
+  guess.mode = "rich";
+  guess.score = 0;
+  guess.streak = 0;
+  guess.lossStreak = 0;
+  guess.shieldUsed = false;
+  newGuessRound();
+  refreshGuessChart();
+  refreshGuessStats();
+  refreshRichStats();
+  $("rich-wealth-wrap").hidden = false;
+  $("rich-best-wrap").hidden = false;
+  $("rich-bar").hidden = false;
+  $("btn-guess-start").hidden = true;
+  $("btn-guess-daily").hidden = true;
+  $("btn-guess-rich").hidden = true;
+  $("btn-rich-exit").hidden = false;
+  $("btn-guess-up").hidden = false;
+  $("btn-guess-down").hidden = false;
+  $("guess-msg").textContent = t("rich.prompt");
+}
+
+function exitRich() {
+  guess.playing = false;
+  guess.mode = "free";
+  $("rich-bar").hidden = true;
+  $("btn-rich-exit").hidden = true;
+  $("btn-rich-reborn").hidden = true;
+  $("btn-guess-up").hidden = true;
+  $("btn-guess-down").hidden = true;
+  $("btn-guess-start").hidden = false;
+  $("btn-guess-daily").hidden = false;
+  $("btn-guess-rich").hidden = false;
+  $("guess-msg").textContent = t("rich.exited", fmtWan(prog.wealth));
+}
+
+/** 破产判定: 连最小注 ×1 都下不起就算出局, 给重生按钮。 */
+function checkBankrupt() {
+  if (prog.wealth >= RICH_MIN_STAKE) return false;
+  guess.playing = false;
+  $("btn-guess-up").hidden = true;
+  $("btn-guess-down").hidden = true;
+  $("btn-rich-reborn").hidden = false;
+  $("guess-msg").textContent = t("rich.bankrupt");
+  return true;
+}
+
+function richReborn() {
+  prog.wealth = RICH_START;
+  saveProg();
+  awardBadge("rich_reborn");
+  $("btn-rich-reborn").hidden = true;
+  refreshRichStats();
+  guess.playing = true;
+  guess.streak = 0;
+  guess.lossStreak = 0;
+  $("btn-guess-up").hidden = false;
+  $("btn-guess-down").hidden = false;
+  $("guess-msg").textContent = t("rich.rebornOk", fmtWan(RICH_START));
+}
+
+/** 富豪场结算一注: 返回展示文案; 保证金 = 注金×杠杆, 不足时拒单。 */
+function settleRichBet(correct) {
+  const stakeRaw = rich.stake === -1 ? Math.floor(prog.wealth / rich.lev) : rich.stake;
+  const exposure = stakeRaw * rich.lev;
+  const delta = correct ? exposure : -exposure;
+  prog.wealth = Math.max(0, prog.wealth + delta);
+  if (prog.wealth > prog.wealthBest) prog.wealthBest = prog.wealth;
+  if (prog.wealth >= RICH_START * 2) awardBadge("rich_double");
+  if (correct && guess.streak >= 5) awardBadge("rich_streak5");
+  refreshRichStats();
+  const card = document.querySelector(".guess-card");
+  spawnFloat(card, "score-pop " + (correct ? "pos" : "neg"), (correct ? "+" : "-") + fmtWan(exposure));
+  return t(correct ? "rich.win" : "rich.lose", fmtWan(exposure), fmtWan(prog.wealth));
+}
+
+/** 下注前校验保证金, 不足返回 false 并提示。 */
+function richStakeOk() {
+  const stakeRaw = rich.stake === -1 ? Math.floor(prog.wealth / rich.lev) : rich.stake;
+  if (stakeRaw < RICH_MIN_STAKE || stakeRaw * rich.lev > prog.wealth) {
+    toast(t("rich.noMargin", fmtWan(prog.wealth)));
+    return false;
+  }
+  return true;
+}
+
+document.querySelectorAll(".rich-stake").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    rich.stake = Number(btn.dataset.stake);
+    document.querySelectorAll(".rich-stake").forEach((b) => b.classList.toggle("active", b === btn));
+  });
+});
+document.querySelectorAll(".rich-lev").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    rich.lev = Number(btn.dataset.lev);
+    document.querySelectorAll(".rich-lev").forEach((b) => b.classList.toggle("active", b === btn));
+  });
+});
+$("btn-guess-rich").addEventListener("click", startRich);
+$("btn-rich-exit").addEventListener("click", exitRich);
+$("btn-rich-reborn").addEventListener("click", richReborn);
 
 // ---------- 期权入门沙盒: 欧式期权 BS 定价 + 到期损益曲线 ----------
 
