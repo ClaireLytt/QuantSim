@@ -561,6 +561,19 @@ main {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 #btn-guess-rich, #btn-rich-exit, #btn-rich-reborn { flex: 0 0 100%; max-width: 240px; margin-top: 0; }
+/* 每日挑战入口: 品牌青主题, 与紫色主按钮/金色富豪场构成三级层次, 互不抢戏 */
+#btn-guess-daily {
+  font-weight: 600;
+  color: var(--accent-2);
+  border-color: color-mix(in srgb, var(--accent-2) 50%, transparent);
+  background: color-mix(in srgb, var(--accent-2) 10%, transparent);
+}
+#btn-guess-daily:hover:not(:disabled) {
+  border-color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent-2) 18%, transparent);
+  filter: none;
+}
+
 /* 富豪场入口: 金色渐变 + 柔光呼吸, 一眼看到的"高注桌" */
 #btn-guess-rich {
   border: none;
