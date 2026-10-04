@@ -116,25 +116,28 @@ h1 .sub {
 h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: .3px; }
 .sub { color: var(--text-muted); font-size: 13px; font-weight: normal; }
 
-/* 区块标题前的装饰条 */
+/* 区块标题: 全站统一居中, 标题/副标题竖排 + 标题下渐变短横线 (原左侧竖条已退役) */
 .arena-panel > h2,
 .academy-panel > h2,
 .leaderboard-panel > h2,
 .arena-board-title {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+  margin-bottom: 16px;
 }
-.arena-panel > h2::before,
-.academy-panel > h2::before,
-.leaderboard-panel > h2::before,
-.arena-board-title::before {
+.arena-panel > h2::after,
+.academy-panel > h2::after,
+.leaderboard-panel > h2::after,
+.arena-board-title::after {
   content: "";
-  width: 4px;
-  height: 16px;
+  width: 36px;
+  height: 4px;
   border-radius: 2px;
-  background: linear-gradient(180deg, var(--accent), var(--accent-2));
-  flex: none;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
 }
 
 /* 顶栏工具簇 (登录/语言/主题/音效): 锁定头部第一行右端, 与开局控件分层 */
@@ -1288,12 +1291,12 @@ footer {
 .lab-tile {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
   width: auto;
   min-height: 96px;
   padding: 14px 16px;
-  text-align: left;
+  text-align: center;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1548,26 +1551,6 @@ footer {
 /* 聚焦型页面 (账户/每日挑战/好友房间): 内容窄栏居中, 不占满整屏 */
 .center-panel { max-width: 720px; margin: 0 auto; }
 
-/* 聚焦页标题: 标题/副标题竖排居中, 左侧装饰条改为标题下的居中渐变短横线 */
-.auth-panel > h2,
-.center-panel > h2 {
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-  gap: 6px;
-  margin-bottom: 16px;
-}
-.auth-panel > h2::before,
-.center-panel > h2::before { display: none; }
-.auth-panel > h2::after,
-.center-panel > h2::after {
-  content: "";
-  width: 36px;
-  height: 4px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-}
-
 /* 左上角折叠开关: 主题色胶囊, 折叠/展开状态醒目可见 */
 .fold-btn {
   display: inline-flex;
@@ -1601,7 +1584,15 @@ footer {
 /* 折叠区块 (市场大事记): 点标题展开/收起, 原生 details 无 JS */
 .fold-section summary { cursor: pointer; list-style: none; }
 .fold-section summary::-webkit-details-marker { display: none; }
-.fold-section summary h2 { margin-bottom: 0; }
+.fold-section summary h2 {
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
 .fold-section[open] summary h2 { margin-bottom: 12px; }
 .fold-section summary h2::after {
   content: "▸";
