@@ -52,7 +52,12 @@ public class PointsService {
         return repository.findWithLockByUserId(userId).orElseGet(() -> {
             UserPoints p = new UserPoints();
             p.setUserId(userId);
-            return repository.save(p);
+            try {
+                return repository.saveAndFlush(p);
+            } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                // 并发首插撞主键: 对方已建行, 加锁重读
+                return repository.findWithLockByUserId(userId).orElseThrow();
+            }
         });
     }
 

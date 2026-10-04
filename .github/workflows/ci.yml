@@ -68,10 +68,10 @@ jobs:
           QUANTSIM_REFRESH_ENABLED: "false"
       - name: Seed synthetic market data
         run: |
-          pip install pymysql
-          python tools/ci_seed.py
+          python3 -m pip install pymysql
+          python3 tools/ci_seed.py
       - name: Static UI audit
-        run: python tools/ui_check.py
+        run: python3 tools/ui_check.py
       - name: Run UI smoke
         run: |
           npm ci || npm install

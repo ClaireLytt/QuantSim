@@ -261,7 +261,9 @@ public class RoomService {
             roomRepository.save(room);
             return;
         }
-        boolean allDone = !members.isEmpty() && members.stream().allMatch(m -> {
+        // 至少两人才按"全员完成"结算: 同题挑战房的发起者自带已结算成绩,
+        // 单成员即判 allDone 会让房间创建瞬间封盘, 朋友没法加入 (单人房走过期结算)
+        boolean allDone = members.size() >= 2 && members.stream().allMatch(m -> {
             GameSession s = m.getSessionId() == null ? null : sessions.get(m.getSessionId());
             return s != null && s.getStatus() == GameSession.Status.SETTLED;
         });
