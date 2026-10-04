@@ -18,11 +18,20 @@ import lombok.RequiredArgsConstructor;
 public class LeaderboardController {
 
     private final LeaderboardService leaderboardService;
+    private final com.quantsim.service.PointsService pointsService;
 
     @GetMapping
     public List<LeaderboardEntry> leaderboard(@RequestParam(required = false) String season,
                                               @RequestParam(required = false) String sort) {
         return leaderboardService.topSessions(season, sort);
+    }
+
+    /** 积分榜 TOP20: [{username, balance}] */
+    @GetMapping("/points")
+    public java.util.List<java.util.Map<String, Object>> points() {
+        return pointsService.board(20).stream()
+                .map(r -> java.util.Map.<String, Object>of("username", r[0], "balance", r[1]))
+                .toList();
     }
 
     /** 全部赛季 (YYYY-MM, 降序) */

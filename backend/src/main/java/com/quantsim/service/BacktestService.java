@@ -111,6 +111,7 @@ public class BacktestService {
     private final MarketDataService marketData;
     private final FeeCalculator feeCalculator;
     private final GameProperties props;
+    private final PointsService pointsService;
 
     @Transactional(readOnly = true)
     public List<StockInfo> listStocks() {
@@ -195,6 +196,7 @@ public class BacktestService {
         result.setTradeCount(sim.tradeCount);
         result.setWinRate(winRate);
         backtestRepository.save(result);
+        pointsService.awardBacktest(user.getUserId()); // 每日任务: 首次回测 +20
 
         List<EquityPoint> curve = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {

@@ -98,6 +98,7 @@ const BADGES = [
   { id: "daily_streak3", name: { zh: "风雨无阻", en: "Rain or Shine" }, desc: { zh: "连续 3 天完成每日挑战", en: "Complete daily challenges 3 days in a row" } },
   { id: "survivor", name: { zh: "熊市幸存者", en: "Bear Survivor" }, desc: { zh: "熊市生存挑战中跑赢买入持有", en: "Beat buy & hold in a Bear Survival run" } },
   { id: "ai_streak3", name: { zh: "AI 克星", en: "AI Nemesis" }, desc: { zh: "连续 3 局战胜 AI 操盘手", en: "Beat the AI trader 3 games in a row" } },
+  { id: "season_podium", name: { zh: "载入史册", en: "Hall of Fame" }, desc: { zh: "登上赛季收益榜前三的颁奖台", en: "Finish a season in the return top 3" } },
   { id: "daily_150", name: { zh: "手感火热", en: "On Fire" }, desc: { zh: "单次每日挑战得分 ≥ 150", en: "Score 150+ in one daily challenge" } },
   { id: "settle_1", name: { zh: "实盘首秀", en: "Debut Settled" }, desc: { zh: "在模拟对局中完成一次结算", en: "Settle a full trading game" } },
   { id: "beat_ai", name: { zh: "人机对决", en: "AI Slayer" }, desc: { zh: "结算收益率跑赢 AI 操盘手", en: "Beat the AI trader at settlement" } },
@@ -2896,6 +2897,9 @@ document.addEventListener("qs:settled", (e) => {
 document.addEventListener("qs:aiStreak", (e) => {
   if (Number(e.detail) >= 3) awardBadge("ai_streak3");
 });
+
+// 上赛季颁奖台徽章 (ranking.js 派发名次)
+document.addEventListener("qs:seasonPodium", () => awardBadge("season_podium"));
 
 // 视图切换时图表重算尺寸 (隐藏容器中初始化尺寸为 0)
 document.addEventListener("qs:view", (e) => {

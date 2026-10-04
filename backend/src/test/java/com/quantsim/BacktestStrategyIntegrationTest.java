@@ -69,6 +69,7 @@ class BacktestStrategyIntegrationTest {
     @Autowired AccountRepository accountRepository;
     @Autowired GameSessionRepository sessionRepository;
     @Autowired UserRepository userRepository;
+    @Autowired com.quantsim.repository.UserPointsRepository userPointsCleanup;
     @Autowired DailyIndicatorRepository indicatorRepository;
     @Autowired DailyPredictionRepository predictionRepository;
     @Autowired DailyPriceRepository priceRepository;
@@ -89,6 +90,7 @@ class BacktestStrategyIntegrationTest {
         transactionRepository.deleteAll();
         accountRepository.deleteAll();
         sessionRepository.deleteAll();
+        userPointsCleanup.deleteAll();
         userRepository.deleteAll();
         indicatorRepository.deleteAll();
         predictionRepository.deleteAll();

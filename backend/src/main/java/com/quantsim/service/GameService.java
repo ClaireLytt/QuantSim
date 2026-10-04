@@ -77,6 +77,7 @@ public class GameService {
     private final TransactionRepository transactionRepository;
     private final SessionStockRepository sessionStockRepository;
     private final PositionRepository positionRepository;
+    private final PointsService pointsService;
     private final TradeEngine tradeEngine;
     private final FeeCalculator feeCalculator;
     private final OrderService orderService;
@@ -675,11 +676,18 @@ public class GameService {
         session.setFinalReturnRate(returnRate);
         session.setFinalSharpe(risk == null ? null : risk.sharpe());
 
+        // 积分入账 (服务端权威): 基础/胜AI/赢基准/连胜/每日任务, 前端只展示
+        boolean beatAi = aiReturn != null && returnRate.compareTo(aiReturn) > 0;
+        boolean beatHold = holdReturn != null && returnRate.compareTo(holdReturn) > 0;
+        PointsService.SettleAward award = pointsService.awardSettle(
+                session.getUserId(), beatAi, beatHold, "DAILY".equals(session.getMode()));
+
         // 已结算: 竞技模式在此揭晓真实标的 (进行中全程匿名)
         return new SettleResponse(session.getSessionId(), initial,
                 finalAssets, returnRate, aiFinal, aiReturn, holdReturn, maCrossReturn, dcaReturn,
                 risk, holdRisk, account.getInterestTotal(), curve, holdCurve,
-                predictionDays, styleTag, sd.stock().getCode(), sd.stock().getName());
+                predictionDays, styleTag, sd.stock().getCode(), sd.stock().getName(),
+                award.earned(), award.winStreak());
     }
 
     /**
@@ -687,13 +695,14 @@ public class GameService {
      * 只开放给休闲对局 —— 竞技模式 (每日/房间) 防剧透, 一律拒绝。
      * 次数限制在前端道具层, 服务端不计费 (休闲模拟, 无榜可刷: SURVIVAL/CLASSIC 同场不同题)。
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public String peekTomorrow(Long sessionId) {
         GameSession session = getSession(sessionId);
         requireInProgress(session);
         if (BlindDates.blind(session)) {
             throw new BusinessException("竞技对局不能使用预知道具");
         }
+        pointsService.consumeItem(session.getUserId(), "peek"); // 道具计数服务端扣减
         StockData sd = marketData.load(session.getStockId());
         Integer curIdx = sd.indexOf(session.getCurrentTradeDate());
         if (curIdx == null || curIdx + 1 >= sd.prices().size()) {
@@ -715,6 +724,7 @@ public class GameService {
         if (BlindDates.blind(session)) {
             throw new BusinessException("竞技对局不能使用后悔药");
         }
+        pointsService.consumeItem(session.getUserId(), "undo"); // 道具计数服务端扣减
         Account account = accountRepository.findWithLockBySessionId(sessionId)
                 .orElseThrow(() -> new NotFoundException("账户不存在"));
         List<TradeTransaction> todays = transactionRepository
@@ -881,13 +891,28 @@ public class GameService {
             return 0;
         }
 
-        // 高难度 AI: 按置信度目标仓位调仓
-        double targetFraction = Math.max(0, Math.min(1, (probUp - 0.5) / 0.15));
+        // 按置信度定目标仓位; NORMAL/HARD 在此基础上体现"性格" (EASY/HELL 行为有集成测试锁定)
+        double adjProb = probUp;
+        if (AiLevel.HARD.getModel().equals(session.getAiModel())) {
+            // 量化狂魔: 动量派, 价格站上 MA5 加码看多, 跌破减码 (追涨杀跌的纪律版)
+            DailyIndicator ind = sd.indicators().get(session.getCurrentTradeDate());
+            if (ind != null && ind.getMa5() != null) {
+                adjProb += close.compareTo(ind.getMa5()) > 0 ? 0.04 : -0.04;
+            }
+        }
+        double targetFraction = Math.max(0, Math.min(1, (adjProb - 0.5) / 0.15));
         BigDecimal aiEquity = session.getAiCash()
                 .add(close.multiply(BigDecimal.valueOf(session.getAiShares())));
         BigDecimal targetValue = aiEquity.multiply(BigDecimal.valueOf(targetFraction));
         int targetShares = targetValue.divide(close, 0, RoundingMode.DOWN).intValue() / lotSize * lotSize;
         int delta = targetShares - session.getAiShares();
+        // 稳健王: 价值派低换手, 调仓幅度小于净值 15% 时按兵不动 (建仓/清仓不受限)
+        if (AiLevel.NORMAL.getModel().equals(session.getAiModel())
+                && session.getAiShares() > 0 && targetShares > 0
+                && close.multiply(BigDecimal.valueOf(Math.abs(delta)))
+                        .compareTo(aiEquity.multiply(BigDecimal.valueOf(0.15))) < 0) {
+            return 0;
+        }
         if (delta > 0 && !limitUp) {
             int bought = Math.min(delta, maxAffordableShares(session.getAiCash(), close, lotSize, market));
             aiBuy(session, market, close, bought);

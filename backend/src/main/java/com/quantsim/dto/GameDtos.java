@@ -203,7 +203,9 @@ public final class GameDtos {
             List<PredictionDay> predictionDays,
             String styleTag,
             String stockCode,
-            String stockName) {}
+            String stockName,
+            int pointsEarned,
+            int winStreak) {}
 
     /** LLM 交易顾问的解说与建议。 */
     public record AdvisorResponse(String advice, String model) {}
