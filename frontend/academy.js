@@ -2418,7 +2418,24 @@ function refreshGuessChart() {
   if (wasHidden) guessChart.resize();
   const from = Math.max(0, guess.visible - GUESS_WINDOW);
   const windowData = guess.data.slice(from, guess.visible).map((c, i) => ({ ...c, day: i + 1 }));
-  guessChart.setOption(buildKlineOption(windowData, windowData.length, false, null), true);
+  const opt = buildKlineOption(windowData, windowData.length, false, null);
+  // 指示当前待猜的基准 K 线: 最后一根顶上挂「猜它的下一根」箭头标签
+  const lastIdx = windowData.length - 1;
+  const lastBar = windowData[lastIdx];
+  opt.series[0].markPoint = {
+    animation: false,
+    data: [{
+      coord: [lastIdx, lastBar.high],
+      value: t("guess.cursor"),
+      symbol: "arrow",
+      symbolSize: 14,
+      symbolRotate: 180,
+      symbolOffset: [0, -12],
+      itemStyle: { color: cssVar("--accent") },
+      label: { position: "top", distance: 10, color: cssVar("--accent"), fontSize: 12, fontWeight: 600 },
+    }],
+  };
+  guessChart.setOption(opt, true);
 }
 
 function refreshGuessStats() {
