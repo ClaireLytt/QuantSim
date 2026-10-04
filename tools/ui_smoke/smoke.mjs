@@ -176,7 +176,25 @@ await step("布局无横向溢出 (桌面 1280 / 手机 390)", async () => {
     await page.waitForTimeout(300);
     const over = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    if (over > 1) throw new Error(`宽 ${width}px 下横向溢出 ${over}px`);
+    if (over > 1) {
+      // 点名肇事元素: 右缘超出视口的前几个可见元素 (CI 的 Linux 字体更宽, 本地可能复现不了)
+      const culprits = await page.evaluate((w) => {
+        const out = [];
+        for (const el of document.querySelectorAll("body *")) {
+          if (el.offsetParent === null) continue;
+          const r = el.getBoundingClientRect();
+          if (r.right > w + 1 && r.width < w * 2) {
+            const id = el.id ? "#" + el.id : "";
+            const cls = el.className && typeof el.className === "string"
+              ? "." + el.className.trim().split(/\s+/).slice(0, 2).join(".") : "";
+            out.push(`${el.tagName.toLowerCase()}${id}${cls} right=${Math.round(r.right)}`);
+          }
+          if (out.length >= 5) break;
+        }
+        return out;
+      }, width);
+      throw new Error(`宽 ${width}px 下横向溢出 ${over}px; 肇事: ${culprits.join(" | ")}`);
+    }
   }
 });
 
