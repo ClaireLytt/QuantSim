@@ -2398,6 +2398,12 @@ function engineNext(guessUp) {
   // 解说选池: 假动作 > 微幅震荡 > 方向话术 (揭晓后才显示, 不剧透)
   candle.kind = fake ? "fake" : mag < 0.006 ? "chop" : dir > 0 ? "up" : "down";
   guess.data.push(candle);
+  // 永续模式防内存无限涨: 只保留最近 120 根, 掐头并同步 visible 游标
+  if (guess.data.length > 120) {
+    const drop = guess.data.length - 120;
+    guess.data.splice(0, drop);
+    guess.visible -= drop;
+  }
   return candle;
 }
 
@@ -2448,7 +2454,7 @@ function refreshGuessStats() {
   $("guess-streak").textContent = String(guess.streak);
   $("guess-best").textContent = String(prog.bestStreak);
   $("guess-acc").textContent = prog.guessTotal > 0
-    ? fmtPct(prog.guessHit / prog.guessTotal)
+    ? ((prog.guessHit / prog.guessTotal) * 100).toFixed(1) + "%" // 命中率不带涨跌符号
     : "--";
 }
 
