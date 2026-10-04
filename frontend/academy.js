@@ -2442,6 +2442,7 @@ function startGuess() {
   refreshGuessChart();
   refreshGuessStats();
   $("btn-guess-start").hidden = true;
+  $("btn-guess-daily").hidden = true; // 对局中只留看涨/看跌一行, 别和大按钮挤在一起
   $("btn-guess-up").hidden = false;
   $("btn-guess-down").hidden = false;
   $("guess-msg").textContent = t("guess.prompt");
