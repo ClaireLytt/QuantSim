@@ -2288,11 +2288,11 @@ function todayStr() {
 }
 
 // ---------- 猜涨跌行情引擎 ----------
-// 下一根 K 线在玩家按下按钮后才生成, 规则 (对标市面主流小游戏):
-//   趋势: 同向 2~3 根后大概率延续、小概率反转 (惯性);
-//   震荡: 大部分时间横盘交替, 输赢穿插;
-//   假动作: 每 4~7 局一次诱多/诱空, 突然打断惯性;
-//   变盘: 每 5~8 局随机翻一次 trend/range 状态, 防止摸透规律;
+// 下一根 K 线在玩家按下按钮后才生成。标准判定 4 步:
+//   1. 读最近 3 局涨跌 → 判趋势/震荡/变盘;
+//   2. 概率加权: 趋势局 70% 延续 / 震荡局 50-50 / 变盘局 (每5~8局) 80% 反向突破;
+//      另有假动作 (每4~7局) 诱多诱空打断惯性;
+//   3. 胜率修正 (见下); 4. 输出唯一结果。
 //   胜率回中: 近 100 局玩家胜率偏出 48%~52% 时按偏差概率往回拉;
 //   极端抑制: 同向 ≥5 根强制大概率反转、≥7 根必反 (杜绝十连涨跌),
 //            完美交替 ≥6 根强制延续一根 (杜绝天地板反复)。
@@ -2324,26 +2324,33 @@ function engineNext(guessUp) {
   const price = last ? last.close : 100;
   const lastDir = mkt.runDir || (rnd() < 0.5 ? 1 : -1);
 
-  // ① 变盘计时: 到点翻状态 (趋势↔震荡, 趋势方向重掷)
-  if (--mkt.regimeLeft <= 0) {
-    mkt.regime = mkt.regime === "trend" ? "range" : "trend";
-    mkt.trendDir = rnd() < 0.5 ? 1 : -1;
-    mkt.regimeLeft = 5 + Math.floor(rnd() * 4);
+  // ① 读取最近 3 局涨跌记录, 分类当前状态 (标准判定第 1 步)
+  const n = guess.data.length;
+  const last3 = [];
+  for (let i = Math.max(1, n - 3); i < n; i++) {
+    last3.push(guess.data[i].close > guess.data[i - 1].close ? 1 : -1);
   }
+  const sum3 = last3.reduce((a, b) => a + b, 0);
+  const trending = Math.abs(sum3) >= 2 && last3.length >= 2; // 3 局中 ≥2 局同向视为趋势
+  const trendDir3 = sum3 >= 0 ? 1 : -1;
 
-  // ② 行情逻辑提案
+  // ② 概率加权 (标准判定第 2 步): 趋势 70% 延续 / 震荡 50-50 / 变盘局 80% 反向突破
   let dir;
   let fake = false;
-  if (--mkt.fakeLeft <= 0) {
-    dir = -lastDir; // 假动作: 直接打断上一根的方向 (诱多/诱空)
+  if (--mkt.regimeLeft <= 0) {
+    // 变盘局 (每 5~8 局): 80% 反向突破当前方向
+    dir = rnd() < 0.8 ? -lastDir : lastDir;
+    fake = true;
+    mkt.regimeLeft = 5 + Math.floor(rnd() * 4);
+    mkt.fakeLeft = Math.max(mkt.fakeLeft, 2); // 刚变完盘, 别紧接着又洗盘
+  } else if (--mkt.fakeLeft <= 0) {
+    dir = -lastDir; // 假动作 (每 4~7 局): 诱多/诱空, 直接打断惯性
     fake = true;
     mkt.fakeLeft = 4 + Math.floor(rnd() * 4);
-  } else if (mkt.regime === "trend") {
-    // 惯性: 已同向 2~3 根时延续概率更高
-    const cont = mkt.runLen >= 2 ? 0.72 : 0.6;
-    dir = rnd() < cont ? mkt.trendDir : -mkt.trendDir;
+  } else if (trending) {
+    dir = rnd() < 0.7 ? trendDir3 : -trendDir3;
   } else {
-    dir = rnd() < 0.42 ? lastDir : -lastDir; // 震荡: 偏交替但不完美
+    dir = rnd() < 0.5 ? 1 : -1; // 震荡: 涨跌对半
   }
 
   // ③ 胜率回中: 只在玩家真实下注时干预, 偏差越大拉力越强
@@ -2377,6 +2384,8 @@ function engineNext(guessUp) {
   if (dir === mkt.runDir) { mkt.runLen++; mkt.altLen = 0; }
   else { mkt.altLen = mkt.runDir === 0 ? 0 : mkt.altLen + 1; mkt.runDir = dir; mkt.runLen = 1; }
 
+  // 解说选池: 假动作 > 微幅震荡 > 方向话术 (揭晓后才显示, 不剧透)
+  candle.kind = fake ? "fake" : mag < 0.006 ? "chop" : dir > 0 ? "up" : "down";
   guess.data.push(candle);
   return candle;
 }
@@ -2479,7 +2488,9 @@ function makeGuess(up) {
   prog.guessRecent = prog.guessRecent || [];
   prog.guessRecent.push(correct ? 1 : 0);
   if (prog.guessRecent.length > 100) prog.guessRecent.shift();
-  let msg = t(wentUp ? "guess.wentUp" : "guess.wentDown", movePct) + " ";
+  // 轻量化解说 (≤15字, 游戏风, 不构成任何投资建议)
+  const cmt = t("guess.cmt." + (next.kind || (wentUp ? "up" : "down")) + "." + Math.floor(Math.random() * 3));
+  let msg = t(wentUp ? "guess.wentUp" : "guess.wentDown", movePct) + "「" + cmt + "」 ";
   if (correct) {
     guess.streak++;
     const pts = 10 + 2 * Math.min(guess.streak, 10) + (hasGear("finger") ? 5 : 0);
