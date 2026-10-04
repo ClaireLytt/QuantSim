@@ -87,6 +87,12 @@ error / pageerror / requestfailed）。跑法：起后端（库里要有数据�
 - 并发写用 `findWithLockBy...` 悲观锁（session/account/room），唯一约束冲突用 catch `DataIntegrityViolationException` 重读，别用先查后插。
 - 回测/自定义策略全部经 enum 白名单解析（`BacktestService.parseField/parseOp`），没有任何 eval/拼接——扩展策略字段时沿用。
 
+## 布局冻结区（用户钦定，勿擅改）
+
+- **右上角工具簇 `.header-tools`（🎁积分 / 登录 / EN / 主题 / 音效）在桌面端必须保持单行横排**。
+  2026-10 曾为修 390px 溢出给它加 `flex-wrap: wrap` 导致桌面端变竖排，被用户退回。
+  窄屏适配只允许写在 `@media (max-width: 720px)` 里；除非用户明确要求，不要改这个区域的布局。
+
 ## 代码风格
 
 - 注释用中文，写"为什么"而不是复述代码（现有代码是范例）；类/方法级用 `/** */`。

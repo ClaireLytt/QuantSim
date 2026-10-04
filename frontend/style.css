@@ -140,16 +140,18 @@ h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: .3px; }
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
 }
 
-/* 顶栏工具簇 (登录/语言/主题/音效): 锁定头部第一行右端, 与开局控件分层 */
+/* 顶栏工具簇 (登录/语言/主题/音效): 锁定头部第一行右端, 桌面端永远单行横排。
+   ⚠️ 布局冻结 (见 CLAUDE.md): 不要再改成竖排/换行, 只有 <=720px 的媒体查询允许折行 */
 .header-tools {
   display: flex;
-  flex-wrap: wrap; /* 窄屏 (或 Linux 宽字体) 下允许折行, 否则 390px 会被撑出横向滚动 */
-  justify-content: flex-end;
+  flex-wrap: nowrap;
   gap: 8px;
   align-items: center;
   margin-left: auto; /* 把整簇推到右上角 */
-  max-width: 100%;
-  min-width: 0;
+}
+@media (max-width: 720px) {
+  /* 仅窄屏允许折行: Linux 宽字体下 390px 视口会被五个胶囊撑出横向滚动 */
+  .header-tools { flex-wrap: wrap; justify-content: flex-end; max-width: 100%; }
 }
 .header-tools button {
   width: auto;
