@@ -61,6 +61,10 @@ public class BacktestResult {
     @Column(name = "win_rate", precision = 5, scale = 4)
     private BigDecimal winRate;
 
+    /** 赛季 "YYYY-MM" */
+    @Column(length = 7)
+    private String season;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

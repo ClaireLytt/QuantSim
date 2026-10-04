@@ -1,4 +1,5 @@
 # Java
+backend/logs/
 backend/target/
 *.class
 
@@ -14,6 +15,9 @@ data-pipeline/data/
 # 本地测试用临时 MySQL 数据目录
 .localdb/
 
+# 本地启动脚本 (含本机数据库密码, 不入库)
+start-local.bat
+
 # Claude Code 本地配置
 .claude/
 
@@ -25,3 +29,10 @@ data-pipeline/data/
 # OS
 Thumbs.db
 .DS_Store
+
+# UI 冒烟测试依赖
+tools/ui_smoke/node_modules/
+tools/ui_smoke/package-lock.json
+
+# 本机通知脚本含私人 ntfy 主题名, 不入库
+tools/notify_done.py

@@ -4,7 +4,9 @@ package com.quantsim.entity;
 public enum AiLevel {
     EASY("LOGISTIC"),
     NORMAL("FOREST"),
-    HARD("BOOST");
+    HARD("BOOST"),
+    /** 地狱难度: 多层感知机, 且按置信度调仓 */
+    HELL("MLP");
 
     private final String model;
 

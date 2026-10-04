@@ -19,6 +19,8 @@ let prog = loadProg();
 
 function saveProg() {
   try { localStorage.setItem(PROG_KEY, JSON.stringify(prog)); } catch (e) { /* 隐私模式下忽略 */ }
+  // 登录后防抖同步到云端 (auth.js 提供; 未加载/未登录时为空操作)
+  if (window.qsSyncProgress) window.qsSyncProgress();
 }
 
 // ---------- 动效工具 ----------
@@ -93,6 +95,10 @@ const BADGES = [
   { id: "famous_1", name: { zh: "历史见证者", en: "History Witness" }, desc: { zh: "通过任意一个名场面挑战", en: "Clear any famous-moment challenge" } },
   { id: "famous_all", name: { zh: "传奇操盘手", en: "Living Legend" }, desc: { zh: "通过全部名场面挑战", en: "Clear all famous-moment challenges" } },
   { id: "daily_first", name: { zh: "每日打卡", en: "Daily Debut" }, desc: { zh: "完成一次每日挑战", en: "Complete a daily challenge" } },
+  { id: "daily_streak3", name: { zh: "风雨无阻", en: "Rain or Shine" }, desc: { zh: "连续 3 天完成每日挑战", en: "Complete daily challenges 3 days in a row" } },
+  { id: "survivor", name: { zh: "熊市幸存者", en: "Bear Survivor" }, desc: { zh: "熊市生存挑战中跑赢买入持有", en: "Beat buy & hold in a Bear Survival run" } },
+  { id: "ai_streak3", name: { zh: "AI 克星", en: "AI Nemesis" }, desc: { zh: "连续 3 局战胜 AI 操盘手", en: "Beat the AI trader 3 games in a row" } },
+  { id: "season_podium", name: { zh: "载入史册", en: "Hall of Fame" }, desc: { zh: "登上赛季收益榜前三的颁奖台", en: "Finish a season in the return top 3" } },
   { id: "daily_150", name: { zh: "手感火热", en: "On Fire" }, desc: { zh: "单次每日挑战得分 ≥ 150", en: "Score 150+ in one daily challenge" } },
   { id: "settle_1", name: { zh: "实盘首秀", en: "Debut Settled" }, desc: { zh: "在模拟对局中完成一次结算", en: "Settle a full trading game" } },
   { id: "beat_ai", name: { zh: "人机对决", en: "AI Slayer" }, desc: { zh: "结算收益率跑赢 AI 操盘手", en: "Beat the AI trader at settlement" } },
@@ -2863,7 +2869,86 @@ $("guide-modal").addEventListener("click", (e) => {
   if (e.target === $("guide-modal")) closeGuide();
 });
 
+// ---------- 期权入门沙盒: 欧式期权 BS 定价 + 到期损益曲线 ----------
+
+(() => {
+  const SPOT = 100;       // 现价固定 100, 聚焦"结构"而不是行情
+  const VOL = 0.3;        // 年化波动率 30%
+  const RATE = 0.03;      // 无风险利率 3%
+  const T = 30 / 365;     // 30 天到期
+  let optType = "call";
+  let optChart = null;
+
+  // 标准正态 CDF (Abramowitz-Stegun 近似, 教学精度足够)
+  function normCdf(x) {
+    const t = 1 / (1 + 0.2316419 * Math.abs(x));
+    const d = 0.3989423 * Math.exp(-x * x / 2);
+    let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    return x > 0 ? 1 - p : p;
+  }
+
+  function bsPremium(strike) {
+    const d1 = (Math.log(SPOT / strike) + (RATE + VOL * VOL / 2) * T) / (VOL * Math.sqrt(T));
+    const d2 = d1 - VOL * Math.sqrt(T);
+    if (optType === "call") {
+      return SPOT * normCdf(d1) - strike * Math.exp(-RATE * T) * normCdf(d2);
+    }
+    return strike * Math.exp(-RATE * T) * normCdf(-d2) - SPOT * normCdf(-d1);
+  }
+
+  function renderOption() {
+    const strike = Number($("opt-strike").value);
+    $("opt-strike-val").textContent = strike;
+    const premium = bsPremium(strike);
+    $("opt-premium").textContent = premium.toFixed(2);
+    $("btn-opt-call").classList.toggle("active", optType === "call");
+    $("btn-opt-put").classList.toggle("active", optType === "put");
+
+    const xs = [];
+    const ys = [];
+    for (let s = 60; s <= 140; s += 1) {
+      const intrinsic = optType === "call" ? Math.max(0, s - strike) : Math.max(0, strike - s);
+      xs.push(s);
+      ys.push(+(intrinsic - premium).toFixed(2));
+    }
+    const breakeven = optType === "call" ? strike + premium : strike - premium;
+    if (!optChart) {
+      optChart = echarts.init($("opt-chart"));
+      window.addEventListener("resize", () => optChart.resize());
+    }
+    optChart.setOption({
+      backgroundColor: "transparent",
+      tooltip: { trigger: "axis", valueFormatter: (v) => (v >= 0 ? "+" : "") + v },
+      grid: { left: 48, right: 16, top: 16, bottom: 28 },
+      xAxis: { type: "category", data: xs, name: t("opt.axisX"), nameLocation: "middle", nameGap: 24,
+        axisLabel: { color: cssVar("--text-muted") }, axisLine: { lineStyle: { color: cssVar("--border") } } },
+      yAxis: { type: "value",
+        axisLabel: { color: cssVar("--text-muted") },
+        splitLine: { lineStyle: { color: cssVar("--border"), opacity: 0.4 } } },
+      series: [{ type: "line", data: ys, showSymbol: false,
+        lineStyle: { width: 2, color: cssVar("--accent") },
+        areaStyle: { opacity: 0.1, color: cssVar("--accent") },
+        markLine: { symbol: "none", lineStyle: { color: cssVar("--text-muted"), type: "dashed" },
+          label: { color: cssVar("--text-muted") },
+          data: [{ yAxis: 0 }, { xAxis: String(Math.round(breakeven)) }] } }],
+    }, true);
+    optChart.resize();
+    $("opt-verdict").textContent = t("opt.verdict", premium.toFixed(2), breakeven.toFixed(1));
+  }
+
+  $("btn-opt-call").addEventListener("click", () => { optType = "call"; renderOption(); });
+  $("btn-opt-put").addEventListener("click", () => { optType = "put"; renderOption(); });
+  $("opt-strike").addEventListener("input", renderOption);
+  document.addEventListener("qs:view", (e) => { if (e.detail === "option") renderOption(); });
+  document.addEventListener("qs:lang", () => { if (!$("view-option").hidden) renderOption(); });
+})();
+
 // ---------- 事件联动 ----------
+
+// 每日挑战连续天数 (daily.js 派发): 连续 3 天发徽章
+document.addEventListener("qs:dailyStreak", (e) => {
+  if (Number(e.detail) >= 3) awardBadge("daily_streak3");
+});
 
 // 模拟对局结算时发放经验与成就 (app.js 派发)
 document.addEventListener("qs:settled", (e) => {
@@ -2874,11 +2959,25 @@ document.addEventListener("qs:settled", (e) => {
     awardBadge("beat_ai");
     addXp(30);
   }
+  // 熊市生存: 亏得比买入持有少即算通关
+  if (window.state && state.mode === "SURVIVAL" && result.holdReturnRate != null
+      && Number(result.returnRate) > Number(result.holdReturnRate)) {
+    awardBadge("survivor");
+    addXp(60);
+  }
 });
+
+// 连胜 AI 徽章 (points.js 派发连胜数)
+document.addEventListener("qs:aiStreak", (e) => {
+  if (Number(e.detail) >= 3) awardBadge("ai_streak3");
+});
+
+// 上赛季颁奖台徽章 (ranking.js 派发名次)
+document.addEventListener("qs:seasonPodium", () => awardBadge("season_podium"));
 
 // 视图切换时图表重算尺寸 (隐藏容器中初始化尺寸为 0)
 document.addEventListener("qs:view", (e) => {
-  if (e.detail === "academy" && guessChart) guessChart.resize();
+  if ((e.detail === "academy" || e.detail === "guess") && guessChart) guessChart.resize();
 });
 
 window.addEventListener("resize", () => {

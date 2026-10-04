@@ -1,17 +1,17 @@
 # 一键启动: docker compose up -d           (MySQL + 后端, Flyway 自动建表)
 # 灌数据:   docker compose --profile pipeline run --rm pipeline
+# 生产部署: QUANTSIM_DB_PASSWORD=强密码 QUANTSIM_DOMAIN=你的域名 docker compose --profile prod up -d
 services:
   mysql:
     image: mysql:8.0
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${QUANTSIM_DB_PASSWORD:-root}
       MYSQL_DATABASE: quantsim
-    ports:
-      - "3306:3306"
+    # 安全: 不把 3306 映射到宿主机, 只在 compose 内网可达; 本地调试需要时再临时加 ports
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -22,10 +22,34 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       QUANTSIM_DB_HOST: mysql
+      QUANTSIM_DB_PASSWORD: ${QUANTSIM_DB_PASSWORD:-root}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports:
       - "8080:8080"
     depends_on:
       mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  # 生产入口: Caddy 反向代理, 配置 QUANTSIM_DOMAIN 后自动申请 HTTPS 证书
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["prod"]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      QUANTSIM_DOMAIN: ${QUANTSIM_DOMAIN:-:80}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      backend:
         condition: service_healthy
 
   # 一次性数据管道 (mock 数据 -> Spark 指标 -> 入库), 需后端先建好表
@@ -34,9 +58,11 @@ services:
     profiles: ["pipeline"]
     environment:
       QUANTSIM_DB_HOST: mysql
+      QUANTSIM_DB_PASSWORD: ${QUANTSIM_DB_PASSWORD:-root}
     depends_on:
       backend:
         condition: service_started
 
 volumes:
   mysql-data:
+  caddy-data:

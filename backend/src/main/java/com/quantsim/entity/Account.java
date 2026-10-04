@@ -32,4 +32,8 @@ public class Account {
 
     @Column(name = "holding_cost", nullable = false, precision = 10, scale = 2)
     private BigDecimal holdingCost = BigDecimal.ZERO;
+
+    /** 累计利息: 正=闲置现金收益, 负=进阶模式透支的融资成本 */
+    @Column(name = "interest_total", nullable = false, precision = 12, scale = 2)
+    private BigDecimal interestTotal = BigDecimal.ZERO;
 }
