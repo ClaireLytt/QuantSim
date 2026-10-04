@@ -6,7 +6,7 @@
 const PROG_KEY = "qs_progress";
 
 function loadProg() {
-  const def = { xp: 0, badges: [], titles: [], teach: [], famous: [], bestStreak: 0, guessTotal: 0, guessHit: 0, daily: { date: "", score: 0, best: 0 }, dailyCount: 0, gear: [], equipped: [], cases: [] };
+  const def = { xp: 0, badges: [], titles: [], teach: [], famous: [], bestStreak: 0, guessTotal: 0, guessHit: 0, guessRecent: [], daily: { date: "", score: 0, best: 0 }, dailyCount: 0, gear: [], equipped: [], cases: [] };
   try {
     const p = JSON.parse(localStorage.getItem(PROG_KEY));
     return p && typeof p === "object" ? Object.assign(def, p) : def;
@@ -2287,20 +2287,105 @@ function todayStr() {
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 }
 
-function newGuessRound() {
-  const seed = Math.floor(Math.random() * 4294967295);
-  const rnd = mulberry32(seed ^ 0x9e3779b9);
-  // 随机拼 2~3 段不同趋势, 让走势有可学的惯性
-  const segs = [];
-  const n = 2 + Math.floor(rnd() * 2);
-  for (let i = 0; i < n; i++) {
-    segs.push({
-      days: 18 + Math.floor(rnd() * 18),
-      drift: (rnd() - 0.5) * 0.02,
-      vol: 0.012 + rnd() * 0.025,
-    });
+// ---------- 猜涨跌行情引擎 ----------
+// 下一根 K 线在玩家按下按钮后才生成, 规则 (对标市面主流小游戏):
+//   趋势: 同向 2~3 根后大概率延续、小概率反转 (惯性);
+//   震荡: 大部分时间横盘交替, 输赢穿插;
+//   假动作: 每 4~7 局一次诱多/诱空, 突然打断惯性;
+//   变盘: 每 5~8 局随机翻一次 trend/range 状态, 防止摸透规律;
+//   胜率回中: 近 100 局玩家胜率偏出 48%~52% 时按偏差概率往回拉;
+//   极端抑制: 同向 ≥5 根强制大概率反转、≥7 根必反 (杜绝十连涨跌),
+//            完美交替 ≥6 根强制延续一根 (杜绝天地板反复)。
+const mkt = { rnd: Math.random, regime: "range", trendDir: 1, regimeLeft: 6, fakeLeft: 5,
+  runDir: 0, runLen: 0, altLen: 0 };
+
+function engineReset(rnd) {
+  mkt.rnd = rnd;
+  mkt.regime = rnd() < 0.45 ? "trend" : "range";
+  mkt.trendDir = rnd() < 0.5 ? 1 : -1;
+  mkt.regimeLeft = 5 + Math.floor(rnd() * 4);   // 5~8 局后变盘
+  mkt.fakeLeft = 4 + Math.floor(rnd() * 4);     // 4~7 局后一次假动作
+  mkt.runDir = 0;
+  mkt.runLen = 0;
+  mkt.altLen = 0;
+}
+
+/** 近 100 局滚动胜率 (持久化在 prog, 跨回合生效)。 */
+function recentWinRate() {
+  const r = prog.guessRecent || [];
+  if (r.length < 20) return null; // 样本太少不干预
+  return r.reduce((a, b) => a + b, 0) / r.length;
+}
+
+/** 生成下一根 K 线。guessUp 为玩家本次的猜测 (铺历史时传 null, 不做胜率干预)。 */
+function engineNext(guessUp) {
+  const rnd = mkt.rnd;
+  const last = guess.data[guess.data.length - 1];
+  const price = last ? last.close : 100;
+  const lastDir = mkt.runDir || (rnd() < 0.5 ? 1 : -1);
+
+  // ① 变盘计时: 到点翻状态 (趋势↔震荡, 趋势方向重掷)
+  if (--mkt.regimeLeft <= 0) {
+    mkt.regime = mkt.regime === "trend" ? "range" : "trend";
+    mkt.trendDir = rnd() < 0.5 ? 1 : -1;
+    mkt.regimeLeft = 5 + Math.floor(rnd() * 4);
   }
-  guess.data = genCandles(seed, segs);
+
+  // ② 行情逻辑提案
+  let dir;
+  let fake = false;
+  if (--mkt.fakeLeft <= 0) {
+    dir = -lastDir; // 假动作: 直接打断上一根的方向 (诱多/诱空)
+    fake = true;
+    mkt.fakeLeft = 4 + Math.floor(rnd() * 4);
+  } else if (mkt.regime === "trend") {
+    // 惯性: 已同向 2~3 根时延续概率更高
+    const cont = mkt.runLen >= 2 ? 0.72 : 0.6;
+    dir = rnd() < cont ? mkt.trendDir : -mkt.trendDir;
+  } else {
+    dir = rnd() < 0.42 ? lastDir : -lastDir; // 震荡: 偏交替但不完美
+  }
+
+  // ③ 胜率回中: 只在玩家真实下注时干预, 偏差越大拉力越强
+  if (guessUp !== null) {
+    const wr = recentWinRate();
+    if (wr !== null && Math.abs(wr - 0.5) > 0.015) {
+      // 偏差 3% 时拉力约 0.18, 偏差 6% 时约 0.54 —— 足以把各种玩家风格摁回 48%~52%
+      const pull = Math.min(0.9, (Math.abs(wr - 0.5) - 0.015) * 12);
+      if (rnd() < pull) {
+        dir = wr > 0.5 ? (guessUp ? -1 : 1) : (guessUp ? 1 : -1);
+      }
+    }
+  }
+
+  // ④ 极端抑制 (最高优先级): 长连 run 封顶、完美交替封顶
+  if (dir === mkt.runDir) {
+    if (mkt.runLen >= 7 || (mkt.runLen >= 5 && rnd() < 0.75)) dir = -dir;
+  } else if (mkt.altLen >= 6) {
+    dir = mkt.runDir || dir; // 已经天地板来回 6 次, 强制延续一根
+  }
+
+  // ⑤ 落 K 线: 假动作幅度更大一点 (突变感), 其余 0.3%~2.2%
+  const mag = (fake ? 0.008 : 0.003) + rnd() * (fake ? 0.022 : 0.019);
+  const open = price;
+  const close = Math.max(1, +(open * (1 + dir * mag)).toFixed(2));
+  const hi = +(Math.max(open, close) * (1 + rnd() * 0.006)).toFixed(2);
+  const lo = +(Math.min(open, close) * (1 - rnd() * 0.006)).toFixed(2);
+  const candle = { day: (last ? last.day : 0) + 1, open: +open.toFixed(2), close, high: hi, low: lo };
+
+  // 维护连根/交替计数
+  if (dir === mkt.runDir) { mkt.runLen++; mkt.altLen = 0; }
+  else { mkt.altLen = mkt.runDir === 0 ? 0 : mkt.altLen + 1; mkt.runDir = dir; mkt.runLen = 1; }
+
+  guess.data.push(candle);
+  return candle;
+}
+
+function newGuessRound(seedRnd) {
+  const rnd = seedRnd || mulberry32(Math.floor(Math.random() * 4294967295));
+  guess.data = [];
+  engineReset(rnd);
+  for (let i = 0; i < GUESS_WINDOW; i++) engineNext(null); // 铺可见历史, 走势自带惯性
   guess.visible = GUESS_WINDOW;
 }
 
@@ -2344,13 +2429,7 @@ function startDaily() {
     return;
   }
   const seed = Number(today.replace(/-/g, ""));
-  const rnd = mulberry32(seed ^ 0x51ab1e);
-  const segs = [];
-  for (let i = 0; i < 3; i++) {
-    segs.push({ days: 15, drift: (rnd() - 0.5) * 0.02, vol: 0.012 + rnd() * 0.02 });
-  }
-  guess.data = genCandles(seed, segs);
-  guess.visible = GUESS_WINDOW;
+  newGuessRound(mulberry32(seed ^ 0x51ab1e)); // 日期定种子: 当天初始走势全服一致
   guess.playing = true;
   guess.waiting = false;
   guess.mode = "daily";
@@ -2389,13 +2468,17 @@ function makeGuess(up) {
   if (!guess.playing || guess.waiting) return;
   guess.waiting = true;
   const prev = guess.data[guess.visible - 1].close;
-  const next = guess.data[guess.visible];
+  const next = engineNext(up); // 猜完才生成下一根 (引擎含胜率回中与极端抑制)
   guess.visible++;
   refreshGuessChart();
   const wentUp = next.close > prev;
   const movePct = fmtPct((next.close - prev) / prev);
   const correct = up === wentUp;
   prog.guessTotal++;
+  // 近 100 局滚动战绩: 胜率回中的依据
+  prog.guessRecent = prog.guessRecent || [];
+  prog.guessRecent.push(correct ? 1 : 0);
+  if (prog.guessRecent.length > 100) prog.guessRecent.shift();
   let msg = t(wentUp ? "guess.wentUp" : "guess.wentDown", movePct) + " ";
   if (correct) {
     guess.streak++;
@@ -2434,14 +2517,13 @@ function makeGuess(up) {
       return;
     }
     msg += " " + t("guess.dailyLeft", guess.dailyLeft);
-  } else if (guess.visible >= guess.data.length) {
-    newGuessRound();
-    refreshGuessChart();
-    msg += " " + t("guess.newRound");
   }
   $("guess-msg").textContent = msg;
   guess.waiting = false;
 }
+
+// 测试钩子: 冒烟/统计校验用, 只读 (不要在业务代码里依赖)
+window.qsGuessState = { guess, mkt };
 
 $("btn-guess-start").addEventListener("click", startGuess);
 $("btn-guess-daily").addEventListener("click", startDaily);
