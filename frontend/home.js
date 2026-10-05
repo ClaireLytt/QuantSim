@@ -14,6 +14,8 @@
     { view: "story", icon: "🕵️" },
     { view: "quiz", icon: "🧬" },
     { view: "option", icon: "🎟️" },
+    { view: "reborn", icon: "👑" },
+    { view: "bubble", icon: "🫧" },
     { view: "lab", icon: "🔬" },
     { view: "profile", icon: "📜" },
     { view: "history", icon: "🗂️" },
