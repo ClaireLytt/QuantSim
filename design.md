@@ -14,16 +14,21 @@
 
 | 变量 | 用途 | 暗色（默认） | 亮色 |
 |---|---|---|---|
-| `--surface` | 页面底色 | `#111116` | `#e2ded3` |
-| `--surface-2` | 输入框底、表头底、嵌入块底 | `#16161d` | `#d8d3c5` |
-| `--panel` | 卡片 / 表格 / 图表容器底 | `#1c1d26` | `#ebe7db` |
-| `--panel-raised` | 普通按钮底、toast 底 | `#262734` | `#e1dccd` |
-| `--border` | 常规边框、分隔线 | `#2d2e3d` | `#ccc5b3` |
-| `--border-strong` | 强调边框、hover 边框 | `#3d3f54` | `#a69e88` |
-| `--text` | 正文 | `#ecebf3` | `#2b2c38` |
-| `--text-muted` | 次要文字 / 标签 / 提示 | `#9d9db2` | `#5e5d6b` |
-| `--header-bg` | 吸顶头部（半透明 + blur） | `rgba(17,17,22,.82)` | `rgba(230,226,215,.85)` |
-| `--mask` | 弹窗遮罩 | `rgba(10,12,18,.7)` | 同暗色 |
+| `--surface` | 页面底色 | `#000000`（iOS 深色基底） | `#f2f2f7`（systemGroupedBackground） |
+| `--surface-2` | 输入框底、表头底、嵌入块底 | `#161618` | `#e9e9ee` |
+| `--panel` | 卡片 / 表格 / 图表容器底 | `#1c1c1e` | `#ffffff` |
+| `--panel-raised` | 普通按钮底、toast 底 | `#2c2c2e` | `#eaeaef` |
+| `--border` | 常规边框、分隔线 | `#38383a` | `#d9d9de` |
+| `--border-strong` | 强调边框、hover 边框 | `#48484a` | `#aeaeb5` |
+| `--text` | 正文 | `#f5f5f7` | `#1d1d1f` |
+| `--text-muted` | 次要文字 / 标签 / 提示 | `#a1a1aa` | `#6e6e73` |
+| `--header-bg` | 吸顶头部（半透明 + 材质 blur） | `rgba(10,10,12,.65)` | `rgba(249,249,251,.72)` |
+| `--mask` | 弹窗遮罩 | `rgba(0,0,0,.55)` | `rgba(0,0,0,.32)` |
+| `--sheen` | 卡片顶部受光白纱 | `rgba(255,255,255,.045)` | `rgba(255,255,255,.6)` |
+
+> 中性色对齐 Apple (iOS/macOS) 系统分层灰。注意 ui_check 的 WCAG 校验紧边距：
+> 亮色 `text-muted/surface` 4.55、暗色 `accent/surface` 4.15、亮色 `down/panel` 4.40——
+> 微调这些色值前必须重新验算。
 
 页面底色不是纯色：`body` 在 `--surface` 上叠两个极淡的 radial-gradient 光晕
 （`--glow-1` 紫、`--glow-2` 青，透明度 4%~7%），`background-attachment: fixed`。
@@ -32,26 +37,32 @@
 
 | 变量 | 用途 | 暗色 | 亮色 |
 |---|---|---|---|
-| `--accent` | 主色：激活态、链接、选中、聚焦 | `#8a8df2`（蓝紫） | `#585ce0` |
-| `--accent-strong` | 主色深阶：primary 按钮渐变末端 | `#6d71ee` | `#4347ce` |
-| `--accent-2` | 辅助青色：渐变收尾、装饰条 | `#5dd6c8` | `#2fa89a` |
-| `--accent-soft` | 柔紫：次级点缀 | `#9a7ff0` | `#7e63e8` |
-| `--on-accent` | 主色上的文字 | `#14141c` | 同 |
-| `--warn` | 警示黄 | `#e6b450` | `#a97a12` |
+| `--accent` | 主色：激活态、链接、选中、聚焦 | `#5e5ce6`（systemIndigo 暗） | `#5856d6`（systemIndigo 亮） |
+| `--accent-strong` | 主色深阶：primary 按钮渐变末端 | `#4a48d4` | `#4a48c4` |
+| `--accent-2` | 辅助青色：渐变收尾、装饰条 | `#64d2ff`（systemCyan） | `#008577` |
+| `--accent-soft` | 柔紫：次级点缀 | `#7d7aff` | `#6a63e0` |
+| `--on-accent` | 主色上的文字 | `#ffffff` | 同 |
+| `--warn` | 警示黄 | `#ffd60a`（systemYellow） | `#9a6a00` |
+| `--h1-grad-a` / `--h1-grad-b` | h1 渐变首尾色 | `#9d9bff` / `#64d2ff` | `#4a48c4` / `#008577` |
+| `--glow-accent` | primary 按钮光晕 | `rgba(94,92,230,.35)` | `rgba(88,86,214,.25)` |
 
+主色取 Apple systemIndigo：正宗 iOS 系统色，同时延续 QuantSim 紫色品牌。
 品牌感渐变（标题 h1、区块装饰条、置信度条）统一方向 120°~180°，
-从 `--accent` 过渡到 `--accent-2`。
+从 `--h1-grad-a`/`--accent` 过渡到 `--accent-2`/`--h1-grad-b`。
 
 ### 1.3 语义色（金融语境，**涨红跌绿** 中式惯例）
 
 | 变量 | 用途 | 暗色 | 亮色 |
 |---|---|---|---|
-| `--up` | 上涨 / 正收益 / 买入按钮 | `#e0524f`（红） | `#d24541` |
-| `--down` | 下跌 / 负收益 / 卖出按钮 | `#26a69a`（绿） | `#1a8d82` |
-| `--good` | 成功 / 通关 / 正向状态 | `#4fce8d` | `#127347` |
-| `--bad` | 错误 / 危险操作 | `#ef6f6b` | `#cf5650` |
-| `--ma5` | MA5 均线（图表） | `#d29a2c`（金） | `#a97a12` |
-| `--ma20` | MA20 均线（图表） | `#8a8df2`（紫） | `#585ce0` |
+| `--up` | 上涨 / 正收益 / 买入按钮 | `#ff453a`（systemRed 暗） | `#d70015` |
+| `--down` | 下跌 / 负收益 / 卖出按钮 | `#30d158`（systemGreen 暗） | `#248a3d`（调深版） |
+| `--good` | 成功 / 通关 / 正向状态 | `#4cd964` | `#1e7a3c` |
+| `--bad` | 错误 / 危险操作 | `#ff6961` | `#d4403a` |
+| `--ma5` | MA5 均线（图表） | `#ff9f0a`（systemOrange） | `#b25a00` |
+| `--ma20` | MA20 均线（图表） | `#7d7aff`（紫） | `#5856d6` |
+
+亮色 `--down` 不用 iOS 原版 `#34c759`：它在白色面板上只有 2.2:1，过不了 3:1 对比度校验，
+所以调深为 `#248a3d`（4.40:1）。
 
 涨跌数字用 class `.pos`（→ `--up`）/`.neg`（→ `--down`）。
 注意 `--up/--down` 只表达涨跌方向，状态性的对/错用 `--good/--bad`，别混用。
@@ -61,17 +72,19 @@
 
 ## 2. 字体
 
-字体栈（全局唯一）：
+字体栈（全局唯一，系统字体优先——macOS/iOS 下自动命中 SF Pro）：
 ```css
-font: 14px/1.6 "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+font: 14px/1.6 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+      "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+-webkit-font-smoothing: antialiased;
 ```
 等宽场景（房间码等）用 `monospace`。**所有数字列 / 金额 / 百分比必须加
 `font-variant-numeric: tabular-nums`**，避免跳动。
 
 | 层级 | 字号 | 字重 | 行高 | 用法 |
 |---|---|---|---|---|
-| 页面主标题 h1 | 21px | 默认 | 默认 | 仅站名，渐变文字 + `.5px` 字距 |
-| 区块标题 h2 | 15px | 默认(600 视觉) | 默认 | 前置 4×16px 渐变装饰条（竖条圆角 2px） |
+| 页面主标题 h1 | 21px | 默认 | 默认 | 仅站名，渐变文字 + `-.3px` 负字距（大字收紧） |
+| 区块标题 h2 | 15px | 默认(600 视觉) | 默认 | `-.1px` 字距；前置 4×16px 渐变装饰条（竖条圆角 2px） |
 | 卡片内小标题 h3 | 13–15px | 600 | 默认 | 弹窗内 h3 为 14px 且用 `--accent` 色 |
 | 正文 | 14px | 400 | 1.6 | body 默认 |
 | 次要说明 `.sub` | 13px | 400 | 1.6 | `--text-muted` |
@@ -119,32 +132,38 @@ font: 14px/1.6 "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-ser
 
 | 半径 | 用途 |
 |---|---|
-| `--radius`（12px） | 卡片、表格、图表容器等大容器 |
-| 14px | 弹窗（比卡片略大） |
-| 10px | toast、虚线编辑器等中容器 |
-| 8px | 输入框、按钮、下拉、嵌入文本块 |
+| `--radius-lg`（20px） | 弹窗（比卡片略大） |
+| `--radius`（16px） | 卡片、表格、图表容器、tour 弹泡等大容器 |
+| `--radius-sm`（10px） | 输入框、按钮、下拉、toast、嵌入文本块 |
 | 4–5px | 细小条状元素（进度条、置信度条） |
-| 999px | 徽章 / 胶囊标签 |
+| 999px | 徽章 / 胶囊标签 / 右上角工具簇按钮 |
 | 50% | 圆点（预测命中点阵等） |
+
+圆角一律引用这三枚 token，别写裸像素值；大容器若视觉过圆可降级用 `--radius-sm`。
 
 ### 4.2 阴影体系（暗色值；亮色主题下 `--shadow` 自动换成暖灰弱阴影）
 
 | 层级 | 值 |
 |---|---|
-| 常规卡片 `--shadow` | `0 2px 10px rgba(0,0,0,.35)` |
-| 卡片 hover 抬升 | `0 8px 22px rgba(0,0,0,.45)` + `translateY(-3px)` |
-| toast | `0 8px 28px rgba(0,0,0,.55)` |
-| 弹窗 | `0 16px 48px rgba(0,0,0,.6)` |
-| primary 按钮光晕 | `0 2px 10px rgba(109,113,238,.3)`，hover 加深 |
+| 常规卡片 `--shadow` | 双层软阴影 `0 1px 3px .3 + 0 4px 14px .22`（亮色更弱） |
+| 大抬升 `--shadow-lg` | `0 8px 20px + 0 24px 60px`，用于卡片 hover、toast、弹窗、tour 弹泡 |
+| primary 按钮光晕 | `0 2px 10px var(--glow-accent)`，hover `0 4px 16px` |
+
+**材质（毛玻璃）**：`--blur-material: blur(20px) saturate(1.8)`。
+吸顶头部、toast、弹窗遮罩统一用它做 `backdrop-filter`（带 `-webkit-` 前缀）；
+半透明底色配方：header 用 `--header-bg`，toast 用
+`color-mix(in srgb, var(--panel-raised) 86%, transparent)`。
+卡片顶部受光：背景叠 `linear-gradient(180deg, var(--sheen), transparent 45%)` +
+`inset 0 1px 0 var(--sheen)` 顶边高光。浅色半透明面不要叠浅色半透明面。
 
 ### 4.3 按钮
 
-基础态：`background: var(--panel-raised)`，1px `--border` 边框，圆角 8px。
+基础态：`background: var(--panel-raised)`，1px `--border` 边框，圆角 `--radius-sm`。
 - hover：`border-color: var(--border-strong)` + `filter: brightness(1.12)`
-- active：`transform: translateY(1px)`
+- active：`transform: scale(.97)`（按压缩放，transition 驱动、可中断，reduced-motion 下取消）
 - focus-visible：**无 outline**，用 `box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent)`
 - disabled：`opacity: .4; cursor: not-allowed`
-- 过渡统一：`transition: ... .18s ease`（transform .1s）
+- 过渡统一：`transition: ... .18s ease`（transform `.18s var(--ease-out)`）
 
 变体：
 | class | 样式 |
@@ -152,20 +171,20 @@ font: 14px/1.6 "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-ser
 | `.primary` | `linear-gradient(135deg, var(--accent), var(--accent-strong))`，文字 `--on-accent`，600 字重，带光晕 |
 | `.ghost` | 透明底、muted 文字；hover 转 `--accent` 边框 |
 | `.replay` | `--surface-2` 底 + 强边框，介于 ghost 和 primary 之间 |
-| `.buy` / `.sell` | 分别实底 `--up` / `--down`，白字 600，hover 同色光晕 |
+| `.buy` / `.sell` | iOS tinted：`color-mix` 16% 语义色浅底 + 35% 边框 + 语义色文字 600；hover 底加深到 26% |
 | `.big` | 全宽 + 11px 垂直内边距 + 15px 字号 |
 | `.small` | `4px 12px`、12px 字号 |
 
 ### 4.4 卡片 `.card`
 
 ```css
-background: linear-gradient(180deg, rgba(255,255,255,.02), transparent 45%), var(--panel);
+background: linear-gradient(180deg, var(--sheen), transparent 45%), var(--panel);
 border: 1px solid var(--border);
-border-radius: var(--radius);   /* 12px */
+border-radius: var(--radius);   /* 16px */
 padding: 16px;
-box-shadow: var(--shadow);
+box-shadow: var(--shadow), inset 0 1px 0 var(--sheen);
 ```
-顶部 2% 白色渐变提亮是统一质感，别省。可交互卡片 hover：上浮 3px + 强边框 + 深阴影，
+顶部 `--sheen` 渐变 + 顶边 inset 高光是统一「受光材质」质感，别省。可交互卡片 hover：上浮 3px + 强边框 + 深阴影，
 transition .15–.18s。状态卡片用语义色的 `color-mix` 半透明边框（如通关卡 `--good` 45%）。
 
 ### 4.5 导航（两级 tab，下划线式，无底色）
@@ -174,7 +193,7 @@ transition .15–.18s。状态卡片用语义色的 `color-mix` 半透明边框�
   激活态：文字与 2px 底边框同用 `--accent`，字重 700。
 - 二级 `.nav-tab`：同构，14px，`padding: 6px 14px 10px`，激活字重 600，整排左缩进 10px。
 - hover 只变文字色为 `--text`，不加背景。
-- 头部容器：半透明 `--header-bg` + `backdrop-filter: blur(10px)` + 1px 底边框，sticky 吸顶。
+- 头部容器：半透明 `--header-bg` + `backdrop-filter: var(--blur-material)` + 70% 透明度发丝底边框，sticky 吸顶。
 
 ### 4.6 表格
 
@@ -185,11 +204,13 @@ transition .15–.18s。状态卡片用语义色的 `color-mix` 半透明边框�
 
 ### 4.7 弹窗与 toast
 
-- 遮罩 `.modal-mask`：`--mask` + `blur(4px)`，flex 居中，24px 安全边距。
-- 弹窗 `.modal`：640px 宽（`max-width: 100%`）、`max-height: 85vh`、圆角 14px、强边框，
-  进场动画 `modal-in .2s ease`（上移 10px + 缩放 .985 淡入）。头部标题 + 右上无边框 close。
-- toast `#toast`：固定底部居中（bottom 40px），`--panel-raised` 底 + 强边框 +
-  **3px `--accent` 左边框**（信息条签名式样），进场 `toast-in .22s ease`。
+- 遮罩 `.modal-mask`：`--mask` + `backdrop-filter: var(--blur-material)`，flex 居中，
+  24px 安全边距，`mask-in .25s` 淡入。
+- 弹窗 `.modal`：640px 宽（`max-width: 100%`）、`max-height: 85vh`、圆角 `--radius-lg`、强边框、
+  `--shadow-lg`，进场 `modal-in .4s var(--ease-sheet)`（上移 16px + 缩放 .96 淡入，Apple sheet 曲线）。
+  头部标题 + 右上无边框 close。
+- toast `#toast`：固定底部居中（bottom 40px），`panel-raised` 86% 半透明 + 材质 blur + 强边框 +
+  **3px `--accent` 左边框**（信息条签名式样），进场 `toast-in .4s var(--ease-bounce)`（轻微回弹）。
 - AI 文本块（顾问/复盘）同样用 3px `--accent` 左边框 + `--surface-2` 底 + 8px 圆角。
 
 ### 4.8 表单控件
@@ -209,9 +230,14 @@ placeholder 用 muted 70% 透明度；focus-visible 同按钮（accent 边框 + 
 
 ## 5. 动效与可访问性
 
-- 过渡时长统一 **.15s–.22s ease**；位移幅度小（1–3px、10px 以内），不做花哨动画。
+- 过渡时长统一 **.15s–.22s**；进场动画 .25–.4s；位移幅度小（1–3px、16px 以内），不做花哨动画。
+- 缓动曲线只用三枚 token：`--ease-out`（交互反馈 `cubic-bezier(.25,1,.5,1)`）、
+  `--ease-sheet`（弹窗进场，Apple sheet 曲线 `cubic-bezier(.32,.72,0,1)`）、
+  `--ease-bounce`（toast 轻回弹 `cubic-bezier(.34,1.3,.64,1)`）。
+- 按压反馈统一 `scale(.97)`（卡片 `.98`），走 transition 而非 keyframes——可随时被新输入中断。
 - 所有装饰性动画必须写进 `@media (prefers-reduced-motion: reduce)` 的豁免清单
-  （关 animation，纯装饰元素直接 `display: none`）。
+  （关 animation，纯装饰元素直接 `display: none`）；功能性进场（modal/toast）在该媒体查询下
+  折叠为 `.01s` 瞬时，按压缩放取消 transform。
 - focus 可见性：全站统一 accent 光环（见 4.3），禁止裸 `outline: none`。
 - `[hidden] { display: none !important; }` 已全局兜底——显隐一律用 `hidden` 属性，别手写 display 切换。
 - 文案零硬编码：全部经 `i18n.js` 的 `t()`，中英双份同时提交。

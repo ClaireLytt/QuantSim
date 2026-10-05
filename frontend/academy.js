@@ -102,6 +102,8 @@ const BADGES = [
   { id: "rich_double", name: { zh: "身家翻倍", en: "Doubled Up" }, desc: { zh: "富豪场身家冲上 200 万", en: "Grow your fortune to 2,000,000" } },
   { id: "rich_streak5", name: { zh: "富豪五连", en: "Hot Hand" }, desc: { zh: "富豪场连赢 5 注", en: "Win 5 bets in a row in Tycoon mode" } },
   { id: "rich_reborn", name: { zh: "东山再起", en: "Back From Broke" }, desc: { zh: "破产后选择重生再战", en: "Go broke and come back for more" } },
+  { id: "reborn_tycoon", name: { zh: "一代首富", en: "Tycoon of the Age" }, desc: { zh: "重生逆袭中以首富身家谢幕", en: "Finish a rebirth run as the Tycoon of the Age" } },
+  { id: "reborn_boss", name: { zh: "白手起家", en: "Self-Made" }, desc: { zh: "重生逆袭中至少干成小老板", en: "Finish a rebirth run as at least a Boss" } },
   { id: "daily_150", name: { zh: "手感火热", en: "On Fire" }, desc: { zh: "单次每日挑战得分 ≥ 150", en: "Score 150+ in one daily challenge" } },
   { id: "settle_1", name: { zh: "实盘首秀", en: "Debut Settled" }, desc: { zh: "在模拟对局中完成一次结算", en: "Settle a full trading game" } },
   { id: "beat_ai", name: { zh: "人机对决", en: "AI Slayer" }, desc: { zh: "结算收益率跑赢 AI 操盘手", en: "Beat the AI trader at settlement" } },
@@ -2556,6 +2558,7 @@ function makeGuess(up) {
       : 10 + 2 * Math.min(guess.streak, 10) + (hasGear("finger") ? 5 : 0);
     guess.score += pts;
     prog.guessHit++;
+    if (window.qsTask) qsTask("guessWin"); // 今日任务: 猜涨跌赢 3 把
     if (guess.streak > prog.bestStreak) prog.bestStreak = guess.streak;
     addXp(5);
     if (guess.streak >= 3) awardBadge("streak_3");
@@ -3259,6 +3262,14 @@ document.addEventListener("qs:aiStreak", (e) => {
 
 // 上赛季颁奖台徽章 (ranking.js 派发名次)
 document.addEventListener("qs:seasonPodium", () => awardBadge("season_podium"));
+
+// 重生逆袭结算 (reborn.js 派发称号档位)
+document.addEventListener("qs:rebornTier", (e) => {
+  const tier = e.detail;
+  if (tier === "tycoon") awardBadge("reborn_tycoon");
+  if (tier === "tycoon" || tier === "magnate" || tier === "boss") awardBadge("reborn_boss");
+  addXp(tier === "tycoon" ? 80 : 40);
+});
 
 // 视图切换时图表重算尺寸 (隐藏容器中初始化尺寸为 0)
 document.addEventListener("qs:view", (e) => {
