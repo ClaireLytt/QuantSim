@@ -21,7 +21,7 @@ public class Stock {
     @Column(name = "stock_id")
     private Long stockId;
 
-    @Column(nullable = false, unique = true, length = 10)
+    @Column(nullable = false, unique = true, length = 32)
     private String code;
 
     @Column(nullable = false, length = 50)
@@ -33,4 +33,8 @@ public class Stock {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private Market market = Market.STOCK;
+
+    /** 事件回放场景专用标的: 不进研究所/回测/随机开局等任何公开列表 (防比对泄题) */
+    @Column(nullable = false)
+    private boolean hidden = false;
 }

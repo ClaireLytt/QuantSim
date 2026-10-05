@@ -115,7 +115,7 @@ public class BacktestService {
 
     @Transactional(readOnly = true)
     public List<StockInfo> listStocks() {
-        return stockRepository.findAll(Sort.by("code")).stream()
+        return stockRepository.findByHiddenFalse(Sort.by("code")).stream()
                 .map(s -> new StockInfo(s.getCode(), s.getName(), s.getMarket().name()))
                 .toList();
     }

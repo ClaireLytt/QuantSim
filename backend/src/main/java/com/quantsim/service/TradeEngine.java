@@ -256,9 +256,16 @@ public class TradeEngine {
         return null;
     }
 
-    /** 执行成交 (调用方已完成校验): 扣现金/费用、更新仓位、写交易流水。返回本笔费用。 */
+    /** 执行成交 (无理由): 强平/挂单成交等系统路径。 */
     public BigDecimal execute(GameSession session, Account account, Long stockId,
                               TradeTransaction.Direction direction, BigDecimal price, int shares) {
+        return execute(session, account, stockId, direction, price, shares, null);
+    }
+
+    /** 执行成交 (调用方已完成校验): 扣现金/费用、更新仓位、写交易流水。返回本笔费用。 */
+    public BigDecimal execute(GameSession session, Account account, Long stockId,
+                              TradeTransaction.Direction direction, BigDecimal price, int shares,
+                              String reason) {
         Market market = marketData.load(stockId).stock().getMarket();
         BigDecimal gross = price.multiply(BigDecimal.valueOf(shares));
         BigDecimal fee = feeCalculator.fee(market, direction, gross);
@@ -279,6 +286,7 @@ public class TradeEngine {
         tx.setPrice(price);
         tx.setShares(shares);
         tx.setFee(fee);
+        tx.setReason(reason);
         transactionRepository.save(tx);
         return fee;
     }

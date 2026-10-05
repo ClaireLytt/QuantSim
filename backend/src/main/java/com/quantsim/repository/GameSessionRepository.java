@@ -45,6 +45,10 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
 
     Optional<GameSession> findByUserIdAndChallengeDate(Long userId, java.time.LocalDate challengeDate);
 
+    /** 偏差档案: 最近 60 局有诊断的已结算对局 (升序, 画趋势) */
+    List<GameSession> findTop60ByUserIdAndStatusAndBiasReportIsNotNullOrderByCreatedAtAsc(
+            Long userId, GameSession.Status status);
+
     /** 某用户玩过的全部每日挑战日期 (降序), 用于计算连续挑战 streak。 */
     @Query("""
             select s.challengeDate

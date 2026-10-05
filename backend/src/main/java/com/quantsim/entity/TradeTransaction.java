@@ -53,6 +53,10 @@ public class TradeTransaction {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal fee = BigDecimal.ZERO;
 
+    /** 交易理由 (限制条件玩法; 用户文本, 前端只能 textContent 渲染) */
+    @Column(length = 100)
+    private String reason;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

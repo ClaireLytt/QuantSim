@@ -28,7 +28,10 @@ import com.quantsim.dto.GameDtos.PositionInfo;
 import com.quantsim.dto.GameDtos.PredictionDay;
 import com.quantsim.dto.GameDtos.PredictionInfo;
 import com.quantsim.dto.GameDtos.RiskMetrics;
+import com.quantsim.dto.GameDtos;
+import com.quantsim.dto.GameDtos.BiasReport;
 import com.quantsim.dto.GameDtos.SettleResponse;
+import com.quantsim.dto.GameDtos.TransactionInfo;
 import com.quantsim.dto.GameDtos.StartGameRequest;
 import com.quantsim.dto.GameDtos.StartGameResponse;
 import com.quantsim.dto.GameDtos.StatusResponse;
@@ -62,7 +65,9 @@ import com.quantsim.service.MarketDataService.StockData;
 import com.quantsim.service.OrderService.FillSummary;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GameService {
@@ -82,6 +87,10 @@ public class GameService {
     private final FeeCalculator feeCalculator;
     private final OrderService orderService;
     private final NewsService newsService;
+    private final BiasAnalysisService biasAnalysisService;
+    private final com.quantsim.repository.EventScenarioRepository eventScenarioRepository;
+    private final com.quantsim.repository.EventTimelineRepository eventTimelineRepository;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final GameProperties props;
 
     public static final ZoneId GAME_ZONE = ZoneId.of("Asia/Shanghai");
@@ -115,9 +124,15 @@ public class GameService {
         if (realRules && market != Market.STOCK) {
             throw new BusinessException("真实规则（T+1/涨跌停）仅支持 A股, 请先选定市场");
         }
+        // 限制条件 (可选): 笔数上限 / 强制交易理由, 开局固化
+        Integer maxTrades = request.maxTrades();
+        if (maxTrades != null && (maxTrades < 1 || maxTrades > 50)) {
+            throw new BusinessException("交易笔数上限须在 1~50 之间");
+        }
+        boolean requireReason = Boolean.TRUE.equals(request.requireReason());
 
         Map<Long, Long> counts = eligibleCounts();
-        List<Stock> allStocks = stockRepository.findAll();
+        List<Stock> allStocks = stockRepository.findByHiddenFalse();
         Map<Long, Market> marketById = allStocks.stream()
                 .collect(Collectors.toMap(Stock::getStockId, Stock::getMarket));
         List<Long> eligible = filterEligible(counts, marketById, market);
@@ -144,25 +159,31 @@ public class GameService {
         ThreadLocalRandom random = ThreadLocalRandom.current();
 
         if ("PORTFOLIO".equals(mode)) {
-            return startPortfolio(user, eligible, marketById, counts, aiLevel, advanced, realRules, random);
+            return withConstraints(
+                    startPortfolio(user, eligible, marketById, counts, aiLevel, advanced, realRules, random),
+                    maxTrades, requireReason);
         }
         if ("SURVIVAL".equals(mode)) {
             // 熊市生存: 专挑历史上买入持有亏得最惨的窗口, 目标是跑赢基准 (亏得比它少)
             long[] pick = pickCrashWindow(eligible, random);
             LocalDate crashStart = marketData.load(pick[0]).prices().get((int) pick[1]).getTradeDate();
-            return persistSession(user, List.of(pick[0]), crashStart, aiLevel, "SURVIVAL", advanced, realRules, null);
+            return withConstraints(
+                    persistSession(user, List.of(pick[0]), crashStart, aiLevel, "SURVIVAL", advanced, realRules, null),
+                    maxTrades, requireReason);
         }
 
         Long stockId = eligible.get(random.nextInt(eligible.size()));
         int startIdx = randomStartIdx(counts.get(stockId), random);
         LocalDate startDate = marketData.load(stockId).prices().get(startIdx).getTradeDate();
-        return persistSession(user, List.of(stockId), startDate, aiLevel, "CLASSIC", advanced, realRules, null);
+        return withConstraints(
+                persistSession(user, List.of(stockId), startDate, aiLevel, "CLASSIC", advanced, realRules, null),
+                maxTrades, requireReason);
     }
 
     /** 行业筛选候选: 去重排序, 只含有行业标注的标的 (前端按所选市场二次过滤)。 */
     @Transactional(readOnly = true)
     public List<com.quantsim.dto.GameDtos.IndustryOption> listIndustries() {
-        return stockRepository.findAll().stream()
+        return stockRepository.findByHiddenFalse().stream()
                 .filter(st -> st.getIndustry() != null && !st.getIndustry().isBlank())
                 .map(st -> new com.quantsim.dto.GameDtos.IndustryOption(
                         st.getIndustry(), st.getMarket().name()))
@@ -189,19 +210,23 @@ public class GameService {
         }
     }
 
-    /** 每日挑战 / 房间等确定性开局: 由调用方指定标的与起始日。 */
+    /**
+     * 每日挑战 / 房间等确定性开局: 由调用方指定标的与起始日。
+     * realRules 由调用方给定且全员一致 (每日挑战固定 false 保证榜单可比,
+     * 房间按建房配置, 事件回放按场景配置); advanced 一律关闭。
+     */
     @Transactional
     public StartGameResponse startGameAt(User user, Long stockId, LocalDate startDate,
-                                         AiLevel aiLevel, String mode, LocalDate challengeDate) {
-        // 竞技对局不开真实规则: 全员同规则才可比
-        return persistSession(user, List.of(stockId), startDate, aiLevel, mode, false, false, challengeDate);
+                                         AiLevel aiLevel, String mode, boolean realRules,
+                                         LocalDate challengeDate) {
+        return persistSession(user, List.of(stockId), startDate, aiLevel, mode, false, realRules, challengeDate);
     }
 
     /** 供确定性开局挑选标的: 合格标的按 stockId 排序 + 指定随机源。 */
     @Transactional(readOnly = true)
     public long[] pickDeterministic(Market market, Random random) {
         Map<Long, Long> counts = eligibleCounts();
-        Map<Long, Market> marketById = stockRepository.findAll().stream()
+        Map<Long, Market> marketById = stockRepository.findByHiddenFalse().stream()
                 .collect(Collectors.toMap(Stock::getStockId, Stock::getMarket));
         List<Long> eligible = filterEligible(counts, marketById, market).stream()
                 .sorted()
@@ -227,6 +252,8 @@ public class GameService {
         int required = props.getMinHistoryDays() + props.getTotalTicks() + 1;
         return counts.entrySet().stream()
                 .filter(e -> e.getValue() >= required)
+                // marketById 来自 findByHiddenFalse: 不在表里的就是 hidden 场景标的, 全市场随机也不能抽中
+                .filter(e -> marketById.containsKey(e.getKey()))
                 .filter(e -> market == null || marketById.get(e.getKey()) == market)
                 .map(Map.Entry::getKey)
                 .toList();
@@ -353,7 +380,25 @@ public class GameService {
                 stock.getMarket().name(), stock.getMarket().getLotSize(),
                 BlindDates.mask(session, startDate),
                 props.getInitialCash(), props.getTotalTicks(), aiLevel.name(),
-                mode, advanced, realRules, stocks, session.getStatus().name());
+                mode, advanced, realRules, stocks, session.getStatus().name(),
+                null, false);
+    }
+
+    /**
+     * 开局后补写限制条件 (同事务, 托管实体提交时落库)。
+     * 不塞进 persistSession 的参数列表: 竞技入口 (每日/房间/事件) 不支持限制条件。
+     */
+    private StartGameResponse withConstraints(StartGameResponse res, Integer maxTrades, boolean requireReason) {
+        if (maxTrades == null && !requireReason) {
+            return res;
+        }
+        GameSession session = sessionRepository.findById(res.sessionId()).orElseThrow();
+        session.setMaxTrades(maxTrades);
+        session.setRequireReason(requireReason);
+        return new StartGameResponse(res.sessionId(), res.stockCode(), res.stockName(), res.market(),
+                res.lotSize(), res.startDate(), res.initialCash(), res.totalTicks(), res.aiLevel(),
+                res.mode(), res.advanced(), res.realRules(), res.stocks(), res.status(),
+                maxTrades, requireReason);
     }
 
     /** 用于恢复/接管已有对局 (房间/每日挑战): 把会话描述成开局响应。 */
@@ -382,7 +427,7 @@ public class GameService {
                 BlindDates.mask(session, session.getStartDate()),
                 session.getInitialCash(), props.getTotalTicks(),
                 levelName, session.getMode(), session.isAdvanced(), session.isRealRules(), stocks,
-                session.getStatus().name());
+                session.getStatus().name(), session.getMaxTrades(), session.isRequireReason());
     }
 
     @Transactional(readOnly = true)
@@ -572,15 +617,44 @@ public class GameService {
             throw new BusinessException("数量必须为 " + lotSize + " 的整数倍（整手交易）");
         }
 
+        // 限制条件: 笔数上限 (挂单成交同计) 与强制理由
+        if (session.getMaxTrades() != null
+                && transactionRepository.countBySessionId(sessionId) >= session.getMaxTrades()) {
+            throw new BusinessException("本局交易笔数已达上限 " + session.getMaxTrades() + " 笔");
+        }
+        String reason = sanitizeReason(request.reason());
+        if (session.isRequireReason() && (reason == null || reason.isEmpty())) {
+            throw new BusinessException("本局开启了交易日志: 请写一句交易理由再下单");
+        }
+
         String error = tradeEngine.validate(session, account, stockId, direction, price, shares);
         if (error != null) {
             throw new BusinessException(error);
         }
-        BigDecimal fee = tradeEngine.execute(session, account, stockId, direction, price, shares);
+        BigDecimal fee = tradeEngine.execute(session, account, stockId, direction, price, shares, reason);
         accountRepository.save(account);
 
         return new TradeResponse(account.getCashBalance(),
-                account.getHoldingShares(), account.getHoldingCost(), fee);
+                account.getHoldingShares(), account.getHoldingCost(), fee,
+                tradesRemaining(session));
+    }
+
+    /** 理由只留可见字符 (去控制符), 截 100 字; 渲染安全由前端 textContent 保证。 */
+    private String sanitizeReason(String reason) {
+        if (reason == null) {
+            return null;
+        }
+        String cleaned = reason.replaceAll("\\p{Cntrl}", "").trim();
+        return cleaned.length() > 100 ? cleaned.substring(0, 100) : cleaned;
+    }
+
+    /** 剩余可交易笔数 (无上限返回 null)。 */
+    private Integer tradesRemaining(GameSession session) {
+        if (session.getMaxTrades() == null) {
+            return null;
+        }
+        long used = transactionRepository.countBySessionId(session.getSessionId());
+        return (int) Math.max(0, session.getMaxTrades() - used);
     }
 
     // ---------- 挂单 ----------
@@ -671,6 +745,13 @@ public class GameService {
             holdRisk = riskMetrics(holdCurve);
         }
         String styleTag = styleTag(session, sd);
+        List<TradeTransaction> allTxs =
+                transactionRepository.findBySessionIdOrderByCreatedAtAsc(session.getSessionId());
+        BiasReport biasReport = computeAndStoreBias(session, allTxs);
+        // 交易日志: 理由 vs 结果 (只有写过理由的流水才有行)
+        List<GameDtos.JournalEntry> journal = biasAnalysisService.journal(session, allTxs, marketData::load);
+        // 事件回放: 结算揭晓场景与大事记 (进行中绝不下发, 文本会暴露真实时间)
+        GameDtos.EventReveal eventReveal = eventReveal(session);
 
         session.setStatus(GameSession.Status.SETTLED);
         session.setFinalReturnRate(returnRate);
@@ -687,7 +768,67 @@ public class GameService {
                 finalAssets, returnRate, aiFinal, aiReturn, holdReturn, maCrossReturn, dcaReturn,
                 risk, holdRisk, account.getInterestTotal(), curve, holdCurve,
                 predictionDays, styleTag, sd.stock().getCode(), sd.stock().getName(),
-                award.earned(), award.winStreak());
+                award.earned(), award.winStreak(), biasReport, journal, eventReveal);
+    }
+
+    /** 事件回放结算揭晓: 场景名 + 真实窗口 + 整段大事记 (给足上下文, 不只截对局窗口)。 */
+    private GameDtos.EventReveal eventReveal(GameSession session) {
+        if (!"EVENT".equals(session.getMode()) || session.getScenarioId() == null) {
+            return null;
+        }
+        return eventScenarioRepository.findById(session.getScenarioId())
+                .map(sc -> new GameDtos.EventReveal(sc.getNameZh(), sc.getNameEn(),
+                        session.getStartDate(), session.getCurrentTradeDate(),
+                        eventTimelineRepository.findByScenarioIdOrderByEventDateAsc(sc.getId()).stream()
+                                .map(ti -> new GameDtos.TimelineItemDto(ti.getEventDate(), ti.getSeverity(),
+                                        ti.getTitleZh(), ti.getTitleEn(), ti.getBodyZh(), ti.getBodyEn()))
+                                .toList()))
+                .orElse(null);
+    }
+
+    /** 行为偏差诊断: 结算时按流水算一次并 JSON 落库 (复读走存储, 不重算防口径漂移)。 */
+    private BiasReport computeAndStoreBias(GameSession session, List<TradeTransaction> txs) {
+        try {
+            BiasReport report = biasAnalysisService.analyze(session, txs, marketData::load);
+            session.setBiasReport(objectMapper.writeValueAsString(report));
+            return report;
+        } catch (Exception e) {
+            // 诊断是增值信息, 失败不应拖垮结算主流程
+            log.warn("偏差诊断失败 session={}", session.getSessionId(), e);
+            return null;
+        }
+    }
+
+    /** 已结算对局的诊断报告 (存储 JSON 反序列化)。 */
+    @Transactional(readOnly = true)
+    public BiasReport getBiasReport(Long sessionId) {
+        GameSession session = getSession(sessionId);
+        if (session.getStatus() != GameSession.Status.SETTLED) {
+            throw new BusinessException("对局尚未结算, 暂无诊断报告");
+        }
+        if (session.getBiasReport() == null) {
+            return new BiasReport(0, List.of());
+        }
+        try {
+            return objectMapper.readValue(session.getBiasReport(), BiasReport.class);
+        } catch (Exception e) {
+            throw new BusinessException("诊断报告解析失败");
+        }
+    }
+
+    /** 交易流水下发 (复盘用): 竞技对局进行中日期脱敏、标的匿名, 结算后原样。 */
+    @Transactional(readOnly = true)
+    public List<TransactionInfo> listTransactions(Long sessionId) {
+        GameSession session = getSession(sessionId);
+        return transactionRepository.findBySessionIdOrderByCreatedAtAsc(sessionId).stream()
+                .map(tx -> {
+                    long stockId = tx.getStockId() != null ? tx.getStockId() : session.getStockId();
+                    String code = BlindDates.maskCode(session, marketData.load(stockId).stock().getCode());
+                    return new TransactionInfo(tx.getTxId(), BlindDates.mask(session, tx.getTradeDate()),
+                            tx.getDirection().name(), tx.getPrice(), tx.getShares(), tx.getFee(), code,
+                            tx.getReason());
+                })
+                .toList();
     }
 
     /**
@@ -741,7 +882,8 @@ public class GameService {
         replayAccount(session, account);
         accountRepository.save(account);
         return new TradeResponse(account.getCashBalance(),
-                account.getHoldingShares(), account.getHoldingCost(), BigDecimal.ZERO);
+                account.getHoldingShares(), account.getHoldingCost(), BigDecimal.ZERO,
+                tradesRemaining(session));
     }
 
     /** 已结算对局的风险指标 (LLM 复盘上下文用); 旧组合流水缺 stock_id 时返回 null。 */
