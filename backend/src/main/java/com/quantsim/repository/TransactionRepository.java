@@ -12,6 +12,9 @@ public interface TransactionRepository extends JpaRepository<TradeTransaction, L
 
     List<TradeTransaction> findBySessionIdOrderByCreatedAtAsc(Long sessionId);
 
+    /** 限制条件玩法: 本局已成交笔数 (手动交易与挂单成交同计) */
+    long countBySessionId(Long sessionId);
+
     /** T+1 校验用: 查某交易日的流水 (量小, 标的过滤在内存做) */
     List<TradeTransaction> findBySessionIdAndTradeDate(Long sessionId, java.time.LocalDate tradeDate);
 

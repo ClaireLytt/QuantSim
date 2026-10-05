@@ -51,6 +51,10 @@ public class Room {
     @Column(name = "max_players", nullable = false)
     private int maxPlayers = 8;
 
+    /** A股真实规则 (T+1/涨跌停): 建房固化, 全员同规则才可比 */
+    @Column(name = "real_rules", nullable = false)
+    private boolean realRules = false;
+
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 

@@ -130,6 +130,22 @@ public class GameController {
         return gameService.settle(sessionId);
     }
 
+    /** 行为偏差诊断报告 (已结算对局; 结算时已落库, 这里只读) */
+    @GetMapping("/{sessionId}/bias")
+    public com.quantsim.dto.GameDtos.BiasReport bias(@PathVariable Long sessionId,
+                                                     HttpServletRequest http) {
+        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+        return gameService.getBiasReport(sessionId);
+    }
+
+    /** 交易流水 (复盘用, 竞技对局进行中日期脱敏/标的匿名) */
+    @GetMapping("/{sessionId}/transactions")
+    public List<com.quantsim.dto.GameDtos.TransactionInfo> transactions(@PathVariable Long sessionId,
+                                                                        HttpServletRequest http) {
+        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+        return gameService.listTransactions(sessionId);
+    }
+
     @PostMapping("/{sessionId}/orders")
     public OrderInfo placeOrder(@PathVariable Long sessionId,
                                 @Valid @RequestBody PlaceOrderRequest request,

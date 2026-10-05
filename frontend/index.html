@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuantSim 虚拟炒股</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=20261004p">
+  <link rel="stylesheet" href="style.css?v=20261006h">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -56,6 +56,14 @@
       </label>
       <label id="real-wrap" class="adv-wrap" hidden data-i18n-title="real.title" title="A股真实规则: 当日买入不可卖 (T+1), 涨停买不进、跌停卖不出">
         <input type="checkbox" id="real-toggle"> <span data-i18n="real.label">真实规则</span>
+      </label>
+      <select id="constraint-select" data-i18n-title="start.constraints.title" title="限制条件: 逼自己换一种思路交易">
+        <option value="" data-i18n="start.constraints.none">无限制</option>
+        <option value="5" data-i18n="start.constraints.five">限 5 笔</option>
+        <option value="10" data-i18n="start.constraints.ten">限 10 笔</option>
+      </select>
+      <label id="reason-wrap" class="adv-wrap" data-i18n-title="start.constraints.reasonTitle" title="每笔交易写一句理由, 结算后和实际结果对照">
+        <input type="checkbox" id="reason-toggle"> <span data-i18n="start.constraints.reason">交易日志</span>
       </label>
       <button id="btn-start" class="primary" data-i18n="btn.start">开始新对局</button>
       <button id="btn-help" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
@@ -108,10 +116,12 @@
         <h2 data-i18n="trade.title">交易面板</h2>
         <label><span data-i18n="trade.price">价格 </span><input id="trade-price" type="number" step="0.01" min="0" readonly></label>
         <label><span data-i18n="trade.shares">数量 </span><input id="trade-shares" type="number" step="100" min="100" value="100"></label>
+        <label id="trade-reason-wrap" hidden><span data-i18n="trade.reason.label">理由 </span><input id="trade-reason" type="text" maxlength="100" data-i18n-placeholder="trade.reason.placeholder" placeholder="一句话说明为什么交易"></label>
         <div class="trade-buttons">
           <button id="btn-buy" class="buy" data-i18n="trade.buy">买入</button>
           <button id="btn-sell" class="sell" data-i18n="trade.sell">卖出</button>
         </div>
+        <p class="hint" id="trades-left" hidden></p>
         <p class="hint" id="price-range" data-i18n="trade.rangeEmpty">按当日收盘价成交: --</p>
         <p class="hint" id="t1-hint" hidden></p>
       </div>
@@ -186,6 +196,11 @@
         <div id="settle-curve-box" hidden>
           <p class="hint"><span class="term" data-term="equitycurve" data-i18n="settle.curveTitle">本局资金曲线</span></p>
           <div id="settle-curve"></div>
+        </div>
+        <div id="settle-event" class="settle-event" hidden>
+          <h3 id="settle-event-name"></h3>
+          <p class="hint" id="settle-event-window"></p>
+          <ul id="settle-event-timeline" class="event-timeline"></ul>
         </div>
         <button id="btn-recap" class="ghost" hidden data-i18n="recap.btn">复盘报告</button>
         <button id="btn-review" class="ghost" hidden data-i18n="review.ask">AI 复盘本局</button>
@@ -354,6 +369,10 @@
         <span class="hint"><span data-i18n="collect.title">称号图鉴</span> <span id="collect-pct"></span></span>
         <div id="title-list" class="badge-list"></div>
       </div>
+      <div class="profile-bias">
+        <span class="hint"><span data-i18n="bp.title">行为偏差档案</span> <span class="hint" data-i18n="bp.sub">（跨对局统计，结算越多越准）</span></span>
+        <div id="bias-profile-box"></div>
+      </div>
       <div class="profile-gear">
         <span class="hint" data-i18n="gear.title">我的装备</span><span class="hint gear-hint" data-i18n="gear.hint">点击穿戴，最多同时装备 2 件</span>
         <div id="gear-list" class="gear-list"></div>
@@ -467,6 +486,61 @@
   <div id="view-option" hidden>
   <section class="academy-panel center-panel">
     <h2><span data-i18n="opt.title">期权入门沙盒</span> <span class="sub" data-i18n="opt.sub">买一张看涨/看跌期权，拖动滑杆看到期损益——亏损有底、收益看方向，这就是期权</span></h2>
+
+    <div id="og-intro" class="card rb-card">
+      <p class="hint" data-i18n="og.introText">30 个交易日，10 万本金。盯着标的走势买看涨/看跌期权——选行权价、选到期日，每天眼睁睁看权利金随时间衰减；财报日前后波动翻倍，是风险也是机会。到期自动结算，中途也可平仓离场。亏损永远有底（权利金），收益却能放大数倍——用小钱体会期权的杠杆与时间。</p>
+      <p class="hint" id="og-best" hidden></p>
+      <button id="btn-og-start" class="primary" data-i18n="og.start">🎯 开始 30 日挑战</button>
+    </div>
+
+    <div id="og-game" class="card rb-card" hidden>
+      <div class="rb-status">
+        <span><span data-i18n="og.day">交易日</span> <strong id="og-day">--</strong></span>
+        <span><span data-i18n="og.cash">现金</span> <strong id="og-cash">--</strong></span>
+        <span><span data-i18n="og.posValue">持仓市值</span> <strong id="og-pos-value">--</strong></span>
+        <span><span data-i18n="og.total">总资产</span> <strong id="og-total">--</strong></span>
+        <span><span data-i18n="og.spot">标的现价</span> <strong id="og-spot">--</strong></span>
+      </div>
+      <p id="og-news" class="hint" hidden></p>
+      <div id="og-chart"></div>
+      <div class="og-trade">
+        <div class="trade-buttons">
+          <button id="btn-og-call" class="buy" data-i18n="opt.call">看涨 Call</button>
+          <button id="btn-og-put" class="sell" data-i18n="opt.put">看跌 Put</button>
+        </div>
+        <label><span data-i18n="og.strike">行权价</span>
+          <select id="og-strike"></select>
+        </label>
+        <label><span data-i18n="og.expiry">到期</span>
+          <select id="og-expiry">
+            <option value="5" data-i18n="og.d5">5 天</option>
+            <option value="10" selected data-i18n="og.d10">10 天</option>
+            <option value="20" data-i18n="og.d20">20 天</option>
+          </select>
+        </label>
+        <label><span data-i18n="og.qty">张数</span>
+          <input id="og-qty" type="number" min="1" max="10" step="1" value="1">
+        </label>
+        <span class="hint"><span data-i18n="og.cost">成本</span> <b id="og-cost">--</b></span>
+        <button id="btn-og-buy" class="primary" data-i18n="og.buy">买入</button>
+      </div>
+      <table id="og-positions">
+        <thead><tr><th data-i18n="og.colType">类型</th><th data-i18n="og.colStrike">行权价</th><th data-i18n="og.colLeft">剩余</th><th data-i18n="og.colQty">张</th><th data-i18n="og.colCost">成本</th><th data-i18n="og.colValue">现值</th><th data-i18n="og.colPnl">盈亏</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="rb-actions">
+        <button id="btn-og-next" class="primary" data-i18n="og.next">➡ 推进一天</button>
+        <button id="btn-og-quit" class="ghost" data-i18n="og.quit">提前结束</button>
+      </div>
+    </div>
+
+    <div id="og-result" class="card rb-card" hidden>
+      <h3 id="og-result-title"></h3>
+      <p id="og-result-detail" class="hint"></p>
+      <button id="btn-og-again" class="primary" data-i18n="og.again">再来一局</button>
+    </div>
+
+    <h3 class="section-title" data-i18n="og.teachTitle">损益图练习区</h3>
     <div class="card opt-card">
       <div class="opt-controls">
         <div class="trade-buttons">
@@ -482,6 +556,125 @@
       <div id="opt-chart"></div>
       <p id="opt-verdict" class="hint"></p>
       <p class="hint" data-i18n="opt.note">教学演示：现价固定 100，不接入对局。期权买方最大亏损 = 权利金，收益随方向放大——这是和买股票最大的区别。</p>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-tape" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="tp.title">闪电盘口</span> <span class="sub" data-i18n="tp.sub">60 秒实时盘口，做多做空随你，但每一笔都要交手续费——看看快手能不能跑赢佣金</span></h2>
+
+    <div id="tp-intro" class="card rb-card">
+      <p class="hint" data-i18n="tp.introText">价格每 0.25 秒跳一次，持续 60 秒。三个键：做多、做空、平仓——满仓进出，每笔收 0.05% 手续费。行情里埋着几段趋势，也有大量噪声：追着每个波动打，手续费会把你磨死；等到真趋势再出手，一两笔就够。这是对「过度交易」最直观的一课。</p>
+      <p class="hint" id="tp-best" hidden></p>
+      <button id="btn-tp-start" class="primary" data-i18n="tp.start">⚡ 开盘 60 秒</button>
+    </div>
+
+    <div id="tp-game" class="card rb-card" hidden>
+      <div class="rb-status">
+        <span><span data-i18n="tp.timeLeft">剩余</span> <strong id="tp-time">60s</strong></span>
+        <span><span data-i18n="tp.price">价格</span> <strong id="tp-price">--</strong></span>
+        <span><span data-i18n="tp.pos">持仓</span> <strong id="tp-pos">--</strong></span>
+        <span><span data-i18n="tp.pnl">浮动盈亏</span> <strong id="tp-upnl">--</strong></span>
+        <span><span data-i18n="tp.equity">净值</span> <strong id="tp-equity">--</strong></span>
+      </div>
+      <div id="tp-chart"></div>
+      <div class="tp-actions">
+        <button id="btn-tp-long" class="buy" data-i18n="tp.long">做多</button>
+        <button id="btn-tp-flat" data-i18n="tp.flat">平仓</button>
+        <button id="btn-tp-short" class="sell" data-i18n="tp.short">做空</button>
+      </div>
+      <p class="hint"><span data-i18n="tp.trades">已交易</span> <b id="tp-trades">0</b> <span data-i18n="tp.fees">笔 · 手续费累计</span> <b id="tp-fees">0</b></p>
+    </div>
+
+    <div id="tp-result" class="card rb-card" hidden>
+      <h3 id="tp-result-title"></h3>
+      <p id="tp-result-detail" class="hint"></p>
+      <p id="tp-result-insight" class="hint"></p>
+      <button id="btn-tp-again" class="primary" data-i18n="tp.again">再开一盘</button>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-bubble" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="bb.title">泡沫大亨</span> <span class="sub" data-i18n="bb.sub">换个位置看市场：你来坐庄，吸筹拉抬讲故事，能不能全身而退？</span></h2>
+
+    <div id="bb-intro" class="card rb-card">
+      <p class="hint" data-i18n="bb.introText">60 个交易日，1000 万本金。低位悄悄吸筹 → 拉抬点火 → 发利好把散户骗进来 → 高位出货。拉得越猛散户越疯，监管盯得也越紧；出货太急会把价格砸在自己手里。玩过庄家，你就懂散户为什么亏钱。</p>
+      <p class="hint" id="bb-best"></p>
+      <button id="btn-bb-start" class="primary" data-i18n="bb.start">🐳 开始坐庄</button>
+    </div>
+
+    <div id="bb-game" class="card rb-card" hidden>
+      <div class="rb-status">
+        <span><span data-i18n="bb.day">交易日</span> <strong id="bb-day">--</strong></span>
+        <span><span data-i18n="bb.cash">资金</span> <strong id="bb-cash">--</strong></span>
+        <span><span data-i18n="bb.pos">持仓</span> <strong id="bb-pos">--</strong></span>
+        <span><span data-i18n="bb.cost">成本</span> <strong id="bb-cost">--</strong></span>
+        <span><span data-i18n="bb.price">现价</span> <strong id="bb-price">--</strong></span>
+        <span><span data-i18n="bb.pnl">浮盈</span> <strong id="bb-pnl">--</strong></span>
+      </div>
+      <div class="bb-meters">
+        <span class="bb-meter"><span data-i18n="bb.heat">🔥 散户热度</span><span class="bb-bar"><i id="bb-heat-bar"></i></span><b id="bb-heat-val">0</b></span>
+        <span class="bb-meter"><span data-i18n="bb.susp">🚨 监管嫌疑</span><span class="bb-bar susp"><i id="bb-susp-bar" class="warn"></i></span><b id="bb-susp-val">0</b></span>
+      </div>
+      <div id="bb-chart" class="lab-chart"></div>
+      <div id="bb-result" class="bb-result" hidden>
+        <div id="bb-result-title" class="bb-result-title"></div>
+        <div id="bb-result-pct" class="bb-result-pct"></div>
+      </div>
+      <div class="bb-actions">
+        <button id="btn-bb-accum"><span data-i18n="bb.act.accum">🤫 吸筹</span><small data-i18n="bb.desc.accum">悄悄买，动静小</small></button>
+        <button id="btn-bb-pump"><span data-i18n="bb.act.pump">🚀 拉抬</span><small data-i18n="bb.desc.pump">猛买点火，引散户</small></button>
+        <button id="btn-bb-news"><span data-i18n="bb.act.news">📰 发利好</span><small data-i18n="bb.desc.news">花钱买热度，嫌疑大增</small></button>
+        <button id="btn-bb-dump" class="primary"><span data-i18n="bb.act.dump">📤 出货</span><small data-i18n="bb.desc.dump">卖给热情的散户</small></button>
+        <button id="btn-bb-wait"><span data-i18n="bb.act.wait">🫥 观望</span><small data-i18n="bb.desc.wait">热度嫌疑都退一退</small></button>
+      </div>
+      <ul id="bb-log" class="rb-log"></ul>
+      <button id="btn-bb-restart" class="ghost" hidden data-i18n="bb.restart">🔁 再坐一庄</button>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-reborn" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="rb.title">重生逆袭当首富</span> <span class="sub" data-i18n="rb.sub">重生成身无分文的穷小子，20 年内靠打工、做生意、竞拍资产滚成首富</span></h2>
+
+    <div id="rb-intro" class="card rb-card">
+      <p class="hint" data-i18n="rb.introText">每年 2 个行动点：打工稳赚小钱、做生意博大小、去拍卖行竞拍能生租金的资产；「过年」收租并触发随机事件。20 年后按身家封称号。</p>
+      <div class="rich-bar rb-gifts">
+        <span class="hint" data-i18n="rb.giftLabel">重生礼包</span>
+        <button class="ghost small" id="btn-rb_fund"><span data-i18n="rb.gift.fund">本金翻倍</span> · 300</button>
+        <button class="ghost small" id="btn-rb_year"><span data-i18n="rb.gift.year">多活五年</span> · 200</button>
+        <button class="ghost small" id="btn-rb_eye"><span data-i18n="rb.gift.eye">黄金眼</span> · 150</button>
+      </div>
+      <p class="hint" id="rb-gift-hint"></p>
+      <button id="btn-rb-start" class="primary" data-i18n="rb.start">👶 开始重生</button>
+      <p class="hint" id="rb-best"></p>
+      <div id="rb-hall"></div>
+    </div>
+
+    <div id="rb-game" class="card rb-card" hidden>
+      <div class="rb-status">
+        <span><span data-i18n="rb.year">第几年</span> <strong id="rb-year">--</strong></span>
+        <span><span data-i18n="rb.ap">行动点</span> <strong id="rb-ap">--</strong></span>
+        <span><span data-i18n="rb.cash">现金</span> <strong id="rb-cash">--</strong></span>
+        <span><span data-i18n="rb.rentY">年租金</span> <strong id="rb-rent">--</strong></span>
+        <span><span data-i18n="rb.worth">身家</span> <strong id="rb-worth">--</strong></span>
+        <span><span data-i18n="rb.careerLabel">职业</span> <strong id="rb-career">--</strong></span>
+      </div>
+      <p class="hint" id="rb-destiny"></p>
+      <p class="hint" id="rb-forecast"></p>
+      <div id="rb-assets" class="rb-assets"></div>
+      <ul id="rb-log" class="rb-log"></ul>
+      <div class="rb-actions">
+        <button id="btn-rb-work" data-i18n="rb.work">💼 打工</button>
+        <button id="btn-rb-biz" data-i18n="rb.biz">🛒 做生意</button>
+        <button id="btn-rb-auction" data-i18n="rb.auction">🔨 拍卖行</button>
+        <button id="btn-rb-next" class="primary" data-i18n="rb.next">🧧 过年 ➜</button>
+      </div>
+      <button id="btn-rb-restart" class="ghost" hidden data-i18n="rb.restart">🔁 再来一世</button>
     </div>
   </section>
   </div>
@@ -513,6 +706,15 @@
   </div>
 
   <div id="view-home" hidden>
+  <section class="academy-panel center-panel">
+    <div class="card tasks-card">
+      <div class="tasks-head"><b data-i18n="todo.title">📋 今日任务</b><span class="hint" id="tasks-streak"></span></div>
+      <button id="btn-task-signin" class="task-row"></button>
+      <button id="btn-task-guess" class="task-row"></button>
+      <button id="btn-task-settle" class="task-row"></button>
+      <button id="btn-task-chest" class="primary"></button>
+    </div>
+  </section>
   <section class="academy-panel">
     <h2><span data-i18n="senti.title">市场情绪温度计</span> <span class="sub" data-i18n="senti.sub">全部标的的涨跌广度、近期动量与波动聚合成一个「恐慌 ↔ 贪婪」读数，每日变化</span></h2>
     <div class="card senti-card">
@@ -523,6 +725,33 @@
   <section class="academy-panel">
     <h2><span data-i18n="home.title">功能总览</span> <span class="sub" data-i18n="home.sub">所有玩法一目了然，点卡片直达</span></h2>
     <div id="home-cards" class="home-cards"></div>
+  </section>
+  </div>
+
+  <div id="view-event" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="event.title">事件回放</span> <span class="sub" data-i18n="event.sub">穿越回真实历史时刻盲测操盘——不知道年份、不知道标的，结算才揭晓你经历了什么</span></h2>
+    <section class="card daily-card">
+      <p class="hint" data-i18n="event.blindHint">服务端随机抽取一段著名历史行情（股灾、熔断、危机…）。全程匿名盲打，K 线日期也会被平移，结算时揭晓场景、标的与大事记时间线。</p>
+      <label><span data-i18n="event.pick.market">市场偏好</span>
+        <select id="event-market">
+          <option value="" data-i18n="event.pick.any">随机</option>
+          <option value="STOCK" data-i18n="market.stock">A股</option>
+          <option value="US" data-i18n="market.us">美股</option>
+        </select>
+      </label>
+      <label><span data-i18n="event.pick.difficulty">难度偏好</span>
+        <select id="event-difficulty">
+          <option value="" data-i18n="event.pick.any">随机</option>
+          <option value="NORMAL" data-i18n="ailevel.normal">普通</option>
+          <option value="HARD" data-i18n="ailevel.hard">困难</option>
+        </select>
+      </label>
+      <div class="daily-actions">
+        <button id="btn-event-start" class="primary" data-i18n="event.start">穿越开始</button>
+      </div>
+      <p id="event-msg" class="hint" hidden></p>
+    </section>
   </section>
   </div>
 
@@ -571,6 +800,8 @@
             <option value="HELL" data-i18n="ailevel.hell">地狱 AI</option>
           </select>
         </label>
+        <label class="room-real-row"><input type="checkbox" id="room-real-toggle">
+          <span data-i18n="room.realRules">真实规则（T+1·涨跌停，仅 A股）</span></label>
         <button id="btn-room-create" class="primary" data-i18n="room.createBtn">创建并生成房间码</button>
         <p class="hint auth-switch"><span data-i18n="room.haveCode">拿到朋友的房间码了？</span><a href="#" id="link-room-join" data-i18n="room.toJoin">加入房间</a></p>
       </section>
@@ -646,20 +877,41 @@
   </div>
 
   <div id="view-guess" hidden>
-  <section class="academy-panel">
+  <section class="academy-panel center-panel">
     <h2><span data-i18n="guess.section">K 线猜涨跌</span> <span class="sub" data-i18n="guess.sectionHint">看图猜第二天涨还是跌，连对越多分越高，练出盘感。</span></h2>
     <section class="card guess-card">
       <div class="guess-head">
+        <span id="rich-wealth-wrap" hidden><span data-i18n="rich.wealth">身家</span> <strong id="rich-wealth">--</strong></span>
+        <span id="rich-best-wrap" hidden><span data-i18n="rich.best">身家纪录</span> <strong id="rich-best">--</strong></span>
         <span><span data-i18n="guess.score">得分</span> <strong id="guess-score">0</strong></span>
         <span><span data-i18n="guess.streak">连击</span> <strong id="guess-streak">0</strong></span>
         <span><span data-i18n="guess.best">最佳连击</span> <strong id="guess-best">0</strong></span>
         <span><span data-i18n="guess.acc">命中率</span> <strong id="guess-acc">--</strong></span>
       </div>
-      <div id="guess-chart" class="guess-chart"></div>
+      <div id="guess-chart" class="guess-chart" hidden></div>
       <p id="guess-msg" class="guess-msg" data-i18n="guess.intro">点「开始」加载一段真实走势，然后猜第二天的涨跌。</p>
+      <div id="rich-bar" class="rich-bar" hidden>
+        <div class="rich-group">
+          <span class="hint" data-i18n="rich.stake">注金</span>
+          <button class="ghost small rich-stake" data-stake="10000" data-i18n="rich.s1">1万</button>
+          <button class="ghost small rich-stake active" data-stake="100000" data-i18n="rich.s10">10万</button>
+          <button class="ghost small rich-stake" data-stake="1000000" data-i18n="rich.s100">100万</button>
+          <button class="ghost small rich-stake" data-stake="-1" data-i18n="rich.allin">梭哈</button>
+        </div>
+        <div class="rich-group">
+          <span class="hint" data-i18n="rich.lev">杠杆</span>
+          <button class="ghost small rich-lev active" data-lev="1">×1</button>
+          <button class="ghost small rich-lev" data-lev="2">×2</button>
+          <button class="ghost small rich-lev" data-lev="5">×5</button>
+          <button class="ghost small rich-lev" data-lev="10">×10</button>
+        </div>
+      </div>
       <div class="guess-actions">
         <button id="btn-guess-start" class="primary" data-i18n="guess.start">开始</button>
-        <button id="btn-guess-daily" class="ghost" data-i18n="guess.daily">每日挑战</button>
+        <button id="btn-guess-daily" class="ghost" data-i18n="guess.daily">📅 每日挑战</button>
+        <button id="btn-guess-rich" class="ghost" data-i18n="rich.enter">💰 富豪场（高倍杠杆）</button>
+        <button id="btn-rich-exit" class="ghost" hidden data-i18n="rich.exit">收手离场</button>
+        <button id="btn-rich-reborn" class="primary" hidden data-i18n="rich.reborn">💸 破产重生</button>
         <button id="btn-guess-up" class="buy" hidden data-i18n="guess.up">看涨</button>
         <button id="btn-guess-down" class="sell" hidden data-i18n="guess.down">看跌</button>
       </div>
@@ -690,7 +942,7 @@
       <thead><tr><th data-i18n="lb.stock">股票</th><th data-i18n="cmp.strategy">策略</th><th data-i18n="arena.params">参数</th><th data-i18n="lb.return">收益率</th><th data-i18n="arena.sharpe">夏普</th><th data-i18n="me.playedAt">时间</th></tr></thead>
       <tbody></tbody>
     </table>
-    <p id="hist-empty" class="hint" hidden data-i18n="me.historyEmpty">暂无记录，先去玩一局吧。</p>
+    <p id="hist-empty" class="hint center-hint" hidden data-i18n="me.historyEmpty">暂无记录，先去玩一局吧。</p>
   </section>
   </div>
 
@@ -794,6 +1046,53 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 重生逆袭·拍卖行: 与 NPC 轮流叫价 -->
+  <div id="rb-auction-modal" class="modal-mask" hidden>
+    <div class="modal auth-modal" role="dialog" aria-labelledby="rb-auction-title">
+      <div class="modal-head">
+        <h2 id="rb-auction-title" data-i18n="rb.auctionTitle">🔨 拍卖行</h2>
+        <button id="btn-rb-pass" class="close" data-i18n-title="rb.pass" aria-label="放弃">✕</button>
+      </div>
+      <div class="modal-body rb-auction-body">
+        <h3 id="rb-lot-name">--</h3>
+        <p><span data-i18n="rb.lotRent">年租金：</span><b id="rb-lot-rent">--</b></p>
+        <p class="hint" id="rb-lot-est">--</p>
+        <p class="rb-price"><span data-i18n="rb.lotPrice">当前叫价：</span><b id="rb-lot-price">--</b>（<span id="rb-lot-holder">--</span>）</p>
+        <button id="btn-rb-bid" class="primary">--</button>
+        <p class="hint" data-i18n="rb.auctionHint">对手有自己的心理价位——抬过头就是接盘，放弃也是一种智慧。</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="rb-biz-modal" class="modal-mask" hidden>
+    <div class="modal auth-modal" role="dialog" aria-labelledby="rb-biz-title">
+      <div class="modal-head">
+        <h2 id="rb-biz-title" data-i18n="rb.bizTitle">🛒 选个行当</h2>
+        <button id="btn-rb-biz-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body rb-auction-body">
+        <p class="hint" id="rb-biz-forecast"></p>
+        <button id="btn-rb-biz0" class="rb-trade"></button>
+        <button id="btn-rb-biz1" class="rb-trade"></button>
+        <button id="btn-rb-biz2" class="rb-trade"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rb-choice-modal" class="modal-mask" hidden>
+    <div class="modal auth-modal" role="dialog" aria-labelledby="rb-choice-title">
+      <div class="modal-head">
+        <h2 id="rb-choice-title" data-i18n="rb.choiceTitle">⚖️ 人生抉择</h2>
+        <span></span>
+      </div>
+      <div class="modal-body rb-auction-body">
+        <p id="rb-choice-text"></p>
+        <button id="btn-rb-choice0" class="primary"></button>
+        <button id="btn-rb-choice1"></button>
       </div>
     </div>
   </div>
@@ -1097,6 +1396,26 @@
     </div>
   </div>
 
+  <div id="settle-modal" class="modal-mask" hidden>
+    <div class="modal settle-pop" role="dialog" aria-labelledby="settle-pop-title">
+      <div class="modal-head">
+        <h2 id="settle-pop-title" data-i18n="settle.pop.title">对局结束</h2>
+        <button id="btn-settle-pop-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body settle-pop-body">
+        <p class="settle-pop-return"><span id="settle-pop-return">--</span></p>
+        <p class="hint" data-i18n="settle.pop.returnLabel">本局收益率</p>
+        <p id="settle-pop-verdict" class="verdict"></p>
+        <p id="settle-pop-stock" class="hint"></p>
+        <p id="settle-pop-points" class="settle-pop-points" hidden></p>
+        <div class="settle-pop-actions">
+          <button id="btn-settle-pop-detail" class="primary" data-i18n="settle.pop.detail">查看完整结算</button>
+          <button id="btn-settle-pop-recap" class="ghost" data-i18n="recap.btn">复盘报告</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="recap-modal" class="modal-mask" hidden>
     <div class="modal recap-modal" role="dialog" aria-labelledby="recap-title">
       <div class="modal-head">
@@ -1111,7 +1430,18 @@
           <div class="recap-stat"><span class="hint" data-i18n="recap.stat.you">你的收益</span><strong id="recap-you">--</strong></div>
           <div class="recap-stat"><span class="hint" data-i18n="recap.stat.hold">买入持有</span><strong id="recap-hold">--</strong></div>
         </div>
+        <div id="recap-bias" class="recap-bias" hidden>
+          <h3 data-i18n="recap.bias.title">行为偏差诊断</h3>
+          <ul id="recap-bias-list" class="recap-verdicts"></ul>
+        </div>
         <ul id="recap-verdicts" class="recap-verdicts"></ul>
+        <div id="recap-journal" class="recap-journal" hidden>
+          <h3 data-i18n="recap.journal.title">交易日志：理由 vs 结果</h3>
+          <table id="recap-journal-table">
+            <thead><tr><th data-i18n="recap.journal.date">日期</th><th data-i18n="recap.journal.dir">方向</th><th data-i18n="recap.journal.reason">你的理由</th><th data-i18n="recap.journal.outcome">实际结果</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -1129,21 +1459,28 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261004j"></script>
+  <script src="i18n.js?v=20261006g"></script>
   <script src="glossary.js?v=20261002a"></script>
-  <script src="app.js?v=20261004i"></script>
-  <script src="auth.js?v=20261004d"></script>
-  <script src="academy.js?v=20261004c"></script>
+  <script src="app.js?v=20261006e"></script>
+  <script src="auth.js?v=20261005b"></script>
+  <script src="academy.js?v=20261005l"></script>
   <script src="lab.js?v=20261004a"></script>
   <script src="daily.js?v=20261002a"></script>
-  <script src="rooms.js?v=20261004b"></script>
+  <script src="event.js?v=20261006a"></script>
+  <script src="option.js?v=20261006a"></script>
+  <script src="biasprofile.js?v=20261006a"></script>
+  <script src="tape.js?v=20261006a"></script>
+  <script src="rooms.js?v=20261006a"></script>
   <script src="ranking.js?v=20261004a"></script>
-  <script src="sharecard.js?v=20260930a"></script>
+  <script src="sharecard.js?v=20261006a"></script>
   <script src="sharecode.js?v=20260930a"></script>
   <script src="heatmap.js?v=20260930a"></script>
   <script src="news.js?v=20260930a"></script>
   <script src="history.js?v=20261002a"></script>
-  <script src="home.js?v=20261004b"></script>
+  <script src="home.js?v=20261005b"></script>
   <script src="points.js?v=20261004c"></script>
+  <script src="reborn.js?v=20261005e"></script>
+  <script src="bubble.js?v=20261005d"></script>
+  <script src="tasks.js?v=20261005a"></script>
 </body>
 </html>

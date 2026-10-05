@@ -48,6 +48,22 @@ public class PointsController {
         return pointsService.redeem(CurrentUser.idOrNull(http), body.itemId());
     }
 
+    /** 重生逆袭天命奖励: 服务端只认每日首次 (任务位), earned=0 表示今天已领过。 */
+    @PostMapping("/reborn-claim")
+    public Map<String, Object> rebornClaim(HttpServletRequest http) {
+        Long userId = CurrentUser.idOrNull(http);
+        int earned = pointsService.awardReborn(userId);
+        return Map.of("earned", earned, "state", pointsService.state(userId));
+    }
+
+    /** 今日任务宝箱: 每日首次 +30, earned=0 表示已领。 */
+    @PostMapping("/chest")
+    public Map<String, Object> chest(HttpServletRequest http) {
+        Long userId = CurrentUser.idOrNull(http);
+        int earned = pointsService.awardChest(userId);
+        return Map.of("earned", earned, "state", pointsService.state(userId));
+    }
+
     /** 仅「时间加速」走这里显式扣; 预知卡/后悔药在对局端点内部扣。 */
     @PostMapping("/use-item")
     public PointsState useItem(@RequestBody UseItemRequest body, HttpServletRequest http) {

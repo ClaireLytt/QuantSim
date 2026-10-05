@@ -1,65 +1,77 @@
 :root {
-  --surface: #111116;
-  --surface-2: #16161d;
-  --panel: #1c1d26;
-  --panel-raised: #262734;
-  --border: #2d2e3d;
-  --border-strong: #3d3f54;
-  --text: #ecebf3;
-  --text-muted: #9d9db2;
-  --up: #e0524f;
-  --down: #26a69a;
-  --good: #4fce8d;
-  --bad: #ef6f6b;
-  --ma5: #d29a2c;
-  --ma20: #8a8df2;
-  --accent: #8a8df2;
-  --accent-strong: #6d71ee;
-  --accent-2: #5dd6c8;
-  --accent-soft: #9a7ff0;
-  --on-accent: #14141c;
-  --warn: #e6b450;
-  --mask: rgba(10, 12, 18, .7);
-  --shadow: 0 2px 10px rgba(0, 0, 0, .35);
-  --radius: 12px;
-  --header-bg: rgba(17, 17, 22, .82);
-  --glow-1: rgba(138, 141, 242, .07);
-  --glow-2: rgba(38, 166, 154, .05);
+  --surface: #000000;
+  --surface-2: #161618;
+  --panel: #1c1c1e;
+  --panel-raised: #2c2c2e;
+  --border: #38383a;
+  --border-strong: #48484a;
+  --text: #f5f5f7;
+  --text-muted: #a1a1aa;
+  --up: #ff453a;
+  --down: #30d158;
+  --good: #4cd964;
+  --bad: #ff6961;
+  --ma5: #ff9f0a;
+  --ma20: #7d7aff;
+  --accent: #5e5ce6;
+  --accent-strong: #4a48d4;
+  --accent-2: #64d2ff;
+  --accent-soft: #7d7aff;
+  --on-accent: #ffffff;
+  --warn: #ffd60a;
+  --mask: rgba(0, 0, 0, .55);
+  --shadow: 0 1px 3px rgba(0, 0, 0, .3), 0 4px 14px rgba(0, 0, 0, .22);
+  --shadow-lg: 0 8px 20px rgba(0, 0, 0, .35), 0 24px 60px rgba(0, 0, 0, .45);
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 20px;
+  --header-bg: rgba(10, 10, 12, .65);
+  --glow-1: rgba(94, 92, 230, .07);
+  --glow-2: rgba(100, 210, 255, .04);
+  --sheen: rgba(255, 255, 255, .045);
+  --h1-grad-a: #9d9bff;
+  --h1-grad-b: #64d2ff;
+  --glow-accent: rgba(94, 92, 230, .35);
+  --blur-material: blur(20px) saturate(1.8);
+  --ease-out: cubic-bezier(.25, 1, .5, 1);
+  --ease-sheet: cubic-bezier(.32, .72, 0, 1);
+  --ease-bounce: cubic-bezier(.34, 1.3, .64, 1);
 }
 
 /* ---------- 浅色主题 ---------- */
 
 :root[data-theme="light"] {
-  --surface: #e2ded3;
-  --surface-2: #d8d3c5;
-  --panel: #ebe7db;
-  --panel-raised: #e1dccd;
-  --border: #ccc5b3;
-  --border-strong: #a69e88;
-  --text: #2b2c38;
-  --text-muted: #5e5d6b;
-  --up: #d24541;
-  --down: #1a8d82;
-  --good: #127347;
-  --bad: #cf5650;
-  --ma5: #a97a12;
-  --ma20: #585ce0;
-  --accent: #585ce0;
-  --accent-strong: #4347ce;
-  --accent-2: #2fa89a;
-  --accent-soft: #7e63e8;
-  --warn: #a97a12;
-  --shadow: 0 2px 10px rgba(90, 82, 60, .12);
-  --header-bg: rgba(230, 226, 215, .85);
-  --glow-1: rgba(88, 92, 224, .05);
-  --glow-2: rgba(26, 141, 130, .04);
+  --surface: #f2f2f7;
+  --surface-2: #e9e9ee;
+  --panel: #ffffff;
+  --panel-raised: #eaeaef;
+  --border: #d9d9de;
+  --border-strong: #aeaeb5;
+  --text: #1d1d1f;
+  --text-muted: #6e6e73;
+  --up: #d70015;
+  --down: #248a3d;
+  --good: #1e7a3c;
+  --bad: #d4403a;
+  --ma5: #b25a00;
+  --ma20: #5856d6;
+  --accent: #5856d6;
+  --accent-strong: #4a48c4;
+  --accent-2: #008577;
+  --accent-soft: #6a63e0;
+  --warn: #9a6a00;
+  --mask: rgba(0, 0, 0, .32);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 4px 14px rgba(0, 0, 0, .07);
+  --shadow-lg: 0 8px 20px rgba(0, 0, 0, .10), 0 24px 60px rgba(0, 0, 0, .16);
+  --header-bg: rgba(249, 249, 251, .72);
+  --glow-1: rgba(88, 86, 214, .05);
+  --glow-2: rgba(0, 133, 119, .04);
+  --sheen: rgba(255, 255, 255, .6);
+  --h1-grad-a: #4a48c4;
+  --h1-grad-b: #008577;
+  --glow-accent: rgba(88, 86, 214, .25);
 }
 
-:root[data-theme="light"] h1 {
-  background: linear-gradient(120deg, #4347ce 0%, var(--accent) 55%, #148f80 110%);
-  -webkit-background-clip: text;
-  background-clip: text;
-}
 
 * { box-sizing: border-box; }
 
@@ -77,7 +89,8 @@ body {
     var(--surface);
   background-attachment: fixed;
   color: var(--text);
-  font: 14px/1.6 "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font: 14px/1.6 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ---------- 头部 ---------- */
@@ -94,16 +107,16 @@ header {
   margin: 0 -20px;
   padding: 14px 20px;
   background: var(--header-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border);
+  backdrop-filter: var(--blur-material);
+  -webkit-backdrop-filter: var(--blur-material);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 
 h1 {
   margin: 0;
   font-size: 21px;
-  letter-spacing: .5px;
-  background: linear-gradient(120deg, #c9cbff 0%, var(--accent) 55%, #5dd6c8 110%);
+  letter-spacing: -.3px;
+  background: linear-gradient(120deg, var(--h1-grad-a) 0%, var(--accent) 55%, var(--h1-grad-b) 110%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -113,7 +126,7 @@ h1 .sub {
   margin-left: 6px;
 }
 
-h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: .3px; }
+h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: -.1px; }
 .sub { color: var(--text-muted); font-size: 13px; font-weight: normal; }
 
 /* 区块标题: 全站统一居中, 标题/副标题竖排 + 标题下渐变短横线 (原左侧竖条已退役) */
@@ -140,16 +153,18 @@ h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: .3px; }
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
 }
 
-/* 顶栏工具簇 (登录/语言/主题/音效): 锁定头部第一行右端, 与开局控件分层 */
+/* 顶栏工具簇 (登录/语言/主题/音效): 锁定头部第一行右端, 桌面端永远单行横排。
+   ⚠️ 布局冻结 (见 CLAUDE.md): 不要再改成竖排/换行, 只有 <=720px 的媒体查询允许折行 */
 .header-tools {
   display: flex;
-  flex-wrap: wrap; /* 窄屏 (或 Linux 宽字体) 下允许折行, 否则 390px 会被撑出横向滚动 */
-  justify-content: flex-end;
+  flex-wrap: nowrap;
   gap: 8px;
   align-items: center;
   margin-left: auto; /* 把整簇推到右上角 */
-  max-width: 100%;
-  min-width: 0;
+}
+@media (max-width: 720px) {
+  /* 仅窄屏允许折行: Linux 宽字体下 390px 视口会被五个胶囊撑出横向滚动 */
+  .header-tools { flex-wrap: wrap; justify-content: flex-end; max-width: 100%; }
 }
 .header-tools button {
   width: auto;
@@ -158,6 +173,7 @@ h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: .3px; }
   padding: 4px 12px;
   font-size: 12px;
   white-space: nowrap;
+  border-radius: 999px; /* iOS 胶囊 chip, 仅外观 — 布局冻结见上 */
 }
 /* 登录后按钮显示账户名: 超长截断省略, 不挤占旁边按钮 */
 #btn-account {
@@ -233,10 +249,10 @@ h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: .3px; }
 
 input, button, select {
   font: inherit;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   transition: border-color .18s ease, box-shadow .18s ease, background .18s ease,
-              color .18s ease, transform .1s ease, opacity .18s ease;
+              color .18s ease, transform .18s var(--ease-out), opacity .18s ease;
 }
 
 input {
@@ -245,6 +261,9 @@ input {
   padding: 7px 12px;
   width: 140px;
 }
+/* 勾选框不吃上面的 140px 宽度, 否则和文字之间被撑出一条鸿沟 */
+input[type="checkbox"] { width: auto; }
+
 input::placeholder { color: var(--text-muted); opacity: .7; }
 
 select {
@@ -266,7 +285,7 @@ button {
   color: var(--text);
 }
 button:hover:not(:disabled) { border-color: var(--border-strong); filter: brightness(1.12); }
-button:active:not(:disabled) { transform: translateY(1px); }
+button:active:not(:disabled) { transform: scale(.97); }
 button:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
@@ -278,9 +297,9 @@ button.primary {
   border-color: transparent;
   color: var(--on-accent);
   font-weight: 600;
-  box-shadow: 0 2px 10px rgba(109, 113, 238, .3);
+  box-shadow: 0 2px 10px var(--glow-accent);
 }
-button.primary:hover:not(:disabled) { filter: brightness(1.1); box-shadow: 0 3px 14px rgba(109, 113, 238, .45); }
+button.primary:hover:not(:disabled) { filter: brightness(1.1); box-shadow: 0 4px 16px var(--glow-accent); }
 
 button.big { width: 100%; padding: 11px; font-size: 15px; }
 
@@ -302,10 +321,19 @@ button.replay {
 }
 button.replay:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-strong); filter: none; }
 
-button.buy  { background: var(--up);   border-color: transparent; color: #fff; flex: 1; font-weight: 600; }
-button.sell { background: var(--down); border-color: transparent; color: #fff; flex: 1; font-weight: 600; }
-button.buy:hover:not(:disabled)  { box-shadow: 0 2px 12px rgba(224, 82, 79, .4); }
-button.sell:hover:not(:disabled) { box-shadow: 0 2px 12px rgba(38, 166, 154, .4); }
+/* iOS tinted 风格: 浅底 + 语义色文字, 白字压亮绿会不可读 */
+button.buy {
+  background: color-mix(in srgb, var(--up) 16%, var(--panel));
+  border-color: color-mix(in srgb, var(--up) 35%, transparent);
+  color: var(--up); flex: 1; font-weight: 600;
+}
+button.sell {
+  background: color-mix(in srgb, var(--down) 16%, var(--panel));
+  border-color: color-mix(in srgb, var(--down) 35%, transparent);
+  color: var(--down); flex: 1; font-weight: 600;
+}
+button.buy:hover:not(:disabled)  { background: color-mix(in srgb, var(--up) 26%, var(--panel)); filter: none; box-shadow: none; }
+button.sell:hover:not(:disabled) { background: color-mix(in srgb, var(--down) 26%, var(--panel)); filter: none; box-shadow: none; }
 
 /* ---------- 主布局 ---------- */
 
@@ -357,11 +385,11 @@ main {
 
 .card {
   position: relative;
-  background: linear-gradient(180deg, rgba(255, 255, 255, .02), transparent 45%), var(--panel);
+  background: linear-gradient(180deg, var(--sheen), transparent 45%), var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow), inset 0 1px 0 var(--sheen);
 }
 
 .card dl {
@@ -443,8 +471,9 @@ main {
 .level-card:not(.locked):hover {
   transform: translateY(-3px);
   border-color: var(--border-strong);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, .45);
+  box-shadow: var(--shadow-lg);
 }
+.level-card:not(.locked):active { transform: scale(.98); }
 .level-card h3 { margin: 0 0 4px; font-size: 15px; }
 .level-card .hint { margin: 0 0 14px; }
 .level-card button { width: 100%; margin-top: auto; }
@@ -468,7 +497,8 @@ main {
   background: color-mix(in srgb, var(--good) 10%, transparent);
 }
 
-.section-title { margin: 26px 0 4px; font-size: 16px; }
+.section-title { margin: 26px 0 4px; font-size: 16px; text-align: center; }
+.center-hint { text-align: center; }
 .academy-panel > .hint { margin: 0; }
 
 /* 段位与成就 */
@@ -522,14 +552,220 @@ main {
 /* 名场面称号 */
 .level-award { margin: 10px 0 0; font-size: 12px; color: var(--ma5); }
 
-/* K线猜涨跌 */
+/* K线猜涨跌: 聚焦居中布局, 统计/提示/按钮全部沿中轴, 字号收敛 */
 .guess-card { margin-top: 14px; }
-.guess-head { display: flex; gap: 22px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); }
-.guess-head strong { color: var(--text); font-size: 15px; margin-left: 4px; }
+.guess-head {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.guess-head strong { color: var(--text); font-size: 14px; margin-left: 4px; }
 .guess-chart { height: 300px; margin-top: 12px; }
-.guess-msg { min-height: 20px; margin: 10px 0; font-size: 13px; color: var(--text-muted); }
-.guess-actions { display: flex; gap: 10px; max-width: 420px; }
-.guess-actions .primary { flex: 1; }
+.guess-msg { min-height: 20px; margin: 10px 0; font-size: 13px; color: var(--text-muted); text-align: center; }
+.guess-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 420px; margin: 0 auto; }
+/* 开始 / 每日挑战: 上下各占一行, 等宽等大 (basis 100% 独占一行, 再钳到 240px 居中) */
+#btn-guess-start, #btn-guess-daily { flex: 0 0 100%; max-width: 240px; margin-top: 0; }
+/* 看涨 / 看跌: 保持左右对称一组 */
+.guess-actions .buy, .guess-actions .sell { flex: 0 1 150px; }
+
+/* 重生逆袭: 状态条 / 事件日志 / 2x2 行动区, 竖排一条中轴到底 */
+.rb-card { display: flex; flex-direction: column; gap: 12px; text-align: center; }
+.rb-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rb-status strong { color: var(--text); font-size: 14px; margin-left: 4px; }
+.rb-log {
+  list-style: none;
+  margin: 0;
+  padding: 10px 12px;
+  height: 180px;
+  overflow-y: auto;
+  text-align: center; /* 叙事日志跟全站口径一致: 中轴排版 */
+  font-size: 13px;
+  line-height: 1.8;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.rb-log li.pos { color: var(--good); }
+.rb-log li.neg { color: var(--bad); }
+.rb-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(140px, 200px));
+  gap: 10px;
+  justify-content: center;
+}
+.rb-actions button { margin-top: 0; width: 100%; }
+#btn-rb-start, #btn-rb-restart { align-self: center; min-width: 200px; width: auto; }
+.rb-gifts { max-width: 100%; }
+.rb-gifts button.active { border-color: var(--good); color: var(--good); background: color-mix(in srgb, var(--good) 10%, transparent); }
+.rb-auction-body { text-align: center; }
+.rb-auction-body h3 { margin: 0; color: var(--accent); }
+.rb-price b { font-size: 18px; color: var(--warn); font-variant-numeric: tabular-nums; }
+#btn-rb-bid { width: auto; min-width: 180px; margin: 4px auto 0; display: block; }
+/* 资产条: 每处资产一枚小胶囊, 带转卖按钮 (持有不再是躺赢, 要想止盈时机) */
+.rb-assets { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.rb-assets:empty { display: none; }
+.rb-asset {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.rb-asset button { margin: 0; padding: 2px 10px; font-size: 12px; width: auto; }
+/* 行当三选一 / 抉择双按钮: 竖排大按钮, 标题行+说明行 */
+.rb-trade, #btn-rb-choice0, #btn-rb-choice1 { display: block; width: 100%; margin: 8px 0 0; }
+.rb-trade small { display: block; font-weight: normal; color: var(--text-muted); margin-top: 2px; }
+.rb-trade .tag-hot { color: var(--bad); }
+.rb-trade .tag-cold { color: var(--accent); }
+/* 行动点耗尽/出狱: 「过年」脉冲引导下一步 */
+.rb-urge { animation: rbUrge 1.2s ease-in-out infinite; }
+@keyframes rbUrge {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { .rb-urge { animation: none; } }
+/* 传说资产: 金边高亮 */
+.rb-asset.legend { border-color: var(--warn); color: var(--warn); }
+/* 泡沫大亨: 热度/嫌疑双仪表 + 五动作条 */
+.bb-meters { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: center; font-size: 12px; color: var(--text-muted); }
+.bb-meter { display: inline-flex; align-items: center; gap: 8px; }
+.bb-bar {
+  display: inline-block;
+  width: 110px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.bb-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.bb-meter b { min-width: 24px; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+.bb-bar { position: relative; }
+/* 嫌疑条 60 处的抽查红线: 过线每天都可能被查 */
+.bb-bar.susp::after {
+  content: "";
+  position: absolute;
+  left: 60%;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--bad);
+  opacity: .55;
+}
+.bb-bar i.danger { background: var(--bad); }
+/* 结算横幅: 称号大字 + 本金变化 */
+.bb-result {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.bb-result-title { font-size: 20px; font-weight: 700; }
+.bb-result-pct { margin-top: 4px; font-size: 14px; font-variant-numeric: tabular-nums; }
+/* 今日任务卡: 三行任务 + 宝箱, 居中一条轴 */
+.tasks-card { display: flex; flex-direction: column; gap: 8px; text-align: center; }
+.tasks-head { display: flex; justify-content: center; align-items: baseline; gap: 14px; }
+.task-row {
+  margin: 0 auto;
+  width: 100%;
+  max-width: 340px;
+  text-align: center;
+}
+.task-row.done { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, var(--border)); }
+#btn-task-chest { margin: 2px auto 0; width: auto; min-width: 240px; }
+.bb-bar i.warn { background: var(--warn); }
+.bb-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.bb-actions button { margin: 0; flex: 0 1 150px; }
+.bb-actions button small { display: block; font-weight: normal; color: var(--text-muted); margin-top: 2px; }
+/* 名人堂: 开局页小字列表 */
+.rb-hall-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.9;
+}
+
+/* 富豪场下注条: 注金/杠杆分组收进一块小面板, 像筹码台; 选中筹码主题色点亮 */
+.rich-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  justify-content: center;
+  align-items: center;
+  max-width: 480px;
+  margin: 10px auto 4px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.rich-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.rich-bar button { margin-top: 0; min-width: 52px; }
+.rich-bar button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 600;
+}
+#btn-guess-rich, #btn-rich-reborn { flex: 0 0 100%; max-width: 240px; margin-top: 0; }
+/* 收手离场: 弱化为小字按钮, 排在看涨/看跌下方独立一行, 不和大按钮抢视线 */
+#btn-rich-exit {
+  order: 9;
+  flex: 0 0 100%;
+  max-width: 130px;
+  margin-top: 0;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+#btn-rich-reborn { order: 9; }
+/* 每日挑战入口: 品牌青主题, 与紫色主按钮/金色富豪场构成三级层次, 互不抢戏 */
+#btn-guess-daily {
+  font-weight: 600;
+  color: var(--accent-2);
+  border-color: color-mix(in srgb, var(--accent-2) 50%, transparent);
+  background: color-mix(in srgb, var(--accent-2) 10%, transparent);
+}
+#btn-guess-daily:hover:not(:disabled) {
+  border-color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent-2) 18%, transparent);
+  filter: none;
+}
+
+/* 富豪场入口: 金色渐变 + 柔光呼吸, 一眼看到的"高注桌" */
+#btn-guess-rich {
+  border: none;
+  font-weight: 700;
+  color: var(--on-accent);
+  background: linear-gradient(120deg, var(--warn), color-mix(in srgb, var(--warn) 45%, var(--accent)));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--warn) 40%, transparent);
+  animation: rich-glow 2.4s ease-in-out infinite;
+}
+#btn-guess-rich:hover:not(:disabled) { filter: brightness(1.1); }
+@keyframes rich-glow {
+  0%, 100% { box-shadow: 0 0 10px color-mix(in srgb, var(--warn) 30%, transparent); }
+  50% { box-shadow: 0 0 20px color-mix(in srgb, var(--warn) 55%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #btn-guess-rich { animation: none; }
+}
 
 /* 实战关卡弹窗 */
 .play-modal { width: min(860px, 94vw); }
@@ -611,7 +847,7 @@ main {
   z-index: 5;
   animation: float-up 1.1s ease forwards;
 }
-.score-pop.pos { color: var(--up); text-shadow: 0 0 14px rgba(255, 120, 120, .35); }
+.score-pop.pos { color: var(--up); text-shadow: 0 0 14px color-mix(in srgb, var(--up) 40%, transparent); }
 .score-pop.neg { color: var(--down); }
 
 @keyframes combo-pop {
@@ -632,7 +868,7 @@ main {
   font-weight: 900;
   letter-spacing: 1px;
   color: var(--ma5);
-  text-shadow: 0 2px 18px rgba(230, 180, 80, .45);
+  text-shadow: 0 2px 18px color-mix(in srgb, var(--ma5) 45%, transparent);
   animation: combo-pop 1.2s ease forwards;
 }
 
@@ -653,7 +889,7 @@ main {
 
 @keyframes xp-glow {
   0%, 100% { box-shadow: none; }
-  50% { box-shadow: 0 0 14px 2px rgba(154, 127, 240, .65); }
+  50% { box-shadow: 0 0 14px 2px color-mix(in srgb, var(--accent-soft) 65%, transparent); }
 }
 .xp-track.gain { animation: xp-glow .9s ease 2; }
 
@@ -705,7 +941,7 @@ main {
   font-size: 46px;
   font-weight: 900;
   color: var(--accent);
-  text-shadow: 0 0 34px rgba(154, 127, 240, .6);
+  text-shadow: 0 0 34px color-mix(in srgb, var(--accent-soft) 60%, transparent);
 }
 
 /* ---------- 剧情过场 ---------- */
@@ -871,7 +1107,7 @@ main {
 
 /* 强平红闪: 结算仪式感的一部分 */
 @keyframes screen-flash {
-  0% { box-shadow: inset 0 0 140px rgba(224, 82, 79, .6); }
+  0% { box-shadow: inset 0 0 140px color-mix(in srgb, var(--up) 60%, transparent); }
   100% { box-shadow: none; }
 }
 body.screen-flash::after {
@@ -888,6 +1124,9 @@ body.screen-flash::after {
   .badge.just-got, .xp-track.gain, .confetti-piece, .rankup-overlay, .rankup-text,
   .play-result.win, .play-result.lose, .cutscene-box, body.screen-flash::after { animation: none; }
   .score-pop, .combo-pop, .confetti-piece, .rankup-overlay { display: none; }
+  /* 功能性进场折叠为瞬时, 按压缩放取消 */
+  .modal, .modal-mask, #toast { animation-duration: .01s; }
+  button:active:not(:disabled), .level-card:not(.locked):active { transform: none; }
 }
 
 /* ---------- 策略回测竞技场 ---------- */
@@ -1008,17 +1247,19 @@ footer {
   bottom: 40px;
   transform: translateX(-50%);
   z-index: 200;
-  background: var(--panel-raised);
+  background: color-mix(in srgb, var(--panel-raised) 86%, transparent);
+  backdrop-filter: var(--blur-material);
+  -webkit-backdrop-filter: var(--blur-material);
   border: 1px solid var(--border-strong);
   border-left: 3px solid var(--accent);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 11px 18px;
   max-width: 80vw;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, .55);
-  animation: toast-in .22s ease;
+  box-shadow: var(--shadow-lg);
+  animation: toast-in .4s var(--ease-bounce);
 }
 @keyframes toast-in {
-  from { opacity: 0; transform: translate(-50%, 8px); }
+  from { opacity: 0; transform: translate(-50%, 12px) scale(.96); }
   to   { opacity: 1; transform: translate(-50%, 0); }
 }
 
@@ -1060,28 +1301,30 @@ footer {
   inset: 0;
   z-index: 100;
   background: var(--mask);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: var(--blur-material);
+  -webkit-backdrop-filter: var(--blur-material);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
+  animation: mask-in .25s ease;
 }
+@keyframes mask-in { from { opacity: 0; } }
 
 .modal {
   background: var(--panel);
   border: 1px solid var(--border-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   width: 640px;
   max-width: 100%;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, .6);
-  animation: modal-in .2s ease;
+  box-shadow: var(--shadow-lg);
+  animation: modal-in .4s var(--ease-sheet);
 }
 @keyframes modal-in {
-  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  from { opacity: 0; transform: translateY(16px) scale(.96); }
   to   { opacity: 1; transform: none; }
 }
 
@@ -1186,7 +1429,52 @@ footer {
   flex-direction: column;
   gap: 6px;
 }
+
+/* 行为偏差诊断 (服务端判定): WARN 用 --warn 左条, 正常项用 --good */
+.recap-bias h3 { margin: 14px 0 8px; font-size: 14px; color: var(--accent); }
+.recap-bias ul { padding-left: 0; }
+.recap-bias li { list-style: none; padding: 6px 10px; border-radius: 4px; background: var(--surface-2); }
+.recap-bias li.bias-warn { border-left: 3px solid var(--warn); }
+.recap-bias li.bias-ok { border-left: 3px solid var(--good); }
+.recap-bias li strong { margin-right: 4px; }
 .recap-verdicts li { line-height: 1.7; }
+
+/* 结算总结弹窗: 大数字即时反馈, 不用翻页找结果 */
+.settle-pop { width: 420px; text-align: center; }
+.settle-pop-body { padding-bottom: 24px; }
+.settle-pop-return { margin: 10px 0 2px; font-size: 40px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.settle-pop-body .hint { margin: 0 0 10px; }
+.settle-pop-points { color: var(--warn); font-weight: 600; }
+.settle-pop-actions { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+.settle-pop-actions button { width: auto; min-width: 140px; margin: 0; }
+
+/* 交易日志复盘表 */
+.recap-journal h3 { margin: 14px 0 8px; font-size: 14px; color: var(--accent); }
+.recap-journal .journal-reason { max-width: 220px; word-break: break-all; }
+#trade-reason { width: 100%; }
+#trade-reason-wrap { display: block; margin-bottom: 8px; }
+
+/* 事件回放结算揭晓时间线 */
+.settle-event h3 { margin: 14px 0 4px; font-size: 14px; color: var(--accent); }
+.event-timeline { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.event-timeline .event-item { padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-2); border-left: 3px solid var(--accent); }
+.event-timeline .event-item.sev-high { border-left-color: var(--bad); }
+.event-timeline .event-item.sev-med { border-left-color: var(--warn); }
+.event-timeline .event-item p { margin: 2px 0 0; }
+
+/* 行为偏差档案 (成长档案页) */
+.profile-bias { display: flex; flex-direction: column; gap: 6px; }
+.bp-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+.bp-row strong { min-width: 72px; }
+.bp-dots { display: inline-flex; gap: 3px; align-items: center; }
+.bp-trend.improving { color: var(--good); }
+.bp-trend.worsening { color: var(--bad); }
+.bp-trend.flat { color: var(--text-muted); }
+
+/* 闪电盘口 */
+#tp-chart { height: 240px; }
+.tp-actions { display: flex; gap: 10px; justify-content: center; }
+.tp-actions button { width: auto; min-width: 120px; font-size: 15px; font-weight: 600; }
 
 /* ---------- 新手引导 ---------- */
 
@@ -1214,9 +1502,9 @@ footer {
   max-width: calc(100vw - 32px);
   background: var(--panel);
   border: 1px solid var(--border-strong);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 16px 18px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, .6);
+  box-shadow: var(--shadow-lg);
 }
 #tour-pop h3 { margin: 0 0 8px; color: var(--accent); }
 #tour-pop p {
@@ -1386,9 +1674,14 @@ footer {
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--shadow);
+  text-align: center; /* 引导语/进度/结果沿中轴, 选项按钮单独保持左对齐 */
 }
-.quiz-box > button { margin-top: 14px; }
-
+.quiz-box > button {
+  margin: 14px auto 0;
+  display: block;
+  width: auto;
+  min-width: 160px;
+}
 .quiz-question { margin: 10px 0 0; font-size: 16px; font-weight: 600; line-height: 1.6; }
 
 .quiz-options {
@@ -1718,6 +2011,18 @@ header.collapsed h1 .sub { display: none; }
 .opt-controls label { display: flex; align-items: center; gap: 10px; }
 .opt-controls input[type="range"] { flex: 1; }
 #opt-chart { width: 100%; height: 260px; }
+
+/* 期权沙盒 30 日挑战 */
+#og-chart { height: 260px; }
+.og-trade { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+.og-trade .trade-buttons { flex: 0 0 auto; display: flex; gap: 6px; }
+.og-trade label { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 13px; }
+.og-trade input { width: 70px; }
+.og-trade button.primary { width: auto; min-width: 90px; margin-top: 0; }
+.og-trade .trade-buttons button { width: auto; min-width: 110px; flex: none; }
+#og-positions td, #og-positions th { padding: 7px 10px; }
+#og-positions .empty-row { text-align: center; }
+.og-trade button.active { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
 .opt-card .trade-buttons button.active { outline: 2px solid var(--accent); }
 
 /* 上赛季颁奖台: 三席并排, 冠军居中微放大 */
@@ -1845,7 +2150,7 @@ header.collapsed h1 .sub { display: none; }
 
 /* ---------- 排行榜视图 ---------- */
 
-.rank-controls { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; }
+.rank-controls { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; justify-content: center; }
 .rank-controls label { display: flex; gap: 8px; align-items: center; color: var(--text-muted); font-size: 13px; }
 
 /* ---------- 挂单面板 ---------- */

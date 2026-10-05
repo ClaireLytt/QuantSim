@@ -1,6 +1,5 @@
 package com.quantsim.service;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import com.quantsim.entity.User;
@@ -35,17 +34,17 @@ public class UserService {
         return user;
     }
 
-    /** 按用户名取用户, 不存在则创建; 并发撞唯一约束时重查即可。 */
+    /**
+     * 按用户名取用户, 不存在则创建。用 INSERT IGNORE 而非 saveAndFlush + catch:
+     * 本方法常被包在外层事务里 (开局/回测), flush 撞唯一键会把整个事务标记
+     * rollback-only, 重查成功也会在提交时翻车 (同 PointsService 曾经的并发首登 500)。
+     */
+    @org.springframework.transaction.annotation.Transactional
     public User findOrCreate(String username) {
         return userRepository.findByUsername(username).orElseGet(() -> {
-            try {
-                User u = new User();
-                u.setUsername(username);
-                return userRepository.saveAndFlush(u);
-            } catch (DataIntegrityViolationException e) {
-                return userRepository.findByUsername(username)
-                        .orElseThrow(() -> new BusinessException("用户创建失败: " + username));
-            }
+            userRepository.insertIgnore(username);
+            return userRepository.findByUsername(username)
+                    .orElseThrow(() -> new BusinessException("用户创建失败: " + username));
         });
     }
 }
