@@ -74,7 +74,7 @@ public class DailyChallengeService {
                 .orElseThrow(() -> new BusinessException("用户不存在"));
         try {
             return gameService.startGameAt(user, challenge.getStockId(), challenge.getStartDate(),
-                    DAILY_AI, "DAILY", date);
+                    DAILY_AI, "DAILY", false, date);
         } catch (DataIntegrityViolationException e) {
             // 并发双开撞 uk_user_daily
             throw new BusinessException("你今天已经玩过每日挑战, 明天再来");
@@ -121,17 +121,12 @@ public class DailyChallengeService {
             Random random = new Random(seedFor(date));
             long[] pick = gameService.pickDeterministic(null, random);
             LocalDate startDate = marketData.load(pick[0]).prices().get((int) pick[1]).getTradeDate();
-            DailyChallenge challenge = new DailyChallenge();
-            challenge.setChallengeDate(date);
-            challenge.setStockId(pick[0]);
-            challenge.setStartDate(startDate);
-            try {
-                return challengeRepository.saveAndFlush(challenge);
-            } catch (DataIntegrityViolationException e) {
-                // 并发首个请求撞主键: 重读即可
-                return challengeRepository.findById(date)
-                        .orElseThrow(() -> new BusinessException("每日挑战生成失败"));
-            }
+            // 不能 saveAndFlush + catch 唯一键冲突: flush 失败会把事务标记 rollback-only,
+            // 后续写入全部在提交时翻车 (500)。INSERT IGNORE 撞主键静默跳过; 选股是日期种子
+            // 确定性的, 并发双方插的是同一行, 重读结果一致。
+            challengeRepository.insertIgnore(date, pick[0], startDate);
+            return challengeRepository.findById(date)
+                    .orElseThrow(() -> new BusinessException("每日挑战生成失败"));
         });
     }
 

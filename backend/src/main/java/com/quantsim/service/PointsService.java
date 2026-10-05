@@ -30,7 +30,9 @@ public class PointsService {
             Map.entry("credit10", 1000), Map.entry("video", 1500),
             Map.entry("credit50", 4800), Map.entry("earbuds", 8000),
             Map.entry("watch", 20000), Map.entry("iphone", 100000),
-            Map.entry("peek", 300), Map.entry("undo", 400), Map.entry("fast", 200));
+            Map.entry("peek", 300), Map.entry("undo", 400), Map.entry("fast", 200),
+            // 重生逆袭礼包: 纯扣分的单局增益 (效果在前端单局内生效, 不入道具计数)
+            Map.entry("rb_fund", 300), Map.entry("rb_year", 200), Map.entry("rb_eye", 150));
 
     /** 转盘奖池: [kind, value] (pts=积分数, item=道具名) */
     private static final List<String[]> WHEEL = List.of(
@@ -49,16 +51,13 @@ public class PointsService {
     public record SettleAward(int earned, int winStreak) {}
 
     private UserPoints getOrCreate(Long userId) {
-        return repository.findWithLockByUserId(userId).orElseGet(() -> {
-            UserPoints p = new UserPoints();
-            p.setUserId(userId);
-            try {
-                return repository.saveAndFlush(p);
-            } catch (org.springframework.dao.DataIntegrityViolationException e) {
-                // 并发首插撞主键: 对方已建行, 加锁重读
-                return repository.findWithLockByUserId(userId).orElseThrow();
-            }
-        });
+        // 首插探测必须用无锁读: SELECT ... FOR UPDATE 对不存在的行会拿 gap 锁,
+        // 两个并发首登各持 gap 锁再 INSERT 会互相死锁 (冒烟日志实测)。
+        // 流程: 无锁探测 -> INSERT IGNORE (撞主键静默跳过, 不污染事务) -> 加锁重读。
+        if (repository.findById(userId).isEmpty()) {
+            repository.insertIgnore(userId);
+        }
+        return repository.findWithLockByUserId(userId).orElseThrow();
     }
 
     private PointsState toState(UserPoints p) {
@@ -178,6 +177,31 @@ public class PointsService {
         p.setBalance(p.getBalance() + earned);
         repository.save(p);
         return new SettleAward(earned, p.getWinStreak());
+    }
+
+    /** 重生逆袭「天命达成」+40 (每日首次)。对局在前端运行无法服务端复核,
+     *  用任务位把上限封死在每日 40 分, 刷分收益与签到同级, 无套利空间。 */
+    @Transactional
+    public int awardReborn(Long userId) {
+        UserPoints p = getOrCreate(userId);
+        int earned = claimTask(p, UserPoints.TASK_REBORN, 40);
+        if (earned > 0) {
+            p.setBalance(p.getBalance() + earned);
+        }
+        repository.save(p);
+        return earned;
+    }
+
+    /** 今日任务宝箱 +30 (每日首次)。任务达成在前端判定, 服务端用任务位封顶每日一次。 */
+    @Transactional
+    public int awardChest(Long userId) {
+        UserPoints p = getOrCreate(userId);
+        int earned = claimTask(p, UserPoints.TASK_CHEST, 30);
+        if (earned > 0) {
+            p.setBalance(p.getBalance() + earned);
+        }
+        repository.save(p);
+        return earned;
     }
 
     /** 每日任务「跑一次回测」+20 (首次)。 */

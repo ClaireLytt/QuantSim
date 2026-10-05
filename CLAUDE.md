@@ -84,7 +84,7 @@ error / pageerror / requestfailed）。跑法：起后端（库里要有数据�
 
 - 前端渲染用户可控数据（用户名、params 等）一律 `textContent`，模板字符串 `innerHTML` 里只插数字/本地枚举/i18n 文案——目前全站无 XSS，新代码延续这个纪律（见 `app.js renderLeaderboard`、`rooms.js`、`history.js` 的写法）。
 - 秘密不入库：`.gitignore` 已排除 `.localdb/`、`start-local.bat`、`data-pipeline/data/`；提交前若新增含密钥/本机口令的文件，先加 ignore。
-- 并发写用 `findWithLockBy...` 悲观锁（session/account/room），唯一约束冲突用 catch `DataIntegrityViolationException` 重读，别用先查后插。
+- 并发写用 `findWithLockBy...` 悲观锁（session/account/room），别用先查后插。唯一约束冲突：若 catch 后还要在**同一事务**里继续读写，不能用 `saveAndFlush` + catch（flush 失败会把事务标记 rollback-only，提交时 500），改用 `INSERT IGNORE` native 语句（见 `UserPointsRepository.insertIgnore`）；只有 catch 后直接抛业务异常收场的场景才允许 catch `DataIntegrityViolationException`。
 - 回测/自定义策略全部经 enum 白名单解析（`BacktestService.parseField/parseOp`），没有任何 eval/拼接——扩展策略字段时沿用。
 
 ## 布局冻结区（用户钦定，勿擅改）
