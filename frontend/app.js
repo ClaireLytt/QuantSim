@@ -395,6 +395,8 @@ async function startGame(overrides) {
     const advanced = $("adv-toggle").checked && (market === "US" || market === "CRYPTO");
     const realRules = $("real-toggle").checked && market === "STOCK";
     const body = { username, aiLevel, mode, advanced, realRules };
+    if ($("constraint-select").value) body.maxTrades = parseInt($("constraint-select").value, 10);
+    if ($("reason-toggle").checked) body.requireReason = true;
     if (market) body.market = market;
     if ($("industry-select").value) body.industry = $("industry-select").value;
     Object.assign(body, overrides || {}); // 熊市生存等特殊开局覆盖表单值
@@ -424,6 +426,12 @@ async function enterGame(res) {
     state.mode = res.mode || "CLASSIC";
     state.advanced = !!res.advanced;
     state.realRules = !!res.realRules;
+    state.maxTrades = res.maxTrades == null ? null : Number(res.maxTrades);
+    state.requireReason = !!res.requireReason;
+    state.tradesRemaining = state.maxTrades;
+    $("trade-reason-wrap").hidden = !state.requireReason;
+    $("trade-reason").value = "";
+    renderTradesLeft();
     state.stocks = res.stocks || [];
     state.activeStock = res.stockCode;
     state.orders = [];
@@ -571,6 +579,15 @@ function renderAiMoves() {
   });
 }
 
+/** 限制条件: 剩余可交易笔数提示 (无上限隐藏) */
+function renderTradesLeft() {
+  const el = $("trades-left");
+  if (state.maxTrades == null) { el.hidden = true; return; }
+  el.hidden = false;
+  el.textContent = t("game.tradesLeft", state.tradesRemaining, state.maxTrades);
+  el.classList.toggle("neg", Number(state.tradesRemaining) <= 0);
+}
+
 async function trade(direction) {
   const price = parseFloat($("trade-price").value);
   const shares = parseInt($("trade-shares").value, 10);
@@ -584,6 +601,14 @@ async function trade(direction) {
   }
   try {
     const body = { direction, price, shares };
+    if (state.requireReason) {
+      const reason = $("trade-reason").value.trim();
+      if (!reason) {
+        toast(t("trade.reason.required"));
+        return;
+      }
+      body.reason = reason;
+    }
     if (state.mode === "PORTFOLIO" && state.activeStock) body.stockCode = state.activeStock;
     const res = await api(`/game/${state.sessionId}/trade`, {
       method: "POST",
@@ -594,6 +619,11 @@ async function trade(direction) {
     state.trades.push({ idx, date: state.klines[idx].tradeDate, dir: direction, price, shares });
     if (state.mode !== "PORTFOLIO") updateChartData(); // 买卖点即时上图
     playSound(direction === "BUY" ? "buy" : "sell");
+    $("trade-reason").value = "";
+    if (res.tradesRemaining != null) {
+      state.tradesRemaining = Number(res.tradesRemaining);
+      renderTradesLeft();
+    }
     let msg = t(direction === "BUY" ? "toast.buyOk" : "toast.sellOk", shares);
     if (res.fee && Number(res.fee) > 0) msg += " · " + t("trade.fee", fmtMoney(res.fee));
     toast(msg);
@@ -989,6 +1019,7 @@ function showSettle(result) {
   renderSettle(result);
   revealMysteryStock(result);
   celebrateSettle(result);
+  openSettlePop(result); // 结算卡在右栏底部, 不弹窗玩家经常根本看不到结果
   toast(t("settle.done"));
   loadLeaderboard();
 
@@ -998,6 +1029,50 @@ if ("serviceWorker" in navigator) {
 }
   document.dispatchEvent(new CustomEvent("qs:settled", { detail: result }));
 }
+
+// ---------- 结算总结弹窗: 关键结果即时呈现, 详情/复盘一键直达 ----------
+
+function openSettlePop(result) {
+  const ret = Number(result.returnRate);
+  const retEl = $("settle-pop-return");
+  retEl.textContent = fmtPct(ret);
+  retEl.className = ret >= 0 ? "pos" : "neg";
+  // 判词复用结算卡的口径 (renderSettle 已先行渲染, 含生存模式覆盖)
+  const verdict = $("settle-verdict");
+  $("settle-pop-verdict").textContent = verdict.textContent;
+  $("settle-pop-verdict").className = verdict.className;
+  // 竞技局的悬念时刻: 在这里揭晓神秘标的
+  let stockLine = result.stockName
+    ? t("settle.pop.stock", result.stockName, result.stockCode) : "";
+  if (result.eventReveal) {
+    stockLine = (LANG === "en" ? result.eventReveal.nameEn : result.eventReveal.nameZh)
+      + (stockLine ? " · " + stockLine : "");
+  }
+  $("settle-pop-stock").textContent = stockLine;
+  const pts = Number(result.pointsEarned || 0);
+  $("settle-pop-points").hidden = pts <= 0;
+  if (pts > 0) $("settle-pop-points").textContent = t("settle.pop.points", pts);
+  $("settle-modal").hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closeSettlePop() {
+  $("settle-modal").hidden = true;
+  document.body.style.overflow = "";
+}
+
+$("btn-settle-pop-close").addEventListener("click", closeSettlePop);
+$("settle-modal").addEventListener("click", (e) => {
+  if (e.target === $("settle-modal")) closeSettlePop();
+});
+$("btn-settle-pop-detail").addEventListener("click", () => {
+  closeSettlePop();
+  $("settle-card").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+$("btn-settle-pop-recap").addEventListener("click", () => {
+  closeSettlePop();
+  openRecap();
+});
 
 function renderSettle(result) {
   state.lastSettle = result;
@@ -1056,11 +1131,38 @@ function renderSettleExtras(result) {
   }
 
   renderRiskPanel(result);
+  renderEventReveal(result);
 
   $("btn-review").hidden = false;
   $("btn-recap").hidden = false;
   // 同题挑战: 单股非竞技局才可发起 (竞技局禁止套娃, 组合模式房间不支持)
   $("btn-challenge").hidden = state.mode === "PORTFOLIO" || state.mode === "DAILY" || state.mode === "ROOM";
+}
+
+/** 事件回放结算揭晓: 场景名 + 真实窗口 + 大事记时间线 (服务端策展文本, 仍走 textContent)。 */
+function renderEventReveal(result) {
+  const box = $("settle-event");
+  const r = result.eventReveal;
+  if (!r) { box.hidden = true; return; }
+  box.hidden = false;
+  $("settle-event-name").textContent =
+    t("settle.event.reveal") + ": " + (LANG === "en" ? r.nameEn : r.nameZh);
+  $("settle-event-window").textContent =
+    t("settle.event.realWindow", r.realStartDate, r.realEndDate);
+  const list = $("settle-event-timeline");
+  list.innerHTML = "";
+  (r.timeline || []).forEach((ti) => {
+    const li = document.createElement("li");
+    li.className = "event-item sev-" + String(ti.severity || "MED").toLowerCase();
+    const head = document.createElement("strong");
+    head.textContent = `${ti.date} · ${LANG === "en" ? ti.titleEn : ti.titleZh}`;
+    const body = document.createElement("p");
+    body.className = "hint";
+    body.textContent = LANG === "en" ? ti.bodyEn : ti.bodyZh;
+    li.appendChild(head);
+    li.appendChild(body);
+    list.appendChild(li);
+  });
 }
 
 async function startChallenge() {
@@ -1223,6 +1325,23 @@ function celebrateSettle(result) {
   } else if (you < aiR) {
     playSound("lose");
   }
+}
+
+/** 数字滚动: 从 0 缓动滚到终值 (ease-out cubic), 尊重 reduced-motion。 */
+function qsRollNumber(el, to, suffix) {
+  const sfx = suffix || "";
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    el.textContent = to.toLocaleString() + sfx;
+    return;
+  }
+  const start = performance.now();
+  const dur = 900;
+  function frame(now) {
+    const p = Math.min(1, (now - start) / dur);
+    el.textContent = Math.round(to * (1 - Math.pow(1 - p, 3))).toLocaleString() + sfx;
+    if (p < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
 }
 
 function spawnConfetti() {
@@ -1859,9 +1978,9 @@ document.addEventListener("keydown", (e) => {
 
 const NAV_GROUPS = {
   home: ["home"],
-  play: ["game", "daily", "rooms"],
+  play: ["game", "daily", "event", "rooms"],
   arenaG: ["arena", "ranking"],
-  learn: ["academy", "guess", "famous", "story", "quiz", "option"],
+  learn: ["academy", "guess", "famous", "story", "quiz", "option", "tape", "reborn", "bubble"],
   labG: ["lab"],
   me: ["profile", "history", "account"],
 };
@@ -2122,6 +2241,9 @@ function recapVerdicts(stats) {
   const out = [];
   const ks = state.klines;
   const settle = state.lastSettle || {};
+  // 服务端诊断已覆盖追涨/杀跌/过度交易, 有报告时客户端同类 heuristic 不再重复输出
+  const serverBias = !!(settle.biasReport && settle.biasReport.verdicts
+      && settle.biasReport.verdicts.length);
 
   if (state.trades.length === 0) {
     out.push(t("recap.v.idle"));
@@ -2140,15 +2262,15 @@ function recapVerdicts(stats) {
         panic++;
       }
     });
-    if (chase) out.push(t("recap.v.chaseHigh", chase));
+    if (chase && !serverBias) out.push(t("recap.v.chaseHigh", chase));
     if (goodEntry) out.push(t("recap.v.goodEntry", goodEntry));
-    if (panic) out.push(t("recap.v.sellEarly", panic));
+    if (panic && !serverBias) out.push(t("recap.v.sellEarly", panic));
     if (stats.sells > 0) {
       const rate = stats.wins / stats.sells;
       if (rate >= 0.6) out.push(t("recap.v.winHigh", (rate * 100).toFixed(0) + "%"));
       else if (rate < 0.4) out.push(t("recap.v.winLow", (rate * 100).toFixed(0) + "%"));
     }
-    if (state.trades.length > state.totalTicks / 2) out.push(t("recap.v.overtrade", state.trades.length));
+    if (state.trades.length > state.totalTicks / 2 && !serverBias) out.push(t("recap.v.overtrade", state.trades.length));
   }
 
   if (settle.returnRate != null && settle.holdReturnRate != null) {
@@ -2254,10 +2376,87 @@ function renderRecap() {
     li.innerHTML = linkifyTerms(text);
     list.appendChild(li);
   });
+  renderBias(settle.biasReport);
+  renderJournal(settle.journal);
 
   if (!recapChart) recapChart = echarts.init($("recap-chart"));
   recapChart.setOption(recapOption(), { notMerge: true });
   recapChart.resize();
+}
+
+/**
+ * 服务端行为偏差诊断 (结算响应 biasReport): 触发的判定 WARN 高亮,
+ * 样本不足的判定不渲染 (短局两三笔交易下结论是误诊)。
+ */
+function renderBias(report) {
+  const box = $("recap-bias");
+  const list = $("recap-bias-list");
+  list.innerHTML = "";
+  const verdicts = (report && report.verdicts) || [];
+  const shown = verdicts.filter((v) => !v.insufficient);
+  if (!shown.length) { box.hidden = true; return; }
+  box.hidden = false;
+  let anyTriggered = false;
+  shown.forEach((v) => {
+    const li = document.createElement("li");
+    li.className = v.triggered ? "bias-warn" : "bias-ok";
+    const name = document.createElement("strong");
+    name.textContent = t("recap.bias." + v.key);
+    li.appendChild(name);
+    const desc = document.createElement("span");
+    desc.textContent = " " + biasDesc(v);
+    li.appendChild(desc);
+    list.appendChild(li);
+    if (v.triggered) anyTriggered = true;
+  });
+  if (!anyTriggered) {
+    const li = document.createElement("li");
+    li.className = "bias-ok";
+    li.textContent = t("recap.bias.none");
+    list.appendChild(li);
+  }
+}
+
+/** 判定描述: 触发时给偏差解释 + 关键数字, 未触发给正常反馈。 */
+function biasDesc(v) {
+  const s = v.stats || {};
+  const pct = (x) => (Number(x) * 100).toFixed(0) + "%";
+  switch (v.key) {
+    case "disposition":
+      return v.triggered
+        ? t("recap.bias.disposition.desc", s.holdWin, s.holdLose)
+        : t("recap.bias.stat.holdBoth", s.holdWin, s.holdLose);
+    case "revenge":
+      return v.triggered ? t("recap.bias.revenge.desc", s.ratio) : t("recap.bias.ok");
+    case "chase":
+      return v.triggered ? t("recap.bias.chase.desc", pct(s.rate)) : t("recap.bias.stat.rateOf", pct(s.rate));
+    case "panic":
+      return v.triggered ? t("recap.bias.panic.desc", pct(s.rate)) : t("recap.bias.stat.rateOf", pct(s.rate));
+    case "overtrade":
+      return v.triggered ? t("recap.bias.overtrade.desc", s.total) : t("recap.bias.ok");
+    default:
+      return "";
+  }
+}
+
+/** 交易日志 (理由 vs 结果): 理由是用户文本, 必须 textContent。 */
+function renderJournal(journal) {
+  const box = $("recap-journal");
+  const rows = journal || [];
+  if (!rows.length) { box.hidden = true; return; }
+  box.hidden = false;
+  const tbody = $("recap-journal-table").querySelector("tbody");
+  tbody.innerHTML = "";
+  rows.forEach((j) => {
+    const tr = document.createElement("tr");
+    const outcome = j.outcomePct == null ? "--" : fmtPct(Number(j.outcomePct));
+    const cls = j.outcomePct == null ? "" : Number(j.outcomePct) >= 0 ? "pos" : "neg";
+    tr.innerHTML = `<td></td><td></td><td class="journal-reason"></td><td class="${cls}">${outcome}</td>`;
+    tr.children[0].textContent = j.tradeDate || "";
+    tr.children[1].textContent = t(j.direction === "BUY" ? "trade.buy" : "trade.sell");
+    tr.children[2].textContent = j.reason || "";
+    tbody.appendChild(tr);
+  });
 }
 
 function openRecap() {

@@ -28,8 +28,10 @@
     panel.hidden = false;
     $("room-code-label").textContent = room.code;
     const expires = String(room.expiresAt || "").replace("T", " ").slice(0, 16);
-    $("room-meta").textContent = t("room.meta",
+    let meta = t("room.meta",
       t("room.status." + room.status), room.players, room.maxPlayers, expires);
+    if (room.realRules) meta += " · " + t("real.tag");
+    $("room-meta").textContent = meta;
 
     const tbody = $("room-standings").querySelector("tbody");
     tbody.innerHTML = "";
@@ -69,7 +71,11 @@
   async function create() {
     Auth.require(async () => {
       try {
-        const body = { market: $("room-market").value || null, aiLevel: $("room-ai").value };
+        const body = {
+          market: $("room-market").value || null,
+          aiLevel: $("room-ai").value,
+          realRules: $("room-real-toggle").checked,
+        };
         room = await api("/rooms", { method: "POST", body: JSON.stringify(body) });
         renderRoom();
         startPoll();
@@ -173,6 +179,13 @@
     startPoll();
   };
 
+  // 真实规则只对 A股有意义: 其他市场禁用并取消勾选 (与后端校验同口径)
+  $("room-market").addEventListener("change", () => {
+    const isAShare = $("room-market").value === "STOCK";
+    $("room-real-toggle").disabled = !isAShare;
+    if (!isAShare) $("room-real-toggle").checked = false;
+  });
+  $("room-real-toggle").disabled = $("room-market").value !== "STOCK";
   $("btn-room-create").addEventListener("click", create);
   $("btn-room-join").addEventListener("click", join);
   $("btn-room-play").addEventListener("click", () => guarded(play));
