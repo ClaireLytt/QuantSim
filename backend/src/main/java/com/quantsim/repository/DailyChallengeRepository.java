@@ -19,4 +19,8 @@ public interface DailyChallengeRepository extends JpaRepository<DailyChallenge, 
             """, nativeQuery = true)
     void insertIgnore(@Param("date") LocalDate date, @Param("stockId") long stockId,
                       @Param("startDate") LocalDate startDate);
+
+    /** 锁定读 (当前读): insertIgnore 被并发已提交行"吃掉"后用它重读, RR 快照读会看不到那行。 */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    java.util.Optional<DailyChallenge> findWithLockByChallengeDate(LocalDate challengeDate);
 }

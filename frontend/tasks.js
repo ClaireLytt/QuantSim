@@ -5,10 +5,7 @@
 (() => {
   const KEY = "qs_tasks";
 
-  function todayLocal(offsetDays) {
-    const d = new Date(Date.now() + (offsetDays || 0) * 864e5);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }
+  const todayLocal = qsTodayStr; // 共享实现在 app.js
 
   let st = {};
   try { st = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { /* ignore */ }

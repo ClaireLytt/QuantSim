@@ -138,6 +138,7 @@ public class BacktestService {
     public RunResponse run(RunRequest request, Long authUserId) {
         Strategy strategy = parseStrategy(request.strategy());
         Stock stock = stockRepository.findByCode(request.stockCode().trim())
+                .filter(st -> !st.isHidden()) // 场景行情不对公开接口暴露 (防比对泄题, 同 LabController)
                 .orElseThrow(() -> new NotFoundException("股票不存在: " + request.stockCode()));
         List<DailyPrice> prices = marketData.load(stock.getStockId()).prices();
         int minDays = props.getBacktestMinDays();
@@ -216,6 +217,7 @@ public class BacktestService {
     public TuneResponse tune(TuneRequest request, Long authUserId) {
         Strategy strategy = parseStrategy(request.strategy());
         Stock stock = stockRepository.findByCode(request.stockCode().trim())
+                .filter(st -> !st.isHidden()) // 场景行情不对公开接口暴露 (防比对泄题, 同 LabController)
                 .orElseThrow(() -> new NotFoundException("股票不存在: " + request.stockCode()));
         List<DailyPrice> prices = marketData.load(stock.getStockId()).prices();
         int minDays = props.getBacktestMinDays();

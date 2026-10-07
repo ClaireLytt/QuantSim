@@ -133,13 +133,14 @@ public final class GameDtos {
             BigDecimal filledPrice,
             BigDecimal trailPct) {}
 
-    /** trailPct: 仅 TRAIL_STOP 用, 触发价 = 收盘价*(1-trailPct%) 并随收盘上移 */
+    /** trailPct: 仅 TRAIL_STOP 用, 触发价 = 收盘价*(1-trailPct%) 并随收盘上移; reason: 交易日志模式必填 */
     public record PlaceOrderRequest(
             @NotBlank String orderType,
             @NotNull BigDecimal price,
             @Min(1) int shares,
             String stockCode,
-            BigDecimal trailPct) {}
+            BigDecimal trailPct,
+            String reason) {}
 
     /** 模型对"次日涨跌"的预测: direction UP/DOWN, probUp 为上涨概率 (0~1)。 */
     public record PredictionInfo(String direction, BigDecimal probUp) {}
@@ -174,7 +175,8 @@ public final class GameDtos {
             BigDecimal marginRatio,
             BigDecimal interestTotal,
             Integer sellableShares,
-            List<PositionInfo> positions) {}
+            List<PositionInfo> positions,
+            Integer tradesRemaining) {}
 
     /** 本局某一天的 AI 预测复盘: 预测方向与实际是否命中。 */
     public record PredictionDay(LocalDate date, boolean predictedUp, boolean correct) {}

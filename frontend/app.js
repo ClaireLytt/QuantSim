@@ -55,6 +55,21 @@ window.addEventListener("resize", () => chart.resize());
 const fmtMoney = (v) => Number(v).toLocaleString(LANG === "en" ? "en-US" : "zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (v) => (v >= 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
 
+// ---- 迷你游戏共享工具 (tape/option/tasks/academy 用, 别再各自复制一份) ----
+// 标准正态随机 (Box-Muller); ||1e-9 防 log(0)
+function qsGauss() {
+  const u = Math.random() || 1e-9;
+  const v = Math.random() || 1e-9;
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+// 整数千分位 (迷你游戏金额展示)
+const qsFmtInt = (n) => Number(n).toLocaleString("zh-CN", { maximumFractionDigits: 0 });
+// 本地日期 yyyy-MM-dd (可偏移天数); 不走 toISOString, 避免 UTC 时区跨日
+function qsTodayStr(offsetDays) {
+  const d = new Date(Date.now() + (offsetDays || 0) * 864e5);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function marketTag(market) {
   if (market === "CRYPTO") return t("tag.crypto");
   if (market === "US") return t("tag.us");
@@ -762,6 +777,11 @@ function renderStatus(s) {
   $("status-pop-label").textContent = fmtMoney(s.totalAssets) + t("unit.money");
   $("st-fees").textContent = fmtMoney(s.feesPaid || 0);
   setSigned($("st-interest"), Number(s.interestTotal || 0), fmtMoney(Math.abs(s.interestTotal || 0)));
+  // 剩余笔数以服务端为准: 刷新/续局时本地从满额起算会虚高, 挂单成交也只有服务端知道
+  if (s.tradesRemaining != null) {
+    state.tradesRemaining = Number(s.tradesRemaining);
+    renderTradesLeft();
+  }
   // 真实规则: 提示 T+1 今日可卖数, 免得玩家靠报错试探
   const t1 = $("t1-hint");
   if (s.sellableShares != null) {
@@ -1001,10 +1021,20 @@ async function placeOrder() {
   try {
     const body = { orderType, price, shares };
     if (trailing) body.trailPct = trailPct;
+    // 交易日志模式: 挂单同样强制写理由 (复用手动交易的理由输入框), 成交时随流水落库
+    if (state.requireReason) {
+      const reason = $("trade-reason").value.trim();
+      if (!reason) {
+        toast(t("trade.reason.required"));
+        return;
+      }
+      body.reason = reason;
+    }
     if (state.mode === "PORTFOLIO" && state.activeStock) body.stockCode = state.activeStock;
     await api(`/game/${state.sessionId}/orders`, { method: "POST", body: JSON.stringify(body) });
     toast(t("orders.placed"));
     $("order-price").value = "";
+    $("trade-reason").value = "";
     await loadOrders();
   } catch (e) {
     toast(e.message);

@@ -76,9 +76,12 @@ public class MeController {
     @GetMapping("/bias-profile")
     public com.quantsim.dto.GameDtos.BiasProfile biasProfile(HttpServletRequest request) {
         Long userId = CurrentUser.idOrNull(request);
-        List<com.quantsim.dto.GameDtos.BiasReport> reports = sessionRepository
-                .findTop60ByUserIdAndStatusAndBiasReportIsNotNullOrderByCreatedAtAsc(
-                        userId, GameSession.Status.SETTLED)
+        // 取最新 60 局再反转成时间升序 (直接 Asc 会永久卡在最早 60 局)
+        List<GameSession> sessions = new java.util.ArrayList<>(sessionRepository
+                .findTop60ByUserIdAndStatusAndBiasReportIsNotNullOrderByCreatedAtDesc(
+                        userId, GameSession.Status.SETTLED));
+        java.util.Collections.reverse(sessions);
+        List<com.quantsim.dto.GameDtos.BiasReport> reports = sessions
                 .stream()
                 .map(sess -> {
                     try {

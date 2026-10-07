@@ -43,7 +43,9 @@ public class UserService {
     public User findOrCreate(String username) {
         return userRepository.findByUsername(username).orElseGet(() -> {
             userRepository.insertIgnore(username);
-            return userRepository.findByUsername(username)
+            // 重读必须用锁定读 (当前读): 若 IGNORE 是被并发事务已提交的行"吃掉"的,
+            // RR 快照下的普通 SELECT 仍看不到那行, 会误报创建失败。
+            return userRepository.findWithLockByUsername(username)
                     .orElseThrow(() -> new BusinessException("用户创建失败: " + username));
         });
     }

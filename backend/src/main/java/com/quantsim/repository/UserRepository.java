@@ -10,6 +10,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByUsername(String username);
 
+    /** 锁定读 (当前读): insertIgnore 被并发已提交行"吃掉"后用它重读——
+     *  普通 findByUsername 走 RR 快照, 看不到本事务快照建立后别人提交的行。 */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    Optional<User> findWithLockByUsername(String username);
+
     /** 并发安全的首插: INSERT IGNORE 撞唯一键静默跳过, 不会把外层事务标记 rollback-only。 */
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.data.jpa.repository.Query(

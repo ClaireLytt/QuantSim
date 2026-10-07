@@ -125,7 +125,8 @@ public class DailyChallengeService {
             // 后续写入全部在提交时翻车 (500)。INSERT IGNORE 撞主键静默跳过; 选股是日期种子
             // 确定性的, 并发双方插的是同一行, 重读结果一致。
             challengeRepository.insertIgnore(date, pick[0], startDate);
-            return challengeRepository.findById(date)
+            // 重读用锁定读: IGNORE 被并发已提交行吃掉时, RR 快照下 findById 看不到, 会误报失败
+            return challengeRepository.findWithLockByChallengeDate(date)
                     .orElseThrow(() -> new BusinessException("每日挑战生成失败"));
         });
     }

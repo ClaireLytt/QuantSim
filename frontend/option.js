@@ -53,12 +53,7 @@
 
   function rand(lo, hi) { return lo + Math.random() * (hi - lo); }
 
-  function gauss() {
-    // Box-Muller
-    const u = Math.random() || 1e-9;
-    const v = Math.random() || 1e-9;
-    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-  }
+  const gauss = qsGauss; // 共享实现在 app.js
 
   // 财报临近波动溢价: 定价波动率在财报前 3 天逐步抬升, 财报过后回落
   function pricingVol() {
@@ -176,9 +171,7 @@
 
   // ---------- 渲染 ----------
 
-  function fmt(n) {
-    return Number(n).toLocaleString("zh-CN", { maximumFractionDigits: 0 });
-  }
+  const fmt = qsFmtInt; // 共享实现在 app.js
 
   function render() {
     $("og-day").textContent = `${g.day + 1} / ${TOTAL_DAYS}`;

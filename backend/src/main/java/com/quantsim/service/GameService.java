@@ -618,9 +618,12 @@ public class GameService {
         }
 
         // 限制条件: 笔数上限 (挂单成交同计) 与强制理由
-        if (session.getMaxTrades() != null
-                && transactionRepository.countBySessionId(sessionId) >= session.getMaxTrades()) {
-            throw new BusinessException("本局交易笔数已达上限 " + session.getMaxTrades() + " 笔");
+        Long usedBefore = null; // 只查一次, 响应里的剩余笔数由它推出, 省掉第二次 COUNT
+        if (session.getMaxTrades() != null) {
+            usedBefore = transactionRepository.countBySessionId(sessionId);
+            if (usedBefore >= session.getMaxTrades()) {
+                throw new BusinessException("本局交易笔数已达上限 " + session.getMaxTrades() + " 笔");
+            }
         }
         String reason = sanitizeReason(request.reason());
         if (session.isRequireReason() && (reason == null || reason.isEmpty())) {
@@ -636,7 +639,8 @@ public class GameService {
 
         return new TradeResponse(account.getCashBalance(),
                 account.getHoldingShares(), account.getHoldingCost(), fee,
-                tradesRemaining(session));
+                usedBefore == null ? null
+                        : (int) Math.max(0, session.getMaxTrades() - usedBefore - 1));
     }
 
     /** 理由只留可见字符 (去控制符), 截 100 字; 渲染安全由前端 textContent 保证。 */
@@ -664,8 +668,21 @@ public class GameService {
         GameSession session = getSessionWithLock(sessionId);
         requireInProgress(session);
         Long stockId = resolveStock(session, request.stockCode());
+        // 限制模式对挂单同样生效, 否则挂单就是绕开笔数上限/交易日志的后门:
+        // 已成交 + 在挂单一起占笔数预算; 强制理由随挂单落库, 成交时写进流水。
+        if (session.getMaxTrades() != null) {
+            long budgetUsed = transactionRepository.countBySessionId(sessionId)
+                    + orderService.countOpen(sessionId);
+            if (budgetUsed >= session.getMaxTrades()) {
+                throw new BusinessException("本局交易笔数已达上限 " + session.getMaxTrades() + " 笔（在挂单也占用笔数）");
+            }
+        }
+        String reason = sanitizeReason(request.reason());
+        if (session.isRequireReason() && (reason == null || reason.isEmpty())) {
+            throw new BusinessException("本局开启了交易日志: 请写一句交易理由再挂单");
+        }
         return orderService.place(session, stockId, request.orderType(), request.price(), request.shares(),
-                request.trailPct());
+                request.trailPct(), reason);
     }
 
     @Transactional(readOnly = true)
@@ -763,11 +780,17 @@ public class GameService {
         PointsService.SettleAward award = pointsService.awardSettle(
                 session.getUserId(), beatAi, beatHold, "DAILY".equals(session.getMode()));
 
-        // 已结算: 竞技模式在此揭晓真实标的 (进行中全程匿名)
+        // 已结算: 竞技模式在此揭晓真实标的 (进行中全程匿名)。
+        // 事件回放的场景行情用内部复合代码 "<代码>@<场景>" 存储, 揭晓时剥掉场景后缀, 不把内部命名漏给用户。
+        String revealCode = sd.stock().getCode();
+        int at = revealCode.indexOf('@');
+        if (at > 0) {
+            revealCode = revealCode.substring(0, at);
+        }
         return new SettleResponse(session.getSessionId(), initial,
                 finalAssets, returnRate, aiFinal, aiReturn, holdReturn, maCrossReturn, dcaReturn,
                 risk, holdRisk, account.getInterestTotal(), curve, holdCurve,
-                predictionDays, styleTag, sd.stock().getCode(), sd.stock().getName(),
+                predictionDays, styleTag, revealCode, sd.stock().getName(),
                 award.earned(), award.winStreak(), biasReport, journal, eventReveal);
     }
 
@@ -1332,7 +1355,8 @@ public class GameService {
                 prediction, ai,
                 session.getMode(), session.isAdvanced(), session.isLiquidated(),
                 feesPaid == null ? BigDecimal.ZERO : feesPaid, marginRatio,
-                account.getInterestTotal(), sellableShares, positions);
+                account.getInterestTotal(), sellableShares, positions,
+                tradesRemaining(session)); // 刷新/续局时前端以此为准, 不要从满额重置
     }
 
     /** stockCode 为空 -> 主标的; 组合模式校验必须在标的清单内。 */

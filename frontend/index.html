@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuantSim 虚拟炒股</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=20261006h">
+  <link rel="stylesheet" href="style.css?v=20261007e">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -1459,17 +1459,45 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261006g"></script>
+  <!-- 左上角智能小宠: 固定悬浮, 点开功能面板 -->
+  <div id="pet-widget" class="pet-widget">
+    <div id="pet-sprite-box" class="pet-sprite-box" role="button" tabindex="0" data-i18n-title="pet.hint" title="点它摸摸头">
+      <span id="pet-hat" class="pet-hat"></span>
+      <span id="pet-sprite" class="pet-sprite">🐱</span>
+      <span class="pet-zzz">💤</span>
+    </div>
+    <p id="pet-bubble" class="pet-bubble" hidden></p>
+    <div id="pet-pop" class="pet-pop" hidden>
+      <div class="pet-name-row">
+        <b id="pet-name"></b>
+        <input id="pet-name-input" maxlength="12" hidden>
+        <span class="hint" id="pet-level"></span>
+      </div>
+      <div class="pet-xp-track"><i id="pet-xp-bar"></i></div>
+      <div class="pet-actions">
+        <button id="btn-pet-feed" class="small" data-i18n="pet.feed">🍗 投喂</button>
+        <button id="btn-pet-chat" class="small" data-i18n="pet.chat">💬 聊聊</button>
+        <button id="btn-pet-skin" class="small" data-i18n="pet.skin">🔄 换形象</button>
+      </div>
+      <div class="pet-ask-row">
+        <input id="pet-chat-input" maxlength="200" data-i18n-placeholder="pet.ask.ph" placeholder="跟它说点什么…">
+        <button id="btn-pet-ask" class="small primary" data-i18n="pet.send">发送</button>
+      </div>
+      <p class="hint" data-i18n="pet.hint2">点名字可以改名</p>
+    </div>
+  </div>
+
+  <script src="i18n.js?v=20261007d"></script>
   <script src="glossary.js?v=20261002a"></script>
-  <script src="app.js?v=20261006e"></script>
+  <script src="app.js?v=20261007a"></script>
   <script src="auth.js?v=20261005b"></script>
-  <script src="academy.js?v=20261005l"></script>
+  <script src="academy.js?v=20261007c"></script>
   <script src="lab.js?v=20261004a"></script>
   <script src="daily.js?v=20261002a"></script>
   <script src="event.js?v=20261006a"></script>
-  <script src="option.js?v=20261006a"></script>
+  <script src="option.js?v=20261007a"></script>
   <script src="biasprofile.js?v=20261006a"></script>
-  <script src="tape.js?v=20261006a"></script>
+  <script src="tape.js?v=20261007a"></script>
   <script src="rooms.js?v=20261006a"></script>
   <script src="ranking.js?v=20261004a"></script>
   <script src="sharecard.js?v=20261006a"></script>
@@ -1481,6 +1509,7 @@
   <script src="points.js?v=20261004c"></script>
   <script src="reborn.js?v=20261005e"></script>
   <script src="bubble.js?v=20261005d"></script>
-  <script src="tasks.js?v=20261005a"></script>
+  <script src="tasks.js?v=20261007a"></script>
+  <script src="pet.js?v=20261007d"></script>
 </body>
 </html>

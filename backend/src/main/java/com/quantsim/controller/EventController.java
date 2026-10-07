@@ -39,7 +39,7 @@ public class EventController {
     }
 
     @PostMapping("/start")
-    public StartGameResponse start(@RequestBody(required = false) StartEventRequest body,
+    public StartGameResponse start(@jakarta.validation.Valid @RequestBody(required = false) StartEventRequest body,
                                    HttpServletRequest http) {
         Long userId = CurrentUser.idOrNull(http);
         // 开局会建 session/account 行, 按用户限频防刷库

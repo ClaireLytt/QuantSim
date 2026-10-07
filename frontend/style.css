@@ -2213,3 +2213,118 @@ header.collapsed h1 .sub { display: none; }
 /* ---------- 战绩历史 ---------- */
 
 #hist-games, #hist-bt { margin-bottom: 18px; }
+
+/* ---------- 悬浮智能小宠 (位置由 JS 驱动: 可拖拽安家 + 自主遛弯) ---------- */
+
+.pet-widget {
+  position: fixed;
+  left: 10px;
+  top: 64px; /* 兜底初始位; 运行时 JS 接管 left/top */
+  z-index: 60;
+  width: 44px;
+}
+.pet-sprite-box {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none; /* 拖拽用 pointer 事件, 阻止触屏滚动抢手势 */
+  user-select: none;
+  -webkit-user-select: none;
+}
+.pet-dragging .pet-sprite-box { cursor: grabbing; }
+.pet-dragging .pet-sprite { rotate: -8deg; } /* 被拎起来的歪头感 */
+.pet-sprite-box:focus-visible {
+  outline: none;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.pet-sprite { font-size: 26px; line-height: 1; display: block; animation: pet-bob 1.6s ease-in-out infinite; }
+/* 走路时颠得更快; emoji 默认朝左, 向右走由 .pet-flip 翻面 */
+.pet-walking .pet-sprite { animation-duration: .5s; }
+.pet-flip { scale: -1 1; }
+/* 只上下颠, 不带旋转: 叠加镜像翻面后旋转会让它看起来一直歪着 */
+@keyframes pet-bob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -3px; }
+}
+.pet-hat { position: absolute; top: -10px; font-size: 13px; pointer-events: none; }
+.pet-zzz { position: absolute; top: -12px; right: -8px; font-size: 13px; display: none; }
+/* 睡觉: 侧躺 + 💤 (遛弯由 JS 停掉) */
+.pet-sleep .pet-sprite { animation: none; rotate: 80deg; opacity: .85; }
+.pet-sleep .pet-zzz { display: block; }
+.pet-bounce { animation: pet-bounce .45s var(--ease-bounce); }
+@keyframes pet-bounce {
+  0%, 100% { translate: 0 0; }
+  40% { translate: 0 -8px; }
+}
+.pet-heart {
+  position: absolute;
+  top: 0;
+  font-size: 12px;
+  color: var(--up);
+  pointer-events: none;
+  animation: pet-heart 1.2s var(--ease-out) forwards;
+}
+@keyframes pet-heart {
+  from { opacity: 1; translate: 0 0; }
+  to { opacity: 0; translate: 0 -34px; }
+}
+/* 气泡与功能面板: 默认挂宠物下方; 贴近屏幕右/下边缘时由 JS 加类翻到另一侧 */
+.pet-bubble {
+  position: absolute;
+  top: 46px;
+  left: 0;
+  width: max-content;
+  max-width: 220px;
+  margin: 0;
+  padding: 7px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel-raised) 86%, transparent);
+  -webkit-backdrop-filter: var(--blur-material);
+  backdrop-filter: var(--blur-material);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+.pet-pop {
+  position: absolute;
+  top: 46px;
+  left: 0;
+  width: 230px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+}
+.pet-pop-left .pet-bubble, .pet-pop-left .pet-pop { left: auto; right: 0; }
+.pet-pop-up .pet-bubble, .pet-pop-up .pet-pop { top: auto; bottom: 46px; }
+/* 气泡与面板同时可见时错开一点, 别完全叠住 */
+.pet-bubble:not([hidden]) ~ .pet-pop:not([hidden]) { margin-top: 6px; translate: 0 64px; }
+.pet-pop-up .pet-bubble:not([hidden]) ~ .pet-pop:not([hidden]) { translate: 0 -64px; }
+.pet-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#pet-name { cursor: pointer; font-size: 14px; }
+#pet-name-input { width: 110px; }
+.pet-xp-track { height: 6px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.pet-xp-track i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s; }
+.pet-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.pet-ask-row { display: flex; gap: 6px; }
+.pet-ask-row input { flex: 1; min-width: 0; font-size: 12px; }
+.pet-pop .hint { margin: 0; font-size: 11px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-sprite { animation: none !important; }
+  .pet-bounce { animation: none; }
+  .pet-heart { display: none; }
+  .pet-xp-track i { transition: none; }
+}

@@ -66,6 +66,10 @@ public class PendingOrder {
     @Column(name = "trail_pct", precision = 5, scale = 2)
     private BigDecimal trailPct;
 
+    /** 交易日志模式下挂单时写的理由, 成交时随流水落库; 非该模式为 null */
+    @Column(length = 100)
+    private String reason;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

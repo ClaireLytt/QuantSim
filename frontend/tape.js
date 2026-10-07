@@ -13,11 +13,7 @@
   let timer = null;
   let tpChart = null;
 
-  function gauss() {
-    const u = Math.random() || 1e-9;
-    const v = Math.random() || 1e-9;
-    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-  }
+  const gauss = qsGauss; // 共享实现在 app.js
 
   /**
    * 预生成整条盘口: 噪声为主, 随机埋 2~3 段趋势 (每段 20~50 tick 带漂移)。
@@ -143,9 +139,7 @@
 
   // ---------- 渲染 ----------
 
-  function fmt(n) {
-    return Number(n).toLocaleString("zh-CN", { maximumFractionDigits: 0 });
-  }
+  const fmt = qsFmtInt; // 共享实现在 app.js
 
   function renderStats() {
     $("tp-time").textContent = Math.ceil((DURATION_TICKS - g.tick) * TICK_MS / 1000) + "s";
