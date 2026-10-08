@@ -269,6 +269,7 @@
     const title = forcedTitle
       || (pct >= 100 ? "harvest" : pct >= 30 ? "pro" : pct >= 0 ? "fish" : "cut");
     log(t("bb.settle", START_CASH.toLocaleString(), end.toLocaleString(), (pct >= 0 ? "+" : "") + pct, t("bb.endTitle." + title)), pct >= 0 && forcedTitle !== "jail" ? "pos" : "neg");
+    document.dispatchEvent(new CustomEvent("qs:bubbleEnd", { detail: { title, pct } })); // 生涯任务信号
     log(t("bb.lesson"));
     toast(t("bb.endTitle." + title));
     if (forcedTitle !== "jail" && pct > 0) playSound("win");

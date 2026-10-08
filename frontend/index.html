@@ -4,8 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuantSim 虚拟炒股</title>
+  <!-- 首次来访先看着陆页, 看过一次永远直进应用; replace 不渲染本页不留历史, 隐私模式抛错则直进 -->
+  <script>
+    try {
+      if (!localStorage.getItem("qs_seen")) {
+        localStorage.setItem("qs_seen", "1");
+        location.replace("landing.html");
+      }
+    } catch (e) { /* no-op */ }
+  </script>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=20261007e">
+  <link rel="stylesheet" href="style.css?v=20261009b">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -31,6 +40,24 @@
       <button id="btn-theme" class="ghost">浅色模式</button>
       <button id="btn-sound" class="ghost" data-i18n-title="sound.title" title="音效开关">🔇</button>
     </div>
+    <nav id="main-nav">
+      <div id="nav-groups">
+        <button class="nav-group" data-group="home" data-i18n="nav.home">首页</button>
+        <button class="nav-group" data-group="play" data-i18n="nav.play">对局</button>
+        <button class="nav-group" data-group="arenaG" data-i18n="nav.arenaG">竞技场</button>
+        <button class="nav-group" data-group="learn" data-i18n="nav.learn">学堂</button>
+        <button class="nav-group" data-group="labG" data-i18n="nav.labG">研究所</button>
+        <button class="nav-group" data-group="me" data-i18n="nav.me">我的</button>
+      </div>
+      <div id="nav-subtabs"></div>
+    </nav>
+  </header>
+
+  <div id="view-game">
+  <section id="game-intro" class="card game-intro">
+    <h2 data-i18n="intro.title">开始你的第一局</h2>
+    <p data-i18n="intro.text">选好市场、AI 难度和模式，点「开始新对局」穿越回历史行情。不确定怎么玩？点「玩法说明」或先去「量化学堂」闯关。</p>
+    <!-- 开局配置: 原在页头常驻 (信息架构倒置, 评审 3/3 提及), 下沉为开局向导的一部分 -->
     <div class="start-box">
       <select id="market-select" data-i18n-title="market.title" title="选择市场">
         <option value="" data-i18n="market.all">全部市场</option>
@@ -65,41 +92,56 @@
       <label id="reason-wrap" class="adv-wrap" data-i18n-title="start.constraints.reasonTitle" title="每笔交易写一句理由, 结算后和实际结果对照">
         <input type="checkbox" id="reason-toggle"> <span data-i18n="start.constraints.reason">交易日志</span>
       </label>
-      <button id="btn-start" class="primary" data-i18n="btn.start">开始新对局</button>
+    </div>
+    <div class="start-cta">
+      <button id="btn-start" class="primary big" data-i18n="btn.start">开始新对局</button>
       <button id="btn-help" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
       <button id="btn-tour" data-i18n="tour.btn" data-i18n-title="tour.btn">新手引导</button>
     </div>
-    <nav id="main-nav">
-      <div id="nav-groups">
-        <button class="nav-group" data-group="home" data-i18n="nav.home">首页</button>
-        <button class="nav-group" data-group="play" data-i18n="nav.play">对局</button>
-        <button class="nav-group" data-group="arenaG" data-i18n="nav.arenaG">竞技场</button>
-        <button class="nav-group" data-group="learn" data-i18n="nav.learn">学堂</button>
-        <button class="nav-group" data-group="labG" data-i18n="nav.labG">研究所</button>
-        <button class="nav-group" data-group="me" data-i18n="nav.me">我的</button>
-      </div>
-      <div id="nav-subtabs"></div>
-    </nav>
-  </header>
-
-  <div id="view-game">
-  <section id="game-intro" class="card game-intro">
-    <h2 data-i18n="intro.title">开始你的第一局</h2>
-    <p data-i18n="intro.text">在顶部输入用户名、选择市场，点「开始新对局」穿越回历史行情。不确定怎么玩？点右上角「玩法说明」，或先去「量化学堂」闯关。</p>
-    <div class="daily-actions">
-      <button id="btn-survival" class="ghost" data-i18n="survival.btn">🐻 熊市生存挑战</button>
-      <button id="btn-blindbox-start" class="ghost" data-i18n="blindstart.btn">🎲 盲盒开局</button>
+    <!-- 两种特殊开局: 并列小选项卡各带一句描述 (替代一行逗号串联的脚注) -->
+    <div class="intro-modes">
+      <button id="btn-survival" class="intro-mode">
+        <strong data-i18n="survival.btn">熊市生存挑战</strong>
+        <span class="hint" data-i18n="intro.mode.survival">穿越历史暴跌段，目标：亏得比「买入持有」少</span>
+      </button>
+      <button id="btn-blindbox-start" class="intro-mode">
+        <strong data-i18n="blindstart.btn">盲盒开局</strong>
+        <span class="hint" data-i18n="intro.mode.blind">市场 / 行业 / AI 全随机，开出什么打什么</span>
+      </button>
     </div>
-    <p class="hint" data-i18n="intro.modesHint">熊市生存：穿越到历史暴跌段，目标是亏得比「买入持有」少；盲盒开局：市场/行业/AI 全随机。</p>
   </section>
 
   <main id="game-area" hidden>
+    <aside class="game-left">
+      <div class="card ga-card">
+        <h2 data-i18n="gs.account">账户信息</h2>
+        <dl class="ga-stats">
+          <dt data-i18n="gs.total">虚拟总资产</dt><dd id="ga-total">--</dd>
+          <dt data-i18n="gs.cash">可用资金</dt><dd id="ga-cash">--</dd>
+          <dt data-i18n="gs.mv">持仓市值</dt><dd id="ga-mv">--</dd>
+          <dt data-i18n="gs.pnl">浮动盈亏</dt><dd id="ga-pnl">--</dd>
+          <dt data-i18n="gs.ret">收益率</dt><dd id="ga-ret">--</dd>
+        </dl>
+      </div>
+      <div class="card ga-card">
+        <h2 data-i18n="gs.positions">持仓列表</h2>
+        <ul id="ga-pos" class="ga-pos"></ul>
+        <p id="ga-pos-empty" class="hint" data-i18n="gs.posEmpty">空仓观望中</p>
+      </div>
+    </aside>
+
     <section class="chart-panel">
       <div class="session-bar">
         <span id="stock-label">--</span>
         <span id="day-label">--</span>
         <span id="date-label">--</span>
         <span id="streak-flame" class="streak-flame" hidden></span>
+        <span class="ind-chips">
+          <button class="small ind-chip active" data-ind="ma">MA</button>
+          <button class="small ind-chip active" data-ind="macd">MACD</button>
+          <button class="small ind-chip active" data-ind="rsi">RSI</button>
+          <button id="btn-sonify" class="small ind-chip" data-i18n-title="sonify.title" title="听盘模式">♪</button>
+        </span>
         <button id="btn-status-pop" class="fold-btn">💰 <span id="status-pop-label" data-i18n="status.title">账户状态</span></button>
         <button id="btn-ai-pop" class="fold-btn">🤖 <span data-i18n="ai.title">AI 操盘手</span></button>
         <button id="btn-chart-guide" class="ghost" data-i18n="guide.btn">怎么看这张图？</button>
@@ -108,6 +150,10 @@
       <div id="news-banner" class="news-banner" hidden></div>
       <div id="pf-tabs" class="pf-tabs" hidden></div>
       <div id="chart"></div>
+      <div class="card" id="game-trades-card" hidden>
+        <h2 data-i18n="gs.fills">成交明细</h2>
+        <ul id="game-trades" class="gs-list"></ul>
+      </div>
     </section>
 
     <aside class="side-panel">
@@ -121,6 +167,8 @@
           <button id="btn-buy" class="buy" data-i18n="trade.buy">买入</button>
           <button id="btn-sell" class="sell" data-i18n="trade.sell">卖出</button>
         </div>
+        <button id="btn-import-strat" class="ghost small" data-i18n="gs.import">⇩ 从研究所导入策略</button>
+        <p id="strat-active" class="hint" hidden></p>
         <p class="hint" id="trades-left" hidden></p>
         <p class="hint" id="price-range" data-i18n="trade.rangeEmpty">按当日收盘价成交: --</p>
         <p class="hint" id="t1-hint" hidden></p>
@@ -143,6 +191,11 @@
         </div>
         <ul id="orders-list" class="orders-list"></ul>
         <p class="hint" data-i18n="orders.hint">挂单在「下一天」按次日行情自动撮合，现金或持仓不足时自动撤单。</p>
+      </div>
+
+      <div class="card" id="journal-card" hidden>
+        <h2 data-i18n="gs.journal">交易日志</h2>
+        <ul id="journal-list" class="gs-list"></ul>
       </div>
 
       <div class="card action-card">
@@ -407,13 +460,20 @@
   <section class="academy-panel">
     <h2><span data-i18n="lab.section">量化研究所</span> <span class="sub" data-i18n="lab.sectionHint">亲手用真数据做研究：对比股票、审视 AI、检验那些江湖传闻的技术信号。</span></h2>
 
+    <div id="lab-weekly" class="lab-weekly" hidden>
+      <span class="lab-weekly-tag" data-i18n="lab.weekly.tag">本周推荐实验</span>
+      <b id="lab-weekly-title"></b>
+      <span id="lab-weekly-desc" class="hint"></span>
+      <button id="btn-lab-weekly" class="small primary" data-i18n="lab.weekly.go">立即开跑</button>
+    </div>
+    <p id="lab-recent" class="lab-recent" hidden></p>
     <div id="lab-tiles" class="lab-tiles">
-      <button class="lab-tile" data-lab="lab-b-compare">🆚 <strong data-i18n="lab.compare">双股对比</strong><span class="sub" data-i18n="lab.compareHint">把两支股票放在同一起跑线（起点=100），看谁跑得远、走势像不像。</span></button>
-      <button class="lab-tile" data-lab="lab-b-models">🤖 <strong data-i18n="lab.models">AI 模型分歧</strong><span class="sub" data-i18n="lab.modelsHint">三个 AI 模型每天都预测次日涨跌。它们到底准不准？互相吵架吗？</span></button>
-      <button class="lab-tile" data-lab="lab-b-signal">📐 <strong data-i18n="lab.signals">指标信号胜率</strong><span class="sub" data-i18n="lab.signalsHint">“金叉必涨”“大跌必反弹”……这些江湖传闻到底靠不靠谱？用历史数据当场验证。</span></button>
-      <button class="lab-tile" data-lab="lab-b-calib">🎯 <strong data-i18n="lab.calib">预测置信度校准</strong><span class="sub" data-i18n="lab.calibHint">AI 说「70% 概率上涨」时，历史上真的有七成在涨吗？把全部预测分桶对照实际涨跌，一眼看出模型是自信过头还是过于保守。</span></button>
-      <button class="lab-tile" data-lab="lab-b-timing">⏳ <strong data-i18n="lab.timing">择时的代价</strong><span class="sub" data-i18n="lab.timingHint">“等回调再买”听起来很聪明——但如果因此错过涨得最猛的 5 天，会发生什么？用整段历史算给你看。</span></button>
-      <button class="lab-tile" data-lab="lab-b-overview">🏆 <strong data-i18n="lab.overview">市场风云榜</strong><span class="sub" data-i18n="lab.overviewHint2">全部标的一键横评。</span></button>
+      <button class="lab-tile" data-lab="lab-b-compare"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h12"/><path d="M14 5l3 3-3 3"/><path d="M19 16H7"/><path d="M10 13l-3 3 3 3"/></svg></span><i class="lab-tier" data-i18n="lab.tier.adv">进阶</i></span><strong data-i18n="lab.compare">双股对比</strong><span class="sub" data-i18n="lab.compareHint">把两支股票放在同一起跑线（起点=100），看谁跑得远、走势像不像。</span></button>
+      <button class="lab-tile" data-lab="lab-b-models"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 4v3M15 4v3M9 17v3M15 17v3M4 9h3M4 15h3M17 9h3M17 15h3"/></svg></span><i class="lab-tier" data-i18n="lab.tier.ai">AI 专项</i></span><strong data-i18n="lab.models">AI 模型分歧</strong><span class="sub" data-i18n="lab.modelsHint">三个 AI 模型每天都预测次日涨跌。它们到底准不准？互相吵架吗？</span></button>
+      <button class="lab-tile" data-lab="lab-b-signal"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 3 6-8"/><path d="M14 6h4v4"/></svg></span><i class="lab-tier" data-i18n="lab.tier.easy">入门</i></span><strong data-i18n="lab.signals">指标信号胜率</strong><span class="sub" data-i18n="lab.signalsHint">“金叉必涨”“大跌必反弹”……这些江湖传闻到底靠不靠谱？用历史数据当场验证。</span></button>
+      <button class="lab-tile" data-lab="lab-b-calib"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.8" fill="currentColor"/></svg></span><i class="lab-tier" data-i18n="lab.tier.ai">AI 专项</i></span><strong data-i18n="lab.calib">预测置信度校准</strong><span class="sub" data-i18n="lab.calibHint">AI 说「70% 概率上涨」时，历史上真的有七成在涨吗？把全部预测分桶对照实际涨跌。</span></button>
+      <button class="lab-tile" data-lab="lab-b-timing"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h10M7 21h10"/><path d="M8 3v2l4 5 4-5V3"/><path d="M8 21v-2l4-5 4 5v2"/></svg></span><i class="lab-tier" data-i18n="lab.tier.adv">进阶</i></span><strong data-i18n="lab.timing">择时的代价</strong><span class="sub" data-i18n="lab.timingHint">“等回调再买”听起来很聪明——但如果因此错过涨得最猛的 5 天，会发生什么？用整段历史算给你看。</span></button>
+      <button class="lab-tile" data-lab="lab-b-overview"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 20v-9h6v9"/><path d="M4 20v-5h5"/><path d="M15 15h5v5"/><path d="M3 20h18"/></svg></span><i class="lab-tier" data-i18n="lab.tier.ai">AI 专项</i></span><strong data-i18n="lab.overview">市场风云榜</strong><span class="sub" data-i18n="lab.overviewHint2">全部标的一键横评：近 30 日涨幅、波动与 AI 看多度。</span></button>
     </div>
 
     <div class="lab-block" id="lab-b-compare" hidden>
@@ -448,13 +508,18 @@
         <select id="lab-signal"></select>
         <button id="btn-lab-signal" data-i18n="lab.signalBtn">回测信号</button>
       </div>
+      <div class="lab-quick">
+        <button class="small lab-sig-quick" data-sig="golden" data-i18n="lab.quick.golden">金叉必涨？</button>
+        <button class="small lab-sig-quick" data-sig="bigdrop" data-i18n="lab.quick.bigdrop">大跌必反弹？</button>
+        <button class="small lab-sig-quick" data-sig="threedown" data-i18n="lab.quick.threedown">三连阴抄底？</button>
+      </div>
       <div id="lab-signal-cards" class="lab-cards"></div>
       <div id="lab-signal-verdict" class="lab-verdict" hidden></div>
     </div>
 
     <div class="lab-block" id="lab-b-calib" hidden>
       <h3 data-i18n="lab.calib">预测置信度校准</h3>
-      <p class="hint" data-i18n="lab.calibHint">AI 说「70% 概率上涨」时，历史上真的有七成在涨吗？把全部预测分桶对照实际涨跌，一眼看出模型是自信过头还是过于保守。</p>
+      <p class="hint" data-i18n="lab.calibHint">AI 说「70% 概率上涨」时，历史上真的有七成在涨吗？把全部预测分桶对照实际涨跌。</p>
       <div class="lab-controls">
         <button id="btn-lab-calib" data-i18n="lab.calibBtn">生成校准图</button>
       </div>
@@ -479,6 +544,463 @@
         <button id="btn-lab-overview" data-i18n="lab.overviewBtn">生成榜单</button>
       </div>
       <div id="lab-rank-cards" class="lab-ranks"></div>
+    </div>
+
+    <p class="lab-disclaimer" data-i18n="lab.disclaimer">仅供娱乐 / 学习，不构成投资建议。</p>
+  </section>
+  </div>
+
+  <div id="view-newsjudge" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="nj.title">📰 新闻多空</span> <span class="sub" data-i18n="nj.sub">一条新闻砸下来，是利好、利空还是烟雾弹？练出机构级的新闻嗅觉</span></h2>
+
+    <div id="nj-intro" class="card rb-card">
+      <p class="hint" data-i18n="nj.introText">每轮 10 条真实感新闻：减持、回购、高送转、意向书、解禁……判断它对股价是利好 / 利空 / 中性。判完立刻讲透背后的财务常识。答对 +10 分，三连对起每题再 +5。</p>
+      <p class="hint" id="nj-best" hidden></p>
+      <button id="btn-nj-start" class="primary" data-i18n="nj.start">📰 开始挑战</button>
+    </div>
+
+    <div id="nj-play" class="nj-wrap" hidden>
+      <aside class="nj-stats card">
+        <dl>
+          <dt data-i18n="nj.score">积分</dt><dd id="nj-score">0</dd>
+          <dt data-i18n="nj.round">回合</dt><dd id="nj-round">1 / 10</dd>
+          <dt data-i18n="nj.streak">连对</dt><dd id="nj-streak">0</dd>
+        </dl>
+      </aside>
+      <div class="nj-main">
+        <div class="nj-news"><p id="nj-text"></p></div>
+        <div class="nj-opts">
+          <button id="btn-nj-bull" class="buy big" data-i18n="nj.bull">📈 利好</button>
+          <button id="btn-nj-flat" class="big" data-i18n="nj.flat">➖ 中性</button>
+          <button id="btn-nj-bear" class="sell big" data-i18n="nj.bear">📉 利空</button>
+        </div>
+        <div id="nj-verdict" class="lab-verdict" hidden></div>
+        <button id="btn-nj-next" class="primary big" hidden data-i18n="nj.next">下一条</button>
+      </div>
+    </div>
+
+    <div id="nj-end" class="card rb-card" hidden>
+      <h3 id="nj-end-title"></h3>
+      <p id="nj-end-stats"></p>
+      <button id="btn-nj-again" class="primary" data-i18n="nj.again">🔁 再来一轮</button>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-buydip" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="bd.title">⚖️ 买还是等</span> <span class="sub" data-i18n="bd.sub">每一段走势都在问你同一个问题：现在上车，还是等个回调？</span></h2>
+
+    <div id="bd-intro" class="card rb-card">
+      <p class="hint" data-i18n="bd.introText">每回合看 30 天净值走势后二选一：「立即买入」按现价全仓；「等待回调」挂低 3% 的限价单——未来 15 天触价则折扣上车，没触价就空仓踏空。8 回合后和「无脑立即买」的基准比总资产，亲身体会等回调到底是折扣还是代价。</p>
+      <p class="hint" id="bd-best" hidden></p>
+      <button id="btn-bd-start" class="primary" data-i18n="bd.start">⚖️ 开始挑战</button>
+    </div>
+
+    <div id="bd-play" class="bd-wrap" hidden>
+      <aside class="bd-side">
+        <div class="card bd-stats">
+          <dl>
+            <dt data-i18n="bd.round">当前回合</dt><dd id="bd-round">1 / 8</dd>
+            <dt data-i18n="bd.assets">总资产</dt><dd id="bd-assets">100,000</dd>
+          </dl>
+        </div>
+        <div class="card bd-history-card">
+          <p class="hint" data-i18n="bd.historyTitle">历史收益对比（你 vs 立即买）</p>
+          <ul id="bd-history" class="bd-history"></ul>
+          <p id="bd-history-sum" class="bd-history-sum"></p>
+        </div>
+      </aside>
+      <div class="bd-main">
+        <div id="bd-chart" class="bd-chart"></div>
+        <p id="bd-msg" class="bd-msg"></p>
+        <div class="bd-opts">
+          <button id="btn-bd-buy" class="buy big" data-i18n="bd.buyNow">🚀 立即买入</button>
+          <button id="btn-bd-wait" class="big" data-i18n="bd.wait">⏳ 等待回调（-3% 限价）</button>
+        </div>
+        <button id="btn-bd-next" class="primary big" hidden data-i18n="bd.nextRound">下一回合 →</button>
+      </div>
+    </div>
+
+    <div id="bd-end" class="card rb-card" hidden>
+      <h3 id="bd-end-title"></h3>
+      <p id="bd-end-stats"></p>
+      <p id="bd-end-lesson" class="hint"></p>
+      <button id="btn-bd-again" class="primary" data-i18n="bd.again">🔁 再来一轮</button>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-mine" hidden>
+  <section class="academy-panel">
+    <div class="card mine-user">
+      <span id="mine-avatar" class="mine-avatar">?</span>
+      <div class="mine-user-main">
+        <b id="mine-name">--</b>
+        <span class="hint" id="mine-guest" data-i18n="mine.guestHint" hidden>游客身份 · 登录后战绩与积分云端同步</span>
+      </div>
+      <div class="mine-points">
+        <i data-i18n="mine.points">研究积分</i>
+        <b id="mine-points">--</b>
+      </div>
+    </div>
+
+    <div class="mine-cols">
+      <div class="mine-main">
+        <div class="mine-tabs">
+          <button id="mine-tab-games" class="mine-tab active" data-i18n="mine.tab.games">对局记录</button>
+          <button id="mine-tab-exps" class="mine-tab" data-i18n="mine.tab.exps">我的实验</button>
+          <button id="mine-tab-badges" class="mine-tab" data-i18n="mine.tab.badges">成就徽章</button>
+        </div>
+        <div id="mine-panel-games">
+          <ul id="mine-games" class="mine-list"></ul>
+          <p id="mine-games-empty" class="hint" hidden></p>
+        </div>
+        <div id="mine-panel-exps" hidden>
+          <ul id="mine-exps" class="mine-list"></ul>
+          <p id="mine-exps-empty" class="hint" data-i18n="mine.expsEmpty" hidden>还没有保存过实验——去研究所跑一个并点「保存报告」。</p>
+        </div>
+        <div id="mine-panel-badges" hidden>
+          <p class="hint" id="mine-badges-count"></p>
+          <div id="mine-badges" class="mine-badges"></div>
+          <p id="mine-badges-empty" class="hint" data-i18n="mine.badgesEmpty" hidden>还没有徽章——学堂与对局里处处是解锁点。</p>
+          <button id="btn-mine-profile" class="small" data-i18n="mine.fullProfile">查看完整成长档案</button>
+        </div>
+      </div>
+      <aside class="card mine-stats">
+        <p class="hint" data-i18n="mine.statsTitle">统计概览</p>
+        <dl>
+          <dt data-i18n="mine.statWin">对局胜率</dt><dd id="mine-stat-win">--</dd>
+          <dt data-i18n="mine.statAvg">平均收益</dt><dd id="mine-stat-avg">--</dd>
+          <dt data-i18n="mine.statExps">完成实验</dt><dd id="mine-stat-exps">--</dd>
+          <dt data-i18n="mine.statGames">小游戏通关</dt><dd id="mine-stat-games">--</dd>
+        </dl>
+      </aside>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-games" hidden>
+  <section class="academy-panel">
+    <h2><span data-i18n="gz.title">量化小游戏专区</span> <span class="sub" data-i18n="gz.sub">边玩边学，在游戏里避开量化交易陷阱</span></h2>
+
+    <div class="gz-grid">
+      <button class="gz-card" data-goto="guess"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 3 5-7"/><path d="M17 12v8M15 18l2 2 2-2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.easy">入门</i></span><strong data-i18n="gz.g1.t">K 线猜涨跌</strong><span class="sub" data-i18n="gz.g1.d">隐藏未来 K 线，根据历史走势预测涨跌，训练看图能力</span></button>
+      <button class="gz-card" data-goto="buydip"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span><i class="lab-tier" data-i18n="gz.tier.easy">入门</i></span><strong data-i18n="gz.g2.t">择时困境挑战</strong><span class="sub" data-i18n="gz.g2.d">体验等待回调的代价，看清踏空风险</span></button>
+      <button class="gz-card" data-goto="stratbox"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g3.t">策略盲盒</strong><span class="sub" data-i18n="gz.g3.d">有限次数回测，猜出隐藏的市场行情</span></button>
+      <button class="gz-card" data-goto="qdetect"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g4.t">量化侦探</strong><span class="sub" data-i18n="gz.g4.d">办案式回测，找出策略盈利背后的真相</span></button>
+      <button class="gz-card" data-goto="qdetect" data-case="survivor"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M8 20v-9a4 4 0 0 1 8 0v9"/><path d="M10 13h4"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g5.t">幸存者陷阱</strong><span class="sub" data-i18n="gz.g5.d">揭露幸存者偏差带来的选股幻觉</span></button>
+      <button class="gz-card" data-goto="duel"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4l6 6M19 4l-6 6M7 14l-3 3 3 3 3-3M17 14l3 3-3 3-3-3"/><path d="M12 12l-5 5M12 12l5 5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g6.t">策略擂台战</strong><span class="sub" data-i18n="gz.g6.d">提交自定义策略，同台回测 PK</span></button>
+    </div>
+
+    <div class="gz-footer">
+      <div class="card gz-points-card">
+        <p class="hint" data-i18n="gz.pointsTitle">研究积分</p>
+        <b id="gz-points">--</b>
+        <span class="hint" id="gz-points-hint"></span>
+        <button id="btn-gz-redeem" class="small" data-i18n="gz.redeem">可解锁奖励</button>
+      </div>
+      <button id="btn-gz-lab" class="big" data-i18n="gz.backLab">返回研究所</button>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-wiki" hidden>
+  <section class="academy-panel">
+    <h2><span data-i18n="wiki.title">量化知识库</span> <span class="sub" data-i18n="wiki.sub">学习量化、指标、交易误区——每个知识点都配套研究所实验与小游戏验证</span></h2>
+    <div class="wiki-search-row">
+      <input id="wiki-search" type="search" data-i18n-placeholder="wiki.searchPh" placeholder="搜索知识点，如：金叉、回撤、幸存者偏差…">
+      <button id="btn-wiki-search" class="small" data-i18n="wiki.searchBtn">搜索</button>
+    </div>
+    <div class="wiki-cols">
+      <aside class="wiki-side card">
+        <p class="hint" data-i18n="wiki.toc">知识目录</p>
+        <ul id="wiki-cats" class="wiki-cats"></ul>
+      </aside>
+      <article class="wiki-main card">
+        <i id="wiki-cat-tag" class="lab-tier"></i>
+        <h3 id="wiki-title"></h3>
+        <div id="wiki-chart" class="wiki-chart"></div>
+        <div id="wiki-body" class="wiki-body"></div>
+        <div class="qd-actions">
+          <button id="btn-wiki-lab" class="primary big" data-i18n="wiki.toLab">去研究所验证这个知识点</button>
+          <button id="btn-wiki-game" class="big" data-i18n="wiki.toGame">打开对应小游戏</button>
+        </div>
+      </article>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-duel" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="duel.title">🥊 策略擂台战</span> <span class="sub" data-i18n="duel.sub">提交你的量化策略，同台回测 PK，综合评估收益与风险</span></h2>
+
+    <div id="duel-board">
+      <div class="duel-timer card">
+        <span data-i18n="duel.timerLabel">⏳ 本周擂台结算倒计时</span>
+        <b id="duel-countdown">-</b>
+        <span class="hint" data-i18n="duel.timerHint">综合评分 = 收益 50% + 夏普 30% + 回撤 20%（榜内归一化）</span>
+      </div>
+
+      <ul id="duel-list" class="duel-list"></ul>
+      <p id="duel-empty" class="hint" data-i18n="duel.empty" hidden>擂台虚位以待——去回测工坊跑出第一份策略成绩吧。</p>
+
+      <div class="qd-actions">
+        <button id="btn-duel-submit" class="primary big" data-i18n="duel.submit">⚔️ 提交我的策略</button>
+        <button id="btn-duel-final" class="big" data-i18n="duel.final.open">🏁 本轮结算</button>
+        <button id="btn-duel-history" class="big" data-i18n="duel.history">📜 查看历史擂台</button>
+      </div>
+    </div>
+
+    <div id="duel-final" hidden>
+      <h3 data-i18n="duel.final.title">🏁 本轮擂台战 · 最终排名</h3>
+      <div id="duel-final-chart" class="duel-final-chart"></div>
+      <p id="duel-final-empty" class="hint" data-i18n="duel.final.empty" hidden>本轮还没有参赛策略。</p>
+      <table class="duel-final-table">
+        <thead>
+          <tr>
+            <th data-i18n="duel.final.rank">排名</th>
+            <th data-i18n="duel.final.player">玩家 · 策略</th>
+            <th data-i18n="duel.score">综合评分</th>
+            <th data-i18n="duel.annual">收益</th>
+            <th data-i18n="duel.dd">最大回撤</th>
+          </tr>
+        </thead>
+        <tbody id="duel-final-rows"></tbody>
+      </table>
+      <p id="duel-final-detail" class="lab-verdict" hidden></p>
+      <p class="duel-final-tip hint" data-i18n="duel.final.tip">💡 知识点：擂台评分综合收益与回撤，不单纯看收益率——翻倍但腰斩过的策略，排名未必赢过稳稳 +20% 的。</p>
+      <div class="qd-actions">
+        <button id="btn-duel-final-detail" class="big" data-i18n="duel.final.detailBtn">🔍 查看策略详情</button>
+        <button id="btn-duel-final-next" class="primary big" data-i18n="duel.final.next">🥊 参加下一轮擂台</button>
+        <button id="btn-duel-final-back" class="ghost" data-i18n="duel.build.back">↩ 返回擂台榜</button>
+      </div>
+    </div>
+
+    <div id="duel-build" hidden>
+      <div class="duel-build-head">
+        <h3 data-i18n="duel.build.title">🛠️ 策略搭建</h3>
+        <span class="qd-credits-pill" id="duel-build-stock"></span>
+      </div>
+      <p class="hint" data-i18n="duel.build.hint">提交后将和所有玩家的策略在统一历史数据集上同台 PK（擂台标的每周轮换）。</p>
+      <div class="duel-build-cols">
+        <div class="duel-build-left card">
+          <p class="hint" data-i18n="duel.build.buy">📥 买入条件（全部满足才买）</p>
+          <div id="duel-buy-conds" class="duel-conds"></div>
+          <button id="btn-duel-add-buy" class="small" data-i18n="duel.build.addCond">＋ 加一条</button>
+          <p class="hint" data-i18n="duel.build.sell">📤 卖出条件（任一满足即卖）</p>
+          <div id="duel-sell-conds" class="duel-conds"></div>
+          <button id="btn-duel-add-sell" class="small" data-i18n="duel.build.addCond2">＋ 加一条</button>
+          <label class="duel-pos-row"><span data-i18n="duel.build.pos">仓位</span>
+            <input type="range" id="duel-pos" min="10" max="100" step="10" value="100">
+            <b id="duel-pos-v">100%</b>
+          </label>
+          <button id="btn-duel-preview" class="big" data-i18n="duel.build.preview">▶ 运行预回测</button>
+        </div>
+        <div class="duel-build-right">
+          <div id="duel-build-chart" class="duel-build-chart"></div>
+          <div id="duel-build-stats" class="qdr-stats" hidden>
+            <span><i data-i18n="duel.build.ann">年化收益</i><b id="db-ann">--</b></span>
+            <span><i data-i18n="duel.build.dd">最大回撤</i><b id="db-dd" class="neg">--</b></span>
+            <span><i data-i18n="duel.build.sharpe">夏普比率</i><b id="db-sharpe">--</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-duel-enter" class="primary big" disabled data-i18n="duel.build.enter">🥊 提交策略参加擂台</button>
+        <button id="btn-duel-back" class="big" data-i18n="duel.build.back">↩ 返回擂台榜</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-career" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="career.title">🧭 生涯模式</span> <span class="sub" data-i18n="career.sub">从实习生到市场传奇：一条把全站玩法串起来的剧情主线，你的抉择决定考核与结局</span></h2>
+
+    <div id="career-map" class="career-map"></div>
+
+    <div id="career-step" class="card career-step" hidden>
+      <p class="hint" id="career-step-ch"></p>
+      <b id="career-step-goal"></b>
+      <p class="hint" id="career-step-progress"></p>
+      <button id="btn-career-go" class="primary big"></button>
+    </div>
+
+    <div id="career-choice" class="card career-step" hidden>
+      <b id="career-choice-prompt"></b>
+      <div id="career-choice-opts" class="career-choice-opts"></div>
+    </div>
+
+    <div id="career-ending" class="card career-ending" hidden>
+      <h3 id="career-end-title"></h3>
+      <p id="career-end-recap"></p>
+      <p class="hint" id="career-end-stats"></p>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-qdetect" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="qd.title">🕵️ 量化侦探</span> <span class="sub" data-i18n="qd.sub">调查市场收益背后的真相，避开量化陷阱</span></h2>
+
+    <div class="qd-panel card">
+      <dl>
+        <dt data-i18n="qd.progress">破案进度</dt><dd id="qd-progress">0 / 3</dd>
+        <dt data-i18n="qd.scoreLabel">侦探得分</dt><dd id="qd-score">0</dd>
+      </dl>
+      <p class="hint" id="qd-best" hidden></p>
+    </div>
+
+    <div id="qd-select">
+      <p class="hint" data-i18n="qd.selectHint">每个案子都有一句诱人的宣传话术。翻证据卡办案——翻得越少、结论越准，得分越高。</p>
+      <div id="qd-cases" class="qd-cases"></div>
+      <button id="btn-qd-enter" class="primary big" data-i18n="qd.enter">🚪 进入办案室</button>
+    </div>
+
+    <div id="qd-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="qd-room-title"></h3>
+        <span class="qd-credits-pill"><i data-i18n="qd.creditsLabel">剩余取证次数</i><b id="qd-credits">3</b></span>
+      </div>
+      <p id="qd-claim" class="qd-claim"></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="qd.toolbox">🧰 证据工具箱（选中后点「调取证据」）</p>
+          <div id="qd-toolbox" class="qd-toolbox"></div>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="qd.notes">📝 侦探笔录</p>
+          <p id="qd-notes-empty" class="hint" data-i18n="qd.notesEmptyText">笔录还空着——先从左侧调取一份证据。</p>
+          <ul id="qd-notes" class="qd-notes"></ul>
+          <label class="qd-verdict-row"><span data-i18n="qd.concludeHint">结案结论</span>
+            <select id="qd-verdict"></select>
+          </label>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-qd-fetch" class="big" data-i18n="qd.fetch">🔍 调取证据（消耗 1 次）</button>
+        <button id="btn-qd-conclude" class="primary big" data-i18n="qd.concludeBtn">⚖️ 提交结案判断</button>
+      </div>
+      <button id="btn-qd-back" class="ghost" data-i18n="qd.back">↩ 回到案件列表</button>
+    </div>
+
+    <div id="qd-report" hidden>
+      <h3 data-i18n="qd.reportTitle">📋 结案报告</h3>
+      <p id="qdr-case" class="hint"></p>
+      <div class="qdr-cols">
+        <div class="qdr-left">
+          <div id="qdr-chart" class="qdr-chart"></div>
+          <div class="qdr-stats">
+            <span><i data-i18n="qd.statWin">胜率</i><b id="qdr-win">--</b></span>
+            <span><i data-i18n="qd.statDd">最大回撤</i><b id="qdr-dd" class="neg">--</b></span>
+            <span><i data-i18n="qd.statAnn">年化收益</i><b id="qdr-ann">--</b></span>
+          </div>
+        </div>
+        <div class="qdr-right">
+          <p id="qdr-conclusion" class="qdr-conclusion"></p>
+          <div id="qdr-card" class="qdr-card">
+            <p class="hint" data-i18n="qd.achv">🏅 侦探成就 · 知识点卡牌</p>
+            <span id="qdr-card-ico" class="qdr-card-ico">🔒</span>
+            <b id="qdr-card-name"></b>
+            <span id="qdr-card-line" class="sub"></span>
+            <span id="qdr-cards-count" class="hint"></span>
+          </div>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-qdr-next" class="primary big" data-i18n="qd.nextCase">▶ 下一个案件</button>
+        <button id="btn-qdr-lab" class="big" data-i18n="qd.toLab">🔬 返回研究所亲手验证</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-stratbox" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="sb.title">🎁 策略盲盒</span> <span class="sub" data-i18n="sb.sub">看不见行情，只看得见你的策略赚了还是亏了——从净值的指纹里猜出盲盒里的市场</span></h2>
+
+    <div id="sb-intro" class="card rb-card">
+      <p class="hint" data-i18n="sb.introText">盲盒里藏着一种市场脾气（慢牛 / 阴跌熊 / 宽幅震荡 / 泡沫破裂）。你看不到行情，只能调双均线策略的参数、花掉最多 5 次回测机会，观察净值曲线与回撤的「指纹」：趋势策略在牛市如鱼得水、在震荡市反复止损、在崩盘市靠止损保命。猜对行情得分，剩的回测次数越多分越高。</p>
+      <p class="hint" id="sb-best" hidden></p>
+      <button id="btn-sb-start" class="primary" data-i18n="sb.start">🎁 开一个盲盒</button>
+    </div>
+
+    <div id="sb-play" class="sb-wrap" hidden>
+      <div class="sb-main">
+        <div id="sb-chart" class="sb-chart"></div>
+        <div id="sb-stats" class="sb-stats" hidden>
+          <span><i data-i18n="sb.ret">收益</i><b id="sb-ret">--</b></span>
+          <span><i data-i18n="sb.dd">最大回撤</i><b id="sb-dd">--</b></span>
+          <span><i data-i18n="sb.trades">交易次数</i><b id="sb-trades">--</b></span>
+        </div>
+        <p id="sb-msg" class="bd-msg"></p>
+      </div>
+      <aside class="sb-side">
+        <div class="card sb-box">
+          <span id="sb-box-ico" class="sb-box-ico">🎁</span>
+          <p class="hint" data-i18n="sb.leftLabel">剩余回测次数</p>
+          <b id="sb-left" class="sb-left">5</b>
+        </div>
+        <div class="card sb-params">
+          <p class="hint" data-i18n="sb.paramsTitle">策略参数</p>
+          <label><span data-i18n="sb.fast">快线 MA</span><input type="range" id="sb-fast" min="3" max="10" value="5"><b id="sb-fast-v">5</b></label>
+          <label><span data-i18n="sb.slow">慢线 MA</span><input type="range" id="sb-slow" min="15" max="40" value="20"><b id="sb-slow-v">20</b></label>
+          <label><span data-i18n="sb.stopLoss">止损 %</span><input type="range" id="sb-stop" min="3" max="15" value="8"><b id="sb-stop-v">8</b></label>
+          <button id="btn-sb-run" class="primary big" data-i18n="sb.run">▶ 运行回测</button>
+        </div>
+        <div class="card sb-guess-card">
+          <p class="hint" data-i18n="sb.guessTitle">提交猜测：盲盒里是——</p>
+          <div id="sb-guesses" class="sb-guesses"></div>
+        </div>
+      </aside>
+    </div>
+
+    <div id="sb-end" class="card rb-card" hidden>
+      <h3 id="sb-end-title"></h3>
+      <p id="sb-end-stats"></p>
+      <p id="sb-end-lesson" class="hint"></p>
+      <button id="btn-sb-again" class="primary" data-i18n="sb.again">🔁 再开一个</button>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-richman" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="rm.title">🎲 财富环游</span> <span class="sub" data-i18n="rm.sub">掷骰环游金融世界：行情起伏、新闻突袭、财商答题，18 轮后看你身家几何</span></h2>
+
+    <div id="rm-intro" class="card rb-card">
+      <p class="hint" data-i18n="rm.introText">1 万本金环游 16 格棋盘：行情格按比例涨跌、新闻格随机事件、答题格考财商（答对 +1500 / 答错 -800）、经过起点 +1000。18 次掷骰后按总资产结算。</p>
+      <p class="hint" id="rm-best" hidden></p>
+      <button id="btn-rm-start" class="primary" data-i18n="rm.start">🎲 开始环游</button>
+    </div>
+
+    <div id="rm-play" class="rm-wrap" hidden>
+      <aside class="rm-panel card">
+        <dl>
+          <dt data-i18n="rm.assets">资产</dt><dd id="rm-cash">0</dd>
+          <dt data-i18n="rm.lap">圈数</dt><dd id="rm-lap">1</dd>
+          <dt data-i18n="rm.rollsLeft">剩余骰子</dt><dd id="rm-rolls">18</dd>
+        </dl>
+        <button id="btn-rm-roll" class="primary big" data-i18n="rm.roll">🎲 掷骰子</button>
+      </aside>
+      <div id="rm-board" class="rm-board">
+        <div class="rm-center">
+          <span id="rm-dice" class="rm-dice">🎲</span>
+          <p id="rm-center-msg" class="rm-center-msg"></p>
+          <div id="rm-quiz" hidden>
+            <p id="rm-quiz-q" class="rm-quiz-q"></p>
+            <div id="rm-quiz-opts" class="rm-quiz-opts"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="rm-end" class="card rb-card" hidden>
+      <h3 id="rm-end-title"></h3>
+      <p id="rm-end-stats"></p>
+      <button id="btn-rm-again" class="primary" data-i18n="rm.again">🔁 再来一局</button>
     </div>
   </section>
   </div>
@@ -706,25 +1228,128 @@
   </div>
 
   <div id="view-home" hidden>
-  <section class="academy-panel center-panel">
-    <div class="card tasks-card">
-      <div class="tasks-head"><b data-i18n="todo.title">📋 今日任务</b><span class="hint" id="tasks-streak"></span></div>
-      <button id="btn-task-signin" class="task-row"></button>
-      <button id="btn-task-guess" class="task-row"></button>
-      <button id="btn-task-settle" class="task-row"></button>
-      <button id="btn-task-chest" class="primary"></button>
+  <!-- 首屏横幅: 主张 + 双主按钮 -->
+  <section class="home-hero">
+    <div class="home-hero-text">
+      <div class="home-hero-title" data-i18n="home.hero.title">QuantSim 虚拟炒股游戏</div>
+      <p class="home-hero-sub" data-i18n="home.hero.sub">先回测验证策略，再开启模拟交易。</p>
+      <p class="hint" data-i18n="home.hero.tags">量化学习小游戏 · 历史数据回测 · 策略验证</p>
+    </div>
+    <div class="home-hero-art" aria-hidden="true">
+      <svg viewBox="0 0 240 120" fill="none">
+        <g style="stroke:var(--border)" stroke-width="1" opacity=".6">
+          <line x1="6" y1="30" x2="234" y2="30"/>
+          <line x1="6" y1="60" x2="234" y2="60"/>
+          <line x1="6" y1="90" x2="234" y2="90"/>
+          <line x1="6" y1="110" x2="234" y2="110"/>
+        </g>
+        <g stroke-width="5">
+          <line x1="14" y1="78" x2="14" y2="100" style="stroke:var(--down)"/><rect x="10" y="82" width="9" height="13" rx="1" style="fill:var(--down)"/>
+          <line x1="34" y1="70" x2="34" y2="96" style="stroke:var(--up)"/><rect x="30" y="74" width="9" height="16" rx="1" style="fill:none;stroke:var(--up);stroke-width:2"/>
+          <line x1="54" y1="60" x2="54" y2="88" style="stroke:var(--up)"/><rect x="50" y="64" width="9" height="18" rx="1" style="fill:none;stroke:var(--up);stroke-width:2"/>
+          <line x1="74" y1="66" x2="74" y2="90" style="stroke:var(--down)"/><rect x="70" y="70" width="9" height="14" rx="1" style="fill:var(--down)"/>
+          <line x1="94" y1="52" x2="94" y2="80" style="stroke:var(--up)"/><rect x="90" y="56" width="9" height="18" rx="1" style="fill:none;stroke:var(--up);stroke-width:2"/>
+          <line x1="114" y1="42" x2="114" y2="70" style="stroke:var(--up)"/><rect x="110" y="46" width="9" height="18" rx="1" style="fill:none;stroke:var(--up);stroke-width:2"/>
+          <line x1="134" y1="50" x2="134" y2="74" style="stroke:var(--down)"/><rect x="130" y="54" width="9" height="14" rx="1" style="fill:var(--down)"/>
+          <line x1="154" y1="36" x2="154" y2="64" style="stroke:var(--up)"/><rect x="150" y="40" width="9" height="18" rx="1" style="fill:none;stroke:var(--up);stroke-width:2"/>
+          <line x1="174" y1="26" x2="174" y2="54" style="stroke:var(--up)"/><rect x="170" y="30" width="9" height="18" rx="1" style="fill:none;stroke:var(--up);stroke-width:2"/>
+          <line x1="194" y1="32" x2="194" y2="58" style="stroke:var(--down)"/><rect x="190" y="36" width="9" height="15" rx="1" style="fill:var(--down)"/>
+          <line x1="214" y1="18" x2="214" y2="48" style="stroke:var(--up)"/><rect x="210" y="22" width="9" height="19" rx="1" style="fill:none;stroke:var(--up);stroke-width:2"/>
+        </g>
+        <path d="M8 92 C 50 86, 70 74, 100 62 S 160 44, 232 20" style="stroke:var(--accent);stroke-width:2.5;fill:none" stroke-linecap="round"/>
+        <circle cx="232" cy="20" r="4" style="fill:var(--accent)"/>
+      </svg>
+    </div>
+    <div class="home-hero-actions">
+      <button id="btn-home-game" class="primary big" data-i18n="home.hero.play">开始对局</button>
+      <button id="btn-home-lab" class="big" data-i18n="home.hero.lab">进入研究所</button>
     </div>
   </section>
+
+  <!-- 三大核心功能 -->
   <section class="academy-panel">
-    <h2><span data-i18n="senti.title">市场情绪温度计</span> <span class="sub" data-i18n="senti.sub">全部标的的涨跌广度、近期动量与波动聚合成一个「恐慌 ↔ 贪婪」读数，每日变化</span></h2>
-    <div class="card senti-card">
-      <div id="senti-gauge"></div>
-      <p id="senti-text" class="hint" data-i18n="senti.loading">计算中…</p>
+    <div class="home-core-grid">
+      <button class="home-core" data-goto="game">
+        <span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M5 8h4v8H5zM17 2v20M15 6h4v9h-4z"/></svg></span>
+        <strong data-i18n="home.core.game.t">模拟对局</strong>
+        <span class="sub" data-i18n="home.core.game.d">开启股票模拟交易，实盘一样的行情，管理你的虚拟账户</span>
+      </button>
+      <button class="home-core" data-goto="lab">
+        <span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v6L4 19a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-6-10V3"/><path d="M8 3h8"/><path d="M7 15h10"/></svg></span>
+        <strong data-i18n="home.core.lab.t">量化研究所</strong>
+        <span class="sub" data-i18n="home.core.lab.d">历史回测实验，检验指标、策略与 AI 预测</span>
+      </button>
+      <button class="home-core" data-goto="games">
+        <span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="11" rx="4"/><path d="M8 11v4M6 13h4"/><path d="M15.5 12h.01M18 14h.01"/></svg></span>
+        <strong data-i18n="home.core.games.t">量化小游戏专区</strong>
+        <span class="sub" data-i18n="home.core.games.d">K 线猜涨跌、量化侦探、策略擂台战等趣味量化小游戏</span>
+      </button>
     </div>
   </section>
+
+  <!-- 新手引导推荐 -->
   <section class="academy-panel">
+    <h2><span data-i18n="home.reco.title">新手从这里开始</span> <span class="sub" data-i18n="home.reco.sub">三个推荐入口，各花十分钟</span></h2>
+    <div class="home-reco-grid">
+      <button class="home-reco" id="home-reco-weekly">
+        <i class="lab-tier" data-i18n="home.reco.weeklyTag">本周推荐实验</i>
+        <strong id="home-reco-weekly-t"></strong>
+        <span class="sub" id="home-reco-weekly-d"></span>
+      </button>
+      <button class="home-reco" id="home-reco-game">
+        <i class="lab-tier" data-i18n="home.reco.gameTag">新手必玩小游戏</i>
+        <strong data-i18n="home.card.newsjudge.t">新闻多空</strong>
+        <span class="sub" data-i18n="home.card.newsjudge.d">判断新闻是利好、利空还是烟雾弹，判完讲透财务常识</span>
+      </button>
+      <button class="home-reco" id="home-reco-learn">
+        <i class="lab-tier" data-i18n="home.reco.learnTag">学堂知识点</i>
+        <strong data-i18n="home.reco.learnT">从一根 K 线学起</strong>
+        <span class="sub" data-i18n="home.reco.learnD">金叉、回撤、夏普……用实战关卡把术语玩明白</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- 实时排行榜预览 (双榜全空时整区折叠) -->
+  <section class="academy-panel" id="home-rank-section">
+    <h2><span data-i18n="home.rank.title">实时排行榜</span> <span class="sub" data-i18n="home.rank.sub">本赛季最能打的账户与策略</span></h2>
+    <div class="home-rank-grid">
+      <div class="card home-rank-card">
+        <p class="hint" data-i18n="home.rank.money">资金排行榜</p>
+        <ul id="home-rank-money" class="home-rank-list"></ul>
+        <button id="btn-home-rank-money" class="small" data-i18n="home.rank.all">查看全部</button>
+      </div>
+      <div class="card home-rank-card">
+        <p class="hint" data-i18n="home.rank.strategy">策略综合评分榜</p>
+        <ul id="home-rank-strategy" class="home-rank-list"></ul>
+        <button id="btn-home-rank-strategy" class="small" data-i18n="home.rank.all2">查看全部</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="academy-panel">
+    <div class="home-duo">
+      <div class="card tasks-card">
+        <div class="tasks-head"><b data-i18n="todo.title">今日任务</b><span class="hint" id="tasks-streak"></span></div>
+        <button id="btn-task-signin" class="task-row"></button>
+        <button id="btn-task-guess" class="task-row"></button>
+        <button id="btn-task-settle" class="task-row"></button>
+        <button id="btn-task-chest" class="primary"></button>
+      </div>
+      <div class="card senti-card">
+        <p class="senti-head"><b data-i18n="senti.title">市场情绪温度计</b><span class="hint" data-i18n="senti.sub2">恐慌 ↔ 贪婪，每日变化</span></p>
+        <div id="senti-gauge"></div>
+        <p id="senti-text" class="hint" data-i18n="senti.loading">计算中…</p>
+      </div>
+    </div>
+  </section>
+  <section class="academy-panel" id="home-all-section">
     <h2><span data-i18n="home.title">功能总览</span> <span class="sub" data-i18n="home.sub">所有玩法一目了然，点卡片直达</span></h2>
     <div id="home-cards" class="home-cards"></div>
+  </section>
+
+  <!-- 页脚: 免责 -->
+  <section class="home-footer">
+    <p class="lab-disclaimer" data-i18n="lab.disclaimer">仅供娱乐 / 学习，不构成投资建议。</p>
   </section>
   </div>
 
@@ -962,11 +1587,67 @@
   </section>
   </div>
 
-  <footer data-i18n="footer.text">仅供娱乐 / 学习，不构成投资建议</footer>
 
   <div id="toast" hidden></div>
 
   <!-- 明日快讯决策卡: 推进前弹出, 给玩家"先调仓还是直接推进"的选择 -->
+  <!-- 对局右下角悬浮: 结算后一键复盘 -->
+  <button id="btn-recap-fab" class="primary recap-fab" hidden data-i18n="gs.recapFab">📋 本局复盘</button>
+
+  <!-- 从研究所导入策略 -->
+  <div id="strat-modal" class="modal-mask" hidden>
+    <div class="modal" role="dialog" aria-labelledby="strat-modal-title">
+      <div class="modal-head">
+        <h2 id="strat-modal-title" data-i18n="gs.modalTitle">从研究所导入策略</h2>
+        <button id="btn-strat-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="hint" data-i18n="gs.modalHint">选择一个经过回测检验的经典策略。开启自动执行后，每次「下一天」若触发信号，将按当日收盘价自动下单（与手动交易同规则同费用）。</p>
+        <div class="strat-opts">
+          <button class="strat-opt" data-strat="golden"><strong data-i18n="gs.strat.golden">均线金叉 / 死叉</strong><span class="sub" data-i18n="gs.strat.goldenD">MA5 上穿 MA20 买入，下穿卖出</span></button>
+          <button class="strat-opt" data-strat="momentum"><strong data-i18n="gs.strat.momentum">动量追踪</strong><span class="sub" data-i18n="gs.strat.momentumD">10 日涨超 2% 追入，跌超 2% 离场</span></button>
+          <button class="strat-opt" data-strat="meanrev"><strong data-i18n="gs.strat.meanrev">均值回归</strong><span class="sub" data-i18n="gs.strat.meanrevD">跌破 MA20 的 95% 买入，涨破 105% 卖出</span></button>
+        </div>
+        <label class="strat-auto"><input type="checkbox" id="strat-auto" checked> <span data-i18n="gs.auto">自动执行交易信号（可随时停用）</span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 研究所首访 3 步引导 -->
+  <div id="lab-guide-modal" class="modal-mask" hidden>
+    <div class="modal" role="dialog" aria-labelledby="lab-guide-title">
+      <div class="modal-head">
+        <h2 id="lab-guide-title" data-i18n="lab.guide.title">研究所是干嘛的？</h2>
+        <button id="btn-lab-guide-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <ol class="lab-guide-steps">
+          <li data-i18n="lab.guide.s1">选一个交易想法（比如「金叉买入」）</li>
+          <li data-i18n="lab.guide.s2">用历史数据当场回测，看它到底靠不靠谱</li>
+          <li data-i18n="lab.guide.s3">带着结论去对局里实战验证</li>
+        </ol>
+        <div class="lab-guide-actions">
+          <button id="btn-lab-guide-start" class="primary big" data-i18n="lab.guide.start">跑我的第一个实验：金叉必涨？</button>
+          <button id="btn-lab-guide-skip" class="ghost" data-i18n="lab.guide.skip">先自己逛逛</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 我的研究报告 -->
+  <div id="lab-reports-modal" class="modal-mask" hidden>
+    <div class="modal" role="dialog" aria-labelledby="lab-reports-title">
+      <div class="modal-head">
+        <h2 id="lab-reports-title" data-i18n="lab.reports.title">我的研究报告</h2>
+        <button id="btn-lab-reports-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <ul id="lab-reports-list" class="lab-reports-list"></ul>
+        <p id="lab-reports-empty" class="hint" data-i18n="lab.reports.empty" hidden>还没有保存过报告——做完实验点「保存报告」即可沉淀在这里。</p>
+      </div>
+    </div>
+  </div>
+
   <div id="newsgate-modal" class="modal-mask" hidden>
     <div class="modal">
       <div class="modal-head">
@@ -1464,7 +2145,6 @@
     <div id="pet-sprite-box" class="pet-sprite-box" role="button" tabindex="0" data-i18n-title="pet.hint" title="点它摸摸头">
       <span id="pet-hat" class="pet-hat"></span>
       <span id="pet-sprite" class="pet-sprite">🐱</span>
-      <span class="pet-zzz">💤</span>
     </div>
     <p id="pet-bubble" class="pet-bubble" hidden></p>
     <div id="pet-pop" class="pet-pop" hidden>
@@ -1483,21 +2163,25 @@
         <input id="pet-chat-input" maxlength="200" data-i18n-placeholder="pet.ask.ph" placeholder="跟它说点什么…">
         <button id="btn-pet-ask" class="small primary" data-i18n="pet.send">发送</button>
       </div>
+      <p class="hint" id="pet-loot"></p>
       <p class="hint" data-i18n="pet.hint2">点名字可以改名</p>
     </div>
   </div>
 
-  <script src="i18n.js?v=20261007d"></script>
+  <script src="i18n.js?v=20261009d"></script>
   <script src="glossary.js?v=20261002a"></script>
-  <script src="app.js?v=20261007a"></script>
+  <script src="app.js?v=20261008r"></script>
   <script src="auth.js?v=20261005b"></script>
-  <script src="academy.js?v=20261007c"></script>
-  <script src="lab.js?v=20261004a"></script>
+  <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
+  <script src="data/levels.js?v=20261008a"></script>
+  <script src="data/cases.js?v=20261008a"></script>
+  <script src="academy.js?v=20261008d"></script>
+  <script src="lab.js?v=20261008d"></script>
   <script src="daily.js?v=20261002a"></script>
   <script src="event.js?v=20261006a"></script>
-  <script src="option.js?v=20261007a"></script>
+  <script src="option.js?v=20261008a"></script>
   <script src="biasprofile.js?v=20261006a"></script>
-  <script src="tape.js?v=20261007a"></script>
+  <script src="tape.js?v=20261008a"></script>
   <script src="rooms.js?v=20261006a"></script>
   <script src="ranking.js?v=20261004a"></script>
   <script src="sharecard.js?v=20261006a"></script>
@@ -1505,11 +2189,21 @@
   <script src="heatmap.js?v=20260930a"></script>
   <script src="news.js?v=20260930a"></script>
   <script src="history.js?v=20261002a"></script>
-  <script src="home.js?v=20261005b"></script>
+  <script src="home.js?v=20261008q"></script>
   <script src="points.js?v=20261004c"></script>
   <script src="reborn.js?v=20261005e"></script>
-  <script src="bubble.js?v=20261005d"></script>
-  <script src="tasks.js?v=20261007a"></script>
-  <script src="pet.js?v=20261007d"></script>
+  <script src="bubble.js?v=20261008a"></script>
+  <script src="newsjudge.js?v=20261008b"></script>
+  <script src="richman.js?v=20261008b"></script>
+  <script src="buydip.js?v=20261008c"></script>
+  <script src="stratbox.js?v=20261008a"></script>
+  <script src="qdetect.js?v=20261008d"></script>
+  <script src="tasks.js?v=20261008a"></script>
+  <script src="pet.js?v=20261008e"></script>
+  <script src="career.js?v=20261008a"></script>
+  <script src="duel.js?v=20261008f"></script>
+  <script src="wiki.js?v=20261008a"></script>
+  <script src="games.js?v=20261008a"></script>
+  <script src="mine.js?v=20261008b"></script>
 </body>
 </html>

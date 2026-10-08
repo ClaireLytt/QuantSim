@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.quantsim.dto.BacktestDtos.ArenaEntry;
+import com.quantsim.dto.BacktestDtos.DuelFinalEntry;
 import com.quantsim.dto.BacktestDtos.RunRequest;
 import com.quantsim.dto.BacktestDtos.RunResponse;
 import com.quantsim.dto.BacktestDtos.StockInfo;
@@ -51,6 +52,12 @@ public class BacktestController {
     @GetMapping("/leaderboard")
     public List<ArenaEntry> leaderboard(@RequestParam(required = false) String season) {
         return backtestService.arenaLeaderboard(season);
+    }
+
+    /** 策略擂台结算: 当前赛季综合分 TOP N 含降采样净值曲线 (多曲线同图对比)。 */
+    @GetMapping("/duel-final")
+    public List<DuelFinalEntry> duelFinal(@RequestParam(defaultValue = "5") int limit) {
+        return backtestService.duelFinal(limit);
     }
 
     @GetMapping("/stocks")

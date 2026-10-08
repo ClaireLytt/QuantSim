@@ -41,7 +41,7 @@
   }
 
   function rowText(done, label) {
-    return `${done ? "✅" : "⬜"} ${label}`;
+    return `${done ? "✓" : "○"} ${label}`; // 线性字符替代 emoji (设计评审)
   }
 
   function render() {

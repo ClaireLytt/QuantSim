@@ -192,11 +192,36 @@ public class PointsService {
         return earned;
     }
 
-    /** 今日任务宝箱 +30 (每日首次)。任务达成在前端判定, 服务端用任务位封顶每日一次。 */
+    /** 今日任务宝箱 +30 (每日首次)。三项子任务里"完成 1 局结算"服务端可复核:
+     *  结算时会点亮 TASK_SETTLE 位, 没点亮直接拒 —— 裸 POST 刷宝箱至少得真打一局。
+     *  (猜涨跌在前端运行无法复核, 仍靠任务位封顶。) */
     @Transactional
     public int awardChest(Long userId) {
         UserPoints p = getOrCreate(userId);
+        LocalDate today = LocalDate.now(GameService.GAME_ZONE);
+        boolean settledToday = today.equals(p.getTaskDate()) && (p.getTaskFlags() & UserPoints.TASK_SETTLE) != 0;
+        if (!settledToday) {
+            throw new BusinessException("今日任务还没完成: 先结算一局再来开宝箱");
+        }
         int earned = claimTask(p, UserPoints.TASK_CHEST, 30);
+        if (earned > 0) {
+            p.setBalance(p.getBalance() + earned);
+        }
+        repository.save(p);
+        return earned;
+    }
+
+    /** 学堂通关奖励: 名场面首通 / 悬案首破各 +40 (每日各一次)。
+     *  关卡在前端运行无法服务端复核, 与 awardReborn 同理用任务位封顶, 无刷分空间。 */
+    @Transactional
+    public int awardAcademy(Long userId, String kind) {
+        int flag = switch (kind == null ? "" : kind) {
+            case "famous" -> UserPoints.TASK_FAMOUS;
+            case "case" -> UserPoints.TASK_CASE;
+            default -> throw new BusinessException("未知学堂奖励类型: " + kind + "（可选 famous / case）");
+        };
+        UserPoints p = getOrCreate(userId);
+        int earned = claimTask(p, flag, 40);
         if (earned > 0) {
             p.setBalance(p.getBalance() + earned);
         }

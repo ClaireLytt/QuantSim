@@ -69,6 +69,51 @@ function qsTodayStr(offsetDays) {
   const d = new Date(Date.now() + (offsetDays || 0) * 864e5);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+// 本地周序号 (周一为界): duel 轮换 / lab 每周课题 / home 推荐共用一套口径,
+// 别再用 epoch 周 (那是 UTC 周四起算, 和"周日 24:00 切换"的倒计时文案对不上)
+function qsWeekIndex() {
+  const days = Math.floor((Date.now() - new Date(1970, 0, 5).getTime()) / 864e5); // 1970-01-05 = 本地周一
+  return Math.floor(days / 7);
+}
+// 策略综合分 (收益50/夏普30/回撤20, 榜内 min-max 归一): duel 擂台与首页预览同口径
+function qsCompositeScores(rows) {
+  // 缺失值 (旧记录 sharpe/drawdown 为 null) 记中性 0.5: 之前 ||0 会把 null 回撤当成 0 回撤白送 20 分
+  const nums = (get) => rows.map((x) => {
+    const v = Number(get(x));
+    return Number.isFinite(v) && get(x) != null ? v : null;
+  });
+  const norm = (arr, inv) => {
+    const real = arr.filter((v) => v != null);
+    const lo = Math.min(...real);
+    const hi = Math.max(...real);
+    return arr.map((v) => {
+      const n = (v == null || hi === lo) ? 0.5 : (v - lo) / (hi - lo);
+      return inv ? 1 - n : n;
+    });
+  };
+  const r = norm(nums((x) => x.totalReturn));
+  const s = norm(nums((x) => x.sharpeRatio));
+  const d = norm(nums((x) => x.maxDrawdown), true);
+  return rows.map((x, i) => ({ ...x, score: Math.round(100 * (0.5 * r[i] + 0.3 * s[i] + 0.2 * d[i])) }));
+}
+// 无偏洗牌 (Fisher-Yates, 返回新数组); sort(() => random - .5) 分布有偏, 别再用
+function qsShuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+// 迷你游戏最佳成绩读取 (统一容错)
+function qsLoadBest(key) {
+  try {
+    const v = JSON.parse(localStorage.getItem(key));
+    return v && typeof v === "object" ? v : { best: 0 };
+  } catch (e) {
+    return { best: 0 };
+  }
+}
 
 function marketTag(market) {
   if (market === "CRYPTO") return t("tag.crypto");
@@ -190,6 +235,16 @@ function buildKlineMarks() {
   return marks;
 }
 
+// 指标开关 (MA/MACD/RSI): 关掉的序列喂空数组, 结构不变只隐藏
+const indShow = { ma: true, macd: true, rsi: true };
+document.querySelectorAll(".ind-chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    indShow[chip.dataset.ind] = !indShow[chip.dataset.ind];
+    chip.classList.toggle("active", indShow[chip.dataset.ind]);
+    if (state.sessionId) updateChartData();
+  });
+});
+
 // tick 后只增量更新数据 (merge 模式), 不做整图重建
 function updateChartData() {
   const { dates, candles, ma5, ma20, volumes, rsi, macdHist, macdDif, macdDea } = chartData();
@@ -197,13 +252,13 @@ function updateChartData() {
     xAxis: [{ data: dates }, { data: dates }, { data: dates }],
     series: [
       { data: candles, markPoint: { data: buildKlineMarks() } },
-      { data: ma5 },
-      { data: ma20 },
+      { data: indShow.ma ? ma5 : [] },
+      { data: indShow.ma ? ma20 : [] },
       { data: volumes },
-      { data: macdHist },
-      { data: macdDif },
-      { data: macdDea },
-      { data: rsi },
+      { data: indShow.macd ? macdHist : [] },
+      { data: indShow.macd ? macdDif : [] },
+      { data: indShow.macd ? macdDea : [] },
+      { data: indShow.rsi ? rsi : [] },
     ],
   });
 }
@@ -455,6 +510,11 @@ async function enterGame(res) {
     state.lastSettle = null;
     state.trades = [];
     state.aiMoves = [];
+    state.autoStrat = null;
+    state._autoReason = null;
+    renderStratActive();
+    renderTradeLog();
+    renderRecapFab();
     $("ai-moves-box").hidden = true;
     $("ai-moves").innerHTML = "";
     $("t1-hint").hidden = true;
@@ -520,6 +580,7 @@ async function tick() {
       // 组合模式一次推进影响三只标的, 直接整段重载当前标的
       await loadHistory();
     } else {
+      sonifyBar(state.klines[state.klines.length - 1], res.newBar); // 听盘: 新 K 线奏一个音
       state.klines.push(res.newBar);
       updateChartData();
     }
@@ -536,6 +597,7 @@ async function tick() {
         idx, date: state.klines[idx].tradeDate,
         dir: f.orderType === "LIMIT_BUY" ? "BUY" : "SELL",
         price: Number(f.price), shares: f.shares,
+        reason: f.reason || t("gs.fillReason"), // 优先还原下单时写的理由
       });
     });
     recordAiMove(res.daysElapsed, res.aiTradeShares);
@@ -545,8 +607,11 @@ async function tick() {
     if ((res.filledOrders || []).length || res.autoCancelledOrders > 0 || state.orders.length) loadOrders();
     if (res.liquidated) { toast(t("adv.liquidated")); flashScreen(); playSound("lose"); }
     if (res.news && res.news.length && window.qsShowNews) window.qsShowNews(res.news, res.daysElapsed);
+    renderTradeLog();
     if (res.settled) {
       showSettle(res.settleResult);
+    } else {
+      await maybeAutoTrade(); // 导入策略的自动执行: 新 K 线揭晓后判定信号
     }
   } catch (e) {
     toast(e.message);
@@ -608,11 +673,11 @@ async function trade(direction) {
   const shares = parseInt($("trade-shares").value, 10);
   if (!price || !shares || shares <= 0) {
     toast(t("toast.invalidTrade"));
-    return;
+    return false;
   }
   if (shares % state.lotSize !== 0) {
     toast(t("toast.lotMultiple", state.lotSize));
-    return;
+    return false;
   }
   try {
     const body = { direction, price, shares };
@@ -620,9 +685,11 @@ async function trade(direction) {
       const reason = $("trade-reason").value.trim();
       if (!reason) {
         toast(t("trade.reason.required"));
-        return;
+        return false;
       }
       body.reason = reason;
+    } else if (state._autoReason) {
+      body.reason = state._autoReason; // 策略自动单的日志理由
     }
     if (state.mode === "PORTFOLIO" && state.activeStock) body.stockCode = state.activeStock;
     const res = await api(`/game/${state.sessionId}/trade`, {
@@ -631,7 +698,9 @@ async function trade(direction) {
     });
     // 复盘报告需要在前端记录每笔成交对应的 K 线位置
     const idx = state.klines.length - 1;
-    state.trades.push({ idx, date: state.klines[idx].tradeDate, dir: direction, price, shares });
+    state.trades.push({ idx, date: state.klines[idx].tradeDate, dir: direction, price, shares,
+      reason: body.reason || "" });
+    renderTradeLog();
     if (state.mode !== "PORTFOLIO") updateChartData(); // 买卖点即时上图
     playSound(direction === "BUY" ? "buy" : "sell");
     $("trade-reason").value = "";
@@ -643,10 +712,123 @@ async function trade(direction) {
     if (res.fee && Number(res.fee) > 0) msg += " · " + t("trade.fee", fmtMoney(res.fee));
     toast(msg);
     await refreshStatus();
+    return true; // 调用方 (自动策略) 需要知道这单到底成没成
   } catch (e) {
     toast(e.message);
+    return false;
   }
 }
+
+// ---------- 从研究所导入策略: 经典策略信号 + 可选自动执行 ----------
+// 信号按已揭晓 K 线计算 (收盘价成交, 与手动交易同规则), 不碰未来数据。
+const STRATS = {
+  golden: {
+    signal(k) {
+      const n = k.length;
+      if (n < 2) return null;
+      const [p, c] = [k[n - 2], k[n - 1]];
+      if (p.ma5 == null || p.ma20 == null || c.ma5 == null || c.ma20 == null) return null;
+      if (Number(p.ma5) <= Number(p.ma20) && Number(c.ma5) > Number(c.ma20)) return "BUY";
+      if (Number(p.ma5) >= Number(p.ma20) && Number(c.ma5) < Number(c.ma20)) return "SELL";
+      return null;
+    },
+  },
+  momentum: {
+    signal(k) {
+      const n = k.length;
+      if (n < 11) return null;
+      const r = Number(k[n - 1].close) / Number(k[n - 11].close) - 1;
+      if (r > 0.02) return "BUY";
+      if (r < -0.02) return "SELL";
+      return null;
+    },
+  },
+  meanrev: {
+    signal(k) {
+      const c = k[k.length - 1];
+      if (c.ma20 == null) return null;
+      const ratio = Number(c.close) / Number(c.ma20);
+      if (ratio < 0.95) return "BUY";
+      if (ratio > 1.05) return "SELL";
+      return null;
+    },
+  },
+};
+
+function renderStratActive() {
+  const p = $("strat-active");
+  if (!state.autoStrat) {
+    p.hidden = true;
+    return;
+  }
+  p.hidden = false;
+  p.textContent = t("gs.active", t("gs.strat." + state.autoStrat.id),
+    t(state.autoStrat.auto ? "gs.autoOn" : "gs.autoOff"));
+}
+
+async function maybeAutoTrade() {
+  const st = state.autoStrat;
+  if (!st || !st.auto || state.settled || state.mode === "PORTFOLIO" || !state.lastStatus) return;
+  const dir = STRATS[st.id].signal(state.klines);
+  if (!dir) return;
+  const s = state.lastStatus;
+  const price = Number(state.klines[state.klines.length - 1].close);
+  const lot = state.lotSize || 1;
+  let shares = 0;
+  if (dir === "BUY") {
+    // 留 0.5% 现金做手续费余量, 否则满仓单会被后端"现金不足"拒掉
+    shares = Math.floor(Number(s.cashBalance) * 0.995 / price / lot) * lot;
+  } else {
+    // T+1 下只卖可卖部分, 避免整单被拒
+    shares = s.sellableShares != null ? Number(s.sellableShares) : s.holdingShares;
+  }
+  if (shares < lot) return; // 买不起一手 / 没有可卖持仓, 本日信号作罢
+  // trade() 读的是表单, 自动单只好借道输入框 —— 先快照用户手填的值, 打完恢复,
+  // 否则自动单失败后用户下一次手动点买入会静默带上自动单的数量
+  const prevShares = $("trade-shares").value;
+  const prevReason = $("trade-reason").value;
+  $("trade-shares").value = String(shares);
+  state._autoReason = t("gs.autoReason", t("gs.strat." + st.id));
+  // 交易日志模式: trade() 的强制理由分支只读输入框, 自动单必须把理由写进去, 否则被"请写理由"拦下
+  if (state.requireReason) $("trade-reason").value = state._autoReason;
+  try {
+    const ok = await trade(dir);
+    // trade() 内部吞错并 toast 失败原因, 成功才报"信号触发", 别给用户虚假成交
+    if (ok) toast(t("gs.sigFired", t("gs.strat." + st.id), t(dir === "BUY" ? "trade.buy" : "trade.sell")));
+  } finally {
+    state._autoReason = null;
+    $("trade-shares").value = prevShares;
+    $("trade-reason").value = prevReason;
+  }
+}
+
+$("btn-import-strat").addEventListener("click", () => { $("strat-modal").hidden = false; });
+$("btn-strat-close").addEventListener("click", () => { $("strat-modal").hidden = true; });
+$("strat-modal").addEventListener("click", (e) => {
+  if (e.target === $("strat-modal")) $("strat-modal").hidden = true;
+});
+document.querySelectorAll(".strat-opt").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    state.autoStrat = { id: btn.dataset.strat, auto: $("strat-auto").checked };
+    $("strat-modal").hidden = true;
+    renderStratActive();
+    toast(t("gs.imported", t("gs.strat." + state.autoStrat.id)));
+    playSound("fill");
+  });
+});
+$("strat-active").addEventListener("click", () => {
+  // 点一下激活提示即停用 (再导入即恢复)
+  state.autoStrat = null;
+  renderStratActive();
+  toast(t("gs.stopped"));
+});
+
+// ---------- 右下角悬浮复盘按钮: 结算后出现, 直达本局复盘报告 ----------
+function renderRecapFab() {
+  $("btn-recap-fab").hidden = !(currentView === "game" && state.settled && state.lastSettle);
+}
+$("btn-recap-fab").addEventListener("click", () => openRecap());
+document.addEventListener("qs:view", renderRecapFab);
 
 async function settle() {
   try {
@@ -763,6 +945,77 @@ async function refreshStatus() {
   renderStatus(await api(`/game/${state.sessionId}/status`));
 }
 
+// ---------- 左栏: 账户面板 + 持仓列表 (数据与账户弹窗同源, 常驻展示) ----------
+function renderGameLeft(s) {
+  $("ga-total").textContent = fmtMoney(s.totalAssets);
+  $("ga-cash").textContent = fmtMoney(s.cashBalance);
+  $("ga-mv").textContent = fmtMoney(s.marketValue);
+  setSigned($("ga-pnl"), Number(s.floatingPnl), fmtMoney(Math.abs(s.floatingPnl)));
+  setSigned($("ga-ret"), Number(s.returnRate), fmtPct(Number(s.returnRate)));
+  const ul = $("ga-pos");
+  ul.innerHTML = "";
+  const rows = s.positions && s.positions.length
+    ? s.positions.filter((p) => p.shares > 0).map((p) => ({
+        name: stockName(p.stockName, p.stockCode), shares: p.shares,
+        cost: p.avgCost, price: p.price,
+        pnl: (Number(p.price) - Number(p.avgCost)) * p.shares,
+      }))
+    : (s.holdingShares > 0 ? [{
+        name: stockName(state.stockName, state.stockCode), shares: s.holdingShares,
+        cost: s.holdingCost, price: s.currentPrice,
+        pnl: Number(s.floatingPnl),
+      }] : []);
+  $("ga-pos-empty").hidden = !!rows.length;
+  rows.forEach((r) => {
+    const li = document.createElement("li");
+    const name = document.createElement("b");
+    name.textContent = r.name;
+    const meta = document.createElement("span");
+    meta.className = "hint";
+    meta.textContent = `${r.shares} @ ${fmtMoney(r.cost)} → ${fmtMoney(r.price)}`;
+    const pnl = document.createElement("i");
+    setSigned(pnl, r.pnl, fmtMoney(Math.abs(r.pnl)));
+    li.append(name, meta, pnl);
+    ul.appendChild(li);
+  });
+}
+
+// ---------- 成交明细 (图下) 与交易日志 (右栏, 带理由) ----------
+function renderTradeLog() {
+  const fills = $("game-trades");
+  const journal = $("journal-list");
+  fills.innerHTML = "";
+  journal.innerHTML = "";
+  const list = [...state.trades].slice(-30).reverse();
+  $("game-trades-card").hidden = !list.length;
+  $("journal-card").hidden = !list.length;
+  list.forEach((tr) => {
+    const dirTxt = t(tr.dir === "BUY" ? "trade.buy" : "trade.sell");
+    const cls = tr.dir === "BUY" ? "pos" : "neg";
+    const li = document.createElement("li");
+    const d = document.createElement("i");
+    d.textContent = tr.date;
+    const b = document.createElement("b");
+    b.className = cls;
+    b.textContent = dirTxt;
+    const detail = document.createElement("span");
+    detail.textContent = `${tr.shares} @ ${fmtMoney(tr.price)}`;
+    li.append(d, b, detail);
+    fills.appendChild(li);
+
+    const lj = document.createElement("li");
+    const d2 = document.createElement("i");
+    d2.textContent = tr.date;
+    const b2 = document.createElement("b");
+    b2.className = cls;
+    b2.textContent = dirTxt;
+    const why = document.createElement("span");
+    why.textContent = tr.reason || t("gs.noReason");
+    lj.append(d2, b2, why);
+    journal.appendChild(lj);
+  });
+}
+
 function renderStatus(s) {
   state.lastStatus = s;
   $("st-cash").textContent = fmtMoney(s.cashBalance);
@@ -782,6 +1035,7 @@ function renderStatus(s) {
     state.tradesRemaining = Number(s.tradesRemaining);
     renderTradesLeft();
   }
+  renderGameLeft(s);
   // 真实规则: 提示 T+1 今日可卖数, 免得玩家靠报错试探
   const t1 = $("t1-hint");
   if (s.sellableShares != null) {
@@ -1044,6 +1298,7 @@ async function placeOrder() {
 function showSettle(result) {
   state.settled = true;
   setTradeEnabled(false);
+  renderRecapFab();
   setHeaderFold(false); // 结算即退出专注模式, 导航回来 (下一步通常是看榜/再来一局)
   if (state.mode !== "PORTFOLIO") updateChartData(); // 幽灵标记 (AI 轨迹) 上图
   renderSettle(result);
@@ -1052,12 +1307,15 @@ function showSettle(result) {
   openSettlePop(result); // 结算卡在右栏底部, 不弹窗玩家经常根本看不到结果
   toast(t("settle.done"));
   loadLeaderboard();
+  // 开局配置卡已下沉进对局页: 结算后把它请回来, 否则"再来一局"无门 (之前它常驻页头不存在这个问题)
+  $("game-intro").hidden = false;
+  document.dispatchEvent(new CustomEvent("qs:settled", { detail: result }));
+}
 
 // PWA: 注册极简 Service Worker (网络优先, 不缓存 API), 让站点可安装
+// (顶层执行: 之前误嵌在 showSettle 里, 变成"结算过才可安装")
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => { /* 不支持/失败不影响使用 */ });
-}
-  document.dispatchEvent(new CustomEvent("qs:settled", { detail: result }));
 }
 
 // ---------- 结算总结弹窗: 关键结果即时呈现, 详情/复盘一键直达 ----------
@@ -1165,8 +1423,10 @@ function renderSettleExtras(result) {
 
   $("btn-review").hidden = false;
   $("btn-recap").hidden = false;
-  // 同题挑战: 单股非竞技局才可发起 (竞技局禁止套娃, 组合模式房间不支持)
-  $("btn-challenge").hidden = state.mode === "PORTFOLIO" || state.mode === "DAILY" || state.mode === "ROOM";
+  // 同题挑战: 单股非竞技局才可发起 (竞技局禁止套娃, 组合模式房间不支持;
+  // EVENT 也是盲局, 服务端 createChallenge 会拒 —— 按钮别留着骗点击)
+  $("btn-challenge").hidden = state.mode === "PORTFOLIO" || state.mode === "DAILY"
+    || state.mode === "ROOM" || state.mode === "EVENT";
 }
 
 /** 事件回放结算揭晓: 场景名 + 真实窗口 + 大事记时间线 (服务端策展文本, 仍走 textContent)。 */
@@ -1374,10 +1634,19 @@ function qsRollNumber(el, to, suffix) {
   requestAnimationFrame(frame);
 }
 
-function spawnConfetti() {
-  const layer = document.createElement("div");
-  layer.className = "confetti-layer";
-  document.body.appendChild(layer);
+/** 彩带 (全站唯一实现, 勿在别处重定义——曾被 academy.js 覆盖导致全屏调用静默失效):
+ *  无 host = 全屏彩带层; 传 host = 撒在该容器内 (学堂通关弹窗等)。 */
+function spawnConfetti(host) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  let target = host;
+  let layer = null;
+  if (!target) {
+    layer = document.createElement("div");
+    layer.className = "confetti-layer";
+    document.body.appendChild(layer);
+    target = layer;
+    setTimeout(() => layer.remove(), 3200);
+  }
   const colors = ["--up", "--accent", "--accent-2", "--warn", "--good"];
   for (let i = 0; i < 40; i++) {
     const piece = document.createElement("span");
@@ -1386,9 +1655,9 @@ function spawnConfetti() {
     piece.style.background = cssVar(colors[i % colors.length]);
     piece.style.animationDuration = (1.2 + Math.random() * 1.2) + "s";
     piece.style.animationDelay = (Math.random() * 0.4) + "s";
-    layer.appendChild(piece);
+    target.appendChild(piece);
+    piece.addEventListener("animationend", () => piece.remove());
   }
-  setTimeout(() => layer.remove(), 3200);
 }
 
 // 强平红闪
@@ -1417,15 +1686,71 @@ function playTone(freq, dur, delay = 0) {
   osc.stop(t0 + dur);
 }
 
+// 质感音: 短促滤波噪声 (翻页/按键的"沙/嗒"感), 比纯音更不打扰
+function playNoise(dur, freq, vol = 0.05, delay = 0) {
+  const ctx = audioCtx || (audioCtx = new (window.AudioContext || window.webkitAudioContext)());
+  const len = Math.max(1, Math.floor(ctx.sampleRate * dur));
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const bp = ctx.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = freq;
+  bp.Q.value = 1.2;
+  const gain = ctx.createGain();
+  gain.gain.value = vol;
+  src.connect(bp).connect(gain).connect(ctx.destination);
+  src.start(ctx.currentTime + delay);
+}
+
+// 触觉反馈 (Android Chrome 等支持 vibrate 的环境; iOS 静默跳过)。
+// 与音效共用总开关: 用户关掉 🔇 即同时关掉声音与震动, 不另设一个开关去烦人
+function buzz(pattern) {
+  try {
+    if (navigator.vibrate) navigator.vibrate(pattern);
+  } catch (e) { /* 不支持则作罢 */ }
+}
+
 function playSound(kind) {
   if (!SOUND) return;
   try {
-    if (kind === "buy") playTone(660, 0.12);
-    else if (kind === "sell") playTone(440, 0.12);
-    else if (kind === "fill") { playTone(523, 0.1); playTone(784, 0.12, 0.1); }
-    else if (kind === "win") { playTone(523, 0.12); playTone(659, 0.12, 0.12); playTone(784, 0.3, 0.24); }
-    else if (kind === "lose") { playTone(330, 0.18); playTone(262, 0.35, 0.18); }
+    if (kind === "buy") { playTone(660, 0.12); buzz(15); }
+    else if (kind === "sell") { playTone(440, 0.12); buzz(15); }
+    else if (kind === "fill") { playTone(523, 0.1); playTone(784, 0.12, 0.1); buzz([10, 40, 10]); }
+    else if (kind === "win") { playTone(523, 0.12); playTone(659, 0.12, 0.12); playTone(784, 0.3, 0.24); buzz([20, 60, 20, 60, 60]); }
+    else if (kind === "lose") { playTone(330, 0.18); playTone(262, 0.35, 0.18); buzz(120); }
+    else if (kind === "tap") playNoise(0.04, 2400, 0.04); // 导航切换: 极轻的"嗒"
+    else if (kind === "flip") playNoise(0.09, 900, 0.06); // 弹窗开合: 翻页"沙"
   } catch (e) { /* 浏览器自动播放策略阻止时静默 */ }
+}
+
+// ---------- 听盘模式: 新 K 线揭晓时奏一个音, 涨跌定音高、振幅定响度 (可闭眼盯盘) ----------
+let SONIFY = false;
+try { SONIFY = localStorage.getItem("qs_sonify") === "on"; } catch (e) { /* ignore */ }
+
+// C 大调五声音阶两个八度: 跌→低音区, 涨→高音区, 永远不刺耳
+const SONIFY_SCALE = [262, 294, 330, 392, 440, 523, 587, 659, 784, 880];
+function sonifyBar(prev, bar) {
+  if (!SOUND || !SONIFY || !prev || !bar) return;
+  try {
+    const chg = (Number(bar.close) - Number(prev.close)) / Number(prev.close);
+    // ±3% 映射到 10 个音级; 振幅 (当日高低差) 映射响度 0.06~0.16
+    const idx = Math.max(0, Math.min(9, Math.round((chg + 0.03) / 0.06 * 9)));
+    const range = (Number(bar.high) - Number(bar.low)) / Number(prev.close);
+    const vol = Math.min(0.16, 0.06 + range * 2);
+    const ctx = audioCtx || (audioCtx = new (window.AudioContext || window.webkitAudioContext)());
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = SONIFY_SCALE[idx];
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.28);
+  } catch (e) { /* 自动播放策略阻止时静默 */ }
 }
 
 function setTradeEnabled(enabled) {
@@ -1796,6 +2121,10 @@ async function runTune() {
 
 function renderBacktestResult(res) {
   state.lastBt = res;
+  // 回测完成信号 (生涯任务等订阅)
+  document.dispatchEvent(new CustomEvent("qs:backtest", {
+    detail: { strategy: res.strategy, totalReturn: Number(res.totalReturn), maxDrawdown: Number(res.maxDrawdown) },
+  }));
   $("bt-result").hidden = false;
   $("bt-title").textContent = `${stockName(res.stockName, res.stockCode)} (${res.stockCode}) · ${t("strat." + res.strategy)}` +
     (res.params ? ` [${res.params}]` : "");
@@ -2000,6 +2329,7 @@ document.addEventListener("keydown", (e) => {
   if (!$("tour-pop").hidden) endTour();
   else if (!$("recap-modal").hidden) closeRecap();
   else if (!$("help-modal").hidden) closeHelp();
+  else if (!$("settle-modal").hidden) closeSettlePop(); // 结算弹窗同样可 Esc, 且会恢复 body 滚动
 });
 
 // 首访引导改为过登录门禁后再弹 (auth.js 放行时调 qsMaybeOnboard), 避免叠在登录窗上
@@ -2009,10 +2339,10 @@ document.addEventListener("keydown", (e) => {
 const NAV_GROUPS = {
   home: ["home"],
   play: ["game", "daily", "event", "rooms"],
-  arenaG: ["arena", "ranking"],
-  learn: ["academy", "guess", "famous", "story", "quiz", "option", "tape", "reborn", "bubble"],
+  arenaG: ["arena", "duel", "ranking"],
+  learn: ["academy", "wiki", "games", "guess", "famous", "story", "quiz", "option", "tape", "reborn", "bubble", "newsjudge", "richman", "buydip", "stratbox", "qdetect"],
   labG: ["lab"],
-  me: ["profile", "history", "account"],
+  me: ["mine", "career", "profile", "history", "account"],
 };
 const VIEWS = Object.values(NAV_GROUPS).flat();
 const VIEW_GROUP = {};
@@ -2058,6 +2388,7 @@ function switchView(name) {
   try { localStorage.setItem("qs_view", name); } catch (e) { /* 隐私模式下忽略 */ }
   // 进行中的对局自动进入专注模式, 离开或已结算则展开 (结算后还折叠会把导航藏死)
   setHeaderFold(name === "game" && !!state.sessionId && !state.settled);
+  playSound("tap"); // 导航质感音: 极轻的"嗒", 给切页一点物理反馈
   // 图表在隐藏容器中初始化时尺寸为 0, 切换到可见后需重算
   if (name === "game") chart.resize();
   else if (name === "arena") btChart.resize();
@@ -2068,12 +2399,12 @@ $("btn-header-fold").addEventListener("click", () => {
 });
 
 // 账户状态 / AI 操盘手: 左上角胶囊按钮唤起弹窗 (侧栏只留高频交易操作)
-$("btn-status-pop").addEventListener("click", () => { $("status-modal").hidden = false; });
+$("btn-status-pop").addEventListener("click", () => { $("status-modal").hidden = false; playSound("flip"); });
 $("btn-status-close").addEventListener("click", () => { $("status-modal").hidden = true; });
 $("status-modal").addEventListener("click", (e) => {
   if (e.target === $("status-modal")) $("status-modal").hidden = true;
 });
-$("btn-ai-pop").addEventListener("click", () => { $("ai-modal").hidden = false; });
+$("btn-ai-pop").addEventListener("click", () => { $("ai-modal").hidden = false; playSound("flip"); });
 $("btn-ai-close").addEventListener("click", () => { $("ai-modal").hidden = true; });
 $("ai-modal").addEventListener("click", (e) => {
   if (e.target === $("ai-modal")) $("ai-modal").hidden = true;
@@ -2134,6 +2465,22 @@ $("btn-sound").addEventListener("click", () => {
 });
 renderSoundBtn();
 document.addEventListener("qs:lang", renderSoundBtn);
+
+// 听盘开关 (对局页 K 线工具条): 依赖总音效开关, 关着时提示先开声音
+function renderSonifyBtn() {
+  $("btn-sonify").classList.toggle("active", SONIFY);
+  $("btn-sonify").title = t("sonify.title");
+}
+$("btn-sonify").addEventListener("click", () => {
+  if (!SOUND && !SONIFY) { toast(t("sonify.needSound")); return; }
+  SONIFY = !SONIFY;
+  try { localStorage.setItem("qs_sonify", SONIFY ? "on" : "off"); } catch (e) { /* ignore */ }
+  renderSonifyBtn();
+  toast(t(SONIFY ? "sonify.on" : "sonify.off"));
+  if (SONIFY) sonifyBar({ close: 100 }, { close: 101, high: 102, low: 100 }); // 示例音
+});
+renderSonifyBtn();
+document.addEventListener("qs:lang", renderSonifyBtn);
 renderThemeBtn();
 
 // ---------- 语言切换: 重渲染所有动态区域 ----------
@@ -2521,15 +2868,15 @@ window.addEventListener("resize", () => {
 const tourTab = (g) => document.querySelector(`#nav-groups .nav-group[data-group="${g}"]`);
 const TOUR_STEPS = [
   { key: "welcome" },
-  { key: "start", el: () => document.querySelector("header .start-box") },
+  { key: "start", view: "game", el: () => document.querySelector(".game-intro .start-box") },
   { key: "home", view: "home", el: () => tourTab("home") },
   { key: "play", view: "game", el: () => tourTab("play") },
   { key: "arenaG", view: "arena", el: () => tourTab("arenaG") },
   { key: "learn", view: "academy", el: () => tourTab("learn") },
   { key: "labG", view: "lab", el: () => tourTab("labG") },
   { key: "me", view: "profile", el: () => tourTab("me") },
-  { key: "help", el: () => $("btn-help") },
-  { key: "end", el: () => $("btn-tour") },
+  { key: "help", view: "game", el: () => $("btn-help") },
+  { key: "end", view: "game", el: () => $("btn-tour") },
 ];
 
 let tourStep = 0;

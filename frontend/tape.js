@@ -113,6 +113,7 @@
     const ret = (g.cash - START_CASH) / START_CASH;
     const tier = ret >= 0.03 ? "sniper" : ret > 0.005 ? "scalper" : ret > -0.005 ? "breakeven"
         : ret > -0.03 ? "churned" : "rekt";
+    document.dispatchEvent(new CustomEvent("qs:tapeEnd", { detail: { tier, ret, trades: g.trades } })); // 生涯任务信号
     $("tp-game").hidden = true;
     $("tp-result").hidden = false;
     $("tp-result-title").textContent = t("tp.tier." + tier);

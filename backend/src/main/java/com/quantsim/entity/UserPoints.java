@@ -24,6 +24,8 @@ public class UserPoints {
     public static final int TASK_DAILY = 4;
     public static final int TASK_REBORN = 8;
     public static final int TASK_CHEST = 16;
+    public static final int TASK_FAMOUS = 32;
+    public static final int TASK_CASE = 64;
 
     @Id
     @Column(name = "user_id")

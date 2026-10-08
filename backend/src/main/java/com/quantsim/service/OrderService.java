@@ -183,7 +183,8 @@ public class OrderService {
                 order.setFilledDate(session.getCurrentTradeDate());
                 order.setFilledPrice(fillPrice);
                 filled.add(new FilledOrder(order.getOrderType().name(), fillPrice,
-                        order.getShares(), BlindDates.maskCode(session, sd.stock().getCode())));
+                        order.getShares(), BlindDates.maskCode(session, sd.stock().getCode()),
+                        order.getReason())); // 带回下单理由, 前端成交日志才能还原交易日记
             }
             orderRepository.save(order);
         }

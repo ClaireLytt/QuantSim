@@ -102,8 +102,13 @@ public class MeController {
         return sessionRepository.findMyGames(userId, PageRequest.of(0, HISTORY_LIMIT)).stream()
                 .map(row -> {
                     GameSession s = (GameSession) row[0];
-                    return new GameRecord(s.getSessionId(), (String) row[1], (String) row[2],
-                            s.getStartDate(), s.getStatus().name(), s.getMode(), s.getAiModel(),
+                    // 竞技/事件对局必须走同一套脱敏: 进行中隐藏标的与真实窗口 (教训 #4),
+                    // 已结算也要剥掉事件场景的内部复合代码后缀
+                    return new GameRecord(s.getSessionId(),
+                            com.quantsim.service.BlindDates.maskName(s, (String) row[1]),
+                            com.quantsim.service.BlindDates.maskCode(s, (String) row[2]),
+                            com.quantsim.service.BlindDates.mask(s, s.getStartDate()),
+                            s.getStatus().name(), s.getMode(), s.getAiModel(),
                             s.getFinalReturnRate(), s.getCreatedAt());
                 })
                 .toList();

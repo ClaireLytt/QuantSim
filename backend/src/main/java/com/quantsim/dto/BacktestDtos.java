@@ -51,7 +51,8 @@ public final class BacktestDtos {
             Integer gridLevels,
             Integer turtleEntry,
             Integer turtleExit,
-            Integer positionPct) {}
+            Integer positionPct,
+            Boolean preview) {}  // true = 预回测: 只算不入榜不落库 (策略擂台搭建页用)
 
     public record EquityPoint(LocalDate date, BigDecimal strategy, BigDecimal hold) {}
 
@@ -106,6 +107,23 @@ public final class BacktestDtos {
             RunResponse result) {}
 
     public record StockInfo(String code, String name, String market) {}
+
+    /**
+     * 擂台结算屏单条: score 为服务端算好的全赛季综合分 (收益50/夏普30/回撤20);
+     * curve 为降采样净值曲线的 JSON 数组字符串, 旧记录为 null。
+     */
+    public record DuelFinalEntry(
+            Long backtestId,
+            String username,
+            String stockName,
+            String stockCode,
+            String strategy,
+            String params,
+            BigDecimal totalReturn,
+            BigDecimal sharpeRatio,
+            BigDecimal maxDrawdown,
+            int score,
+            String curve) {}
 
     public record ArenaEntry(
             Long backtestId,

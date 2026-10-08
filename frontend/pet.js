@@ -6,12 +6,22 @@
   const KEY = "qs_pet";
   const FEED_PER_DAY = 3;
   const PAT_XP_PER_DAY = 20;
-  const SPECIES = ["🐱", "🐶", "🐰", "🦊", "🐹"];
+  // 每种宠物 3 段进化形态: 幼年(Lv1-2) → 成年(Lv3-5) → 完全体(Lv6+), 长相随等级变化
+  const SPECIES = [
+    ["🐱", "🐈", "🐅"], // 猫 → 大猫 → 虎
+    ["🐶", "🐕", "🦁"], // 狗 → 大狗 → 狮
+    ["🐰", "🐇", "🦄"], // 兔 → 大兔 → 独角兽
+    ["🦊", "🐺", "🐉"], // 狐 → 狼 → 龙
+    ["🐹", "🐿️", "🐻"], // 仓鼠 → 松鼠 → 熊
+  ];
+  // 进化阶段: 由等级推导 (等级又由 xp 推导), 不单独存档
+  const stage = () => (level() >= 6 ? 2 : level() >= 3 ? 1 : 0);
   const WANDER_X = 90;  // 自主遛弯: 距安家点的最大水平半径
   const WANDER_Y = 24;  // 垂直方向只许小幅挪动, 走路姿态才合理
   const SPEED = 42;     // px/s
 
-  let pet = { name: "", species: 0, xp: 0, fedDate: "", fedCount: 0, patDate: "", patXp: 0, lastSeen: "", pos: null };
+  let pet = { name: "", species: 0, xp: 0, fedDate: "", fedCount: 0, patDate: "", patXp: 0,
+    lastSeen: "", pos: null, loot: {}, lootDate: "", lootCount: 0 };
   try {
     const p = JSON.parse(localStorage.getItem(KEY));
     if (p && typeof p === "object") pet = Object.assign(pet, p);
@@ -28,19 +38,20 @@
   const widget = $("pet-widget");
 
   // ---------- 位置: 安家点 (拖拽落点) + 当前位 ----------
-  const clampX = (x) => Math.max(4, Math.min(window.innerWidth - 48, x));
-  const clampY = (y) => Math.max(58, Math.min(window.innerHeight - 52, y)); // 上留吸顶头部, 下留 toast
+  const clampX = (x) => Math.max(4, Math.min(window.innerWidth - 136, x));
+  const clampY = (y) => Math.max(58, Math.min(window.innerHeight - 132, y)); // 上留吸顶头部, 下留 toast
+  // 默认落点右下角 (设计评审: 左上角与导航拥挤且气质割裂); 玩家拖过的位置照旧记忆
   let home = pet.pos && Number.isFinite(pet.pos.x)
     ? { x: clampX(pet.pos.x), y: clampY(pet.pos.y) }
-    : { x: 10, y: 64 };
+    : { x: clampX(window.innerWidth - 170), y: clampY(window.innerHeight - 200) };
   let cur = { ...home };
 
   function applyPos() {
     widget.style.left = cur.x + "px";
     widget.style.top = cur.y + "px";
     // 弹出层防溢出: 靠右开左侧, 靠下往上开
-    widget.classList.toggle("pet-pop-left", cur.x > window.innerWidth - 260);
-    widget.classList.toggle("pet-pop-up", cur.y > window.innerHeight - 240);
+    widget.classList.toggle("pet-pop-left", cur.x > window.innerWidth - 320);
+    widget.classList.toggle("pet-pop-up", cur.y > window.innerHeight - 330);
   }
 
   window.addEventListener("resize", () => {
@@ -50,10 +61,8 @@
   });
 
   // ---------- 情绪引擎: 按优先级从上下文推断 ----------
-  // sleep > miss > hungry > worried > happy > idle
+  // miss > hungry > worried > happy > idle (不睡觉: 全天候陪玩家值班)
   function mood() {
-    const h = new Date().getHours();
-    if (h >= 23 || h < 6) return "sleep";
     if (pet.lastSeen && daysBetween(pet.lastSeen, qsTodayStr()) >= 2) return "miss";
     if (pet.fedDate !== qsTodayStr()) return "hungry";
     if (typeof prog !== "undefined") {
@@ -143,18 +152,64 @@
   }
 
   function act() {
-    const m = mood();
-    // 睡觉/被拖/页面不可见/面板开着/偏好少动画 → 原地呆着
-    if (!reduced && !dragging && !walking && !document.hidden && $("pet-pop").hidden && m !== "sleep") {
-      if (Math.random() < 0.18) {
+    // 被拖/页面不可见/面板开着/偏好少动画 → 原地呆着
+    if (!reduced && !dragging && !walking && !document.hidden && $("pet-pop").hidden) {
+      const roll = Math.random();
+      if (roll < 0.1) {
+        chaseButterfly(); // 偶尔有蝴蝶飞过, 追!
+      } else if (roll < 0.26) {
         hop(); // 偶尔原地小跳
       } else {
         const tx = clampX(home.x + (Math.random() * 2 - 1) * WANDER_X);
         const ty = clampY(home.y + (Math.random() * 2 - 1) * WANDER_Y);
-        walkTo(tx, ty);
+        walkTo(tx, ty, maybeFindLoot); // 遛弯到头偶尔刨出宝物
       }
     }
     scheduleAct();
+  }
+
+  // ---------- 趣味: 追蝴蝶 ----------
+  function chaseButterfly() {
+    const bx = clampX(cur.x + (Math.random() < 0.5 ? -1 : 1) * (80 + Math.random() * 80));
+    const by = clampY(cur.y + (Math.random() * 2 - 1) * 40);
+    const fly = document.createElement("span");
+    fly.className = "pet-butterfly";
+    fly.textContent = "🦋";
+    fly.style.left = bx + 46 + "px";
+    fly.style.top = by + 18 + "px";
+    document.body.appendChild(fly);
+    walkTo(bx, by, () => {
+      fly.remove();
+      hop();
+      spawnHearts();
+      speak(t("pet.line.catch"));
+      gainXp(2);
+    });
+    // 兜底: 追丢了 (被拖走/切页) 蝴蝶自己飞走
+    setTimeout(() => fly.remove(), 8000);
+  }
+
+  // ---------- 趣味: 遛弯刨宝 (每日限 3 次, 宝物进图鉴) ----------
+  const LOOT = ["💎", "🍀", "🪙", "🐚", "⭐", "🧧"];
+  function maybeFindLoot() {
+    const today = qsTodayStr();
+    if (pet.lootDate !== today) { pet.lootDate = today; pet.lootCount = 0; }
+    if (pet.lootCount >= 3 || Math.random() > 0.22) return;
+    const item = LOOT[Math.floor(Math.random() * LOOT.length)];
+    pet.lootCount++;
+    pet.loot[item] = (pet.loot[item] || 0) + 1;
+    save();
+    hop();
+    // 宝物浮起 (复用爱心飘浮动画)
+    const h = document.createElement("span");
+    h.className = "pet-heart";
+    h.textContent = item;
+    h.style.left = "46px";
+    widget.appendChild(h);
+    setTimeout(() => h.remove(), 1400);
+    speak(t("pet.loot.found", pet.name || t("pet.name.default"), item));
+    playSound("fill");
+    gainXp(5);
   }
 
   // ---------- 拖拽安家: 按住拖走, 松手落户 (与点击按位移阈值区分) ----------
@@ -206,7 +261,7 @@
   })();
 
   // ---------- 台词: 按情绪选池, 池内随机 ----------
-  const POOL_SIZE = { greet: 3, sleep: 2, hungry: 2, miss: 1, happy: 2, worried: 2, tip: 8, fed: 2, pat: 3 };
+  const POOL_SIZE = { greet: 3, hungry: 2, miss: 1, happy: 2, worried: 2, tip: 8, fed: 2, pat: 3 };
   function line(pool) {
     const i = Math.floor(Math.random() * POOL_SIZE[pool]);
     return t("pet.line." + pool + "." + i);
@@ -214,7 +269,7 @@
 
   function chatLine(m) {
     // 聊天一半概率说情绪话, 一半概率给投资小贴士 (情绪异常时优先说情绪)
-    if (m === "sleep" || m === "miss" || m === "hungry" || m === "worried") return line(m);
+    if (m === "miss" || m === "hungry" || m === "worried") return line(m);
     return Math.random() < 0.5 ? line(m === "happy" ? "happy" : "greet") : line("tip");
   }
 
@@ -231,23 +286,30 @@
   function render() {
     const m = mood();
     widget.className = "pet-widget pet-" + m
+      + " pet-stage-" + stage()
       + (walking ? " pet-walking" : "")
       + (dragging ? " pet-dragging" : "")
-      + (cur.x > window.innerWidth - 260 ? " pet-pop-left" : "")
-      + (cur.y > window.innerHeight - 240 ? " pet-pop-up" : "");
-    $("pet-sprite").textContent = SPECIES[pet.species % SPECIES.length];
+      + (cur.x > window.innerWidth - 320 ? " pet-pop-left" : "")
+      + (cur.y > window.innerHeight - 330 ? " pet-pop-up" : "");
+    $("pet-sprite").textContent = SPECIES[pet.species % SPECIES.length][stage()];
     // 等级配饰: 2 级起戴帽子, 3 级领结, 4 级墨镜 (emoji, 非文案, 不进 i18n)
     $("pet-hat").textContent = level() >= 4 ? "🕶️" : level() >= 3 ? "🎀" : level() >= 2 ? "🎩" : "";
     $("pet-name").textContent = pet.name || t("pet.name.default");
-    $("pet-level").textContent = t("pet.level", level());
+    $("pet-level").textContent = t("pet.level", level()) + " · " + t("pet.stage." + stage());
     const next = 50 * level() * level();
     const prev = 50 * (level() - 1) * (level() - 1);
     $("pet-xp-bar").style.width = Math.min(100, ((pet.xp - prev) / (next - prev)) * 100) + "%";
     $("btn-pet-feed").disabled = pet.fedDate === qsTodayStr() && pet.fedCount >= FEED_PER_DAY;
+    // 宝物袋: 遛弯刨出来的收藏 (emoji×数量, 非文案)
+    const items = Object.entries(pet.loot || {});
+    $("pet-loot").textContent = items.length
+      ? t("pet.loot.label") + ": " + items.map(([k, v]) => k + "×" + v).join(" ")
+      : t("pet.loot.empty");
   }
 
   function gainXp(n) {
     const before = level();
+    const beforeStage = stage();
     pet.xp += n;
     save();
     if (level() > before) {
@@ -255,6 +317,13 @@
       playSound("win");
     }
     render();
+    // 跨进化阈值: 长相进化 + 庆祝一下 (render 先行, 新形态已上身)
+    if (stage() > beforeStage) {
+      speak(t("pet.evolve", pet.name || t("pet.name.default")));
+      toast(t("pet.evolve", pet.name || t("pet.name.default")));
+      if (typeof spawnConfetti === "function") spawnConfetti();
+      hop();
+    }
   }
 
   function spawnHearts() {
@@ -263,7 +332,7 @@
       const h = document.createElement("span");
       h.className = "pet-heart";
       h.textContent = "❤";
-      h.style.left = 8 + Math.random() * 24 + "px";
+      h.style.left = 20 + Math.random() * 70 + "px";
       h.style.animationDelay = i * 0.12 + "s";
       widget.appendChild(h);
       setTimeout(() => h.remove(), 1400);
@@ -271,7 +340,9 @@
   }
 
   // ---------- 交互 ----------
-  // 点小动物: 摸头 + 开/关功能面板
+  // 点小动物: 摸头 + 开/关功能面板; 2.5 秒内连摸 5 下触发转圈撒欢
+  let patCombo = 0;
+  let patComboTimer = 0;
   $("pet-sprite-box").addEventListener("click", () => {
     const today = qsTodayStr();
     if (pet.patDate !== today) { pet.patDate = today; pet.patXp = 0; }
@@ -279,7 +350,19 @@
     if (!reduced) hop();
     spawnHearts();
     playSound("fill");
-    speak(line(mood() === "sleep" ? "sleep" : "pat"));
+    clearTimeout(patComboTimer);
+    patComboTimer = setTimeout(() => { patCombo = 0; }, 2500);
+    if (++patCombo >= 5) {
+      patCombo = 0;
+      const box = $("pet-sprite-box");
+      box.classList.remove("pet-spin");
+      void box.offsetWidth;
+      if (!reduced) box.classList.add("pet-spin");
+      speak(t("pet.line.combo"));
+      playSound("win");
+    } else {
+      speak(line("pat"));
+    }
     $("pet-pop").hidden = !$("pet-pop").hidden;
     if (pet.patXp < PAT_XP_PER_DAY) {
       pet.patXp += 2;
@@ -312,9 +395,33 @@
       return;
     }
     pet.fedCount++;
+    // 投喂动画: 鸡腿从面板飞向嘴边, 到位再张嘴 (说话)
+    if (!reduced) {
+      const food = document.createElement("span");
+      food.className = "pet-food";
+      food.textContent = "🍗";
+      widget.appendChild(food);
+      setTimeout(() => { food.remove(); hop(); }, 650);
+    }
     speak(line("fed"));
     playSound("buy");
     gainXp(20);
+  });
+
+  // ---------- 趣味: 看你结算, 赢了撒欢输了安慰 ----------
+  document.addEventListener("qs:settled", (e) => {
+    const win = Number(e.detail && e.detail.returnRate) >= 0;
+    stopWalk();
+    if (!reduced) {
+      const box = $("pet-sprite-box");
+      box.classList.remove("pet-spin");
+      void box.offsetWidth;
+      if (win) box.classList.add("pet-spin");
+      else hop();
+    }
+    if (win) spawnHearts();
+    speak(t(win ? "pet.line.win" : "pet.line.lose"));
+    gainXp(3); // 陪你打完一局也算陪伴
   });
 
   $("btn-pet-chat").addEventListener("click", () => {
@@ -406,9 +513,9 @@
   save();
   applyPos();
   render();
-  speak(away ? line("miss") : line(mood() === "sleep" ? "sleep" : "greet"));
+  speak(away ? line("miss") : line("greet"));
   scheduleAct();
 
-  // 每分钟重估情绪 (跨过入睡时刻/喂食日期翻篇时表情跟上)
+  // 每分钟重估情绪 (喂食日期翻篇/战绩变化时表情跟上)
   setInterval(render, 60000);
 })();

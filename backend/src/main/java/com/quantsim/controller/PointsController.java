@@ -56,6 +56,16 @@ public class PointsController {
         return Map.of("earned", earned, "state", pointsService.state(userId));
     }
 
+    /** 学堂奖励: 名场面首通/悬案首破 +40 (每日各一次), earned=0 表示今天已领过。 */
+    @PostMapping("/academy-claim")
+    public Map<String, Object> academyClaim(@RequestBody AcademyClaimRequest body, HttpServletRequest http) {
+        Long userId = CurrentUser.idOrNull(http);
+        int earned = pointsService.awardAcademy(userId, body.kind());
+        return Map.of("earned", earned, "state", pointsService.state(userId));
+    }
+
+    public record AcademyClaimRequest(String kind) {}
+
     /** 今日任务宝箱: 每日首次 +30, earned=0 表示已领。 */
     @PostMapping("/chest")
     public Map<String, Object> chest(HttpServletRequest http) {

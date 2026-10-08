@@ -617,12 +617,14 @@ public class GameService {
             throw new BusinessException("数量必须为 " + lotSize + " 的整数倍（整手交易）");
         }
 
-        // 限制条件: 笔数上限 (挂单成交同计) 与强制理由
+        // 限制条件: 笔数上限与强制理由。预算口径与 placeOrder/tradesRemaining 一致:
+        // 已成交 + 在挂单一起占笔数, 否则这里报的"剩余"会把挂单预留的份额重复许诺出去
         Long usedBefore = null; // 只查一次, 响应里的剩余笔数由它推出, 省掉第二次 COUNT
         if (session.getMaxTrades() != null) {
-            usedBefore = transactionRepository.countBySessionId(sessionId);
+            usedBefore = transactionRepository.countBySessionId(sessionId)
+                    + orderService.countOpen(sessionId);
             if (usedBefore >= session.getMaxTrades()) {
-                throw new BusinessException("本局交易笔数已达上限 " + session.getMaxTrades() + " 笔");
+                throw new BusinessException("本局交易笔数已达上限 " + session.getMaxTrades() + " 笔（在挂单也占用笔数）");
             }
         }
         String reason = sanitizeReason(request.reason());
@@ -652,12 +654,13 @@ public class GameService {
         return cleaned.length() > 100 ? cleaned.substring(0, 100) : cleaned;
     }
 
-    /** 剩余可交易笔数 (无上限返回 null)。 */
+    /** 剩余可交易笔数 (无上限返回 null)。已成交 + 在挂单同占预算, 与 trade/placeOrder 一个口径。 */
     private Integer tradesRemaining(GameSession session) {
         if (session.getMaxTrades() == null) {
             return null;
         }
-        long used = transactionRepository.countBySessionId(session.getSessionId());
+        long used = transactionRepository.countBySessionId(session.getSessionId())
+                + orderService.countOpen(session.getSessionId());
         return (int) Math.max(0, session.getMaxTrades() - used);
     }
 
@@ -781,12 +784,8 @@ public class GameService {
                 session.getUserId(), beatAi, beatHold, "DAILY".equals(session.getMode()));
 
         // 已结算: 竞技模式在此揭晓真实标的 (进行中全程匿名)。
-        // 事件回放的场景行情用内部复合代码 "<代码>@<场景>" 存储, 揭晓时剥掉场景后缀, 不把内部命名漏给用户。
-        String revealCode = sd.stock().getCode();
-        int at = revealCode.indexOf('@');
-        if (at > 0) {
-            revealCode = revealCode.substring(0, at);
-        }
+        // 事件场景复合代码的剥壳统一走 BlindDates.stripScenario, 别再各写一份
+        String revealCode = BlindDates.stripScenario(sd.stock().getCode());
         return new SettleResponse(session.getSessionId(), initial,
                 finalAssets, returnRate, aiFinal, aiReturn, holdReturn, maCrossReturn, dcaReturn,
                 risk, holdRisk, account.getInterestTotal(), curve, holdCurve,

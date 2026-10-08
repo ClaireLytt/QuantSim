@@ -45,6 +45,10 @@
 | `--warn` | 警示黄 | `#ffd60a`（systemYellow） | `#9a6a00` |
 | `--h1-grad-a` / `--h1-grad-b` | h1 渐变首尾色 | `#9d9bff` / `#64d2ff` | `#4a48c4` / `#008577` |
 | `--glow-accent` | primary 按钮光晕 | `rgba(94,92,230,.35)` | `rgba(88,86,214,.25)` |
+| `--lab-blue` | 研究所与小游戏页专属低饱和蓝（页面级点缀，不作全站主色） | `#8fb8ff` | `#2f5fb8` |
+| `--lab-card` | 同上：实验卡/游戏卡深灰底 | `#1a1d27` | `#ffffff` |
+| `--lab-line` | 同上：细蓝描边 | `#353c55` | `#c9d4ea` |
+| `--lab-glow` | 同上：hover 柔和外发光 | `rgba(110,168,255,.16)` | `rgba(47,95,184,.14)` |
 
 主色取 Apple systemIndigo：正宗 iOS 系统色，同时延续 QuantSim 紫色品牌。
 品牌感渐变（标题 h1、区块装饰条、置信度条）统一方向 120°~180°，
@@ -190,7 +194,7 @@ transition .15–.18s。状态卡片用语义色的 `color-mix` 半透明边框�
 ### 4.5 导航（两级 tab，下划线式，无底色）
 
 - 一级 `.nav-group`：透明底、无边框，`padding: 6px 16px 8px`，15px，muted 色；
-  激活态：文字与 2px 底边框同用 `--accent`，字重 700。
+  激活态：文字与 3px 底边框同用 `--accent`，字重 700（2026-10 从 2px 加粗，当前页签更醒目）。
 - 二级 `.nav-tab`：同构，14px，`padding: 6px 14px 10px`，激活字重 600，整排左缩进 10px。
 - hover 只变文字色为 `--text`，不加背景。
 - 头部容器：半透明 `--header-bg` + `backdrop-filter: var(--blur-material)` + 70% 透明度发丝底边框，sticky 吸顶。

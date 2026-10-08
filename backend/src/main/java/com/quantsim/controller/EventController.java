@@ -41,8 +41,9 @@ public class EventController {
     @PostMapping("/start")
     public StartGameResponse start(@jakarta.validation.Valid @RequestBody(required = false) StartEventRequest body,
                                    HttpServletRequest http) {
+        // /api/event 在 AuthFilter 保护前缀内, 到这里 userId 必非空 (游客在过滤器就被 401);
+        // 若未来对游客开放, 需先改 EventService.start 的 findById(null) 再按 IP 分桶
         Long userId = CurrentUser.idOrNull(http);
-        // 开局会建 session/account 行, 按用户限频防刷库
         rateLimiter.check("event-start", "user:" + userId, 10);
         StartEventRequest req = body == null ? new StartEventRequest(null, null) : body;
         return eventService.start(userId, req.market(), req.difficulty());

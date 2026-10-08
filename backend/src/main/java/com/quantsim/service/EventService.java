@@ -74,7 +74,9 @@ public class EventService {
                 return res;
             }
         }
-        throw new BusinessException("场景行情数据未就绪, 请先运行 data-pipeline/fetch_scenarios.py 回灌");
+        // 玩家只看到泛化提示; 运维指引 (回灌脚本路径) 记日志, 不随 toast 外泄内部细节
+        log.warn("事件回放无可用场景行情: 请运行 data-pipeline/fetch_scenarios.py 回灌场景数据");
+        throw new BusinessException("历史场景暂未开放, 请稍后再来");
     }
 
     /** 在场景内随机挑一个数据就绪的候选标的与合法起始日; 全部不可用返回 null。 */

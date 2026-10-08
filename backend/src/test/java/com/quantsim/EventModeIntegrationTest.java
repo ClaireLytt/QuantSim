@@ -211,9 +211,9 @@ class EventModeIntegrationTest {
         assertThat(get("/api/game/" + sid + "/status", bob).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
 
-        // 结算: 揭晓场景名 + 真实窗口 + 时间线 (真实日期)
+        // 结算: 揭晓场景名 + 真实窗口 + 时间线 (真实日期); 复合代码剥掉场景后缀, 不漏内部命名
         JsonNode settle = json(postJson("/api/game/" + sid + "/settle", "{}", alice));
-        assertThat(settle.path("stockCode").asText()).isEqualTo("600519@TEST_2015");
+        assertThat(settle.path("stockCode").asText()).isEqualTo("600519");
         JsonNode reveal = settle.path("eventReveal");
         assertThat(reveal.path("nameZh").asText()).isEqualTo("2015测试股灾");
         assertThat(reveal.path("realStartDate").asText()).startsWith("2015-");

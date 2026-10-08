@@ -65,6 +65,10 @@ public class BacktestResult {
     @Column(length = 7)
     private String season;
 
+    /** 策略净值序列 (降采样 ≤150 点的 JSON 数组), 擂台结算页多曲线对比用; 旧记录为 null */
+    @Column(name = "equity_curve", columnDefinition = "MEDIUMTEXT")
+    private String equityCurve;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

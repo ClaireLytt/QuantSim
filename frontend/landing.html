@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuantSim — 虚拟炒股游戏</title>
+  <meta name="description" content="穿越历史行情，和 AI 操盘手同台竞技：回测验证策略，再开模拟对局。零风险学量化。">
+  <!-- 独立着陆页: 复用全站 design tokens (style.css), 页面级样式内联。
+       创意方向种子 2wLu3gevmThCMjJnZfA3kw1qydxlGxfBGrF4pJXp (波浪母题 + 2/3 节奏)。
+       评审整改 (4.5 分轮): hero 换 ECharts 真图表、三步改横向时间线、区块加过渡、
+       CTA 收敛为单一动词短语、卡片内建层级、数字条砍到 3 个。 -->
+  <link rel="stylesheet" href="style.css?v=20261009b">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
+  <script>
+    // 与应用共享主题偏好 (暗色默认)
+    try { if (localStorage.getItem("qs_theme") === "light") document.documentElement.dataset.theme = "light"; } catch (e) {}
+  </script>
+  <style>
+    /* ---------- 着陆页专属版式 (全部引用 style.css 变量) ---------- */
+    /* style.css 全局 main{display:flex} 是给对局页用的, 这里要回到普通文档流 */
+    main.ld-wrap { display: block; gap: 0; }
+    .ld-wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+    .ld-nav {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px;
+      background: var(--header-bg);
+      -webkit-backdrop-filter: var(--blur-material); backdrop-filter: var(--blur-material);
+      border-bottom: 1px solid var(--border);
+    }
+    .ld-logo { font-size: 18px; font-weight: 800; letter-spacing: .2px; }
+    .ld-logo em {
+      font-style: normal;
+      background: linear-gradient(120deg, var(--h1-grad-a), var(--h1-grad-b));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    /* CTA 等级: 全页只有一个主色动作「免费开始第一局」; 其余一律 ghost */
+    .ld-cta {
+      display: inline-block; text-decoration: none; text-align: center;
+      padding: 12px 26px; border-radius: 999px; font-weight: 700; font-size: 15px;
+      color: var(--on-accent);
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      box-shadow: 0 6px 20px var(--glow-accent);
+      transition: transform .18s var(--ease-out), box-shadow .18s ease;
+    }
+    .ld-cta:hover { transform: translateY(-2px); box-shadow: 0 10px 26px var(--glow-accent); }
+    .ld-cta.ghost {
+      color: var(--text); background: transparent;
+      border: 1px solid var(--border-strong); box-shadow: none;
+    }
+
+    /* hero: 左文右图两栏 (非对称 1.05:0.95) */
+    /* 顶对齐: 标题起点与图卡顶线齐平, 别让视觉重心右坠 */
+    .ld-hero { display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: start; padding: 64px 0 40px; }
+    .ld-hero h1 { margin-top: 6px; }
+    .ld-hero h1 { font-size: 46px; line-height: 1.16; margin: 0 0 16px; letter-spacing: -.6px; font-weight: 800; text-wrap: balance; }
+    .ld-hero h1 em {
+      font-style: normal;
+      background: linear-gradient(120deg, var(--h1-grad-a) 0%, var(--accent) 55%, var(--h1-grad-b) 110%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .ld-hero p { color: var(--text-muted); font-size: 16px; line-height: 1.75; margin: 0 0 26px; max-width: 440px; }
+    .ld-hero-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .ld-hero-chart {
+      border: 1px solid var(--border); border-radius: var(--radius-lg, 20px);
+      background: var(--panel); padding: 14px 10px 6px; box-shadow: var(--shadow-lg);
+    }
+    .ld-hero-chart .ld-chart-head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 0 10px 4px; font-size: 12px; color: var(--text-muted);
+    }
+    .ld-hero-chart .ld-chart-head b { color: var(--text); font-size: 13px; }
+    #ld-chart { width: 100%; height: 280px; }
+
+    /* 数据点: 收敛到 3 个, 融进 hero 下方一行, 不再做孤立大数字条 */
+    .ld-stats {
+      display: flex; justify-content: center; gap: 0; flex-wrap: wrap;
+      margin: 8px 0 0; padding: 18px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    /* 数字与说明基线对齐, 三组间距一致 */
+    .ld-stat {
+      flex: 1; min-width: 200px; padding: 4px 18px;
+      display: flex; align-items: baseline; justify-content: center; gap: 8px;
+    }
+    .ld-stat + .ld-stat { border-left: 1px solid var(--border); }
+    .ld-stat b {
+      font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums;
+      background: linear-gradient(120deg, var(--h1-grad-a), var(--h1-grad-b));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .ld-stat span { color: var(--text-muted); font-size: 13px; }
+
+    /* 区块: 标题左对齐 + 渐变短横线 (打破全页居中对称); 区块间用渐隐细线过渡, 不留纯黑真空 */
+    .ld-sec { padding: 56px 0 8px; }
+    .ld-sec-head { margin-bottom: 28px; }
+    .ld-sec-head h2 { font-size: 26px; margin: 0 0 6px; letter-spacing: -.3px; }
+    .ld-sec-head h2::after {
+      content: ""; display: block; width: 44px; height: 3px; margin-top: 10px; border-radius: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
+    .ld-sec-head .ld-sub { color: var(--text-muted); margin: 10px 0 0; font-size: 14px; }
+    .ld-divider {
+      height: 1px; margin: 48px auto 0; max-width: 1040px;
+      background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
+    }
+
+    /* 特性: 3 卡, 卡内三层层级拉开 (图标容器底色 / 标题 / 降灰正文 + 底部呼吸) */
+    .ld-feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .ld-feat {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: var(--radius-md, 16px); padding: 22px 22px 26px;
+      transition: transform .18s var(--ease-out), border-color .18s ease;
+    }
+    .ld-feat:hover { transform: translateY(-4px); border-color: var(--accent); }
+    .ld-feat .ld-ico {
+      display: inline-grid; place-content: center;
+      width: 42px; height: 42px; border-radius: 12px; margin-bottom: 16px;
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+    }
+    .ld-feat svg { width: 22px; height: 22px; stroke: var(--accent); }
+    .ld-feat h3 { margin: 0 0 8px; font-size: 16px; }
+    .ld-feat p { margin: 0; color: var(--text-muted); font-size: 13.5px; line-height: 1.75; padding-right: 6px; }
+
+    /* 三步: 横向时间线 (连线贯穿圆点), 与功能卡区分出第二种版式节奏 */
+    .ld-steps { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; padding-top: 6px; }
+    .ld-steps::before {
+      content: ""; position: absolute; top: 21px; left: 24px; right: 10%; height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      opacity: .45;
+    }
+    .ld-step { position: relative; padding: 0 24px 0 8px; counter-increment: step; max-width: 300px; }
+    .ld-step i {
+      position: relative; z-index: 1;
+      display: grid; place-content: center; font-style: normal;
+      width: 32px; height: 32px; border-radius: 50%;
+      font-weight: 800; font-size: 14px; color: var(--on-accent); margin: 4px 0 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 0 0 5px var(--surface);
+    }
+    .ld-step h3 { margin: 0 0 6px; font-size: 16px; }
+    .ld-step p { margin: 0; color: var(--text-muted); font-size: 13.5px; line-height: 1.75; }
+
+    /* 收尾: 独立渐变底色区块, 主 CTA 放大 (全页唯一的第二个主色按钮, 同一动词短语) */
+    .ld-final {
+      text-align: center; margin: 56px 0 64px; padding: 52px 24px;
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+      border-radius: var(--radius-lg, 20px);
+      background:
+        radial-gradient(60% 120% at 50% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+        var(--panel);
+    }
+    .ld-final h2 { font-size: 30px; margin: 0 0 8px; letter-spacing: -.4px; }
+    .ld-final p { color: var(--text-muted); margin: 0 0 24px; font-size: 14px; }
+    .ld-final .ld-cta { font-size: 16px; padding: 14px 34px; }
+    .ld-footer {
+      border-top: 1px solid var(--border); padding: 22px 20px 30px;
+      text-align: center; color: var(--text-muted); font-size: 12px;
+    }
+
+    @media (max-width: 720px) {
+      .ld-hero { grid-template-columns: 1fr; padding: 36px 0 24px; }
+      .ld-hero h1 { font-size: 31px; }
+      .ld-stat { min-width: 140px; }
+      .ld-feats { grid-template-columns: 1fr; }
+      .ld-steps { grid-template-columns: 1fr; gap: 20px; }
+      .ld-steps::before { left: 23px; right: auto; top: 8%; bottom: 8%; width: 2px; height: auto;
+        background: linear-gradient(180deg, var(--accent), var(--accent-2)); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .ld-cta, .ld-feat { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="ld-nav">
+    <span class="ld-logo"><em>QuantSim</em> 虚拟炒股游戏</span>
+    <a class="ld-cta ghost" href="index.html">进入游戏</a>
+  </nav>
+
+  <main class="ld-wrap">
+    <!-- hero: 左文右真图表 -->
+    <section class="ld-hero">
+      <div>
+        <h1>穿越历史行情，<br>和 <em>AI 操盘手</em>同台竞技</h1>
+        <p>10 万虚拟本金、真实历史 K 线、全程零风险。先在研究所回测验证策略，再开一局模拟对局——亏了是经验，赢了是本事。</p>
+        <div class="ld-hero-actions">
+          <a class="ld-cta" href="index.html">免费开始第一局</a>
+          <a class="ld-cta ghost" href="index.html#lab">先逛逛研究所</a>
+        </div>
+      </div>
+      <div class="ld-hero-chart">
+        <div class="ld-chart-head"><b>示例行情 · 日线</b><span>MA5 / 收盘价</span></div>
+        <div id="ld-chart"></div>
+      </div>
+    </section>
+
+    <!-- 3 个有说服力的数字, 融进分隔带 -->
+    <div class="ld-stats">
+      <div class="ld-stat"><b>10 万</b><span>虚拟本金，亏了只亏经验</span></div>
+      <div class="ld-stat"><b>20 天</b><span>一局紧凑对战，通勤就能打完</span></div>
+      <div class="ld-stat"><b>13 段</b><span>市场史名场面等你通关</span></div>
+    </div>
+
+    <!-- 三大特性 -->
+    <section class="ld-sec">
+      <div class="ld-sec-head">
+        <h2>不止是模拟盘</h2>
+        <p class="ld-sub">对局、研究、学习三条线，把量化思维玩进肌肉记忆</p>
+      </div>
+      <div class="ld-feats">
+        <article class="ld-feat">
+          <span class="ld-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-6 4 3 6-8"/><path d="M14 6h4v4"/></svg></span>
+          <h3>模拟对局</h3>
+          <p>盲抽一段真实历史行情，20 天内与 AI 操盘手比收益。每日挑战全服同题，好友房间同行情对战。</p>
+        </article>
+        <article class="ld-feat">
+          <span class="ld-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v5l-5 9a2.4 2.4 0 0 0 2 4h10a2.4 2.4 0 0 0 2-4l-5-9V3"/></svg></span>
+          <h3>量化研究所</h3>
+          <p>用全部历史数据当场验证「金叉必涨」「等回调再买」这些江湖传闻，回测工坊一键调参冲榜。</p>
+        </article>
+        <article class="ld-feat">
+          <span class="ld-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L2 8l10 5 10-5z"/><path d="M6 10v6c0 1.7 2.7 3 6 3s6-1.3 6-3v-6"/></svg></span>
+          <h3>学堂与小游戏</h3>
+          <p>六关实战教学、名场面挑战、量化侦探、策略擂台……十余个小游戏把交易陷阱一个个拆给你看。</p>
+        </article>
+      </div>
+    </section>
+
+    <div class="ld-divider"></div>
+
+    <!-- 三步上手: 横向时间线 -->
+    <section class="ld-sec">
+      <div class="ld-sec-head">
+        <h2>三步开打</h2>
+        <p class="ld-sub">无需注册即可试玩，登录后战绩与进度云端同步</p>
+      </div>
+      <div class="ld-steps">
+        <div class="ld-step"><i>1</i><h3>选市场与对手</h3><p>A股 / 美股 / 币圈，AI 难度从简单到地狱四档任选。</p></div>
+        <div class="ld-step"><i>2</i><h3>穿越回历史</h3><p>随机落在一段真实行情里，低买高卖、挂单止损，每天一根新 K 线。</p></div>
+        <div class="ld-step"><i>3</i><h3>结算复盘</h3><p>与 AI、买入持有基准三方对照，复盘报告告诉你每一笔对错。</p></div>
+      </div>
+    </section>
+
+    <section class="ld-final">
+      <h2>下一根 K 线，由你来操盘</h2>
+      <p>无需注册，30 秒落进一段真实历史行情——这次你是主角</p>
+      <a class="ld-cta" href="index.html">免费开始第一局</a>
+    </section>
+  </main>
+
+  <footer class="ld-footer">QuantSim 仅供娱乐 / 学习，不构成投资建议。</footer>
+
+  <script>
+    // hero 真图表: ECharts 蜡烛 + MA5, 数据为固定种子的拟真随机游走 (离线可渲染, 不依赖后端)。
+    (function () {
+      var el = document.getElementById("ld-chart");
+      if (!window.echarts || !el) return;
+      var css = function (v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); };
+      // 固定种子 LCG: 每次打开同一段"行情", 视觉可控
+      var seed = 20261008;
+      var rnd = function () { seed = (seed * 48271) % 2147483647; return seed / 2147483647; };
+      var data = [];
+      var close = 100;
+      for (var i = 0; i < 42; i++) {
+        var drift = 0.0028 + (i > 28 ? 0.004 : 0); // 尾段加速, 叙事: 净值向上
+        var chg = (rnd() - 0.48) * 0.028 + drift;
+        var open = close;
+        close = +(open * (1 + chg)).toFixed(2);
+        var hi = +(Math.max(open, close) * (1 + rnd() * 0.012)).toFixed(2);
+        var lo = +(Math.min(open, close) * (1 - rnd() * 0.012)).toFixed(2);
+        data.push([open, close, lo, hi]);
+      }
+      var ma5 = data.map(function (_, i) {
+        if (i < 4) return null;
+        var s = 0;
+        for (var j = i - 4; j <= i; j++) s += data[j][1];
+        return +(s / 5).toFixed(2);
+      });
+      var chart = echarts.init(el);
+      chart.setOption({
+        animation: false,
+        grid: { left: 42, right: 10, top: 12, bottom: 22 },
+        xAxis: {
+          type: "category",
+          data: data.map(function (_, i) { return "D" + (i + 1); }),
+          axisLine: { lineStyle: { color: css("--border") } },
+          axisLabel: { color: css("--text-muted"), fontSize: 10, interval: 9 },
+          axisTick: { show: false },
+        },
+        yAxis: {
+          scale: true,
+          splitLine: { lineStyle: { color: css("--border") } },
+          axisLabel: { color: css("--text-muted"), fontSize: 10 },
+        },
+        series: [
+          {
+            type: "candlestick",
+            data: data,
+            itemStyle: {
+              color: css("--up"), color0: css("--down"),
+              borderColor: css("--up"), borderColor0: css("--down"),
+            },
+          },
+          {
+            type: "line", data: ma5, showSymbol: false, smooth: true,
+            lineStyle: { width: 2.2, color: css("--accent-2") },
+          },
+        ],
+      });
+      window.addEventListener("resize", function () { chart.resize(); });
+    })();
+  </script>
+</body>
+</html>

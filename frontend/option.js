@@ -155,6 +155,7 @@
     g.over = true;
     const ret = (g.cash - START_CASH) / START_CASH;
     const tier = ret >= 0.5 ? "god" : ret >= 0.2 ? "pro" : ret > 0 ? "steady" : ret > -0.5 ? "tuition" : "zero";
+    document.dispatchEvent(new CustomEvent("qs:optionEnd", { detail: { tier, ret } })); // 生涯任务信号
     $("og-game").hidden = true;
     $("og-result").hidden = false;
     $("og-result-title").textContent = t("og.tier." + tier);

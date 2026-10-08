@@ -76,7 +76,7 @@ public final class GameDtos {
             List<KlinePoint> klines) {}
 
     /** 挂单成交回执 */
-    public record FilledOrder(String orderType, BigDecimal price, int shares, String stockCode) {}
+    public record FilledOrder(String orderType, BigDecimal price, int shares, String stockCode, String reason) {}
 
     /** 当日揭示的历史事件 (不含日历日期, 防剧透); 双语字段由前端按当前语言取用 */
     public record NewsItem(String severity, String titleZh, String titleEn, String bodyZh, String bodyEn) {}
