@@ -177,11 +177,13 @@
       } else {
         renderHeader();
         gateReady();
-        openAuthModal(false); // 门禁页直接弹出登录窗, 少点一次
+        renderGate(); // 游客标记在本会话仍有效: 回访直接放行, 不再落闸
+        if (!guestOk) openAuthModal(false); // 门禁页直接弹登录窗; 游客回访不再打扰
       }
     } catch (e) {
       renderHeader();
       gateReady(); // 后端不可达也要亮出按钮, 别让用户卡在「恢复会话」
+      renderGate();
     }
   })();
 

@@ -52,7 +52,7 @@ public class LabController {
     @GetMapping("/calibration")
     public List<CalibrationRow> calibration() {
         Map<String, int[][]> agg = new TreeMap<>(); // model -> [10桶][命中, 样本]
-        for (Stock stock : stockRepository.findAll()) {
+        for (Stock stock : stockRepository.findByHiddenFalse()) {
             MarketDataService.StockData data = marketDataService.load(stock.getStockId());
             List<DailyPrice> prices = data.prices();
             for (int i = 0; i + 1 < prices.size(); i++) {
@@ -101,7 +101,7 @@ public class LabController {
     @GetMapping("/overview")
     public List<OverviewRow> overview() {
         List<OverviewRow> rows = new ArrayList<>();
-        for (Stock stock : stockRepository.findAll()) {
+        for (Stock stock : stockRepository.findByHiddenFalse()) {
             MarketDataService.StockData data = marketDataService.load(stock.getStockId());
             List<DailyPrice> prices = data.prices();
             if (prices.isEmpty()) {
@@ -136,6 +136,7 @@ public class LabController {
     @GetMapping("/history/{code}")
     public LabHistory history(@PathVariable String code) {
         Stock stock = stockRepository.findByCode(code)
+                .filter(st -> !st.isHidden()) // 场景行情不对公开接口暴露 (防比对泄题)
                 .orElseThrow(() -> new NotFoundException("股票不存在: " + code));
         MarketDataService.StockData data = marketDataService.load(stock.getStockId());
         List<DailyPrice> prices = data.prices();

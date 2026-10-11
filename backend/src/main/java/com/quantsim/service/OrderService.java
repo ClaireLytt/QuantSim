@@ -38,15 +38,21 @@ import lombok.RequiredArgsConstructor;
 public class OrderService {
 
     private final PendingOrderRepository orderRepository;
+    private final com.quantsim.repository.TransactionRepository transactionRepository;
     private final MarketDataService marketData;
     private final TradeEngine tradeEngine;
     private final GameProperties props;
 
     public record FillSummary(List<FilledOrder> filled, int autoCancelled) {}
 
+    /** 在挂单数 (限制模式下与已成交一起占笔数预算)。 */
+    public long countOpen(Long sessionId) {
+        return orderRepository.countBySessionIdAndStatus(sessionId, PendingOrder.Status.OPEN);
+    }
+
     @Transactional
     public OrderInfo place(GameSession session, Long stockId, String type, BigDecimal price, int shares,
-                           BigDecimal trailPct) {
+                           BigDecimal trailPct, String reason) {
         PendingOrder.Type orderType;
         try {
             orderType = PendingOrder.Type.valueOf(type.toUpperCase());
@@ -93,6 +99,7 @@ public class OrderService {
         order.setTriggerPrice(price);
         order.setShares(shares);
         order.setTrailPct(trailPct);
+        order.setReason(reason); // 交易日志模式下挂单时写的理由, 成交时随流水落库
         order.setPlacedDate(session.getCurrentTradeDate());
         order = orderRepository.save(order);
         return toInfo(session, order, sd.stock().getCode());
@@ -126,6 +133,9 @@ public class OrderService {
                         session.getSessionId(), PendingOrder.Status.OPEN);
         List<FilledOrder> filled = new ArrayList<>();
         int cancelled = 0;
+        // 限制模式: 撮合同样受笔数上限约束 (下单时校验过预算, 但手动交易可能已把额度用掉)
+        long txCount = session.getMaxTrades() == null ? 0
+                : transactionRepository.countBySessionId(session.getSessionId());
         for (PendingOrder order : open) {
             StockData sd = marketData.load(order.getStockId());
             DailyPrice bar = sd.bar(session.getCurrentTradeDate());
@@ -153,18 +163,28 @@ public class OrderService {
                     order.getStockId(), dir, order.getShares()) != null) {
                 continue;
             }
+            if (session.getMaxTrades() != null && txCount >= session.getMaxTrades()) {
+                // 笔数预算已耗尽, 后续挂单作废而不是静默超限
+                order.setStatus(PendingOrder.Status.CANCELLED);
+                cancelled++;
+                orderRepository.save(order);
+                continue;
+            }
             String error = tradeEngine.validate(session, account, order.getStockId(),
                     dir, fillPrice, order.getShares());
             if (error != null) {
                 order.setStatus(PendingOrder.Status.CANCELLED);
                 cancelled++;
             } else {
-                tradeEngine.execute(session, account, order.getStockId(), dir, fillPrice, order.getShares());
+                tradeEngine.execute(session, account, order.getStockId(), dir, fillPrice, order.getShares(),
+                        order.getReason());
+                txCount++;
                 order.setStatus(PendingOrder.Status.FILLED);
                 order.setFilledDate(session.getCurrentTradeDate());
                 order.setFilledPrice(fillPrice);
                 filled.add(new FilledOrder(order.getOrderType().name(), fillPrice,
-                        order.getShares(), BlindDates.maskCode(session, sd.stock().getCode())));
+                        order.getShares(), BlindDates.maskCode(session, sd.stock().getCode()),
+                        order.getReason())); // 带回下单理由, 前端成交日志才能还原交易日记
             }
             orderRepository.save(order);
         }

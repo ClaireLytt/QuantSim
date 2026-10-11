@@ -3,6 +3,7 @@ package com.quantsim.dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -25,7 +26,9 @@ public final class GameDtos {
             @Size(max = 16) String mode,
             Boolean advanced,
             Boolean realRules,
-            @Size(max = 50) String industry) {}
+            @Size(max = 50) String industry,
+            Integer maxTrades,
+            Boolean requireReason) {}
 
     /** 开局行业筛选的候选项 (按市场分组展示) */
     public record IndustryOption(String industry, String market) {}
@@ -46,7 +49,9 @@ public final class GameDtos {
             boolean advanced,
             boolean realRules,
             List<StockLite> stocks,
-            String status) {}
+            String status,
+            Integer maxTrades,
+            boolean requireReason) {}
 
     public record KlinePoint(
             LocalDate tradeDate,
@@ -71,7 +76,7 @@ public final class GameDtos {
             List<KlinePoint> klines) {}
 
     /** 挂单成交回执 */
-    public record FilledOrder(String orderType, BigDecimal price, int shares, String stockCode) {}
+    public record FilledOrder(String orderType, BigDecimal price, int shares, String stockCode, String reason) {}
 
     /** 当日揭示的历史事件 (不含日历日期, 防剧透); 双语字段由前端按当前语言取用 */
     public record NewsItem(String severity, String titleZh, String titleEn, String bodyZh, String bodyEn) {}
@@ -96,13 +101,15 @@ public final class GameDtos {
             @NotBlank String direction,
             @NotNull BigDecimal price,
             @Min(1) int shares,
-            String stockCode) {}
+            String stockCode,
+            @Size(max = 100) String reason) {}
 
     public record TradeResponse(
             BigDecimal cashBalance,
             int holdingShares,
             BigDecimal holdingCost,
-            BigDecimal fee) {}
+            BigDecimal fee,
+            Integer tradesRemaining) {}
 
     /** 组合模式分标的持仓快照 */
     public record PositionInfo(
@@ -126,13 +133,14 @@ public final class GameDtos {
             BigDecimal filledPrice,
             BigDecimal trailPct) {}
 
-    /** trailPct: 仅 TRAIL_STOP 用, 触发价 = 收盘价*(1-trailPct%) 并随收盘上移 */
+    /** trailPct: 仅 TRAIL_STOP 用, 触发价 = 收盘价*(1-trailPct%) 并随收盘上移; reason: 交易日志模式必填 */
     public record PlaceOrderRequest(
             @NotBlank String orderType,
             @NotNull BigDecimal price,
             @Min(1) int shares,
             String stockCode,
-            BigDecimal trailPct) {}
+            BigDecimal trailPct,
+            String reason) {}
 
     /** 模型对"次日涨跌"的预测: direction UP/DOWN, probUp 为上涨概率 (0~1)。 */
     public record PredictionInfo(String direction, BigDecimal probUp) {}
@@ -167,7 +175,8 @@ public final class GameDtos {
             BigDecimal marginRatio,
             BigDecimal interestTotal,
             Integer sellableShares,
-            List<PositionInfo> positions) {}
+            List<PositionInfo> positions,
+            Integer tradesRemaining) {}
 
     /** 本局某一天的 AI 预测复盘: 预测方向与实际是否命中。 */
     public record PredictionDay(LocalDate date, boolean predictedUp, boolean correct) {}
@@ -183,6 +192,37 @@ public final class GameDtos {
             BigDecimal sortino,
             BigDecimal winRate,
             BigDecimal profitLossRatio) {}
+
+    /** 行为偏差诊断 (BiasAnalysisService): 结算时按流水统计, 带最小样本护栏。 */
+    public record BiasVerdict(String key, boolean triggered, String severity,
+                              Map<String, BigDecimal> stats, boolean insufficient) {}
+
+    public record BiasReport(int totalTrades, List<BiasVerdict> verdicts) {}
+
+    /** 交易流水下发 (复盘用): 竞技对局进行中日期走 BlindDates 脱敏、标的匿名。 */
+    public record TransactionInfo(Long txId, LocalDate tradeDate, String direction,
+                                  BigDecimal price, Integer shares, BigDecimal fee,
+                                  String stockCode, String reason) {}
+
+    /** 交易日志 (限制条件玩法): 理由 vs 实际结果, 结算时对照呈现。 */
+    public record JournalEntry(LocalDate tradeDate, String direction, String reason,
+                               BigDecimal outcomePct) {}
+
+    /** 偏差档案: 单项偏差的跨对局趋势 (history 按时间升序, 每局一个关键指标值) */
+    public record BiasTrend(String key, int games, int triggered,
+                            BigDecimal recentRate, BigDecimal earlierRate, String trend,
+                            List<BigDecimal> history, List<Boolean> triggeredHistory) {}
+
+    /** 偏差档案: 跨对局聚合 (totalGames=有诊断的已结算局数) */
+    public record BiasProfile(int totalGames, List<BiasTrend> trends) {}
+
+    /** 事件回放大事记 (结算揭晓, 真实日期双语) */
+    public record TimelineItemDto(LocalDate date, String severity, String titleZh, String titleEn,
+                                  String bodyZh, String bodyEn) {}
+
+    /** 事件回放结算揭晓: 场景名 + 真实窗口 + 大事记 */
+    public record EventReveal(String nameZh, String nameEn, LocalDate realStartDate,
+                              LocalDate realEndDate, List<TimelineItemDto> timeline) {}
 
     /** stockCode/stockName: 结算时的真实标的 —— 竞技模式全程匿名, 在这里才揭晓。 */
     public record SettleResponse(
@@ -205,7 +245,10 @@ public final class GameDtos {
             String stockCode,
             String stockName,
             int pointsEarned,
-            int winStreak) {}
+            int winStreak,
+            BiasReport biasReport,
+            List<JournalEntry> journal,
+            EventReveal eventReveal) {}
 
     /** LLM 交易顾问的解说与建议。 */
     public record AdvisorResponse(String advice, String model) {}

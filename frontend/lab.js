@@ -185,6 +185,7 @@ async function runCompare() {
   const b = $("lab-stock-b").value;
   if (!a || !b) return;
   if (a === b) { toast(t("lab.needTwo")); return; }
+  document.dispatchEvent(new CustomEvent("qs:labRun", { detail: { tool: "compare" } })); // 生涯任务信号
   await loadIntoBox($("lab-corr"), async () => {
     const [ha, hb] = await Promise.all([labHistory(a), labHistory(b)]);
     labCmp = { ha, hb };
@@ -575,6 +576,7 @@ function finishQuiz() {
   const top = QUIZ_DIMS.reduce((a, b) => (norm[a.key] >= norm[b.key] ? a : b)).key;
   const persona = QUIZ_PERSONAS.find((p) => p.match(norm, top));
   quizResult = { norm, persona };
+  document.dispatchEvent(new CustomEvent("qs:quizDone", { detail: { persona: persona.name.zh } })); // 生涯任务信号
   quiz = null;
   $("quiz-run").hidden = true;
   $("quiz-result").hidden = false;
@@ -803,12 +805,45 @@ async function runCalibration() {
 const LAB_BLOCK_IDS = ["lab-b-compare", "lab-b-models", "lab-b-signal",
   "lab-b-calib", "lab-b-timing", "lab-b-overview"];
 
-function openLabBlock(id) {
+// 每个实验块的运行函数: 打开即跑、换下拉即重跑, 用户不需要再按任何按钮
+const LAB_RUNNERS = {
+  "lab-b-compare": () => runCompare(),
+  "lab-b-models": () => runModels(),
+  "lab-b-signal": () => runSignal(),
+  "lab-b-calib": () => runCalibration(),
+  "lab-b-timing": () => runTiming(),
+  "lab-b-overview": () => runOverview(),
+};
+
+/** 保证股票清单就绪后执行 (首次进研究所清单是异步拉的)。
+ *  共享一个在途请求防止重复拉取; 拉完仍为空 (后端未就绪) 时明确提示, 不再静默空跑。 */
+let labStocksLoading = null;
+function whenLabReady(fn) {
+  if (labStocks.length) {
+    fn();
+    return;
+  }
+  if (!labStocksLoading) {
+    labStocksLoading = loadLabStocks().finally(() => { labStocksLoading = null; });
+  }
+  labStocksLoading.then(() => {
+    if (labStocks.length) fn();
+    else toast(t("lab.offline"));
+  });
+}
+
+function openLabBlock(id, autoRun = true) {
   LAB_BLOCK_IDS.forEach((b) => { $(b).hidden = b !== id; });
   document.querySelectorAll(".lab-tile").forEach((tile) => {
     tile.classList.toggle("active", tile.dataset.lab === id);
   });
-  if (id) $(id).scrollIntoView({ behavior: "smooth", block: "nearest" });
+  if (id) {
+    $(id).scrollIntoView({ behavior: "smooth", block: "nearest" });
+    pushLabRecent(id);
+    markLabDone(id);
+    ensureLabCta(id);
+    if (autoRun) whenLabReady(LAB_RUNNERS[id]); // 点开即出结果, 省掉一次按钮点击
+  }
 }
 
 document.querySelectorAll(".lab-tile").forEach((tile) => {
@@ -818,6 +853,326 @@ document.querySelectorAll(".lab-tile").forEach((tile) => {
   });
 });
 
+// ---------- 快捷预设: 一键选中常见信号并直接回测 ----------
+
+document.querySelectorAll(".lab-sig-quick").forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation(); // 别触发瓷砖自身的开合
+    openLabBlock("lab-b-signal", false); // 不走默认自动跑, 下面按预设跑
+    whenLabReady(() => {
+      $("lab-signal").value = btn.dataset.sig;
+      runSignal();
+    });
+  });
+});
+
+// ---------- 最近研究: 记住最近打开的 3 个实验, 顶部一键直达 ----------
+
+const LAB_RECENT_KEY = "qs_lab_recent";
+const LAB_BLOCK_I18N = {
+  "lab-b-compare": "lab.compare", "lab-b-models": "lab.models", "lab-b-signal": "lab.signals",
+  "lab-b-calib": "lab.calib", "lab-b-timing": "lab.timing", "lab-b-overview": "lab.overview",
+};
+
+function loadLabRecent() {
+  try {
+    const v = JSON.parse(localStorage.getItem(LAB_RECENT_KEY));
+    return Array.isArray(v) ? v.filter((id) => LAB_BLOCK_I18N[id]) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function pushLabRecent(id) {
+  const list = [id, ...loadLabRecent().filter((x) => x !== id)].slice(0, 3);
+  try { localStorage.setItem(LAB_RECENT_KEY, JSON.stringify(list)); } catch (e) { /* 隐私模式下忽略 */ }
+  renderLabRecent();
+}
+
+function renderLabRecent() {
+  const box = $("lab-recent");
+  const list = loadLabRecent();
+  const reports = loadLabReports();
+  $("lab-recent-wrap").hidden = !list.length && !reports.length;
+  box.innerHTML = "";
+  if ($("lab-recent-wrap").hidden) return;
+  if (list.length) {
+    const label = document.createElement("span");
+    label.textContent = t("lab.recent");
+    box.appendChild(label);
+    list.forEach((id) => {
+      const chip = document.createElement("button");
+      chip.className = "small";
+      chip.textContent = t(LAB_BLOCK_I18N[id]);
+      chip.addEventListener("click", () => openLabBlock(id));
+      box.appendChild(chip);
+    });
+  }
+  if (reports.length) {
+    const rep = document.createElement("button");
+    rep.className = "small replay";
+    rep.textContent = t("lab.reports.open", reports.length);
+    rep.addEventListener("click", openLabReports);
+    box.appendChild(rep);
+  }
+  syncRecentArrows();
+}
+
+// 胶囊栏溢出时才显示左右滚动箭头 (规格要求; 通常 3+1 个 chip 不会溢出, 窄屏才触发)
+function syncRecentArrows() {
+  const box = $("lab-recent");
+  const over = box.scrollWidth > box.clientWidth + 4;
+  $("lab-rec-prev").hidden = !over;
+  $("lab-rec-next").hidden = !over;
+  $("lab-rec-prev").setAttribute("aria-label", t("lab.rec.prev"));
+  $("lab-rec-next").setAttribute("aria-label", t("lab.rec.next"));
+}
+$("lab-rec-prev").addEventListener("click", () => { $("lab-recent").scrollBy({ left: -160, behavior: "smooth" }); });
+$("lab-rec-next").addEventListener("click", () => { $("lab-recent").scrollBy({ left: 160, behavior: "smooth" }); });
+window.addEventListener("resize", syncRecentArrows);
+
+// ---------- 已体验标记: 打开过的实验卡右上角打勾 ----------
+
+const LAB_DONE_KEY = "qs_lab_done";
+
+function loadLabDone() {
+  try {
+    const v = JSON.parse(localStorage.getItem(LAB_DONE_KEY));
+    return Array.isArray(v) ? v : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function markLabDone(id) {
+  const list = loadLabDone();
+  if (!list.includes(id)) {
+    list.push(id);
+    try { localStorage.setItem(LAB_DONE_KEY, JSON.stringify(list)); } catch (e) { /* 隐私模式下忽略 */ }
+  }
+  renderLabDoneMarks();
+}
+
+function renderLabDoneMarks() {
+  const done = loadLabDone();
+  document.querySelectorAll(".lab-tile").forEach((tile) => {
+    let mark = tile.querySelector(".lab-done-mark");
+    if (done.includes(tile.dataset.lab)) {
+      if (!mark) {
+        mark = document.createElement("i");
+        mark.className = "lab-done-mark";
+        mark.textContent = "✓";
+        tile.appendChild(mark);
+      }
+    } else if (mark) {
+      mark.remove();
+    }
+  });
+}
+
+renderLabDoneMarks();
+
+// ---------- 结果沉淀: 每个实验块底部的「保存报告 / 去对局实战」 ----------
+
+const LAB_REPORTS_KEY = "qs_lab_reports";
+// 各块的参数来源 (股票下拉), 用于报告摘要与"去实战"带市场
+const LAB_BLOCK_STOCK = {
+  "lab-b-compare": "lab-stock-a", "lab-b-models": "lab-stock-m",
+  "lab-b-signal": "lab-stock-s", "lab-b-timing": "lab-stock-t",
+};
+const LAB_BLOCK_VERDICT = {
+  "lab-b-compare": "lab-corr", "lab-b-models": "lab-model-verdict",
+  "lab-b-signal": "lab-signal-verdict", "lab-b-timing": "lab-timing-verdict",
+};
+
+function loadLabReports() {
+  try {
+    const v = JSON.parse(localStorage.getItem(LAB_REPORTS_KEY));
+    return Array.isArray(v) ? v : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveLabReport(blockId) {
+  const selId = LAB_BLOCK_STOCK[blockId];
+  const sel = selId ? $(selId) : null;
+  const vBox = LAB_BLOCK_VERDICT[blockId] ? $(LAB_BLOCK_VERDICT[blockId]) : null;
+  const verdict = vBox && !vBox.hidden ? vBox.textContent.trim().slice(0, 300) : "";
+  if (!verdict) {
+    toast(t("lab.cta.nothing"));
+    return;
+  }
+  const extra = blockId === "lab-b-signal" ? " · " + $("lab-signal").selectedOptions[0]?.textContent : "";
+  const reports = loadLabReports();
+  reports.unshift({
+    ts: Date.now(),
+    block: blockId,
+    params: (sel ? sel.selectedOptions[0]?.textContent || "" : "") + extra,
+    verdict,
+  });
+  try { localStorage.setItem(LAB_REPORTS_KEY, JSON.stringify(reports.slice(0, 20))); } catch (e) { /* 忽略 */ }
+  toast(t("lab.cta.saved"));
+  renderLabRecent(); // 报告数角标跟着变
+  document.dispatchEvent(new CustomEvent("qs:labReport")); // 桌宠"策略报告"任务埋点
+}
+
+function goPractice(blockId) {
+  // 后端开局不支持指定标的 (防刷榜, 随机抽), 带着该实验的市场去开一局
+  const selId = LAB_BLOCK_STOCK[blockId];
+  const code = selId ? $(selId).value : "";
+  const st = labStocks.find((s) => s.code === code);
+  if (st && [...$("market-select").options].some((o) => o.value === st.market)) {
+    $("market-select").value = st.market;
+  }
+  switchView("game");
+  toast(t("lab.cta.playHint"));
+}
+
+/** 给实验块追加一次性的 CTA 行 (保存报告 / 去实战)。
+ *  保存按钮只给有判词盒的实验 (风云榜/校准图是纯图表, 没有可存的文字结论)。 */
+function ensureLabCta(blockId) {
+  const block = $(blockId);
+  if (block.querySelector(".lab-cta")) return;
+  if (!LAB_BLOCK_VERDICT[blockId] && !LAB_BLOCK_STOCK[blockId]) return;
+  const row = document.createElement("div");
+  row.className = "lab-cta";
+  if (LAB_BLOCK_VERDICT[blockId]) {
+    const save = document.createElement("button");
+    save.className = "small";
+    save.textContent = t("lab.cta.save");
+    save.addEventListener("click", () => saveLabReport(blockId));
+    row.appendChild(save);
+  }
+  if (LAB_BLOCK_STOCK[blockId]) {
+    const play = document.createElement("button");
+    play.className = "small replay";
+    play.textContent = t("lab.cta.play");
+    play.addEventListener("click", () => goPractice(blockId));
+    row.appendChild(play);
+  }
+  block.appendChild(row);
+}
+
+document.addEventListener("qs:lang", () => {
+  // CTA 文案跟随语言: 直接重建
+  document.querySelectorAll(".lab-cta").forEach((el) => el.remove());
+  LAB_BLOCK_IDS.forEach((b) => { if (!$(b).hidden) ensureLabCta(b); });
+});
+
+// 我的研究报告弹窗
+function openLabReports() {
+  const list = loadLabReports();
+  const ul = $("lab-reports-list");
+  ul.innerHTML = "";
+  $("lab-reports-empty").hidden = !!list.length;
+  list.forEach((r, i) => {
+    const li = document.createElement("li");
+    const head = document.createElement("div");
+    head.className = "lab-report-head";
+    const title = document.createElement("b");
+    title.textContent = t(LAB_BLOCK_I18N[r.block] || "lab.section");
+    const meta = document.createElement("span");
+    meta.className = "hint";
+    meta.textContent = (r.params ? r.params + " · " : "") + new Date(r.ts).toLocaleDateString();
+    const del = document.createElement("button");
+    del.className = "small ghost";
+    del.textContent = "✕";
+    del.addEventListener("click", () => {
+      const all = loadLabReports();
+      all.splice(i, 1);
+      try { localStorage.setItem(LAB_REPORTS_KEY, JSON.stringify(all)); } catch (e) { /* 忽略 */ }
+      openLabReports();
+      renderLabRecent();
+    });
+    head.append(title, meta, del);
+    const body = document.createElement("p");
+    body.textContent = r.verdict; // 用户侧文本一律 textContent
+    li.append(head, body);
+    ul.appendChild(li);
+  });
+  $("lab-reports-modal").hidden = false;
+}
+
+$("btn-lab-reports-close").addEventListener("click", () => { $("lab-reports-modal").hidden = true; });
+$("lab-reports-modal").addEventListener("click", (e) => {
+  if (e.target === $("lab-reports-modal")) $("lab-reports-modal").hidden = true;
+});
+
+// ---------- 本周推荐实验: 按 ISO 周轮换, 一键开跑 ----------
+
+const LAB_WEEKLY = [
+  { block: "lab-b-timing", sig: null },
+  { block: "lab-b-signal", sig: "golden" },
+  { block: "lab-b-signal", sig: "bigdrop" },
+  { block: "lab-b-compare", sig: null },
+  { block: "lab-b-calib", sig: null },
+];
+
+function weekIndex() {
+  // 统一走 app.js 的本地周序 (周一切换), 首页推荐 (home.js) 读同一口径
+  return qsWeekIndex() % LAB_WEEKLY.length;
+}
+window.QS_LAB_WEEKLY_COUNT = LAB_WEEKLY.length; // 供 home.js 推荐轮换取模
+
+function renderLabWeekly() {
+  const i = weekIndex();
+  $("lab-weekly-title").textContent = t("lab.wk." + i + ".t");
+  $("lab-weekly-desc").textContent = t("lab.wk." + i + ".d");
+  $("lab-weekly").hidden = false;
+}
+
+$("btn-lab-weekly").addEventListener("click", () => {
+  const w = LAB_WEEKLY[weekIndex()];
+  openLabBlock(w.block, !w.sig);
+  if (w.sig) {
+    whenLabReady(() => {
+      $("lab-signal").value = w.sig;
+      runSignal();
+    });
+  }
+});
+
+renderLabWeekly();
+document.addEventListener("qs:lang", renderLabWeekly);
+
+// ---------- 首访 3 步引导: 第一次进研究所弹一次 ----------
+
+const LAB_GUIDE_KEY = "qs_lab_guide";
+
+function maybeShowLabGuide() {
+  // 新手引导会 switchView 路过研究所: 此时弹窗被 tour 遮罩压住, 引导结束后
+  // 它会凭空留在屏上挡住全页 (真实用户和冒烟都踩过), 等用户自己再进来时再弹
+  if (!$("tour-mask").hidden) return;
+  try {
+    if (localStorage.getItem(LAB_GUIDE_KEY)) return;
+  } catch (e) { return; }
+  $("lab-guide-modal").hidden = false;
+}
+
+function dismissLabGuide() {
+  $("lab-guide-modal").hidden = true;
+  try { localStorage.setItem(LAB_GUIDE_KEY, "1"); } catch (e) { /* 忽略 */ }
+}
+
+$("btn-lab-guide-close").addEventListener("click", dismissLabGuide);
+$("btn-lab-guide-skip").addEventListener("click", dismissLabGuide);
+$("btn-lab-guide-start").addEventListener("click", () => {
+  dismissLabGuide();
+  openLabBlock("lab-b-signal", false);
+  whenLabReady(() => {
+    $("lab-signal").value = "golden";
+    runSignal();
+  });
+});
+$("lab-guide-modal").addEventListener("click", (e) => {
+  if (e.target === $("lab-guide-modal")) dismissLabGuide();
+});
+
+// 初始化放在全部 const 声明之后 (renderLabRecent 依赖报告存储的键)
+renderLabRecent();
+document.addEventListener("qs:lang", renderLabRecent);
+
 // ---------- 事件绑定与联动 ----------
 
 $("btn-lab-calib").addEventListener("click", runCalibration);
@@ -826,6 +1181,19 @@ $("btn-lab-overview").addEventListener("click", runOverview);
 $("btn-lab-models").addEventListener("click", runModels);
 $("btn-lab-signal").addEventListener("click", runSignal);
 $("btn-lab-timing").addEventListener("click", runTiming);
+
+// 换任何下拉选项立即重算所在实验 (按钮保留作手动重跑, 但正常流程零按钮)
+const LAB_SELECT_RUNNER = {
+  "lab-stock-a": "lab-b-compare", "lab-stock-b": "lab-b-compare",
+  "lab-stock-m": "lab-b-models",
+  "lab-stock-s": "lab-b-signal", "lab-signal": "lab-b-signal",
+  "lab-stock-t": "lab-b-timing",
+};
+Object.entries(LAB_SELECT_RUNNER).forEach(([selId, blockId]) => {
+  $(selId).addEventListener("change", () => {
+    if (!$(blockId).hidden) whenLabReady(LAB_RUNNERS[blockId]);
+  });
+});
 $("btn-quiz-start").addEventListener("click", startQuiz);
 $("btn-quiz-retry").addEventListener("click", startQuiz);
 
@@ -833,6 +1201,7 @@ document.addEventListener("qs:view", (e) => {
   if (e.detail === "lab") {
     if (!labStocks.length) loadLabStocks();
     if (labCmpChart) labCmpChart.resize();
+    maybeShowLabGuide();
   } else if (e.detail === "quiz") {
     if (quizRadar) quizRadar.resize();
   }

@@ -89,6 +89,22 @@ public class GameSession {
     @Column(name = "challenge_date")
     private LocalDate challengeDate;
 
+    /** 限制条件: 本局交易笔数上限 (null = 不限), 开局固化 */
+    @Column(name = "max_trades")
+    private Integer maxTrades;
+
+    /** 限制条件: 每笔交易必须写一句理由 (复盘与结果对照) */
+    @Column(name = "require_reason", nullable = false)
+    private boolean requireReason = false;
+
+    /** 事件回放场景 id (仅 EVENT 模式); 结算时据此揭晓场景与大事记 */
+    @Column(name = "scenario_id")
+    private Long scenarioId;
+
+    /** 行为偏差诊断报告 (结算时计算一次, JSON; 见 BiasAnalysisService) */
+    @Column(name = "bias_report", columnDefinition = "TEXT")
+    private String biasReport;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

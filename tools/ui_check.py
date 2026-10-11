@@ -32,7 +32,8 @@ I18N = os.path.join(FRONTEND, "i18n.js")
 
 # t("strat." + x) 这类动态拼接键的合法前缀: 只要 zh 字典里存在该前缀的键即认为覆盖
 DYNAMIC_KEY_PREFIXES = ("strat.", "room.status.", "me.mode.", "orders.",
-                        "ailevel.", "nav.", "style.", "ai.persona.", "settle.taunt.")
+                        "ailevel.", "nav.", "style.", "ai.persona.", "settle.taunt.",
+                        "walker.ch")  # walker.ch{N}.t/.d: 前缀+变量+后缀拼接 (walker.js 章节)
 
 
 def read(path):

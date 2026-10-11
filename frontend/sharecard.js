@@ -13,10 +13,11 @@
     canvas.height = H;
     const ctx = canvas.getContext("2d");
     const dark = document.documentElement.dataset.theme !== "light";
-    const bg = dark ? "#101418" : "#f5f6f8";
-    const panel = dark ? "#1a2027" : "#ffffff";
-    const text = dark ? "#e8ecf1" : "#1c2430";
-    const muted = dark ? "#8b97a5" : "#6b7684";
+    // 与 style.css 的 iOS 系主题 token 同值 (canvas 不吃 CSS 级联, 只能镜像一份)
+    const bg = dark ? "#000000" : "#f2f2f7";
+    const panel = dark ? "#1c1c1e" : "#ffffff";
+    const text = dark ? "#f5f5f7" : "#1d1d1f";
+    const muted = dark ? "#a1a1aa" : "#6e6e73";
     const up = cssVar("--up") || "#e05260";
     const down = cssVar("--down") || "#2fae8f";
     const accent = cssVar("--accent") || "#4f8cff";
@@ -109,7 +110,7 @@
     const min = Math.min(...closes);
     const max = Math.max(...closes);
     const span = max - min || 1;
-    ctx.strokeStyle = dark ? "#2a3540" : "#dde3ea";
+    ctx.strokeStyle = dark ? "#38383a" : "#d9d9de";
     ctx.strokeRect(x, y, w, h);
     ctx.strokeStyle = color;
     ctx.lineWidth = 5;

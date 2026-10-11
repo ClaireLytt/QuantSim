@@ -35,7 +35,8 @@ public final class CompetitiveDtos {
 
     public record CreateRoomRequest(
             @Size(max = 10) String market,
-            @Size(max = 10) String aiLevel) {}
+            @Size(max = 10) String aiLevel,
+            Boolean realRules) {}
 
     public record RoomMemberView(
             String username,
@@ -52,6 +53,7 @@ public final class CompetitiveDtos {
             String stockName,
             String stockCode,
             String aiLevel,
+            boolean realRules,
             int players,
             int maxPlayers,
             LocalDateTime expiresAt,

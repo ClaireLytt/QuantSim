@@ -28,8 +28,9 @@ public class RoomController {
     @PostMapping
     public RoomView create(@Valid @RequestBody(required = false) CreateRoomRequest body,
                            HttpServletRequest http) {
-        CreateRoomRequest req = body == null ? new CreateRoomRequest(null, null) : body;
-        return roomService.create(CurrentUser.idOrNull(http), req.market(), req.aiLevel());
+        CreateRoomRequest req = body == null ? new CreateRoomRequest(null, null, null) : body;
+        return roomService.create(CurrentUser.idOrNull(http), req.market(), req.aiLevel(),
+                Boolean.TRUE.equals(req.realRules()));
     }
 
     /** 好友同题挑战: 从我的已结算对局建房 (同标的同窗口) */

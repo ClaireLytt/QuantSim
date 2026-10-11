@@ -23,6 +23,10 @@ page.on("console", (m) => {
   }
 });
 page.on("pageerror", (e) => record("pageerror", String(e).slice(0, 200)));
+// 5xx 响应单独记 URL: console 的 "Failed to load resource" 不带地址, 没法定位
+page.on("response", (r) => {
+  if (r.status() >= 500) record("http5xx", `${r.status()} ${r.request().method()} ${r.url()}`);
+});
 page.on("requestfailed", (r) => {
   if (!r.url().includes("favicon")) {
     record("requestfailed", `${r.url()} -> ${r.failure()?.errorText}`);
@@ -43,6 +47,12 @@ async function step(name, fn) {
 
 await step("首页加载 (过登录门禁 + 首访弹层)", async () => {
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
+  // 首访会被 index.html 内联脚本 location.replace 到 landing.html (营销落地页),
+  // 点「进入游戏」CTA 回主应用 (此时 qs_seen 已写入, 不会再跳)
+  if (page.url().includes("landing")) {
+    await page.click('a.ld-cta[href^="index.html"]', { timeout: 5000 });
+    await page.waitForTimeout(300);
+  }
   await page.waitForSelector("#nav-groups .nav-group", { timeout: 15000 });
   await page.waitForTimeout(800);
   // 首访自动弹新手引导 (tour-mask 盖全屏), 点「跳过引导」
@@ -78,6 +88,9 @@ await step("首页加载 (过登录门禁 + 首访弹层)", async () => {
 });
 
 await step("新手引导 10 步走完", async () => {
+  // 默认视图是首页 (home), 「新手引导」按钮在对局视图的开局卡片里, 先切过去
+  await page.click('#nav-groups .nav-group[data-group="play"]');
+  await page.waitForTimeout(250);
   await page.click("#btn-tour");
   await page.waitForSelector("#tour-pop", { state: "visible", timeout: 5000 });
   for (let i = 0; i < 12 && await page.isVisible("#tour-pop"); i++) {
@@ -88,18 +101,27 @@ await step("新手引导 10 步走完", async () => {
 });
 
 await step("遍历全部导航视图与子标签", async () => {
+  // 首次进研究所会弹 3 步引导 (lab-guide-modal 全屏遮罩), 不关掉会挡死后续一切点击
+  const dismissLabGuide = async () => {
+    if (await page.isVisible("#lab-guide-modal")) {
+      await page.click("#btn-lab-guide-skip");
+      await page.waitForTimeout(200);
+    }
+  };
   // 子标签每次切视图都整体重建 (innerHTML 重写), 不能复用 locator 句柄,
   // 用 data-view 值逐个重新定位
   const groupCount = await page.locator("#nav-groups .nav-group").count();
   for (let i = 0; i < groupCount; i++) {
     await page.locator("#nav-groups .nav-group").nth(i).click();
     await page.waitForTimeout(250);
+    await dismissLabGuide();
     // 单视图组的子标签条整体 hidden (无需点击); 只遍历可见 tab
     const views = await page.$$eval("#nav-subtabs .nav-tab",
       (els) => els.filter((e) => e.offsetParent !== null).map((e) => e.dataset.view));
     for (const v of views) {
       await page.click(`#nav-subtabs .nav-tab[data-view="${v}"]`, { timeout: 5000 });
       await page.waitForTimeout(200);
+      await dismissLabGuide();
     }
   }
   // 回到对局组, 为后续步骤定位
@@ -154,6 +176,12 @@ await step("经典对局: 开局→买入→推进→结算", async () => {
   await page.waitForSelector("#settle-card:not([hidden])", { timeout: 10000 });
   const ret = await page.textContent("#settle-return");
   if (!ret || !ret.includes("%")) throw new Error("结算收益率未渲染: " + ret);
+  // 结算总结弹窗: 验证弹出后关掉, 否则遮罩会挡住后续步骤的导航点击
+  await page.waitForSelector("#settle-modal:not([hidden])", { timeout: 5000 });
+  const popRet = await page.textContent("#settle-pop-return");
+  if (!popRet || !popRet.includes("%")) throw new Error("结算弹窗收益率未渲染: " + popRet);
+  await page.click("#btn-settle-pop-close");
+  await page.waitForTimeout(200);
 });
 
 await step("回测工坊: 默认策略跑通出曲线", async () => {
@@ -168,6 +196,28 @@ await step("回测工坊: 默认策略跑通出曲线", async () => {
   await page.waitForSelector("#bt-result:not([hidden])", { timeout: 20000 });
   const days = await page.textContent("#bt-days");
   if (!days || days === "--") throw new Error("回测指标未渲染");
+});
+
+await step("重生逆袭: 开局→打工→过年", async () => {
+  if (await page.locator("header.collapsed").count()) {
+    await page.click("#btn-header-fold");
+    await page.waitForTimeout(200);
+  }
+  // 重生已内化为 extra 组 (无导航页签, 从学堂任务卡/首页推荐进入), 冒烟只验玩法, 直达视图
+  await page.evaluate(() => switchView("reborn"));
+  await page.waitForTimeout(250);
+  // 新 context 无存档, 应停在开局页
+  if (await page.isVisible("#rb-intro")) await page.click("#btn-rb-start");
+  await page.waitForSelector("#rb-game:not([hidden])", { timeout: 5000 });
+  await page.click("#btn-rb-work");
+  await page.waitForTimeout(150);
+  await page.click("#btn-rb-next");
+  await page.waitForTimeout(300);
+  // 第 2 年: 日志应有 开局+打工+事件 至少 3 条
+  const n = await page.locator("#rb-log li").count();
+  if (n < 3) throw new Error("重生日志条数异常: " + n);
+  const year = await page.textContent("#rb-year");
+  if (!year.trim().startsWith("2")) throw new Error("过年后年份未推进: " + year);
 });
 
 await step("布局无横向溢出 (桌面 1280 / 手机 390)", async () => {

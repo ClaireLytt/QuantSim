@@ -6,7 +6,9 @@ import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.quantsim.entity.UserPoints;
 
@@ -16,6 +18,11 @@ public interface UserPointsRepository extends JpaRepository<UserPoints, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<UserPoints> findWithLockByUserId(Long userId);
+
+    /** 并发安全的首插: INSERT IGNORE 撞主键静默跳过, 不会把当前事务标记 rollback-only。 */
+    @Modifying
+    @Query(value = "INSERT IGNORE INTO user_points (user_id) VALUES (:userId)", nativeQuery = true)
+    void insertIgnore(@Param("userId") Long userId);
 
     /** 积分榜: [username, balance] */
     @Query("""

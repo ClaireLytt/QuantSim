@@ -37,6 +37,8 @@ public class MeController {
     private final UserProgressRepository progressRepository;
     private final GameSessionRepository sessionRepository;
     private final BacktestResultRepository backtestRepository;
+    private final com.quantsim.service.BiasAnalysisService biasAnalysisService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public record GameRecord(
             Long sessionId, String stockName, String stockCode, LocalDate startDate,
@@ -70,14 +72,43 @@ public class MeController {
         return new ProgressResponse(p.getProgressJson(), p.getUpdatedAt());
     }
 
+    /** 行为偏差档案: 跨对局聚合诊断趋势 (诊断在结算时已 JSON 落库, 这里只读+聚合)。 */
+    @GetMapping("/bias-profile")
+    public com.quantsim.dto.GameDtos.BiasProfile biasProfile(HttpServletRequest request) {
+        Long userId = CurrentUser.idOrNull(request);
+        // 取最新 60 局再反转成时间升序 (直接 Asc 会永久卡在最早 60 局)
+        List<GameSession> sessions = new java.util.ArrayList<>(sessionRepository
+                .findTop60ByUserIdAndStatusAndBiasReportIsNotNullOrderByCreatedAtDesc(
+                        userId, GameSession.Status.SETTLED));
+        java.util.Collections.reverse(sessions);
+        List<com.quantsim.dto.GameDtos.BiasReport> reports = sessions
+                .stream()
+                .map(sess -> {
+                    try {
+                        return objectMapper.readValue(sess.getBiasReport(),
+                                com.quantsim.dto.GameDtos.BiasReport.class);
+                    } catch (Exception e) {
+                        return null; // 个别坏数据跳过, 不拖垮整页
+                    }
+                })
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return biasAnalysisService.profile(reports);
+    }
+
     @GetMapping("/games")
     public List<GameRecord> myGames(HttpServletRequest request) {
         Long userId = CurrentUser.idOrNull(request);
         return sessionRepository.findMyGames(userId, PageRequest.of(0, HISTORY_LIMIT)).stream()
                 .map(row -> {
                     GameSession s = (GameSession) row[0];
-                    return new GameRecord(s.getSessionId(), (String) row[1], (String) row[2],
-                            s.getStartDate(), s.getStatus().name(), s.getMode(), s.getAiModel(),
+                    // 竞技/事件对局必须走同一套脱敏: 进行中隐藏标的与真实窗口 (教训 #4),
+                    // 已结算也要剥掉事件场景的内部复合代码后缀
+                    return new GameRecord(s.getSessionId(),
+                            com.quantsim.service.BlindDates.maskName(s, (String) row[1]),
+                            com.quantsim.service.BlindDates.maskCode(s, (String) row[2]),
+                            com.quantsim.service.BlindDates.mask(s, s.getStartDate()),
+                            s.getStatus().name(), s.getMode(), s.getAiModel(),
                             s.getFinalReturnRate(), s.getCreatedAt());
                 })
                 .toList();

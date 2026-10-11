@@ -19,7 +19,7 @@ import jakarta.servlet.http.HttpServletResponse;
 public class AuthFilter extends OncePerRequestFilter {
 
     private static final String[] PROTECTED_PREFIXES = {
-            "/api/me/", "/api/rooms", "/api/daily"
+            "/api/me/", "/api/rooms", "/api/daily", "/api/event"
     };
 
     @Override

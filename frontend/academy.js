@@ -6,7 +6,7 @@
 const PROG_KEY = "qs_progress";
 
 function loadProg() {
-  const def = { xp: 0, badges: [], titles: [], teach: [], famous: [], bestStreak: 0, guessTotal: 0, guessHit: 0, daily: { date: "", score: 0, best: 0 }, dailyCount: 0, gear: [], equipped: [], cases: [] };
+  const def = { xp: 0, badges: [], titles: [], teach: [], famous: [], bestStreak: 0, guessTotal: 0, guessHit: 0, guessRecent: [], daily: { date: "", score: 0, best: 0 }, dailyCount: 0, gear: [], equipped: [], cases: [], wealth: 1000000, wealthBest: 1000000 };
   try {
     const p = JSON.parse(localStorage.getItem(PROG_KEY));
     return p && typeof p === "object" ? Object.assign(def, p) : def;
@@ -19,6 +19,8 @@ let prog = loadProg();
 
 function saveProg() {
   try { localStorage.setItem(PROG_KEY, JSON.stringify(prog)); } catch (e) { /* 隐私模式下忽略 */ }
+  // 进度变更广播: 生涯模式等订阅方重算 check 型任务 (订阅方需自带重入锁防回环)
+  document.dispatchEvent(new CustomEvent("qs:progress"));
   // 登录后防抖同步到云端 (auth.js 提供; 未加载/未登录时为空操作)
   if (window.qsSyncProgress) window.qsSyncProgress();
 }
@@ -43,20 +45,8 @@ function spawnFloat(host, className, text) {
   el.addEventListener("animationend", () => el.remove());
 }
 
-function spawnConfetti(host) {
-  if (!host || REDUCED_MOTION) return;
-  const colors = ["--up", "--ma5", "--accent", "--good", "--ma20"].map(cssVar);
-  for (let i = 0; i < 36; i++) {
-    const p = document.createElement("span");
-    p.className = "confetti-piece";
-    p.style.left = Math.random() * 100 + "%";
-    p.style.background = colors[i % colors.length];
-    p.style.animationDuration = (1.1 + Math.random() * 1.2) + "s";
-    p.style.animationDelay = (Math.random() * 0.4) + "s";
-    host.appendChild(p);
-    p.addEventListener("animationend", () => p.remove());
-  }
-}
+// spawnConfetti 的唯一实现在 app.js (支持可选 host); 这里不再重定义——
+// 曾因本文件后加载覆盖掉全屏版, 导致 app/bubble/reborn/tasks 的无参调用静默失效。
 
 function showRankUp(name) {
   if (REDUCED_MOTION) return;
@@ -99,6 +89,11 @@ const BADGES = [
   { id: "survivor", name: { zh: "熊市幸存者", en: "Bear Survivor" }, desc: { zh: "熊市生存挑战中跑赢买入持有", en: "Beat buy & hold in a Bear Survival run" } },
   { id: "ai_streak3", name: { zh: "AI 克星", en: "AI Nemesis" }, desc: { zh: "连续 3 局战胜 AI 操盘手", en: "Beat the AI trader 3 games in a row" } },
   { id: "season_podium", name: { zh: "载入史册", en: "Hall of Fame" }, desc: { zh: "登上赛季收益榜前三的颁奖台", en: "Finish a season in the return top 3" } },
+  { id: "rich_double", name: { zh: "身家翻倍", en: "Doubled Up" }, desc: { zh: "富豪场身家冲上 200 万", en: "Grow your fortune to 2,000,000" } },
+  { id: "rich_streak5", name: { zh: "富豪五连", en: "Hot Hand" }, desc: { zh: "富豪场连赢 5 注", en: "Win 5 bets in a row in Tycoon mode" } },
+  { id: "rich_reborn", name: { zh: "东山再起", en: "Back From Broke" }, desc: { zh: "破产后选择重生再战", en: "Go broke and come back for more" } },
+  { id: "reborn_tycoon", name: { zh: "一代首富", en: "Tycoon of the Age" }, desc: { zh: "重生逆袭中以首富身家谢幕", en: "Finish a rebirth run as the Tycoon of the Age" } },
+  { id: "reborn_boss", name: { zh: "白手起家", en: "Self-Made" }, desc: { zh: "重生逆袭中至少干成小老板", en: "Finish a rebirth run as at least a Boss" } },
   { id: "daily_150", name: { zh: "手感火热", en: "On Fire" }, desc: { zh: "单次每日挑战得分 ≥ 150", en: "Score 150+ in one daily challenge" } },
   { id: "settle_1", name: { zh: "实盘首秀", en: "Debut Settled" }, desc: { zh: "在模拟对局中完成一次结算", en: "Settle a full trading game" } },
   { id: "beat_ai", name: { zh: "人机对决", en: "AI Slayer" }, desc: { zh: "结算收益率跑赢 AI 操盘手", en: "Beat the AI trader at settlement" } },
@@ -106,6 +101,12 @@ const BADGES = [
   { id: "case_all", name: { zh: "真相只有一个", en: "One Truth Prevails" }, desc: { zh: "破解全部市场悬案", en: "Solve every market mystery" } },
   { id: "egg_curious", hidden: true, name: { zh: "好奇宝宝", en: "Curious Cat" }, desc: { zh: "对着标题连点 7 次发现的彩蛋", en: "Found by clicking the title 7 times" } },
   { id: "egg_konami", hidden: true, name: { zh: "秘籍玩家", en: "Cheat Coder" }, desc: { zh: "输入了传说中的神秘按键序列", en: "Entered the legendary secret key sequence" } },
+  // 生涯模式章节徽章 (career.js 发放)
+  { id: "career_ch1", name: { zh: "转正信", en: "The Offer Letter" }, desc: { zh: "生涯第一章：完成实习期", en: "Career Ch.1: survive the internship" } },
+  { id: "career_ch2", name: { zh: "研究笔记", en: "Research Notes" }, desc: { zh: "生涯第二章：转正研究员", en: "Career Ch.2: make analyst" } },
+  { id: "career_ch3", name: { zh: "交易工牌", en: "The Trading Badge" }, desc: { zh: "生涯第三章：通过交易员考核", en: "Career Ch.3: pass the trader exam" } },
+  { id: "career_ch4", name: { zh: "基金牌照", en: "The Fund License" }, desc: { zh: "生涯第四章：执掌自己的基金", en: "Career Ch.4: run your own fund" } },
+  { id: "career_end", name: { zh: "生涯圆满", en: "Career Complete" }, desc: { zh: "走完整条生涯主线并迎来结局", en: "Finish the career storyline and meet your ending" } },
 ];
 
 // 未解锁徽章的进度提示 [当前, 目标]
@@ -261,449 +262,7 @@ function maAt(candles, n, idx) {
   return +(s / n).toFixed(2);
 }
 
-// ---------- 实战教学关卡 ----------
-// goal: minReturn(小数) / beatHold / maxDrawdown 可组合; hints 按 K 线序号(从1起)触发
-
-const TEACH_LEVELS = [
-  {
-    seed: 20101,
-    title: { zh: "第一关 · 买入你的第一手", en: "Level 1 · Your First Trade" },
-    desc: { zh: "在缓慢上涨的行情里完成一买一卖，赚到第一笔钱", en: "Buy once, sell once in a gentle uptrend and bank your first profit" },
-    story: {
-      zh: "红色空心 K 线是上涨，绿色实心是下跌。这段行情整体向上——找个位置全仓买入，涨了以后卖出落袋。目标：收益率 > 0%。",
-      en: "Hollow red candles mean up, solid green means down. This market drifts upward — buy in, then sell to lock the gain. Goal: return > 0%.",
-    },
-    segments: [{ days: 30, drift: 0.006, vol: 0.018 }],
-    startVisible: 8,
-    goal: { minReturn: 0.0001 },
-    hints: {
-      9: { zh: "现在就可以点「全仓买入」——买入后每天点「下一天」看行情揭晓。", en: "Hit \"Buy All\" now — then click \"Next Day\" to reveal each day's move." },
-      22: { zh: "已经有浮盈了吗？涨势后期随时可以「全部卖出」锁定利润。", en: "In profit? Late in a rally you can \"Sell All\" anytime to lock it in." },
-    },
-  },
-  {
-    seed: 20202,
-    title: { zh: "第二关 · 等一个金叉", en: "Level 2 · Wait for the Golden Cross" },
-    desc: { zh: "看着 MA5 上穿 MA20 再动手，体验趋势信号", en: "Act only when MA5 crosses above MA20 — feel a real trend signal" },
-    story: {
-      zh: "图上多了两条均线：黄色 MA5（短期）、蓝色 MA20（长期）。行情先跌后涨——别急着抄底，等 MA5 上穿 MA20（金叉）再买。目标：收益率 ≥ 5%。",
-      en: "Two moving averages now: yellow MA5 (short) and blue MA20 (long). The market falls first, then turns — don't catch the knife; buy when MA5 crosses above MA20. Goal: return ≥ 5%.",
-    },
-    segments: [
-      { days: 18, drift: -0.008, vol: 0.015 },
-      { days: 6, drift: 0.002, vol: 0.012 },
-      { days: 26, drift: 0.011, vol: 0.016 },
-    ],
-    startVisible: 22,
-    showMa: true,
-    goal: { minReturn: 0.05 },
-    hints: {
-      23: { zh: "下跌里 MA5 一直压在 MA20 下方——空仓等待就是最好的操作。", en: "In the decline MA5 stays below MA20 — staying out IS the trade." },
-      30: { zh: "注意看：MA5 正在拐头向上逼近 MA20，金叉快出现了。", en: "Watch: MA5 is turning up toward MA20 — the golden cross is near." },
-      34: { zh: "金叉确认！短期均线上穿长期均线，趋势转多，可以买入了。", en: "Golden cross confirmed! Short MA above long MA — trend is up, time to buy." },
-    },
-  },
-  {
-    seed: 20303,
-    title: { zh: "第三关 · 别追高", en: "Level 3 · Don't Chase the Spike" },
-    desc: { zh: "亲身体会「追高一时爽」的代价，跑赢无脑持有", en: "Feel the cost of chasing a spike — and beat buy & hold" },
-    story: {
-      zh: "开局就是一波急拉，人人都喊「要起飞」。但价格远超 MA20 时往往会回归。忍住别在山顶买——等回调企稳再进场。目标：跑赢「开局就满仓拿到最后」的买入持有。",
-      en: "It opens with a vertical spike — everyone screams \"moon\". But price stretched far above MA20 tends to snap back. Don't buy the top; wait for the pullback to settle. Goal: beat buy & hold.",
-    },
-    segments: [
-      { days: 8, drift: 0.03, vol: 0.02 },
-      { days: 14, drift: -0.018, vol: 0.022 },
-      { days: 22, drift: 0.008, vol: 0.014 },
-    ],
-    startVisible: 6,
-    showMa: true,
-    goal: { beatHold: true },
-    hints: {
-      7: { zh: "价格已经比 MA20 高出一大截——均值回归警告，现在追高风险很大。", en: "Price is way above MA20 — mean-reversion alert: chasing here is risky." },
-      16: { zh: "急涨之后的急跌。空仓的你毫发无伤——这就是不追高的意义。", en: "The spike is unwinding. Flat position, zero damage — that's why you didn't chase." },
-      25: { zh: "跌势放缓、价格回到均线附近，现在进场比在山顶买便宜多了。", en: "The fall is slowing and price is back near the MAs — far cheaper than the top." },
-    },
-  },
-  {
-    seed: 20404,
-    title: { zh: "第四关 · 崩盘中活下来", en: "Level 4 · Survive the Crash" },
-    desc: { zh: "学会止损：控制回撤比赚钱更重要", en: "Learn to cut losses: controlling drawdown beats chasing gains" },
-    story: {
-      zh: "先给你一段舒服的上涨——但好日子会突然结束。你的任务不是赚最多，而是活下来：全程最大回撤不超过 15%，且最终不亏超过 3%。记住：感觉不对就先卖，止损永远不丢人。",
-      en: "You get a comfortable rally first — then the good times end abruptly. Your job isn't to earn the most, it's to survive: keep max drawdown within 15% and finish no worse than -3%. When it feels wrong, sell first — stopping out is never shameful.",
-    },
-    segments: [
-      { days: 20, drift: 0.009, vol: 0.014 },
-      { days: 12, drift: -0.035, vol: 0.03 },
-      { days: 12, drift: 0.002, vol: 0.018 },
-    ],
-    startVisible: 8,
-    showMa: true,
-    goal: { minReturn: -0.03, maxDrawdown: 0.15 },
-    hints: {
-      18: { zh: "涨了这么久，问自己一句：如果明天开始跌，我打算在哪里止损？", en: "After this long a rally, ask yourself: if it turns tomorrow, where is my stop?" },
-      22: { zh: "连续放量大跌、跌破均线——这不是回调，是趋势反转，先卖出保命！", en: "Heavy consecutive drops through the MAs — not a dip, a reversal. Sell and survive!" },
-    },
-  },
-  {
-    seed: 20505,
-    title: { zh: "第五关 · 箱体里的高抛低吸", en: "Level 5 · Trade the Range" },
-    desc: { zh: "行情不涨不跌来回晃——学会赚波动的钱", en: "A market going nowhere — learn to milk the swings" },
-    story: {
-      zh: "不是所有行情都有趋势。这一段价格会在一个「箱体」里来回震荡：跌到下沿就有人接、涨到上沿就有人卖。傻拿不动只能白坐过山车——在下沿买、上沿卖，来回做几趟。目标：收益率 ≥ 6% 且跑赢买入持有。",
-      en: "Not every market trends. This one oscillates inside a 'box': buyers appear at the floor, sellers at the ceiling. Holding through it is a rollercoaster to nowhere — buy the floor, sell the ceiling, and repeat. Goal: return ≥ 6% AND beat buy & hold.",
-    },
-    segments: [
-      { days: 9, drift: 0.009, vol: 0.013 },
-      { days: 9, drift: -0.009, vol: 0.013 },
-      { days: 10, drift: 0.009, vol: 0.013 },
-      { days: 10, drift: -0.01, vol: 0.014 },
-      { days: 8, drift: 0.006, vol: 0.012 },
-    ],
-    startVisible: 12,
-    showMa: true,
-    goal: { minReturn: 0.06, beatHold: true },
-    hints: {
-      14: { zh: "看出来了吗？价格涨到前高附近就掉头——上沿和下沿画出来了，等它回到下沿。", en: "See it? Price keeps turning back near the prior high — the box is drawn. Wait for the floor." },
-      19: { zh: "回到箱体下沿了，前两次都在这里止跌——低吸的位置到了。", en: "Back at the box floor — the last two dips stopped right here. That's your entry." },
-      28: { zh: "又到上沿了。箱体行情里别幻想突破，涨到上沿就卖，落袋为安。", en: "Ceiling again. In a range, don't dream of breakouts — sell at the top of the box and bank it." },
-    },
-  },
-  {
-    seed: 20606,
-    title: { zh: "第六关 · 看见死叉就撤", en: "Level 6 · Run at the Death Cross" },
-    desc: { zh: "金叉买入你会了——这次学会用死叉离场", en: "You know the golden cross — now learn to exit on the death cross" },
-    story: {
-      zh: "会买的是徒弟，会卖的才是师父。金叉之后放心持有——但顶部不会敲锣打鼓，MA5 下穿 MA20（死叉）就是行情给你的最后通牒。这一关既要赚到钱，也要走得干净。目标：收益率 ≥ 8% 且最大回撤 ≤ 12%。",
-      en: "Buying is the apprentice's skill; selling is the master's. Hold with confidence after the golden cross — but tops don't ring a bell. When MA5 crosses below MA20 (the death cross), that's the market's final notice. Earn the money AND leave clean. Goal: return ≥ 8% with max drawdown ≤ 12%.",
-    },
-    segments: [
-      { days: 6, drift: -0.004, vol: 0.012 },
-      { days: 22, drift: 0.012, vol: 0.015 },
-      { days: 6, drift: -0.002, vol: 0.018 },
-      { days: 16, drift: -0.02, vol: 0.022 },
-    ],
-    startVisible: 8,
-    showMa: true,
-    goal: { minReturn: 0.08, maxDrawdown: 0.12 },
-    hints: {
-      11: { zh: "MA5 上穿 MA20，金叉确认——第二关学的东西，现在用上。", en: "MA5 just crossed above MA20 — the golden cross from Level 2. Put it to work." },
-      29: { zh: "涨不动了：K线在均线附近来回穿、MA5 开始走平。这不是休息，可能是告别。", en: "The rally is stalling: candles whipping around the MAs, MA5 flattening. This may not be a rest — it may be goodbye." },
-      35: { zh: "死叉！MA5 下穿 MA20，趋势转空。还记得这一关的名字吗——撤！", en: "Death cross! MA5 below MA20 — the trend has flipped. Remember this level's name: RUN!" },
-    },
-  },
-];
-
-// ---------- 名场面挑战 ----------
-
-const FAMOUS_LEVELS = [
-  {
-    seed: 31501,
-    title: { zh: "2015 · A股杠杆疯牛", en: "2015 · China's Leveraged Bull" },
-    desc: { zh: "千股涨停到千股跌停，你能逃顶吗", en: "From limit-up frenzy to limit-down panic — can you escape the top?" },
-    story: {
-      zh: "2015 年上半年，场外配资推着 A 股一路狂飙，人人都是股神；6 月风向突变，千股跌停连环上演。你带着 10 万穿越回牛市中段——吃到主升浪，并在崩盘前逃顶。目标：收益率 ≥ 10% 且跑赢买入持有。",
-      en: "In early 2015, leveraged money sent Chinese stocks vertical — everyone was a genius. Then June came, and thousands of stocks slammed limit-down day after day. You arrive mid-bull with 100k — ride the main wave and escape before the collapse. Goal: return ≥ 10% AND beat buy & hold.",
-    },
-    segments: [
-      { days: 26, drift: 0.014, vol: 0.018 },
-      { days: 6, drift: 0.02, vol: 0.03 },
-      { days: 16, drift: -0.045, vol: 0.035 },
-      { days: 10, drift: -0.005, vol: 0.025 },
-    ],
-    startVisible: 10,
-    showMa: true,
-    goal: { minReturn: 0.1, beatHold: true },
-    award: { zh: "逃顶大师", en: "Top Escaper" },
-    hints: {
-      28: { zh: "成交越来越疯、波动越来越大——顶部往往就藏在最亢奋的日子里。", en: "Wilder swings, wilder euphoria — tops hide inside the most excited days." },
-      34: { zh: "跌停潮开始了。还满仓的话，每犹豫一天都是真金白银。", en: "The limit-down cascade has begun. Every day of hesitation costs real money." },
-    },
-  },
-  {
-    seed: 32101,
-    title: { zh: "2021 · 比特币疯牛", en: "2021 · The Bitcoin Mania" },
-    desc: { zh: "翻倍的诱惑与腰斩的深渊", en: "The lure of doubling and the abyss of halving" },
-    story: {
-      zh: "2021 年，比特币从 3 万美元一路冲向 6 万，随后又在几周内近乎腰斩。币圈没有涨跌停、7×24 交易，波动是 A 股的数倍。你能在过山车上赚到 30% 再全身而退吗？目标：收益率 ≥ 30%。",
-      en: "In 2021 Bitcoin ran from $30k toward $60k — then nearly halved within weeks. Crypto has no limit bands and trades 24/7; volatility dwarfs stocks. Can you take 30% off this rollercoaster and walk away? Goal: return ≥ 30%.",
-    },
-    segments: [
-      { days: 22, drift: 0.022, vol: 0.035 },
-      { days: 8, drift: 0.03, vol: 0.05 },
-      { days: 14, drift: -0.05, vol: 0.055 },
-      { days: 12, drift: 0.01, vol: 0.04 },
-    ],
-    startVisible: 8,
-    goal: { minReturn: 0.3 },
-    award: { zh: "币圈老炮", en: "Crypto Veteran" },
-    hints: {
-      24: { zh: "币圈的单日波动能顶 A 股一个月——收益目标达到就别贪。", en: "One crypto day can move like a month of stocks — hit your target, don't get greedy." },
-      31: { zh: "瀑布来了。没有跌停板兜底，下跌可以深不见底。", en: "The waterfall is here. No limit-down floor — this can go much deeper." },
-    },
-  },
-  {
-    seed: 33301,
-    title: { zh: "2021 · 世纪轧空大战", en: "2021 · The Great Short Squeeze" },
-    desc: { zh: "散户抱团把股价推上天，然后呢", en: "Retail traders squeezed a stock to the sky — then what?" },
-    story: {
-      zh: "一只无人问津的股票被论坛散户抱团买爆，几天内暴涨数倍，做空机构被轧到爆仓；随后限制买入、股价雪崩。你恰好在起爆前入场——吃到暴涨，别把利润还回去。目标：收益率 ≥ 20% 且跑赢买入持有。",
-      en: "A forgotten stock got mobbed by forum traders and multiplied within days, blowing up short sellers; then buying was restricted and the price avalanched. You arrive just before ignition — catch the surge, and don't give the profit back. Goal: return ≥ 20% AND beat buy & hold.",
-    },
-    segments: [
-      { days: 16, drift: 0.001, vol: 0.012 },
-      { days: 7, drift: 0.12, vol: 0.08 },
-      { days: 9, drift: -0.09, vol: 0.07 },
-      { days: 10, drift: -0.01, vol: 0.03 },
-    ],
-    startVisible: 12,
-    goal: { minReturn: 0.2, beatHold: true },
-    award: { zh: "轧空幸存者", en: "Squeeze Survivor" },
-    hints: {
-      17: { zh: "成交异动，有大事要发生。这种票要么不动，要么惊天动地。", en: "Something is stirring. Stocks like this either sleep — or explode." },
-      21: { zh: "垂直拉升没有基本面支撑，全靠情绪。情绪退潮比涨起来更快。", en: "A vertical ramp with no fundamentals runs on pure emotion — and emotion drains faster than it fills." },
-    },
-  },
-  {
-    seed: 34001,
-    title: { zh: "2008 · 金融海啸", en: "2008 · The Financial Tsunami" },
-    desc: { zh: "百年投行一夜倒下，你能带着本金活下来吗", en: "A century-old bank fell overnight — can you survive with your capital?" },
-    story: {
-      zh: "2008 年，次贷危机从华尔街蔓延到全世界，百年投行雷曼兄弟轰然倒塌，全球股市腰斩。这一关没有暴富机会——瀑布中途的反弹全是陷阱。你的任务只有一个：活下来。目标：不亏钱且跑赢买入持有。",
-      en: "In 2008 the subprime crisis spread from Wall Street to the world. Lehman Brothers — a century-old bank — collapsed overnight, and global markets were cut in half. There is no jackpot in this level: every bounce inside the waterfall is a trap. Your only mission is survival. Goal: don't lose money AND beat buy & hold.",
-    },
-    segments: [
-      { days: 10, drift: 0.004, vol: 0.015 },
-      { days: 14, drift: -0.03, vol: 0.03 },
-      { days: 6, drift: 0.018, vol: 0.025 },
-      { days: 18, drift: -0.042, vol: 0.045 },
-      { days: 8, drift: 0.005, vol: 0.03 },
-    ],
-    startVisible: 8,
-    showMa: true,
-    goal: { minReturn: 0, beatHold: true },
-    award: { zh: "危机幸存者", en: "Crisis Survivor" },
-    hints: {
-      14: { zh: "坏消息一个接一个，均线全部拐头向下。危机里，现金就是最好的仓位。", en: "Bad news keeps landing and every MA is turning down. In a crisis, cash IS a position." },
-      27: { zh: "跌了这么多，反弹很诱人？危机中的反弹叫「逃命波」——是给你出货的，不是给你抄底的。", en: "Tempted by this bounce? In a crisis a rally is an exit ramp, not an entry." },
-      36: { zh: "雷曼倒了。系统性危机没有底，别用「已经跌了很多」当买入理由。", en: "Lehman is gone. A systemic crisis has no floor — 'it already fell a lot' is not a reason to buy." },
-    },
-  },
-  {
-    seed: 35001,
-    title: { zh: "2020 · 疫情熔断", en: "2020 · The Pandemic Meltdown" },
-    desc: { zh: "十天四次熔断，恐慌的尽头是黄金坑", en: "Four circuit breakers in ten days — at the bottom of panic lies gold" },
-    story: {
-      zh: "2020 年 3 月，疫情席卷全球，美股十天内四次熔断，连股神都说「活久见」。但无限量放水随后而至，市场走出教科书级的 V 型反转。恐慌抛售的最深处，恰恰是十年一遇的抄底机会——你敢在别人恐惧时贪婪吗？目标：收益率 ≥ 15%。",
-      en: "March 2020: the pandemic swept the globe and US stocks hit four circuit breakers in ten days — even Buffett said he'd never seen it. Then came unlimited QE, and the market carved a textbook V-shaped recovery. The deepest point of panic was the buying chance of a decade. Dare to be greedy when others are fearful? Goal: return ≥ 15%.",
-    },
-    segments: [
-      { days: 12, drift: 0.003, vol: 0.012 },
-      { days: 14, drift: -0.05, vol: 0.05 },
-      { days: 20, drift: 0.024, vol: 0.03 },
-      { days: 8, drift: 0.008, vol: 0.02 },
-    ],
-    startVisible: 10,
-    goal: { minReturn: 0.15 },
-    award: { zh: "抄底之王", en: "Dip Master" },
-    hints: {
-      16: { zh: "熔断潮开始了。恐慌时别急着接飞刀——等跌势放缓、恐慌见顶再动手。", en: "The circuit breakers have begun. Don't catch the falling knife — wait for the panic to peak." },
-      28: { zh: "央行开闸放水，恐慌盘卖光了。历史大底往往就在「所有人都不敢买」的那几天。", en: "The central bank opened the floodgates and the panic sellers are done. Historic bottoms form on the days nobody dares to buy." },
-    },
-  },
-  {
-    seed: 36001,
-    title: { zh: "2000 · 互联网泡沫", en: "2000 · The Dot-com Bubble" },
-    desc: { zh: "市梦率的狂欢，与漫长的偿还", en: "A party priced on dreams — and the long hangover" },
-    story: {
-      zh: "1999 年，公司名字里加个「.com」股价就能翻倍，没人谈市盈率，大家谈「市梦率」。2000 年 3 月泡沫破裂，纳斯达克用两年半跌掉 78%，无数明星公司归零。你穿越回泡沫后期——赚泡沫的钱，但别陪泡沫殉葬。目标：收益率 ≥ 15% 且跑赢买入持有。",
-      en: "In 1999, adding '.com' to a company name doubled its stock. Nobody talked P/E — they talked 'price-to-dream'. In March 2000 the bubble burst, and the Nasdaq spent two and a half years losing 78%. You arrive late in the bubble: take the bubble's money, but don't die with it. Goal: return ≥ 15% AND beat buy & hold.",
-    },
-    segments: [
-      { days: 18, drift: 0.017, vol: 0.022 },
-      { days: 6, drift: 0.032, vol: 0.035 },
-      { days: 22, drift: -0.026, vol: 0.03 },
-      { days: 8, drift: -0.006, vol: 0.02 },
-    ],
-    startVisible: 10,
-    showMa: true,
-    goal: { minReturn: 0.15, beatHold: true },
-    award: { zh: "泡沫清醒者", en: "Bubble Sober" },
-    hints: {
-      20: { zh: "涨得越急，泡沫越薄。别问「还能涨多少」，问「破了我跑得掉吗」。", en: "The steeper the ramp, the thinner the bubble. Don't ask 'how much higher' — ask 'can I get out when it pops'." },
-      30: { zh: "泡沫破裂不是 V 型反转——它是漫长的阴跌。别在半山腰抄底。", en: "A burst bubble doesn't V back up — it grinds down for years. Don't buy the halfway ledge." },
-    },
-  },
-  {
-    seed: 37001,
-    title: { zh: "1987 · 黑色星期一", en: "1987 · Black Monday" },
-    desc: { zh: "一天跌掉 22%，史上最黑的一个交易日", en: "Down 22% in a single day — the darkest session in history" },
-    story: {
-      zh: "1987 年 10 月 19 日，道琼斯指数单日暴跌 22.6%，至今无人打破。没有战争、没有加息、没有坏消息——程序化交易的止损单互相踩踏，把下跌变成了自由落体。但很少有人记得后半段：市场两年内收复了全部失地。目标：收益率 ≥ 5% 且跑赢买入持有。",
-      en: "October 19th, 1987: the Dow fell 22.6% in one session — a record that still stands. No war, no rate hike, no headline — program-trading stop orders trampled each other and turned a dip into free fall. Few remember the second half of the story: the market recovered everything within two years. Goal: return ≥ 5% AND beat buy & hold.",
-    },
-    segments: [
-      { days: 16, drift: 0.012, vol: 0.015 },
-      { days: 4, drift: -0.02, vol: 0.03 },
-      { days: 2, drift: -0.11, vol: 0.06 },
-      { days: 14, drift: 0.009, vol: 0.035 },
-      { days: 8, drift: 0.006, vol: 0.02 },
-    ],
-    startVisible: 10,
-    showMa: true,
-    goal: { minReturn: 0.05, beatHold: true },
-    award: { zh: "星期一幸存者", en: "Monday Survivor" },
-    hints: {
-      18: { zh: "连续放量下跌，周五收在最低点——周末的恐慌会在周一开盘集中释放。", en: "Heavy selling into a Friday low — weekend fear gets unleashed all at once on Monday's open." },
-      23: { zh: "单日暴跌 20% 是机器踩踏，不是世界末日。恐慌盘卖完之后，地上全是带血的筹码。", en: "A 20% one-day crash is machines trampling machines, not the end of the world. When the panic sellers finish, the floor is covered in bloody chips." },
-    },
-  },
-  {
-    seed: 38001,
-    title: { zh: "1990 · 日经泡沫之巅", en: "1990 · The Nikkei's Last Summit" },
-    desc: { zh: "把美国买下来的狂想，与失落的三十年", en: "The dream of buying America — and the three lost decades" },
-    story: {
-      zh: "1989 年末，日经指数站上 38957 点，东京银座一平米地价超过 30 万美元，账面上「卖掉东京就能买下整个美国」。所有人都相信股价永远涨——然后是长达三十多年的漫长偿还，日经直到 2024 年才重新站上那个高点。你穿越回泡沫的最后一段：赚完最后的疯狂，在梦醒前离场。目标：收益率 ≥ 10% 且跑赢买入持有。",
-      en: "At the end of 1989 the Nikkei stood at 38,957. A square meter in Ginza cost over $300,000 — on paper, 'selling Tokyo could buy all of America'. Everyone believed prices only rose. Then came thirty-plus years of repayment: the Nikkei didn't reclaim that peak until 2024. You arrive in the bubble's final stretch — take the last of the madness and leave before the dream ends. Goal: return ≥ 10% AND beat buy & hold.",
-    },
-    segments: [
-      { days: 14, drift: 0.015, vol: 0.015 },
-      { days: 6, drift: 0.022, vol: 0.02 },
-      { days: 20, drift: -0.02, vol: 0.022 },
-      { days: 12, drift: -0.012, vol: 0.018 },
-    ],
-    startVisible: 10,
-    showMa: true,
-    goal: { minReturn: 0.1, beatHold: true },
-    award: { zh: "东京梦醒人", en: "Tokyo Awakener" },
-    hints: {
-      16: { zh: "地价、股价、高尔夫会员证——什么都在涨。当「买什么都赚」成为常识，常识就快要失效了。", en: "Land, stocks, golf memberships — everything is rising. When 'everything makes money' becomes common sense, common sense is about to expire." },
-      26: { zh: "顶部不是一天形成的：一次比一次弱的反弹，就是市场在跟你告别。", en: "Tops aren't built in a day: each bounce weaker than the last is the market waving goodbye." },
-    },
-  },
-  {
-    seed: 39001,
-    title: { zh: "2007 · 6124 之巅", en: "2007 · The 6124 Summit" },
-    desc: { zh: "A股史上最高峰，全民买基金的黄金年代", en: "The A-share market's all-time summit, when the whole nation bought funds" },
-    story: {
-      zh: "2007 年，上证指数从 998 点一路涨到 6124 点，银行门口排队买基金的队伍比春运还长，「你不理财、财不理你」成了全民口号。随后一年，指数跌到 1664 点，跌幅 73%。6124 这个数字，A股至今没有回去过。目标：收益率 ≥ 15% 且跑赢买入持有。",
-      en: "In 2007 the Shanghai index ran from 998 to 6124. The queues outside banks to buy mutual funds were longer than holiday train lines. Within a year, the index fell to 1664 — down 73%. The A-share market has never seen 6124 again. Goal: return ≥ 15% AND beat buy & hold.",
-    },
-    segments: [
-      { days: 20, drift: 0.016, vol: 0.02 },
-      { days: 6, drift: 0.025, vol: 0.028 },
-      { days: 18, drift: -0.035, vol: 0.035 },
-      { days: 8, drift: -0.01, vol: 0.025 },
-    ],
-    startVisible: 10,
-    showMa: true,
-    goal: { minReturn: 0.15, beatHold: true },
-    award: { zh: "6124 亲历者", en: "6124 Witness" },
-    hints: {
-      22: { zh: "基金一天卖出四百亿、新股民一天开户三十万——最后一棒的钱进场了，行情还能靠谁推？", en: "Funds selling 40 billion a day, 300,000 new accounts daily — the last money has arrived. Who's left to push the price?" },
-      32: { zh: "跌破 60 日线还带量，别再听「价值投资拿十年」——先离场，活着才能谈十年。", en: "Breaking the 60-day MA on volume — stop repeating 'value investors hold ten years'. Leave first; you need to survive to talk decades." },
-    },
-  },
-  {
-    seed: 40001,
-    title: { zh: "2016 · A股熔断惨案", en: "2016 · The A-share Breaker Disaster" },
-    desc: { zh: "四天两次熔断，一项只活了七天的制度", en: "Two meltdowns in four days — a mechanism that lived seven days" },
-    story: {
-      zh: "2016 年 1 月 1 日，A股熔断机制正式上线：跌 5% 暂停 15 分钟，跌 7% 直接休市。1 月 4 日，新制度首个交易日就触发熔断；1 月 7 日更夸张，开盘 29 分钟即收市，创下史上最短交易日。1 月 8 日起熔断机制被紧急叫停，寿命七天。磁吸效应之下，越接近阈值跌得越快。你的任务：在这场制度实验里保住本金。目标：不亏钱且跑赢买入持有。",
-      en: "January 1st, 2016: China launched its circuit breaker — a 15-minute halt at -5%, full closure at -7%. On January 4th, the very first trading day, it tripped. On January 7th the market closed 29 minutes after opening — the shortest session in history. On January 8th the mechanism was suspended, seven days old. Under the magnet effect, the closer the threshold, the faster the fall. Your mission: keep your capital through the experiment. Goal: don't lose money AND beat buy & hold.",
-    },
-    segments: [
-      { days: 8, drift: 0.002, vol: 0.015 },
-      { days: 5, drift: -0.055, vol: 0.045 },
-      { days: 6, drift: -0.012, vol: 0.03 },
-      { days: 14, drift: 0.012, vol: 0.02 },
-      { days: 8, drift: 0.004, vol: 0.015 },
-    ],
-    startVisible: 8,
-    showMa: true,
-    goal: { minReturn: 0, beatHold: true },
-    award: { zh: "熔断七日生还者", en: "Seven-Day Survivor" },
-    hints: {
-      10: { zh: "新制度上线，人人都想「跌 5% 之前先跑」——所有人同时抢跑，5% 反而来得更快。", en: "New rules, and everyone plans to 'sell before -5%'. When everyone front-runs the halt, -5% arrives faster." },
-      20: { zh: "熔断取消了，恐慌盘也卖干净了。制度实验的残骸里，往往躺着错杀的好票。", en: "The breaker is gone and the panic sellers are spent. In the wreckage of a failed experiment lie wrongly punished stocks." },
-    },
-  },
-  {
-    seed: 41001,
-    title: { zh: "1929 · 华尔街大崩盘", en: "1929 · The Wall Street Crash" },
-    desc: { zh: "「永久性高地」之后，是大萧条的十年", en: "After the 'permanently high plateau' came a decade of Depression" },
-    story: {
-      zh: "1929 年 10 月，经济学家欧文·费雪宣称「股价已经站上永久性的高地」。几天后，黑色星期四来临，随后是更惨烈的黑色星期一与黑色星期二。银行家们凑钱护盘，只换来一次短暂的「死猫跳」——反弹诱多之后，道指用三年时间跌去 89%。这是现代金融史上最著名的崩盘，也是无数「抄底者」的坟场。你的任务：识破反弹陷阱，别在半山腰接飞刀。目标：不亏钱且跑赢买入持有。",
-      en: "October 1929. Economist Irving Fisher declared stocks had reached 'a permanently high plateau.' Days later came Black Thursday, then the even bloodier Black Monday and Black Tuesday. Bankers pooled money to prop up the market — buying only a brief dead-cat bounce. After that bull trap, the Dow spent three years falling 89%. The most famous crash in modern finance, and a graveyard for dip-buyers. Your mission: see through the bounce and don't catch the falling knife. Goal: don't lose money AND beat buy & hold.",
-    },
-    segments: [
-      { days: 10, drift: 0.01, vol: 0.014 },
-      { days: 3, drift: -0.09, vol: 0.05 },
-      { days: 5, drift: 0.025, vol: 0.035 },
-      { days: 18, drift: -0.02, vol: 0.025 },
-      { days: 6, drift: -0.008, vol: 0.018 },
-    ],
-    startVisible: 8,
-    showMa: true,
-    goal: { minReturn: 0, beatHold: true },
-    award: { zh: "大萧条见证者", en: "Depression Witness" },
-    hints: {
-      11: { zh: "「永久性高地」——历史上每次有人说这句话，都值得你摸一摸口袋里的止损单。", en: "'A permanently high plateau' — every time in history someone says this, check that your stop order is ready." },
-      15: { zh: "银行家护盘带来了反弹，但成交量在萎缩。没有量的反弹，是逃命的门，不是上车的梯。", en: "The bankers' pool bought a bounce, but volume is shrinking. A bounce without volume is an exit door, not a ladder up." },
-    },
-  },
-  {
-    seed: 42001,
-    title: { zh: "1997 · 亚洲金融风暴", en: "1997 · The Asian Financial Crisis" },
-    desc: { zh: "从泰铢失守到香港的联系汇率保卫战", en: "From the baht's fall to Hong Kong's defense of the peg" },
-    story: {
-      zh: "1997 年 7 月，泰铢在国际炒家的狙击下放弃固定汇率，一夜贬值 17%。风暴迅速席卷东南亚：马来西亚、印尼、韩国接连失守。10 月，炒家把矛头对准香港——一边做空港币逼迫加息，一边做空恒指坐收渔利。港府史无前例地入市迎战，用外汇储备硬接卖盘。恐慌抛售之后，守住联系汇率的市场迎来报复性反弹。你的任务：在风暴中活下来，并抓住守卫战胜利后的转机。目标：收益率 ≥ 10% 且跑赢买入持有。",
-      en: "July 1997. Under speculative attack, Thailand abandoned its currency peg and the baht fell 17% overnight. The storm swept Southeast Asia: Malaysia, Indonesia, Korea fell one after another. In October the speculators turned on Hong Kong — shorting the HK dollar to force rates up while shorting the Hang Seng to collect the profit. In an unprecedented move, the government entered the market and absorbed the selling with its reserves. After the panic, the market that held its peg staged a furious rebound. Your mission: survive the storm and catch the turn after the defense holds. Goal: return ≥ 10% AND beat buy & hold.",
-    },
-    segments: [
-      { days: 8, drift: 0.004, vol: 0.015 },
-      { days: 6, drift: -0.045, vol: 0.04 },
-      { days: 8, drift: -0.02, vol: 0.035 },
-      { days: 5, drift: -0.05, vol: 0.05 },
-      { days: 15, drift: 0.03, vol: 0.03 },
-    ],
-    startVisible: 8,
-    showMa: true,
-    goal: { minReturn: 0.1, beatHold: true },
-    award: { zh: "港币守卫者", en: "Peg Defender" },
-    hints: {
-      10: { zh: "泰铢失守只是第一张多米诺。危机会传染，别用「跌这么多了」当买入理由。", en: "The baht was only the first domino. Crises are contagious — 'it's fallen so much' is not a buy signal." },
-      23: { zh: "利率被逼到天上，卖盘却开始被人稳稳接走——有一只看不见的大手在护盘。", en: "Rates are sky-high, yet every wave of selling is being quietly absorbed. An unseen hand is holding the line." },
-      29: { zh: "空头弹尽粮绝，守卫战赢了。被恐慌错杀的筹码，正在等第一批敢回来的人。", en: "The shorts are out of ammunition — the defense has won. Panic-stricken shares are waiting for the first buyers brave enough to return." },
-    },
-  },
-  {
-    seed: 43001,
-    title: { zh: "2022 · 加密寒冬", en: "2022 · The Crypto Winter" },
-    desc: { zh: "LUNA 归零、FTX 崩塌——每次反弹都是陷阱", en: "LUNA to zero, FTX collapses — every bounce a trap" },
-    story: {
-      zh: "2022 年 5 月，「算法稳定币」LUNA 在一周内从 80 美元跌到不足 0.0001 美元，400 亿美元灰飞烟灭。市场刚喘口气，6 月三箭资本爆仓清算；11 月，全球第二大交易所 FTX 被曝挪用客户资产，三天内破产。比特币从 6.9 万美元的高点一路跌到 1.6 万。这一年里每次像样的反弹，最后都被证明是逃命机会。你的任务：在连环暴雷中守住本金。目标：不亏钱且跑赢买入持有。提示：币圈没有均线护体，7×24 小时交易，波动加倍。",
-      en: "May 2022: 'algorithmic stablecoin' LUNA fell from $80 to under $0.0001 in a week — $40 billion gone. Barely a breath later, Three Arrows Capital was liquidated in June; in November, FTX — the world's second-largest exchange — was exposed for misusing customer funds and went bankrupt within three days. Bitcoin slid from its $69k high all the way to $16k. Every decent bounce that year turned out to be an exit ramp. Your mission: protect your capital through the chain reaction. Goal: don't lose money AND beat buy & hold. Note: no moving averages in crypto — 24/7 trading, double the volatility.",
-    },
-    segments: [
-      { days: 6, drift: -0.01, vol: 0.04 },
-      { days: 4, drift: -0.08, vol: 0.06 },
-      { days: 8, drift: 0.02, vol: 0.045 },
-      { days: 5, drift: -0.055, vol: 0.055 },
-      { days: 9, drift: 0.012, vol: 0.04 },
-      { days: 6, drift: -0.04, vol: 0.05 },
-    ],
-    startVisible: 8,
-    goal: { minReturn: 0, beatHold: true },
-    award: { zh: "币圈守夜人", en: "Crypto Nightwatch" },
-    hints: {
-      8: { zh: "「稳定币」三个字不代表稳定。锚一旦松动，挤兑就是光速的。", en: "The word 'stablecoin' does not mean stable. Once the peg wobbles, the bank run happens at light speed." },
-      15: { zh: "反弹了？先问一句：上一轮爆仓的连环债清完了吗？没清完，反弹就是给人跑路用的。", en: "A bounce? First ask: has the chain of liquidations finished unwinding? If not, this bounce exists for others to exit into." },
-      27: { zh: "交易所本身也会倒。资产放在别人口袋里，「不是你的钥匙，就不是你的币」。", en: "Exchanges themselves can fall. When assets sit in someone else's pocket: not your keys, not your coins." },
-    },
-  },
-];
+// (教学关与名场面关卡数据已拆至 data/levels.js, 本文件只留引擎)
 
 // ---------- 剧情过场: 导师老K ----------
 
@@ -1071,700 +630,7 @@ $("cutscene-next").addEventListener("click", () => {
 });
 $("cutscene-skip").addEventListener("click", endCutscene);
 
-// ---------- 剧本杀: 市场悬案 ----------
-
-const CASES = [
-  {
-    id: "flashcrash",
-    title: { zh: "第一案 · 闪崩疑云", en: "Case 1 · The Flash Crash" },
-    desc: { zh: "龙腾科技 30 分钟暴跌 30%，四个嫌疑人各执一词——谁点的火？", en: "Longteng Tech lost 30% in 30 minutes. Four suspects, four stories — who lit the fuse?" },
-    award: { zh: "金牌侦探", en: "Ace Detective" },
-    roles: {
-      k: { name: { zh: "老K", en: "Master K" }, color: "--accent" },
-      zhang: { name: { zh: "张小散", en: "Retail Zhang" }, color: "--ma5" },
-      wang: { name: { zh: "王总", en: "Boss Wang" }, color: "--up" },
-      li: { name: { zh: "李研究", en: "Analyst Li" }, color: "--down" },
-      zhao: { name: { zh: "赵主播", en: "Streamer Zhao" }, color: "--ma20" },
-    },
-    intro: [
-      { who: "k", text: { zh: "龙腾科技今天上午突然闪崩，30 分钟暴跌 30%，几万散户被闷在里面。", en: "Longteng Tech flash-crashed this morning — down 30% in half an hour, tens of thousands of retail traders trapped inside." } },
-      { who: "k", text: { zh: "交易所调了四个人来问话——每个人都有嫌疑，每个人都说自己冤枉。", en: "The exchange pulled in four people for questioning. Everyone's a suspect, and everyone swears they're innocent." } },
-      { who: "k", text: { zh: "把他们挨个问一遍，收集线索，然后告诉我：这场闪崩，是谁点的火。", en: "Question them all, gather the clues, then tell me: who lit the fuse?" } },
-    ],
-    suspects: [
-      {
-        id: "zhang",
-        dialog: [
-          { who: "zhang", text: { zh: "跟我没关系啊！我就 5 万块钱，全仓套在里面了！", en: "It wasn't me! I had 50 grand — all-in, and now it's buried!" } },
-          { who: "zhang", text: { zh: "早上我看赵主播直播说「今天必有大事」，我还加仓了……结果十点就崩了。", en: "Streamer Zhao said 'something big today' on the morning stream, so I even added more... then it collapsed at ten." } },
-        ],
-        clue: { zh: "张小散只有 5 万本金，砸不出这种跌幅；但他提到赵主播盘前喊过「必有大事」。", en: "Zhang's 50k can't move a stock like that — but he says Zhao teased 'something big' before the open." },
-      },
-      {
-        id: "wang",
-        dialog: [
-          { who: "wang", text: { zh: "我们王氏资本一股都没卖！去查我的交易记录啊！", en: "Wang Capital didn't sell a single share! Go check my trading records!" } },
-          { who: "wang", text: { zh: "……质押的事你们也知道了？那是正常融资！跌破平仓线是券商强平的，不是我卖的！", en: "...You know about the pledge too? That was normal financing! When the price broke the liquidation line, the BROKER force-sold — not me!" } },
-        ],
-        clue: { zh: "王总把大量持股质押给券商换钱。跌破平仓线后券商会自动强制卖出——他「没卖」，但他的仓位在自己砸盘。", en: "Boss Wang pledged a huge block of shares for loans. Below the liquidation line the broker auto-sells — he 'didn't sell', but his position was dumping itself." },
-      },
-      {
-        id: "li",
-        dialog: [
-          { who: "li", text: { zh: "我昨晚把龙腾的评级从「买入」下调到「中性」，报告凌晨发的，合规流程齐全。", en: "I downgraded Longteng from Buy to Neutral last night. The report went out pre-dawn, full compliance." } },
-          { who: "li", text: { zh: "下调理由写得清清楚楚：大股东质押比例 78%，随时可能被强平。我只是提示风险。", en: "The reason is written plainly: the major shareholder has 78% of his stake pledged — forced liquidation could hit any time. I merely flagged the risk." } },
-        ],
-        clue: { zh: "李研究的报告揭了盖子：大股东质押率 78%。报告本身合法，但它成了导火索。", en: "Li's report lifted the lid: 78% of the major stake was pledged. The report was legal — but it was the spark." },
-      },
-      {
-        id: "zhao",
-        dialog: [
-          { who: "zhao", text: { zh: "我喊「今天必有大事」怎么了？我天天都这么喊，节目效果嘛！", en: "So what if I said 'something big today'? I say that every day — it's called showbiz!" } },
-          { who: "zhao", text: { zh: "再说我盘前就清仓了龙腾……咳，我是说，我风控意识强。", en: "Besides, I dumped my Longteng before the open... ahem, I mean, I have strong risk discipline." } },
-        ],
-        clue: { zh: "赵主播盘前清仓了自己的龙腾持股，还引导粉丝「关注大事」——他提前知道报告的事？", en: "Zhao cleared his own Longteng position before the open and steered fans toward 'big news' — did he know about the report in advance?" },
-      },
-    ],
-    finale: [
-      { who: "k", text: { zh: "线索齐了。报告是导火索，喊单是助燃剂，质押盘是炸药——但把下跌变成雪崩的，只有一个人。", en: "All clues are in. The report was the spark, the stream was the accelerant, the pledged shares were the dynamite — but only one person turned a dip into an avalanche." } },
-      { who: "k", text: { zh: "记住：闪崩要问的不是「谁卖得多」，而是「谁的卖单停不下来」。指认吧。", en: "Remember: a flash crash isn't about who sold the most. It's about whose selling CANNOT STOP. Make the call." } },
-    ],
-    culprit: "wang",
-    win: [
-      { who: "k", text: { zh: "没错。报告点破质押风险，开盘抛压击穿平仓线，券商开始强平王总的质押股——强平砸出更低的价格，更低的价格触发更多强平。", en: "Correct. The report exposed the pledge risk, the opening sell-off broke the liquidation line, and the broker began force-selling Boss Wang's pledged shares — each forced sale pushed the price lower, triggering more forced sales." } },
-      { who: "k", text: { zh: "这就是「质押爆仓螺旋」。真凶不是某一笔卖单，而是那台停不下来的自动清算机器——机器的主人，是王总。", en: "That's the pledge liquidation spiral. The culprit isn't any single sell order — it's the automatic selling machine that can't stop. And the machine belonged to Boss Wang." } },
-      { who: "k", text: { zh: "至于赵主播提前清仓？内幕交易的事，监管会请他喝茶的。", en: "As for Zhao's early exit? The regulator will be inviting him to tea about insider trading." } },
-    ],
-    lose: [
-      { who: "k", text: { zh: "不对。再想想：谁的卖单是「停不下来」的？回去把每个人的话再读一遍。", en: "Wrong. Think again: whose selling was IMPOSSIBLE to stop? Go back and reread what everyone said." } },
-    ],
-  },
-  {
-    id: "insider",
-    title: { zh: "第二案 · 消失的内幕", en: "Case 2 · The Leaked Deal" },
-    desc: { zh: "停牌前三天股价先涨了 20%——并购消息是谁漏出去的？", en: "The stock ran 20% in the three days before the halt. Who leaked the merger?" },
-    award: { zh: "内幕猎手", en: "Insider Hunter" },
-    roles: {
-      k: { name: { zh: "老K", en: "Master K" }, color: "--accent" },
-      zhou: { name: { zh: "周董秘", en: "Secretary Zhou" }, color: "--down" },
-      lin: { name: { zh: "小林", en: "Intern Lin" }, color: "--ma5" },
-      liu: { name: { zh: "刘大户", en: "Whale Liu" }, color: "--up" },
-      gao: { name: { zh: "高经理", en: "Manager Gao" }, color: "--ma20" },
-    },
-    intro: [
-      { who: "k", text: { zh: "恒宇集团停牌前三天，股价莫名其妙涨了 20%，成交量翻了五倍。", en: "Three days before Hengyu Group's trading halt, the stock inexplicably rose 20% on five times the volume." } },
-      { who: "k", text: { zh: "复牌公告一出——重大并购。监管的问题很简单：消息是谁提前漏出去的？", en: "Then the announcement dropped — a major merger. The regulator's question is simple: who leaked it early?" } },
-      { who: "k", text: { zh: "四个人，每个人都碰过那份并购文件的边。开始问吧。", en: "Four people, and every one of them touched the edge of that merger file. Start asking." } },
-    ],
-    suspects: [
-      {
-        id: "zhou",
-        dialog: [
-          { who: "zhou", text: { zh: "并购文件全程加密，接触名单上只有七个人。我的嘴，比保险柜还严。", en: "The merger file was encrypted end to end — only seven people on the access list. My lips are tighter than a vault." } },
-          { who: "zhou", text: { zh: "不过……上周五投行来核数据，带了个实习生，文件在会议室摊了一下午。", en: "Although... last Friday the investment bank came to verify numbers. They brought an intern, and the file lay open in the meeting room all afternoon." } },
-        ],
-        clue: { zh: "接触名单只有 7 人，但上周五文件在会议室敞开了一下午，在场还有个投行实习生。", en: "Only 7 people on the access list — but the file lay open all Friday afternoon, with a bank intern in the room." },
-      },
-      {
-        id: "lin",
-        dialog: [
-          { who: "lin", text: { zh: "我就……发了条朋友圈，配图是恒宇楼下，文案是「见证历史的一周」……定位忘了关。", en: "I just... made one social post. A photo outside Hengyu HQ, caption 'a week that makes history'... and I forgot to turn off the geotag." } },
-          { who: "lin", text: { zh: "然后我舅问我在忙什么大项目，我什么都没说！我就回了句「你懂的」。", en: "Then my uncle asked what big project I was on. I said NOTHING! I just replied 'you know what I mean'." } },
-        ],
-        clue: { zh: "小林的朋友圈定位暴露了投行驻场，还给舅舅回了句「你懂的」——他舅舅是谁？", en: "Lin's geotag exposed the bank's presence at Hengyu, and he told his uncle 'you know what I mean' — who is this uncle?" },
-      },
-      {
-        id: "liu",
-        dialog: [
-          { who: "liu", text: { zh: "我做了二十年价值投资，看量价就知道有事，不需要谁给我递消息。", en: "Twenty years of value investing — I read volume and price. I don't need anyone feeding me tips." } },
-          { who: "liu", text: { zh: "小林是我外甥怎么了？我们家饭桌上从不聊股票！那 8000 万是我自己的判断！", en: "So what if Lin is my nephew? We never talk stocks at dinner! That 80 million position was my own judgment!" } },
-        ],
-        clue: { zh: "刘大户是小林的舅舅，停牌前三天重仓买入 8000 万——他说「从不聊股票」。", en: "Whale Liu is Lin's uncle — and he piled 80 million into Hengyu three days before the halt. He says they 'never talk stocks'." },
-      },
-      {
-        id: "gao",
-        dialog: [
-          { who: "gao", text: { zh: "我们基金停牌前确实加了恒宇，但那是季度调仓，投决会流程完备，纪要都能调出来。", en: "Yes, our fund added Hengyu before the halt — quarterly rebalancing, full committee process, minutes on file." } },
-          { who: "gao", text: { zh: "加了多少？总仓位的 2% 而已，研究报告几个月前就覆盖这只票了。", en: "How much? Just 2% of the book. Our research had covered the name for months." } },
-        ],
-        clue: { zh: "高经理只加仓 2%，且有投决会纪要背书——更像正常调仓。", en: "Manager Gao's add was only 2%, backed by committee minutes — looks like routine rebalancing." },
-      },
-    ],
-    finale: [
-      { who: "k", text: { zh: "链条拼齐了：敞开的文件、暴露的定位、一句「你懂的」、停牌前的 8000 万。", en: "The chain is complete: an open file, a geotag, one 'you know what I mean', and 80 million placed before the halt." } },
-      { who: "k", text: { zh: "内幕交易的认定只有两条：知悉消息，利用消息交易。谁两条全占？指认吧。", en: "Insider trading needs exactly two things: knowing the information, and trading on it. Who checks both boxes? Make the call." } },
-    ],
-    culprit: "liu",
-    win: [
-      { who: "k", text: { zh: "没错。小林是泄密源头——蠢，但他没交易；把消息变成 8000 万仓位的，是他舅舅刘大户。", en: "Correct. Intern Lin was the source of the leak — foolish, but he never traded. The man who turned the whisper into an 80-million position was his uncle, Whale Liu." } },
-      { who: "k", text: { zh: "知悉加交易，两条全占，罚没加市场禁入跑不掉。小林也逃不了处分——嘴不严，害人害己。", en: "Knowledge plus trading — both boxes checked. Fines, disgorgement and a market ban are coming. And Lin won't escape discipline either — loose lips hurt everyone." } },
-      { who: "k", text: { zh: "记住这一课：在市场里，「你懂的」三个字，可以贵到八千万。", en: "Remember this lesson: in the market, 'you know what I mean' can cost eighty million." } },
-    ],
-    lose: [
-      { who: "k", text: { zh: "不对。光知道消息不算，光买了股票也不算——要「既知道、又交易」。再想想谁两条都占。", en: "Wrong. Knowing alone isn't the crime, and buying alone isn't either — it takes BOTH. Think: who checks both boxes?" } },
-    ],
-  },
-  {
-    id: "rattrade",
-    title: { zh: "第三案 · 抢跑的账户", en: "Case 3 · The Front-Running Account" },
-    desc: { zh: "基金建仓前一周，一个账户精准潜伏，获利三千万——钱是谁的？", en: "A week before the fund bought in, one account quietly loaded up and made 30 million. Whose money is it?" },
-    award: { zh: "鼠仓克星", en: "Rat Catcher" },
-    roles: {
-      k: { name: { zh: "老K", en: "Master K" }, color: "--accent" },
-      chen: { name: { zh: "陈经理", en: "Manager Chen" }, color: "--down" },
-      sun: { name: { zh: "孙交易员", en: "Trader Sun" }, color: "--ma5" },
-      ma: { name: { zh: "马阿姨", en: "Auntie Ma" }, color: "--ma20" },
-      qian: { name: { zh: "钱研究员", en: "Researcher Qian" }, color: "--up" },
-    },
-    intro: [
-      { who: "k", text: { zh: "鑫达基金上个月重仓买入一只冷门小盘股，股价一个月拉了 60%。", en: "Last month Xinda Fund piled into an obscure small-cap, and the price ran 60% in a month." } },
-      { who: "k", text: { zh: "蹊跷的是：基金建仓前整整一周，一个名叫「马秀兰」的个人账户先潜伏了进去，基金拉升途中精准清仓，获利三千万。", en: "The catch: a full week before the fund started buying, a personal account under 'Ma Xiulan' quietly loaded up — then sold precisely into the fund's ramp, pocketing 30 million." } },
-      { who: "k", text: { zh: "用别人的账户，抢在自己管理的基金前面买，再让基民的钱给自己抬轿——这叫老鼠仓。", en: "Using someone else's account to buy ahead of the fund you manage, letting your investors' money carry you up — that's called rat trading." } },
-      { who: "k", text: { zh: "四个人和这只票有关。把老鼠找出来。", en: "Four people touched this stock. Find me the rat." } },
-    ],
-    suspects: [
-      {
-        id: "chen",
-        dialog: [
-          { who: "chen", text: { zh: "我是基金经理，建仓是投委会集体决策，流程你们随便查。", en: "I'm the fund manager. The position was approved by the investment committee — audit the process all you like." } },
-          { who: "chen", text: { zh: "马秀兰？不认识。同名同姓的人多了去了。", en: "Ma Xiulan? Never heard of her. Plenty of people share a name." } },
-          { who: "chen", text: { zh: "……我丈母娘也叫马秀兰？巧合，纯属巧合。她一个跳广场舞的，懂什么股票。", en: "...My mother-in-law is ALSO named Ma Xiulan? Coincidence. Pure coincidence. She's a square-dancing granny — what would she know about stocks." } },
-        ],
-        clue: { zh: "陈经理是唯一能决定「买哪只、何时建仓」的人——而潜伏账户的户主马秀兰，正是他的丈母娘。", en: "Manager Chen alone decided WHAT to buy and WHEN — and the lurking account belongs to Ma Xiulan, his mother-in-law." },
-      },
-      {
-        id: "sun",
-        dialog: [
-          { who: "sun", text: { zh: "我只是执行下单的。指令当天早上才到我手里，之前我连票的名字都不知道。", en: "I just execute orders. The ticket reached me the morning of — before that I didn't even know the name." } },
-          { who: "sun", text: { zh: "交易室手机统一上交、通话全程录音，你们要查我随便查。", en: "Phones are surrendered in the dealing room and every call is recorded. Check whatever you want." } },
-          { who: "sun", text: { zh: "不过有件事很怪：那个账户开在城西营业部——我记得陈经理家就住那一片。", en: "One odd thing though: that account was opened at the West City branch — and I remember Manager Chen lives right around there." } },
-        ],
-        clue: { zh: "孙交易员建仓当天才知道股票名字，时间上不可能提前一周潜伏——排除。他还提到：潜伏账户开在陈经理家附近的营业部。", en: "Trader Sun learned the name only on execution day — he couldn't have front-run by a week. He also notes: the account was opened at a branch near Chen's home." },
-      },
-      {
-        id: "ma",
-        dialog: [
-          { who: "ma", text: { zh: "股票？我不懂呀。账户是女婿说帮我「理财」开的，身份证也是他拿去办的。", en: "Stocks? I don't understand them. My son-in-law opened the account to 'manage my savings' — he took my ID to do the paperwork." } },
-          { who: "ma", text: { zh: "密码我从来不知道，我连那个什么交易软件都没下载过。", en: "I never knew the password. I've never even downloaded that trading app thing." } },
-          { who: "ma", text: { zh: "赚了三千万？哎哟，那我是不是能换个大点的房子了？", en: "It made 30 million? Oh my — does that mean I can buy a bigger flat?" } },
-        ],
-        clue: { zh: "马阿姨连交易密码都不知道——账户是她的名字，操作的手却是别人的。下单 IP 经查与陈经理家的宽带一致。", en: "Auntie Ma doesn't even know the password — the account wears her name, but another hand placed the orders. The order IP traces to Chen's home broadband." },
-      },
-      {
-        id: "qian",
-        dialog: [
-          { who: "qian", text: { zh: "这只票是我三个月前挖掘的，深度报告只发在公司内部系统里。", en: "I found this stock three months ago. The deep-dive report went only to the firm's internal system." } },
-          { who: "qian", text: { zh: "报告谁看过后台都有记录：陈经理打开过十一次，还下载了一次。", en: "The system logs every reader: Manager Chen opened it eleven times and downloaded it once." } },
-          { who: "qian", text: { zh: "我自己？研究员买自己覆盖的票要提前报备，我一股都没碰——不信查我账户。", en: "Me? Analysts must pre-clear trades in names they cover. I never touched a share — check my account." } },
-        ],
-        clue: { zh: "钱研究员的报告只在内部系统，且他本人账户干净。后台记录显示：陈经理反复阅读并下载过该报告。", en: "Qian's report never left the internal system and his own account is clean. The logs show Manager Chen read it repeatedly — and downloaded it." },
-      },
-    ],
-    finale: [
-      { who: "k", text: { zh: "捋一遍：报告在内部系统里，只有基金经理能定建仓时点；账户开在他家小区对面，下单 IP 是他家宽带，户主是他丈母娘。", en: "Line it up: the report lived in the internal system; only the fund manager set the buying schedule; the account sits across from his home, the order IP is his broadband, the holder is his mother-in-law." } },
-      { who: "k", text: { zh: "老鼠仓的要害是「先于基金买入、用基民的钱抬轿」。谁做得到？指认吧。", en: "Rat trading means buying BEFORE your own fund and letting investors' money lift you. Who could do that? Make the call." } },
-    ],
-    culprit: "chen",
-    win: [
-      { who: "k", text: { zh: "没错。陈经理先用丈母娘的账户潜伏，再动用基金几十亿建仓拉升，最后让「马秀兰」精准下车——基民买单，他数钱。", en: "Correct. Chen lurked first with his mother-in-law's account, then deployed billions of fund money to ramp the price, and let 'Ma Xiulan' step off at the top — investors paid, he counted." } },
-      { who: "k", text: { zh: "这就是老鼠仓：管理人把本该属于基民的收益，先装进了自己的口袋。判罚从来不轻——没收违法所得，市场禁入，还可能坐牢。", en: "That's rat trading: a manager pocketing gains that belonged to his investors. The penalty is never light — disgorgement, market ban, possibly prison." } },
-      { who: "k", text: { zh: "记住这一课：买基金不只看业绩，还要看人品。净值曲线可以画得很漂亮，鼠洞是藏在曲线底下的。", en: "Remember the lesson: when you buy a fund, you buy the manager's character. A NAV curve can look beautiful — the rat hole hides beneath it." } },
-    ],
-    lose: [
-      { who: "k", text: { zh: "不对。想想老鼠仓的定义：谁既能决定基金「何时买什么」，又和那个潜伏账户脱不了干系？", en: "Wrong. Think about the definition: who both controlled WHEN the fund bought WHAT, and can't be separated from that lurking account?" } },
-    ],
-  },
-  {
-    id: "pumpdump",
-    title: { zh: "第四案 · 妖股风云", en: "Case 4 · Anatomy of a Meme Stock" },
-    desc: { zh: "十二连板后连续跌停，龙虎榜上全是同一个席位——庄家是谁？", en: "Twelve straight limit-ups, then a cliff. The exchange's top-trader list shows one branch over and over. Who ran the pump?" },
-    award: { zh: "屠庄英雄", en: "Whale Hunter" },
-    roles: {
-      k: { name: { zh: "老K", en: "Master K" }, color: "--accent" },
-      tu: { name: { zh: "屠老板", en: "Boss Tu" }, color: "--down" },
-      dai: { name: { zh: "戴老师", en: "Teacher Dai" }, color: "--ma20" },
-      shi: { name: { zh: "施董", en: "Chairman Shi" }, color: "--up" },
-      niu: { name: { zh: "牛小妹", en: "Little Niu" }, color: "--ma5" },
-    },
-    intro: [
-      { who: "k", text: { zh: "ST 宏图，一只常年无人问津的壳股，一个月里十二个涨停，改名叫「宏图元宇宙」之后又来了五个。", en: "ST Hongtu — a shell company nobody touched for years — hit twelve limit-ups in a month, then five more after renaming itself 'Hongtu Metaverse'." } },
-      { who: "k", text: { zh: "上周它开始连续一字跌停，几万追高的散户被封在里面，一秒都跑不掉。", en: "Last week it flipped to one-way limit-downs. Tens of thousands of chasers are sealed inside, unable to sell a single share." } },
-      { who: "k", text: { zh: "龙虎榜上，同一家营业部的席位反复出现在买一和卖一——有人在坐庄。", en: "On the exchange's top-trader list, the same brokerage branch keeps appearing as both top buyer and top seller — someone was running the book." } },
-      { who: "k", text: { zh: "四个人卷在这只妖股里。找出庄家。", en: "Four people are tangled in this meme stock. Find me the operator." } },
-    ],
-    suspects: [
-      {
-        id: "tu",
-        dialog: [
-          { who: "tu", text: { zh: "我就是个做短线的，看到强势股加入而已，这叫「打板」，合法的市场行为。", en: "I'm just a momentum trader. I join strong stocks — it's called limit-up chasing, perfectly legal." } },
-          { who: "tu", text: { zh: "龙虎榜那个席位是我常用的营业部没错，但一个营业部几千个客户，凭什么说是我？", en: "Yes, that branch on the list is where I trade. But a branch has thousands of clients — why me?" } },
-          { who: "tu", text: { zh: "自己买自己卖？你说的是「对倒」吧。呵，那得有几十个账户配合才做得到——我哪来那么多账户。", en: "Buying from myself? You mean wash trading. Ha — you'd need dozens of coordinated accounts for that. Where would I get so many." } },
-        ],
-        clue: { zh: "屠老板对「对倒」的手法脱口而出、门儿清。监控发现该席位下有 47 个不同身份证的账户，开户时间集中在拉升前一个月，资金同源。", en: "Boss Tu explained wash trading a little too fluently. Surveillance found 47 accounts under different IDs at that branch — all opened within a month before the ramp, all funded from the same source." },
-      },
-      {
-        id: "dai",
-        dialog: [
-          { who: "dai", text: { zh: "我是知识付费！会员群 998 一个季度，我分享的是「盘面情绪学」，从不保证收益。", en: "I sell knowledge! Membership is 998 a quarter. I teach 'market sentiment studies' — no returns ever promised." } },
-          { who: "dai", text: { zh: "宏图元宇宙是我喊的没错，但我喊的时候它已经涨起来了，我这叫顺势而为。", en: "Yes I called Hongtu Metaverse — but it was already flying when I called it. That's called riding the trend." } },
-          { who: "dai", text: { zh: "屠老板?……认识，一起吃过几顿饭。他偶尔会「提示」我哪只票有资金关照，朋友之间聊聊天而已嘛。", en: "Boss Tu? ...We've shared a few dinners. He'd occasionally 'hint' which stock had money behind it. Just friends talking." } },
-        ],
-        clue: { zh: "戴老师每次喊单都在涨停板封死之后——散户第二天追进去，正好接屠老板的货。他承认屠老板会提前「提示」他。", en: "Teacher Dai's calls always came AFTER the limit-up sealed — his followers piled in next morning, right into Boss Tu's exits. He admits Tu 'hinted' stocks to him in advance." },
-      },
-      {
-        id: "shi",
-        dialog: [
-          { who: "shi", text: { zh: "公司改名「元宇宙」怎么了？我们确实在探索战略转型，董事会决议齐全。", en: "So we renamed to 'Metaverse' — we ARE exploring a strategic pivot. Full board resolutions on file." } },
-          { who: "shi", text: { zh: "那三份公告？「签署合作意向书」都是真实事件。意向嘛……后来没谈成，商业世界很正常。", en: "Those three announcements? Every 'letter of intent' was a real event. Intent... that later fell through. Business is like that." } },
-          { who: "shi", text: { zh: "有人建议我「这段时间多发点利好」？我不记得了。就算有，发公告也是信披义务！", en: "Did someone suggest I 'release more good news around then'? I don't recall. And even so — announcements are my DISCLOSURE DUTY!" } },
-        ],
-        clue: { zh: "施董的三个「利好」全是无实质的意向书，且发布时点精准踩在拉升关键日。他暗示有人「建议」过他发公告——配合坐庄，但不是操盘的手。", en: "Chairman Shi's three 'good news' items were substance-free letters of intent, timed precisely to key ramp days. He hints someone 'suggested' the announcements — a collaborator, but not the hand on the wheel." },
-      },
-      {
-        id: "niu",
-        dialog: [
-          { who: "niu", text: { zh: "我第八个板追进去的，三天赚了 40%！我当时觉得自己是天才。", en: "I chased in on the eighth limit-up and made 40% in three days! I thought I was a genius." } },
-          { who: "niu", text: { zh: "戴老师群里说「主力锁仓，目标翻倍」，我就把赚的加本金全押回去了……", en: "Teacher Dai's group said 'the whale is locked in, target: double'. So I pushed my winnings AND my savings back in..." } },
-          { who: "niu", text: { zh: "然后就是连续跌停。卖单排在两百万手后面，根本轮不到我。你们一定要抓住庄家啊！", en: "Then the limit-downs came. My sell order sat behind two million lots — it never got filled. Please, catch whoever did this!" } },
-        ],
-        clue: { zh: "牛小妹是纯受害者：追高、听喊单加仓、跌停里逃不出来——教科书式的接盘全过程。", en: "Little Niu is purely a victim: chased the ramp, doubled down on the guru's call, trapped in the limit-downs — a textbook bag-holding arc." },
-      },
-    ],
-    finale: [
-      { who: "k", text: { zh: "看清这台机器了吗：47 个同源账户对倒拉板制造赚钱假象，董事长按时点配合放「利好」，大V封板后喊单送来接盘的人。", en: "See the machine now? 47 same-source accounts wash-trading the price up to fake a gold rush; a chairman releasing 'good news' on cue; a guru calling buys after each seal to deliver fresh bags." } },
-      { who: "k", text: { zh: "喊单的、发公告的都有罪责，但坐庄要有三样东西：钱、账户、控盘的手。三样都在谁手里？指认吧。", en: "The caller and the chairman share the guilt. But running a pump needs three things: the money, the accounts, and the hand on the wheel. Who held all three? Make the call." } },
-    ],
-    culprit: "tu",
-    win: [
-      { who: "k", text: { zh: "没错。屠老板用 47 个账户先吸筹、再对倒拉出十二连板，让施董的「利好」和戴老师的喊单把散户接进来，自己在最高那几个板悄悄出货。", en: "Correct. Boss Tu accumulated quietly with 47 accounts, wash-traded twelve straight limit-ups, let Shi's 'news' and Dai's calls funnel retail money in — and unloaded silently into the highest boards." } },
-      { who: "k", text: { zh: "操纵股价是证券市场最重的罪之一：没收所得、天价罚款、刑责一样不少。施董和戴老师，一个信披违规，一个非法荐股，也都跑不掉。", en: "Price manipulation is among the gravest market crimes: disgorgement, massive fines, criminal charges — all of it. Shi and Dai face their own reckonings for disclosure fraud and illegal touting." } },
-      { who: "k", text: { zh: "记住这一课：妖股拉升时，龙虎榜比 K 线诚实。你看到的连板是画出来的，你听到的目标价是喊给你听的。", en: "Remember the lesson: when a meme stock flies, the top-trader list is more honest than the chart. The limit-ups you see were painted; the price target you heard was shouted FOR you." } },
-    ],
-    lose: [
-      { who: "k", text: { zh: "不对。喊单的和发公告的都只是零件。坐庄需要钱、账户和控盘的手——三样齐的只有一个人。", en: "Wrong. The caller and the announcer are just parts of the machine. A pump needs money, accounts, and the hand on the wheel — only one person held all three." } },
-    ],
-  },
-  {
-    id: "scallop",
-    title: { zh: "第五案 · 跑路的扇贝", en: "Case 5 · The Scallops That Swam Away" },
-    desc: { zh: "账上 300 亿现金的公司，扇贝连续两年「跑了」——钱和扇贝，到底谁跑了？", en: "A company with 30 billion in cash says its scallops 'swam away' — twice. So who really ran: the scallops, or the money?" },
-    award: { zh: "财报照妖镜", en: "Book Buster" },
-    roles: {
-      k: { name: { zh: "老K", en: "Master K" }, color: "--accent" },
-      he: { name: { zh: "贺董", en: "Chairman He" }, color: "--down" },
-      feng: { name: { zh: "冯总监", en: "CFO Feng" }, color: "--ma20" },
-      zheng: { name: { zh: "郑会计师", en: "Auditor Zheng" }, color: "--up" },
-      bai: { name: { zh: "白研究员", en: "Analyst Bai" }, color: "--ma5" },
-    },
-    intro: [
-      { who: "k", text: { zh: "海珍岛，一家养扇贝的上市公司。前年年报：扇贝跑了，减值 8 个亿。去年年报：扇贝又跑了，再减 11 个亿。", en: "Haizhen Island, a listed scallop farmer. Two years ago: 'the scallops swam away' — an 800 million write-down. Last year: they 'swam away' again — 1.1 billion more." } },
-      { who: "k", text: { zh: "蹊跷的是，这家公司账上躺着 300 亿「货币资金」，却同时借着利率 8% 的高息债——有钱人会去借高利贷吗？", en: "The strange part: the books show 30 billion in 'cash' — yet the company keeps borrowing at 8% interest. Do the rich take out payday loans?" } },
-      { who: "k", text: { zh: "上周股价闪崩跌停，监管进场核查。扇贝不会说话，但账本会。", en: "Last week the stock crashed limit-down and the regulator moved in. Scallops can't talk — but ledgers can." } },
-      { who: "k", text: { zh: "四个人围着这本账。查出钱去了哪。", en: "Four people circle this ledger. Find out where the money went." } },
-    ],
-    suspects: [
-      {
-        id: "he",
-        dialog: [
-          { who: "he", text: { zh: "天灾！海水温度异常，扇贝大面积死亡洄游，我们渔民靠天吃饭，你们城里人不懂。", en: "An act of nature! Abnormal water temperatures — the scallops died and migrated en masse. We farmers live at the sea's mercy. City people wouldn't understand." } },
-          { who: "he", text: { zh: "账上 300 亿是真金白银，银行函证都盖了章的。借高息债？那是……维持经营性现金流的正常安排。", en: "The 30 billion is real money — the bank confirmations are stamped. The high-interest debt? That's... normal working-capital arrangement." } },
-          { who: "he", text: { zh: "我质押 96% 的持股套现 40 亿？企业家个人资金安排，与上市公司无关！", en: "I pledged 96% of my shares and cashed out 4 billion? An entrepreneur's personal finances — nothing to do with the listed company!" } },
-        ],
-        clue: { zh: "贺董质押了 96% 持股提前套现 40 亿——扇贝「跑路」的每个年份，恰好都是他质押到期要补钱的年份。存贷双高的账，只有做账的人和授意做账的人知道真相。", en: "Chairman He pledged 96% of his shares and cashed out 4 billion early — and each 'scallop escape' landed exactly in a year his pledges came due. Only the bookkeeper and the man who ordered the books know the truth behind cash-rich-yet-borrowing." },
-      },
-      {
-        id: "feng",
-        dialog: [
-          { who: "feng", text: { zh: "报表是我编的，但每一笔调整都有贺董的批示。你们要看原始凭证吗？我……我留了备份。", en: "I prepared the statements — but every adjustment carries Chairman He's sign-off. Want the original vouchers? I... kept copies." } },
-          { who: "feng", text: { zh: "那 300 亿「货币资金」，大部分年初转出去、审计前一周转回来，走的是海外子公司账户。", en: "Most of that 30 billion 'cash' leaves in January and returns the week before the audit — through the offshore subsidiary's accounts." } },
-          { who: "feng", text: { zh: "每次扇贝盘点的前一夜，贺董都亲自安排船队「巡海」。巡完之后，盘点区域的扇贝就总是特别少。", en: "The night before every scallop count, Chairman He personally sent the fleet out 'on patrol'. After each patrol, the survey zones were always mysteriously empty." } },
-        ],
-        clue: { zh: "冯总监交出了底账：300 亿现金审计前一周才「回账」，盘点前夜船队总在「巡海」。他是执行者，也是留了后手的证人。", en: "CFO Feng surrendered the shadow books: the 30 billion 'returns' one week before each audit, and the fleet always 'patrols' the night before each count. He executed the scheme — and kept the receipts." },
-      },
-      {
-        id: "zheng",
-        dialog: [
-          { who: "zheng", text: { zh: "我们连续三年出具标准无保留意见，程序上完全合规——函证、盘点、抽样，一样不少。", en: "We issued clean opinions three years running, fully by the book — confirmations, counts, sampling, all of it." } },
-          { who: "zheng", text: { zh: "扇贝在海底怎么盘点？我们只能坐船抽样看海面……你别笑，行业惯例就这样。", en: "How do you count scallops on the seabed? We sample by boat and look at the water... don't laugh, that's industry practice." } },
-          { who: "zheng", text: { zh: "今年我们辞任了。为什么？函证回函的银行网点，查无此址。我只能说到这了。", en: "This year we resigned the engagement. Why? The bank branch that answered our confirmation letters — the address doesn't exist. That's all I can say." } },
-        ],
-        clue: { zh: "郑会计师事务所连出三年干净意见后突然辞任——因为银行函证的回函网点根本不存在。函证是伪造的，审计被系统性欺骗。", en: "Auditor Zheng's firm quit abruptly after three clean opinions — because the bank branch replying to their confirmations doesn't exist. The confirmations were forged; the audit was systematically deceived." },
-      },
-      {
-        id: "bai",
-        dialog: [
-          { who: "bai", text: { zh: "我承认我连续五篇「强烈推荐」，目标价还翻着倍上调。研究嘛，观点有对有错。", en: "Yes, I published five 'Strong Buy' notes in a row and kept doubling the target price. Research has hits and misses." } },
-          { who: "bai", text: { zh: "去公司调研？去过，贺董带我们坐游艇看了海面，吃了顿扇贝宴，帆船上签的合作课题，经费 200 万。", en: "Site visits? Sure. Chairman He took us out on the yacht to view the sea, hosted a scallop banquet, and we signed a 2-million research grant on the sailboat." } },
-          { who: "bai", text: { zh: "扇贝在不在海底，我一个写报告的怎么知道？我又不会潜水。", en: "Whether the scallops are down there — how would a report writer know? I can't dive." } },
-        ],
-        clue: { zh: "白研究员拿了 200 万「课题经费」后连发五篇强推——吹票有责，但他没碰过账本，不是造假的手。", en: "Analyst Bai took a 2-million 'research grant' and published five Strong Buys — guilty of touting, but he never touched the ledgers. Not the forging hand." },
-      },
-    ],
-    finale: [
-      { who: "k", text: { zh: "拼起来了：现金审计前回账、函证网点不存在、盘点前夜「巡海」、减值年份对准质押到期——这是一台精密的造假机器。", en: "Assemble it: cash that returns just before audits, confirmation branches that don't exist, 'sea patrols' before every count, write-downs timed to pledge deadlines — a precision-built fraud machine." } },
-      { who: "k", text: { zh: "CFO 做账、审计被骗、研究员吹票——但机器要有一个按开关的人：既有权力指挥船队和资金，又有质押爆仓的动机。指认吧。", en: "The CFO cooked, the auditor was deceived, the analyst touted — but every machine has one hand on the switch: someone with the power to command fleets and funds, and a pledge about to blow. Make the call." } },
-    ],
-    culprit: "he",
-    win: [
-      { who: "k", text: { zh: "没错。扇贝从来没跑——跑的是钱。贺董把上市公司资金通过海外子公司抽走填自己的质押窟窿，再用「扇贝死了」的减值把亏空洗成天灾。", en: "Correct. The scallops never ran — the money did. Chairman He siphoned company cash through the offshore subsidiary to plug his pledge holes, then laundered the shortfall into 'dead scallops' — an act of nature." } },
-      { who: "k", text: { zh: "「存贷双高」就是照妖镜：真有 300 亿现金的公司，不会去借 8% 的高息债。财务造假、违规担保、掏空上市公司——退市加刑责，一样都少不了。", en: "'High cash, high debt' is the mirror that reveals the demon: a company truly holding 30 billion doesn't borrow at 8%. Fraud, illegal guarantees, tunneling — delisting and prison, the full menu." } },
-      { who: "k", text: { zh: "记住这一课：看财报先看现金流。利润可以「编」，扇贝可以「跑」，但利息支出从来不会说谎。", en: "Remember the lesson: read the cash flow before the profit. Earnings can be authored and scallops can 'swim away' — but interest expense never lies." } },
-    ],
-    lose: [
-      { who: "k", text: { zh: "不对。做账的、被骗的、吹票的都不是开关。想想：谁最需要那 300 亿「存在」，又最有权力让扇贝「消失」？", en: "Wrong. The bookkeeper, the deceived, the tout — none held the switch. Think: who NEEDED the 30 billion to 'exist', and had the power to make scallops 'vanish'?" } },
-    ],
-  },
-  {
-    id: "pigplate",
-    title: { zh: "第六案 · 完美导师", en: "Case 6 · The Perfect Guru" },
-    desc: { zh: "退休教师的 80 万养老钱，充进「国际盘」后再也提不出来——谁在杀猪？", en: "A retired teacher's 800k pension vanished into an 'international platform' that won't pay out. Who's butchering the pig?" },
-    award: { zh: "反诈先锋", en: "Scam Slayer" },
-    roles: {
-      k: { name: { zh: "老K", en: "Master K" }, color: "--accent" },
-      tang: { name: { zh: "唐导师", en: "Guru Tang" }, color: "--down" },
-      tian: { name: { zh: "甜甜", en: "Tiantian" }, color: "--ma5" },
-      hao: { name: { zh: "阿豪", en: "Ah Hao" }, color: "--ma20" },
-      jin: { name: { zh: "金链子", en: "Gold Chain" }, color: "--up" },
-    },
-    intro: [
-      { who: "k", text: { zh: "老周，退休中学教师，三个月里把 80 万养老钱分七次充进了一个叫「环球金汇」的交易平台。", en: "Old Zhou, a retired schoolteacher, wired his 800k pension into a platform called 'Global GoldFX' — seven deposits over three months." } },
-      { who: "k", text: { zh: "前两个月他「赚」了 30%，提现秒到账。第三个月他加满仓位，账户一夜「爆仓」，平台连夜关停跑路。", en: "The first two months he 'earned' 30%, withdrawals instant. The third month he went all-in — his account 'blew up' overnight, and the platform vanished by morning." } },
-      { who: "k", text: { zh: "这种局有个名字：杀猪盘。先养、再喂、后杀。警方顺着资金链抓回来四个人。", en: "This scheme has a name: pig butchering. Raise the pig, fatten the pig, kill the pig. Police followed the money and brought back four people." } },
-      { who: "k", text: { zh: "把盘主找出来。老周的养老钱，就指望这个了。", en: "Find the one running the plate. Old Zhou's pension depends on it." } },
-    ],
-    suspects: [
-      {
-        id: "tang",
-        dialog: [
-          { who: "tang", text: { zh: "我是受害者！我自己在平台里也有 200 万提不出来！我们是「战友」啊！", en: "I'm a victim too! I have 2 million stuck on that platform myself! We were comrades-in-arms!" } },
-          { who: "tang", text: { zh: "直播喊单怎么了？我分享的是「缠论战法」，学员自愿跟单。收益截图？那是……教学示意图。", en: "So I called trades on stream — I teach 'entanglement theory tactics', students follow of their own will. The profit screenshots? Those were... teaching illustrations." } },
-          { who: "tang", text: { zh: "平台管理后台的注册邮箱是我的？不可能！那是有人盗用……我要请律师！", en: "The platform's admin account is registered to MY email? Impossible! Identity theft! I want my lawyer!" } },
-        ],
-        clue: { zh: "唐导师自称受害者，但平台管理后台的注册邮箱是他的，服务器租金从他控制的公司账户支付——「自己也被套」是杀猪盘标准剧本的最后一页。", en: "Guru Tang claims victimhood — but the platform's admin account uses his email, and the server rent flows from a company he controls. 'I'm trapped too' is the standard script's final page." },
-      },
-      {
-        id: "tian",
-        dialog: [
-          { who: "tian", text: { zh: "我就是个聊天的。公司发我话术本，每天跟 40 个「叔叔」说早安晚安，聊孙子聊广场舞。", en: "I just chat. The company hands me a script book — every day I say good morning and good night to forty 'uncles', talk grandkids and square dancing." } },
-          { who: "tian", text: { zh: "话术本第三章：处熟三个月才能提「我跟着唐老师赚了钱」。第四章：对方犹豫时发一张自己「盈利截图」。", en: "Script chapter three: only after three months of warmth may you mention 'I made money following Teacher Tang'. Chapter four: when they hesitate, send your own 'profit screenshot'." } },
-          { who: "tian", text: { zh: "「甜甜」有 26 个，都用同一套照片。我提成千分之五……我也知道不对，我在攒钱退出的。", en: "There are 26 'Tiantians', all using the same photo set. My cut is 0.5%... I knew it was wrong. I was saving up to quit." } },
-        ],
-        clue: { zh: "「甜甜」是 26 人共用的人设，按话术本养熟目标再引向唐导师——诈骗链条的「养猪」环节，但她接触不到平台和资金。", en: "'Tiantian' is a persona shared by 26 operators, warming targets by script before steering them to Guru Tang — the 'pig raising' link, with no access to platform or funds." },
-      },
-      {
-        id: "hao",
-        dialog: [
-          { who: "hao", text: { zh: "我管客服组。规矩很简单：前两个月提现「秒批」，客户加满仓后，提现按钮就要「系统维护」。", en: "I run customer service. The rules are simple: first two months, withdrawals approved instantly. Once a client is fully loaded, the withdraw button goes 'under maintenance'." } },
-          { who: "hao", text: { zh: "行情？平台根本没接真实市场，K线是后台画的。让谁赚、让谁爆，一个参数的事。", en: "The market feed? The platform never connected to any real market. The candles are drawn by the back office — who wins, who blows up, it's one parameter." } },
-          { who: "hao", text: { zh: "参数谁调？我没权限。全平台只有一个「总控」账号能碰,我只见过它半夜上线。", en: "Who sets the parameter? Above my clearance. Only one 'master control' account can touch it — I've only ever seen it log in past midnight." } },
-        ],
-        clue: { zh: "阿豪证实平台是「画 K线」的假盘，输赢由一个「总控」账号的参数决定——他执行话术，但碰不到总控。", en: "Ah Hao confirms the platform is a painted-candle fake — wins and losses set by one 'master control' account's parameters. He runs the scripts but can't touch the control." },
-      },
-      {
-        id: "jin",
-        dialog: [
-          { who: "jin", text: { zh: "我就是「卡商」。收来的银行卡一张租金八百，钱进来我负责分散转出去，抽水 3 个点。", en: "I'm just the 'card man'. I rent bank cards at 800 apiece; money comes in, I scatter it out, and skim 3 points." } },
-          { who: "jin", text: { zh: "钱最后去哪？换成 U 出境。上家是谁我真不知道，单线联系,对方代号「老师」。", en: "Where does it end up? Converted to crypto, moved offshore. My upstream? Single-line contact only — codename 'Teacher'." } },
-          { who: "jin", text: { zh: "不过有一次「老师」发错了收款码——那个码，我在唐导师直播间的打赏链接里见过。", en: "But once, 'Teacher' sent the wrong payment code — and I'd seen that exact code before, in the tip jar of Guru Tang's livestream." } },
-        ],
-        clue: { zh: "金链子是洗钱的「卡商」，上家代号「老师」——一次发错的收款码，和唐导师直播间的打赏码是同一个。", en: "Gold Chain launders through rented cards for an upstream codenamed 'Teacher' — who once slipped and sent a payment code identical to the tip jar in Guru Tang's livestream." },
-      },
-    ],
-    finale: [
-      { who: "k", text: { zh: "链条闭合了：26 个「甜甜」养猪，假盘画 K线喂猪，提现「维护」杀猪,卡商洗钱出境。", en: "The chain closes: 26 'Tiantians' raise the pigs, painted candles fatten them, 'maintenance' kills them, and rented cards wash the money offshore." } },
-      { who: "k", text: { zh: "管理后台的邮箱、付服务器租金的公司、半夜上线的总控、发错的收款码——四条线指向同一个人。指认吧。", en: "The admin email, the company paying the servers, the midnight master control, the slipped payment code — four threads, one knot. Make the call." } },
-    ],
-    culprit: "tang",
-    win: [
-      { who: "k", text: { zh: "没错。唐导师就是盘主：白天直播喊单当「导师」，半夜登录总控当「屠夫」，让老周先赚 30% 养足信任，再一个参数收走全部。", en: "Correct. Guru Tang ran the plate: 'mentor' on stream by day, butcher at the master control by night — letting Old Zhou win 30% to fatten his trust, then harvesting everything with one parameter." } },
-      { who: "k", text: { zh: "杀猪盘三步：养（小赚快提）、喂（加大投入）、杀（无法提现）。而它的破绽从第一天就在：真正的交易软件，不需要「甜甜」来教你下载。", en: "Pig butchering in three steps: raise (small wins, fast payouts), fatten (bigger deposits), kill (withdrawals frozen). And the tell was there from day one: real trading software never needs a 'Tiantian' to teach you how to install it." } },
-      { who: "k", text: { zh: "记住这一课，也讲给家里人听：凡是「稳赚不赔」「导师带单」「内部通道」，一律是诈骗。收益越确定，骗局越确定。", en: "Remember this lesson — and teach it to your family: 'guaranteed profit', 'guru-led trades', 'insider channels' — every one of them is fraud. The more certain the return, the more certain the scam." } },
-    ],
-    lose: [
-      { who: "k", text: { zh: "不对。聊天的、客服的、洗钱的都是刀，不是握刀的手。想想：管理后台、服务器租金、总控账号、收款码——都指向谁？", en: "Wrong. The chatters, the support desk, the launderers are blades — not the hand that holds them. Think: the admin email, the server rent, the master control, the payment code — where do they all point?" } },
-    ],
-  },
-  {
-    id: "fatfinger",
-    title: { zh: "第七案 · 234亿的手滑", en: "Case 7 · The 23.4 Billion Slip" },
-    desc: { zh: "套利系统 2 秒打出 234 亿买单，大盘瞬间拉升——乌龙是事故，但之后发生的事是犯罪。", en: "An arbitrage system fired 23.4 billion of buy orders in 2 seconds and the index spiked. The fat finger was an accident — what happened next was a crime." },
-    award: { zh: "真相守门人", en: "Truth Keeper" },
-    roles: {
-      k: { name: { zh: "老K", en: "Master K" }, color: "--accent" },
-      gong: { name: { zh: "龚总裁", en: "President Gong" }, color: "--down" },
-      qu: { name: { zh: "屈总监", en: "Director Qu" }, color: "--ma20" },
-      guo: { name: { zh: "程序员小郭", en: "Coder Guo" }, color: "--ma5" },
-      leng: { name: { zh: "冷风控", en: "Risk Chief Leng" }, color: "--up" },
-    },
-    intro: [
-      { who: "k", text: { zh: "8 月 16 日上午 11:05，某大型券商的程序化交易套利系统突然失控，2 秒内打出 234 亿元买单。", en: "August 16, 11:05 AM. A major broker's program-trading arbitrage system went rogue, firing 23.4 billion yuan of buy orders in two seconds." } },
-      { who: "k", text: { zh: "权重股瞬间集体涨停，大盘一分钟拉升 5%。全市场都在问：发生了什么？是重大利好吗？", en: "Blue chips slammed limit-up in unison; the index spiked 5% in a minute. The whole market asked: what happened? Is this huge news?" } },
-      { who: "k", text: { zh: "11:59，公司对媒体声明：「系统没有问题。」而下午开盘后，这家公司悄悄卖空了大量股指期货和 ETF。", en: "At 11:59 the firm told the press: 'Our systems are fine.' Yet right after the afternoon open, the same firm quietly shorted index futures and ETFs in size." } },
-      { who: "k", text: { zh: "乌龙指是事故，不是罪。可有人把事故变成了犯罪。四个人，找出那只手。", en: "A fat finger is an accident, not a crime. But someone turned this accident into one. Four people — find the hand." } },
-    ],
-    suspects: [
-      {
-        id: "guo",
-        dialog: [
-          { who: "guo", text: { zh: "是我写的订单生成模块……重下单机制少了个状态检查，失败的单子会无限重试。测试环境里从来没触发过。", en: "I wrote the order-generation module... the retry logic was missing a state check, so failed orders retried forever. It never triggered in testing." } },
-          { who: "guo", text: { zh: "那天系统直连交易所，230 亿的单子没经过任何资金校验就出去了。我看到成交回报的时候手都是抖的。", en: "That day the system was wired straight to the exchange — 23 billion went out without a single capital check. My hands were shaking when I saw the fills." } },
-          { who: "guo", text: { zh: "我 11:10 就把事故报告发给了屈总监和龚总。之后他们开会，没让我参加。", en: "I sent the incident report to Director Qu and President Gong at 11:10. Then they held a meeting. I wasn't invited." } },
-        ],
-        clue: { zh: "小郭的 bug 是事故的起点，但他 11:10 就如实上报了。写错代码是过失，不是犯罪——之后的决定与他无关。", en: "Guo's bug started the accident, but he reported it honestly at 11:10. Bad code is negligence, not crime — the decisions that followed were not his." },
-      },
-      {
-        id: "qu",
-        dialog: [
-          { who: "qu", text: { zh: "11:40 我开始下令卖空股指期货对冲敞口。234 亿的多头风险摆在那里，止损是交易员的本能！", en: "At 11:40 I started shorting index futures to hedge the exposure. We were sitting on 23.4 billion of unwanted longs — cutting risk is a trader's instinct!" } },
-          { who: "qu", text: { zh: "我知道公司还没公告。但我问过上面：「现在对冲合规吗？」上面的原话是——「先把窟窿堵上，公告的事下午再说。」", en: "I knew we hadn't disclosed yet. But I asked upstairs: 'Is hedging now compliant?' The exact answer was — 'Plug the hole first. Disclosure can wait till afternoon.'" } },
-          { who: "qu", text: { zh: "那句话是谁说的？会议纪要上有名字。我只是执行。", en: "Who said it? The name is in the meeting minutes. I only executed." } },
-        ],
-        clue: { zh: "屈总监在公告前执行了对冲，但会议纪要显示「先对冲后公告」的决定来自更高层——他是执行的手，不是拍板的人。", en: "Director Qu hedged before disclosure — but the minutes show 'hedge first, disclose later' was decided above him. He was the executing hand, not the deciding one." },
-      },
-      {
-        id: "leng",
-        dialog: [
-          { who: "leng", text: { zh: "风控额度？系统里设了的。但套利系统走的是独立通道，直连交易所，我的阀门根本不在它的路径上。", en: "Risk limits? They were configured. But the arbitrage system ran its own channel, straight to the exchange — my valves weren't even on its path." } },
-          { who: "leng", text: { zh: "我半年前就打过报告：程序化交易必须接入统一风控，否则出事就是天大的事。报告批复写着「成本过高，暂缓」。", en: "Six months ago I filed a report: program trading must route through unified risk control, or any failure would be catastrophic. The reply read: 'Too costly. Postponed.'" } },
-          { who: "leng", text: { zh: "签「暂缓」的人，和中午拍板「先对冲」的，是同一支笔。", en: "The pen that signed 'Postponed' and the pen that ruled 'hedge first' at noon — same pen." } },
-        ],
-        clue: { zh: "冷风控的接入方案半年前被批「暂缓」——签字人与中午拍板对冲的是同一人。她有失察之责，但两次关键决定都不在她手里。", en: "Risk Chief Leng's integration plan was stamped 'Postponed' six months ago — by the same signature that ruled 'hedge first' at noon. Oversight failure, yes; but neither key decision was hers." },
-      },
-      {
-        id: "gong",
-        dialog: [
-          { who: "gong", text: { zh: "11:59 我对媒体说「系统没有问题」，那是……为了避免市场恐慌！维稳！你懂吗？", en: "At 11:59 I told the press 'our systems are fine' — to avoid market panic! Stability! You understand?" } },
-          { who: "gong", text: { zh: "对冲是正常的风险管理。全世界的交易台都会这么做。我不明白这有什么可查的。", en: "Hedging is normal risk management. Every trading desk in the world does it. I don't see what there is to investigate." } },
-          { who: "gong", text: { zh: "会议纪要？内部文件也能当证据？……那句话不是那个意思。「先把窟窿堵上」是一种……管理学表达。", en: "The minutes? Internal documents as evidence? ...That's not what the words meant. 'Plug the hole first' is a... managerial figure of speech." } },
-        ],
-        clue: { zh: "龚总裁 11:59 对公众否认事故，同一时间在内部拍板「先对冲后公告」——用只有自己知道的重大信息反向交易，这正是内幕交易的定义。", en: "President Gong publicly denied the incident at 11:59 while internally ruling 'hedge first, disclose later' — trading on material information only he possessed. That is the textbook definition of insider trading." },
-      },
-    ],
-    finale: [
-      { who: "k", text: { zh: "理清了：bug 是过失，执行对冲的是奉命，风控失守是被「暂缓」的。真正的罪发生在 11:59——对市场说「没有问题」的同时，下令反向交易。", en: "Clear now: the bug was negligence, the hedger followed orders, risk control was 'postponed' away. The real crime happened at 11:59 — telling the market 'all fine' while ordering the opposite trade." } },
-      { who: "k", text: { zh: "乌龙指发生的那一刻，「我们出了 234 亿的事故」就成了内幕信息。在公告前利用它交易的人，就是罪人。指认吧。", en: "The moment the fat finger fired, 'we just had a 23.4 billion accident' became inside information. Whoever traded on it before disclosure is the criminal. Make the call." } },
-    ],
-    culprit: "gong",
-    win: [
-      { who: "k", text: { zh: "没错。乌龙指本身不是犯罪——把事故当成只有自己知道的底牌，一边对公众撒谎一边抢先交易，才是。龚总裁被罚没数亿，终身市场禁入。", en: "Correct. The fat finger itself was no crime — treating the accident as a private ace, lying to the public while front-running it, was. President Gong: hundreds of millions in fines, banned from the market for life." } },
-      { who: "k", text: { zh: "这一案改写了行业：内幕信息不只是「别人公司的秘密」，你自己的重大事件在公告前同样不能交易。信息面前，必须众生平等。", en: "This case rewrote the rulebook: inside information isn't just 'other companies' secrets' — your own material events are equally untradeable before disclosure. Before information, all must stand equal." } },
-      { who: "k", text: { zh: "记住这一课：程序化交易必须有风控熔断阀；而当事故发生时，最贵的不是那 234 亿——是说出「系统没有问题」的那句谎话。", en: "Remember the lesson: program trading needs a risk-control kill switch. And when the accident comes, the costliest thing isn't the 23.4 billion — it's the sentence 'our systems are fine.'" } },
-    ],
-    lose: [
-      { who: "k", text: { zh: "不对。写错代码的、奉命执行的、被「暂缓」的，都不是罪的源头。想想：谁一边对公众说「没有问题」，一边下令反向交易？", en: "Wrong. The coder, the order-follower, the 'postponed' — none was the source. Think: who told the public 'all fine' while ordering the opposite trade?" } },
-    ],
-  },
-  {
-    id: "ponzi",
-    title: { zh: "第八案 · 15%的神话", en: "Case 8 · The 15% Miracle" },
-    desc: { zh: "年化 15% 保本保息、广告铺满地铁、300 万投资人——直到某个周一，提现按钮变成了灰色。", en: "15% a year, principal guaranteed, ads in every subway car, three million investors — until one Monday, the withdraw button turned gray." },
-    award: { zh: "庞氏终结者", en: "Ponzi Terminator" },
-    roles: {
-      k: { name: { zh: "老K", en: "Master K" }, color: "--accent" },
-      bao: { name: { zh: "鲍总", en: "Chairman Bao" }, color: "--down" },
-      mu: { name: { zh: "慕总监", en: "CFO Mu" }, color: "--ma20" },
-      tong: { name: { zh: "佟金牌", en: "Top Seller Tong" }, color: "--ma5" },
-      hua: { name: { zh: "华姐", en: "Sister Hua" }, color: "--up" },
-    },
-    intro: [
-      { who: "k", text: { zh: "「鑫富宝」，一个号称做「供应链金融创新」的理财平台：年化 15%，保本保息，随存随取。", en: "'XinFuBao', a wealth platform claiming 'supply-chain finance innovation': 15% a year, principal and interest guaranteed, withdraw anytime." } },
-      { who: "k", text: { zh: "广告上了地铁、电视和春晚倒计时。两年吸金 700 亿，投资人 300 万——多数是把养老钱搬进来的普通人。", en: "Its ads ran in subways, on TV, before the New Year countdown. Two years: 70 billion raised, three million investors — mostly ordinary people moving in their pensions." } },
-      { who: "k", text: { zh: "上周一，提现开始「排队」。周三，排队变成「系统升级」。周五，办公楼人去楼空，服务器和账本一起消失了。", en: "Last Monday, withdrawals started 'queuing'. Wednesday, the queue became a 'system upgrade'. Friday, the offices were empty — servers and ledgers gone." } },
-      { who: "k", text: { zh: "警方在一处工地的地下六米，挖出了 80 本账册。四个人到案。开始吧。", en: "Police dug 80 ledgers out of a construction site — six meters underground. Four people in custody. Begin." } },
-    ],
-    suspects: [
-      {
-        id: "bao",
-        dialog: [
-          { who: "bao", text: { zh: "我们是金融创新！供应链金融！把核心企业的应收账款做成理财产品，怎么就成骗局了？", en: "We are financial innovation! Supply-chain finance! Turning core enterprises' receivables into wealth products — how is that a scam?" } },
-          { who: "bao", text: { zh: "平台上的借款企业都是真实注册的公司……注册资料齐全，公章、执照，一样不少。", en: "Every borrower on the platform is a genuinely registered company... full paperwork, seals, licenses, everything." } },
-          { who: "bao", text: { zh: "游艇和庄园是公司形象投入！给助理发的 5 个亿是……人才激励！埋账本？我不知道什么账本！", en: "The yacht and the estate were corporate image investments! The 500 million to my assistant was... talent incentive! Buried ledgers? I know nothing about ledgers!" } },
-        ],
-        clue: { zh: "平台上 95% 的「借款企业」是鲍总用同一批公章注册的壳公司——钱从投资人手里进来，转一圈流回他自己的口袋，这叫「自融」。", en: "95% of the platform's 'borrowers' are shell companies Chairman Bao registered with the same batch of seals — investor money loops straight back into his own pocket. The word for it: self-dealing." },
-      },
-      {
-        id: "mu",
-        dialog: [
-          { who: "mu", text: { zh: "账是我管的。说实话吧——平台从第一天起就没有真实盈利，付给老投资人的「利息」，全部来自新投资人的本金。", en: "I kept the books. The truth, then — the platform never earned a real profit from day one. Every 'interest payment' to old investors came from new investors' principal." } },
-          { who: "mu", text: { zh: "两套账：给监管看的那套有底层资产，真实的那套只有一个资金池——钱进来，一半付利息，一半听鲍总安排。", en: "Two sets of books: the regulator's version had underlying assets; the real one had only a cash pool — half of inflows paid interest, half went wherever Chairman Bao directed." } },
-          { who: "mu", text: { zh: "崩盘前一周，鲍总让我把服务器硬盘和账册装进麻袋，埋到他小舅子的工地下面。挖出来的那 80 本，就是我埋的。", en: "A week before the collapse, Chairman Bao had me bag the server drives and ledgers and bury them at his brother-in-law's construction site. Those 80 books they dug up — I buried them." } },
-        ],
-        clue: { zh: "慕总监交代：平台从无真实盈利，全靠借新还旧维持资金池；埋账本是奉鲍总之命——他是做账和埋账的手，不是设局的人。", en: "CFO Mu confessed: no real profits ever — the cash pool survived on new-for-old money, and the ledgers were buried on Chairman Bao's orders. He was the hand that cooked and buried the books, not the one who built the trap." },
-      },
-      {
-        id: "tong",
-        dialog: [
-          { who: "tong", text: { zh: "我是销售冠军，一年卖出 9 个亿。话术是公司统一培训的：「国资背景」「电视台都在播」「跑得了和尚跑不了庙」。", en: "I was top seller — 900 million in one year. The pitch was standard company training: 'state backing', 'it's on national TV', 'a temple this big can't run away'." } },
-          { who: "tong", text: { zh: "提成 3 个点。可我自己也信了啊——我把自己 50 万积蓄和我妈的 30 万都投进去了，现在一分都取不出来。", en: "My commission was 3%. But I believed it myself — I put in my own 500k savings and my mother's 300k. Now I can't withdraw a cent." } },
-          { who: "tong", text: { zh: "底层资产？培训的时候问过。经理说：「你只管卖，资产的事总部有人管。」", en: "The underlying assets? I asked in training. The manager said: 'You just sell. Headquarters handles the assets.'" } },
-        ],
-        clue: { zh: "佟金牌按话术卖出 9 个亿，但自己和母亲的 80 万也埋在里面——被骗局雇佣、又被骗局吞掉的推销员，不是设局者。", en: "Top Seller Tong moved 900 million on scripted pitches — with his own and his mother's 800k buried inside. Hired by the scam, then swallowed by it. Not the architect." },
-      },
-      {
-        id: "hua",
-        dialog: [
-          { who: "hua", text: { zh: "我就是接了个代言。8000 万，念了三句广告词：「鑫富宝，安心宝，财富稳稳涨」。", en: "I took an endorsement deal. 80 million, three lines of copy: 'XinFuBao, peace of mind, wealth that steadily grows.'" } },
-          { who: "hua", text: { zh: "资质？经纪人说平台证照齐全，还上过财经频道。我一个演员，怎么核实金融产品？", en: "Due diligence? My agent said the licenses were complete and it had been on the finance channel. I'm an actress — how do I verify a financial product?" } },
-          { who: "hua", text: { zh: "现在骂我的人比骂鲍总的还多。代言费我退，官司我认。但设局的不是我。", en: "These days more people curse me than curse Chairman Bao. I'll return the fee, I'll face the lawsuits. But I didn't build the trap." } },
-        ],
-        clue: { zh: "华姐收 8000 万代言费为骗局镀了金，未尽核实义务要担责——但她接触不到资金池，也不知道底层资产是空的。", en: "Sister Hua's 80-million endorsement gilded the scam, and she'll answer for skipping due diligence — but she never touched the cash pool, nor knew the assets were hollow." },
-      },
-    ],
-    finale: [
-      { who: "k", text: { zh: "看清这台机器：壳公司造「资产」，资金池收钱，新钱付旧息，明星镀金，销售扩散——而唯一知道全貌、唯一花掉这些钱的，只有一个人。", en: "See the machine whole: shell companies forge 'assets', the cash pool takes the money, new money pays old interest, a star gilds it, sellers spread it — and only one person saw the whole picture and spent the money." } },
-      { who: "k", text: { zh: "庞氏骗局的定义只有一句话：收益不来自资产，来自下一个投资人的本金。指认设局的人。", en: "A Ponzi scheme is defined in one sentence: returns come not from assets, but from the next investor's principal. Name the architect." } },
-    ],
-    culprit: "bao",
-    win: [
-      { who: "k", text: { zh: "没错。鲍总用同一批公章造出 95% 的假借款人，700 亿在资金池里转了一圈：一半付利息稳住人心，一半变成游艇、庄园和埋进地下的账本。", en: "Correct. Chairman Bao forged 95% of the borrowers with one batch of seals. 70 billion cycled through the pool: half paid interest to keep the faith, half became yachts, estates, and ledgers buried underground." } },
-      { who: "k", text: { zh: "识别庞氏骗局的三个信号：保本保息的承诺、看不见的底层资产、只进不出的资金池。三样占齐，跑！", en: "Three signals of a Ponzi: guaranteed principal and interest, invisible underlying assets, a cash pool that only takes in. All three present — run!" } },
-      { who: "k", text: { zh: "记住这一课：无风险利率只有 2-3%。收益率超过 6% 要打问号，超过 8% 很危险，超过 10%——就要做好损失全部本金的准备。", en: "Remember the lesson: the risk-free rate is 2-3%. Above 6%, raise an eyebrow; above 8%, danger; above 10% — prepare to lose every cent of principal." } },
-    ],
-    lose: [
-      { who: "k", text: { zh: "不对。做账的、卖单的、念广告的都是机器的零件。想想：钱最后变成了谁的游艇？账本埋在谁小舅子的工地？", en: "Wrong. The bookkeeper, the seller, the ad reader — parts of the machine. Think: whose yacht did the money become? Whose brother-in-law's site hid the ledgers?" } },
-    ],
-  },
-  {
-    id: "spoofing",
-    title: { zh: "第九案 · 幽灵买单", en: "Case 9 · The Phantom Bids" },
-    desc: { zh: "每天尾盘，买一到买五突然堆起巨量买单，股价应声上涨——可这些买单在成交前总会凭空消失。", en: "Every day near the close, massive bids pile onto the order book and the price jumps — yet the bids always vanish before they can fill." },
-    award: { zh: "幌骗终结者", en: "Spoof Buster" },
-    roles: {
-      k: { name: { zh: "老K", en: "Master K" }, color: "--accent" },
-      zhen: { name: { zh: "甄总监", en: "Director Zhen" }, color: "--down" },
-      mao: { name: { zh: "毛做市", en: "Mao the Market Maker" }, color: "--ma5" },
-      yue: { name: { zh: "岳大户", en: "Whale Yue" }, color: "--up" },
-      he: { name: { zh: "何工", en: "Engineer He" }, color: "--ma20" },
-    },
-    intro: [
-      { who: "k", text: { zh: "「久禾科技」，一只平平无奇的中盘股。但最近二十个交易日，它的尾盘出了怪事。", en: "'Jiuhe Tech', an unremarkable mid-cap. But for twenty sessions now, strange things have happened at the close." } },
-      { who: "k", text: { zh: "每天 14:40 之后，买一到买五突然堆起几千万的买单。散户一看：大资金进场了！追。股价被推高 2-3%。", en: "Every day after 14:40, tens of millions in bids stack up on the book. Retail sees it: big money is in! They chase. The price gets pushed up 2-3%." } },
-      { who: "k", text: { zh: "可交易所数据显示：这些巨量买单的撤单率高达 99.7%——几乎一股都没真正买入。而第二天，股价总是低开。", en: "Yet exchange data shows a 99.7% cancellation rate on those giant bids — almost not a single share was actually bought. And the next day, the stock always opens lower." } },
-      { who: "k", text: { zh: "有人在挂假单画图，引人接盘。这叫「幌骗」(Spoofing)。四个嫌疑人，链上数据不会撒谎。开始吧。", en: "Someone is painting the tape with fake orders, luring buyers in. It's called spoofing. Four suspects — the order data doesn't lie. Begin." } },
-    ],
-    suspects: [
-      {
-        id: "zhen",
-        dialog: [
-          { who: "zhen", text: { zh: "我是量化私募的交易总监。挂单撤单是算法的正常行为——行情变了，撤单调仓，天经地义。", en: "I'm the trading director of a quant fund. Placing and canceling orders is normal algorithmic behavior — conditions change, orders adjust. Perfectly routine." } },
-          { who: "zhen", text: { zh: "99.7% 的撤单率怎么了？高频策略的撤单率本来就高。你们不懂技术就不要指手画脚。", en: "So what if the cancel rate is 99.7%? High-frequency strategies cancel most orders by design. Don't lecture me on technology you don't understand." } },
-          { who: "zhen", text: { zh: "至于我们同时在卖出……组合再平衡而已。买卖两边都有单，很正常。", en: "As for our simultaneous selling... portfolio rebalancing, that's all. Orders on both sides of the book — completely normal." } },
-        ],
-        clue: { zh: "交易所定位：巨量买单全部来自甄总监名下的算法账户，且挂单价永远比买一低一档——刚好显示在盘口、又永远轮不到成交。同一时段，他的另一账户在卖一持续真实卖出。", en: "The exchange traced every phantom bid to Director Zhen's algo account — always one tick below the best bid: visible on the book, never first in line to fill. In the same minutes, his other account was genuinely selling at the ask." },
-      },
-      {
-        id: "mao",
-        dialog: [
-          { who: "mao", text: { zh: "我是持牌做市商。我的职责就是双边挂单，给市场提供流动性——买卖两边都有我的单子，这是义务，不是嫌疑。", en: "I'm a licensed market maker. My job is quoting both sides — providing liquidity. Orders on both sides of my book are an obligation, not a crime." } },
-          { who: "mao", text: { zh: "我的挂单是对称的：买卖各五档，每档数量差不多，全天稳定。尾盘那种单边几千万的堆单，不是做市行为。", en: "My quotes are symmetric: five levels each side, similar size, steady all day. A one-sided tens-of-millions pile at the close is not market making." } },
-          { who: "mao", text: { zh: "说实话，那个幽灵买单害我亏了钱——我的算法把它当成真实需求，调高了报价。", en: "Honestly, those phantom bids cost me money — my algorithm read them as real demand and lifted my quotes." } },
-        ],
-        clue: { zh: "毛做市全天双边对称报价、单笔数量小且成交率正常，是幌骗的受害者之一——做市商的挂单模式和幌骗完全相反。", en: "Mao quoted symmetrically all day in small clips with a normal fill rate — one of the spoof's victims. A market maker's order pattern is the exact opposite of a spoofer's." },
-      },
-      {
-        id: "yue",
-        dialog: [
-          { who: "yue", text: { zh: "我确实撤过单。上周挂了三笔大买单又撤了——因为我盯着盘口，看见那堆巨量买单，觉得有大资金抢筹，想挂高一点。", en: "I did cancel some orders. Three big bids last week — because I was watching the book, saw that giant pile of bids, figured big money was accumulating, and wanted to bid higher." } },
-          { who: "yue", text: { zh: "后来我真金白银买进去了 2000 万，现在套着 8 个点。我是被那些假单骗进来的！", en: "Then I actually bought in — 20 million of real money. I'm down 8% now. Those fake bids lured me in!" } },
-          { who: "yue", text: { zh: "我的撤单是改价重挂，撤一笔挂一笔，最后都成交了。跟那种挂了就跑的不一样。", en: "My cancels were re-pricing — cancel one, place another, and every one eventually filled. Nothing like orders placed only to vanish." } },
-        ],
-        clue: { zh: "岳大户撤单 3 笔但随后全部真实成交、实际买入 2000 万并被套——有真实交易意图的改单，和只挂不买的幌骗有本质区别。", en: "Whale Yue canceled three orders but re-placed and filled every one, ending up 20 million long and underwater — re-pricing with genuine intent to trade is fundamentally different from bids never meant to fill." },
-      },
-      {
-        id: "he",
-        dialog: [
-          { who: "he", text: { zh: "我是交易所监察系统的工程师。是我先发现异常的：同一账户组，连续 20 天在 14:40-14:55 挂撤巨量买单。", en: "I'm an engineer on the exchange surveillance system. I flagged it first: the same account group, twenty straight days, placing and pulling giant bids between 14:40 and 14:55." } },
-          { who: "he", text: { zh: "模式高度机械：挂单后平均存活 11 秒，从不成交；撤单后 3 秒内，关联账户在对手方向卖出。", en: "The pattern is machine-regular: bids live 11 seconds on average, never fill; within 3 seconds of each cancel, a linked account sells into the strength." } },
-          { who: "he", text: { zh: "完整的账户对照表和时间戳我都带来了。谁的账户，一查便知。", en: "I've brought the full account mapping and timestamps. Whose accounts they are — one look will tell you." } },
-        ],
-        clue: { zh: "何工提供了关键证据链：幽灵买单存活 11 秒从不成交，撤单 3 秒内关联账户反向卖出——挂单方向和真实交易方向相反，正是幌骗的铁证。", en: "Engineer He supplied the key evidence: phantom bids lived 11 seconds and never filled, and within 3 seconds of each cancel a linked account sold the other way — orders opposite to the real trading direction, the signature of spoofing." },
-      },
-    ],
-    finale: [
-      { who: "k", text: { zh: "把证据串起来：巨量买单只在尾盘出现、永远差一档不成交、11 秒撤单、撤后 3 秒关联账户反向卖出——挂单是画给你看的，卖出才是真实目的。", en: "String the evidence together: giant bids only at the close, always one tick from filling, canceled in 11 seconds, followed 3 seconds later by selling from a linked account — the bids were painted for your eyes; the selling was the real business." } },
-      { who: "k", text: { zh: "幌骗的定义：以诱导他人交易为目的挂单、且无成交意图。谁的账户在挂假单、又在真卖出？指认他。", en: "Spoofing defined: placing orders to lure others into trading, with no intent to fill. Whose account posted the fake bids while genuinely selling? Name them." } },
-    ],
-    culprit: "zhen",
-    win: [
-      { who: "k", text: { zh: "正确。甄总监的算法账户挂出 99.7% 撤单率的幽灵买单，制造抢筹假象拉高股价，另一账户则在高位持续出货——教科书级的幌骗。", en: "Correct. Director Zhen's algo account posted phantom bids with a 99.7% cancel rate to fake a buying frenzy, while his other account distributed into the strength — textbook spoofing." } },
-      { who: "k", text: { zh: "记住幌骗三要素：巨量挂单吸引眼球、无成交意图（撤单率极高、永远差一档）、真实交易在反方向。三样齐了，盘口就是画出来的。", en: "Remember the three marks of a spoof: eye-catching size, no intent to fill (extreme cancel rate, always a tick away), and real trading on the opposite side. All three present — the order book is a painting." } },
-      { who: "k", text: { zh: "这一课：盘口挂单可以撤，成交记录不会骗人。判断资金方向，看真实成交，不看挂单表演。", en: "The lesson: orders can be canceled; the tape of actual fills cannot lie. To read the money's direction, watch real transactions, not order-book theater." } },
-    ],
-    lose: [
-      { who: "k", text: { zh: "不对。再看一遍数据：谁的挂单从不成交？谁在撤单之后 3 秒真实卖出？对称报价的、改价成交的、提供证据的，都不是画图的人。", en: "Wrong. Look at the data again: whose bids never filled? Who sold for real 3 seconds after each cancel? The symmetric quoter, the re-pricer who filled, the one who brought the evidence — none of them painted the tape." } },
-    ],
-  },
-  {
-    id: "shortrumor",
-    title: { zh: "第十案 · 匿名做空报告", en: "Case 10 · The Anonymous Short Report" },
-    desc: { zh: "一份匿名做空报告让「恒芯半导体」单日暴跌 25%。报告里的银行流水截图，后来被证明是 PS 的。", en: "An anonymous short report crashed 'Hengxin Semi' 25% in a day. The bank statements in it were later proven photoshopped." },
-    award: { zh: "谣言粉碎机", en: "Rumor Crusher" },
-    roles: {
-      k: { name: { zh: "老K", en: "Master K" }, color: "--accent" },
-      kang: { name: { zh: "康总", en: "CEO Kang" }, color: "--up" },
-      bai: { name: { zh: "白析师", en: "Analyst Bai" }, color: "--ma5" },
-      wen: { name: { zh: "温博主", en: "Blogger Wen" }, color: "--ma20" },
-      zheng: { name: { zh: "郑前总", en: "Ex-CFO Zheng" }, color: "--down" },
-    },
-    intro: [
-      { who: "k", text: { zh: "周二早上 9:15，一份 87 页的匿名报告在网上炸开：《恒芯半导体：一场精心包装的骗局》，指控其虚增收入 40%。", en: "Tuesday, 9:15 a.m. An 87-page anonymous report detonated online: 'Hengxin Semi: A Carefully Packaged Fraud', alleging 40% inflated revenue." } },
-      { who: "k", text: { zh: "报告有模有样：内部邮件、银行流水截图、离职员工「实名」爆料。开盘后股价直线跳水，收盘暴跌 25%，市值蒸发 300 亿。", en: "It looked convincing: internal emails, bank statement screenshots, 'named' whistleblowers. The stock went straight down at the open — minus 25% by the close, 30 billion in market cap gone." } },
-      { who: "k", text: { zh: "三天后，银行出具证明：报告里的流水截图是伪造的，PS 痕迹明显。但股价再也没回去。", en: "Three days later the bank certified it: the statement screenshots were forged — obvious edit traces. But the price never came back." } },
-      { who: "k", text: { zh: "先说清楚一件事：看空、做空本身是合法的。但「编造虚假信息 + 提前建仓交易」是操纵市场。谁造的谣？开始吧。", en: "First, be clear: bearish views and short selling are legal. But 'fabricating false information + trading on it beforehand' is market manipulation. Who forged the report? Begin." } },
-    ],
-    suspects: [
-      {
-        id: "kang",
-        dialog: [
-          { who: "kang", text: { zh: "我是最大的受害者！我的身家全在公司股票里，跌 25% 我账面损失几十亿！", en: "I'm the biggest victim here! My entire net worth is in company stock — that 25% cost me billions on paper!" } },
-          { who: "kang", text: { zh: "有人说我「自导自演砸盘吸筹」？我倒是想问：暴跌当天我一股都没买——增持公告是一周后才发的，那是护盘！", en: "Some say I 'staged it to buy back cheap'? Then explain: I bought nothing on crash day — the buyback notice came a week later. That was defending the stock!" } },
-          { who: "kang", text: { zh: "报告里的「内部邮件」格式是三年前的旧模板，现在公司邮件早就换系统了。这说明写报告的人离开公司很久了。", en: "The 'internal emails' in the report use a template from three years ago — we changed systems long since. Whoever wrote it left the company years ago." } },
-        ],
-        clue: { zh: "康总在暴跌当天及前后均无卖出或买入记录，损失真实存在；他指出的线索很关键——报告用的内部模板是三年前的旧版。", en: "CEO Kang neither bought nor sold around the crash, and his losses are real. His observation matters: the report's internal template is the three-year-old version." },
-      },
-      {
-        id: "bai",
-        dialog: [
-          { who: "bai", text: { zh: "我是职业做空研究员，确实发过看空恒芯的报告——署名的、上个月、目标价下调 20%，逻辑是行业库存周期。", en: "I'm a professional short-side researcher, and yes, I published a bearish note on Hengxin — signed, last month, 20% price-target cut, based on the industry inventory cycle." } },
-          { who: "bai", text: { zh: "我做空前公开披露持仓，报告里每个数据都有出处。这是合法的做空研究，跟那份 PS 流水的匿名报告是两回事。", en: "I disclose my short positions before publishing, and every number in my work is sourced. That's legitimate short research — nothing like an anonymous report with photoshopped statements." } },
-          { who: "bai", text: { zh: "说难听点，那份假报告砸了我们全行业的招牌。以后谁还信真正的做空研究？", en: "Frankly, that fake report wrecked the reputation of my whole profession. Who will trust real short research now?" } },
-        ],
-        clue: { zh: "白析师的看空报告实名、注明持仓、数据有出处——合法做空研究的三个特征齐全；匿名报告发布时段他的持仓没有变动。", en: "Analyst Bai's bearish note was signed, position-disclosed, and fully sourced — all three marks of legitimate short research. His positions didn't move when the anonymous report dropped." },
-      },
-      {
-        id: "wen",
-        dialog: [
-          { who: "wen", text: { zh: "我就是转发了一下！报告又不是我写的，我一个财经博主，看到猛料当然要第一时间发给粉丝。", en: "I only reposted it! I didn't write the report — I'm a finance blogger, of course I push hot material to my followers first." } },
-          { who: "wen", text: { zh: "好吧……转发那条我收了 20 万「推广费」。钱是一家离岸公司打的，对接人只有一个微信号，现在已经注销了。", en: "Fine... I took 200k in 'promotion fees' for that repost. Paid by an offshore company; my only contact was a chat account that's since been deleted." } },
-          { who: "wen", text: { zh: "但我只负责扩散！报告的内容、里面的流水截图，我碰都没碰过。我发的时候它已经在网上了。", en: "But I only amplified it! The content, the bank screenshots — I never touched them. It was already online when I posted." } },
-        ],
-        clue: { zh: "温博主收 20 万推广费扩散谣言、要承担传播责任，但资金来自离岸壳公司、报告发布前他并不知情——他是喇叭，不是写手。", en: "Blogger Wen took 200k from an offshore shell to amplify the rumor and will answer for spreading it — but he knew nothing before publication. He was the megaphone, not the author." },
-      },
-      {
-        id: "zheng",
-        dialog: [
-          { who: "zheng", text: { zh: "我三年前从恒芯离职，跟公司早没有往来。看空报告？网上那么多人看空，怎么就查到我头上？", en: "I left Hengxin three years ago — no contact since. The short report? Half the internet is bearish, why come to me?" } },
-          { who: "zheng", text: { zh: "旧邮件模板？离职员工谁手里没几封旧邮件。这能说明什么？", en: "The old email template? Every ex-employee has old emails lying around. What does that prove?" } },
-          { who: "zheng", text: { zh: "我表弟的账户融券卖出？他成年人，自己炒股，跟我有什么关系。时间巧合而已。", en: "My cousin's account selling short? He's a grown man trading his own money. Nothing to do with me. A coincidence of timing." } },
-        ],
-        clue: { zh: "报告内嵌文档的作者信息指向郑前总的旧笔记本；他表弟的账户在报告发布前两天融券卖出 8000 万，发布当天全部买券还券平仓获利离场。", en: "Metadata in the report's embedded files points to Ex-CFO Zheng's old laptop. Two days before publication, his cousin's account shorted 80 million via margin — and covered the entire position at a profit on crash day." },
-      },
-    ],
-    finale: [
-      { who: "k", text: { zh: "整理时间线：报告用三年前的内部模板和旧笔记本写成，发布前两天关联账户融券建空仓，发布当天暴跌平仓获利，离岸壳公司花钱雇喇叭扩散。", en: "The timeline: a report written on an old laptop with a three-year-old internal template; a linked account building a short via margin two days before release; the position covered at a profit on crash day; an offshore shell paying the megaphone." } },
-      { who: "k", text: { zh: "记住：看空是权利，造谣是犯罪。编造虚假信息 + 提前反向建仓 = 操纵市场。谁既写了假报告、又赚了这笔钱？", en: "Remember: a bearish view is a right; fabrication is a crime. False information plus a pre-built opposite position equals market manipulation. Who wrote the fake and pocketed the profit?" } },
-    ],
-    culprit: "zheng",
-    win: [
-      { who: "k", text: { zh: "正确。郑前总用离职时带走的旧模板和旧邮件伪造「内幕材料」，PS 银行流水，提前让表弟的账户融券做空 8000 万，一份假报告净赚两千万。", en: "Correct. Ex-CFO Zheng forged 'insider material' from templates and emails he took when he left, photoshopped the bank statements, and had his cousin's account short 80 million in advance — one fake report, 20 million in profit." } },
-      { who: "k", text: { zh: "分清两件事：白析师那样实名、披露持仓、数据有出处的看空研究是市场的免疫系统；匿名、造假、藏仓位的「报告」是投毒。", en: "Keep two things apart: signed, position-disclosed, fully sourced short research like Analyst Bai's is the market's immune system; anonymous, forged, position-hiding 'reports' are poison." } },
-      { who: "k", text: { zh: "这一课：遇到惊悚报告先查三样——作者是否实名、证据可否验证、发布前有没有异常空单。三样都不过关的，先别急着割肉。", en: "The lesson: when a shock report drops, check three things — is the author named, can the evidence be verified, were there unusual short positions beforehand. If all three fail, don't rush to sell at the bottom." } },
-    ],
-    lose: [
-      { who: "k", text: { zh: "不对。想想谁「既有旧模板、又有动机、还提前建了空仓」。真受害的、实名看空的、收钱转发的，都构不成完整的证据链。", en: "Wrong. Think: who had the old template, the motive, AND the pre-built short position? The real victim, the signed bear, the paid reposter — none of them completes the chain of evidence." } },
-    ],
-  },
-];
+// (剧本杀案件数据已拆至 data/cases.js, 本文件只留办案引擎)
 
 const CASE_XP_FIRST = 200;
 const CASE_XP_REPLAY = 30;
@@ -1989,6 +855,7 @@ function finishCase() {
   addXp(xp);
   let text = t("story.winMsg") + " " + t("play.xpGain", xp);
   if (story.def.award) awardTitle(story.def.award);
+  if (first) claimAcademyPoints("case"); // 首破才有积分, 重玩不领
   awardBadge("case_1");
   if (prog.cases.length >= CASES.length) awardBadge("case_all");
   renderCases();
@@ -2017,6 +884,20 @@ $("btn-story-close").addEventListener("click", closeStory);
 $("story-modal").addEventListener("click", (e) => {
   if (e.target === $("story-modal")) closeStory();
 });
+
+// ---------- 学堂积分奖励: 名场面首通/悬案首破 +40 (服务端任务位封顶每日各一次) ----------
+
+async function claimAcademyPoints(kind) {
+  if (!window.Auth || !Auth.user) return; // 游客无积分账户, 静默跳过
+  try {
+    const res = await api("/me/points/academy-claim", { method: "POST", body: JSON.stringify({ kind }) });
+    if (res.earned > 0) {
+      toast(t("points.academyGot", res.earned));
+      const head = $("points-balance-head");
+      if (head && res.state) head.textContent = Number(res.state.balance).toLocaleString();
+    }
+  } catch (e) { /* 当日已领/网络异常不打断通关结算 */ }
+}
 
 // ---------- 实战关卡引擎 (教学关 + 名场面共用) ----------
 
@@ -2235,6 +1116,7 @@ function finishPlay() {
     } else {
       if (def.award) awardTitle(def.award);
       awardBadge("famous_1");
+      if (first) claimAcademyPoints("famous"); // 首通才有积分, 重玩不领
       if (prog.famous.length >= FAMOUS_LEVELS.length) awardBadge("famous_all");
       renderFamous();
       const epi = LEVEL_EPILOGUES[def.seed];
@@ -2280,35 +1162,170 @@ document.addEventListener("keydown", (e) => {
 const GUESS_WINDOW = 30;
 const DAILY_GUESSES = 10;
 let guessChart = null;
-const guess = { data: [], visible: 0, score: 0, streak: 0, playing: false, waiting: false, mode: "free", dailyLeft: 0, shieldUsed: false };
+const guess = { data: [], visible: 0, score: 0, streak: 0, lossStreak: 0, playing: false, waiting: false, mode: "free", dailyLeft: 0, shieldUsed: false };
 
-function todayStr() {
-  const d = new Date();
-  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const todayStr = qsTodayStr; // 共享实现在 app.js
+
+// ---------- 猜涨跌行情引擎 ----------
+// 下一根 K 线在玩家按下按钮后才生成。标准判定 4 步:
+//   1. 读最近 3 局涨跌 → 判趋势/震荡/变盘;
+//   2. 概率加权: 趋势局 70% 延续 / 震荡局 50-50 / 变盘局 (每5~8局) 80% 反向突破;
+//      另有假动作 (每4~7局) 诱多诱空打断惯性;
+//   3. 胜率修正: 新手前 10 局 ≈55% 利好 → 连赢/连输 3 局后 65% 反转补救 →
+//      近 100 局滚动回中 48%~52%; 4. 输出唯一结果。
+//   胜率回中: 近 100 局玩家胜率偏出 48%~52% 时按偏差概率往回拉;
+//   极端抑制: 同向 ≥5 根强制大概率反转、≥7 根必反 (杜绝十连涨跌),
+//            完美交替 ≥6 根强制延续一根 (杜绝天地板反复)。
+const mkt = { rnd: Math.random, regime: "range", trendDir: 1, regimeLeft: 6, fakeLeft: 5,
+  runDir: 0, runLen: 0, altLen: 0 };
+
+function engineReset(rnd) {
+  mkt.rnd = rnd;
+  mkt.regime = rnd() < 0.45 ? "trend" : "range";
+  mkt.trendDir = rnd() < 0.5 ? 1 : -1;
+  mkt.regimeLeft = 5 + Math.floor(rnd() * 4);   // 5~8 局后变盘
+  mkt.fakeLeft = 4 + Math.floor(rnd() * 4);     // 4~7 局后一次假动作
+  mkt.runDir = 0;
+  mkt.runLen = 0;
+  mkt.altLen = 0;
 }
 
-function newGuessRound() {
-  const seed = Math.floor(Math.random() * 4294967295);
-  const rnd = mulberry32(seed ^ 0x9e3779b9);
-  // 随机拼 2~3 段不同趋势, 让走势有可学的惯性
-  const segs = [];
-  const n = 2 + Math.floor(rnd() * 2);
-  for (let i = 0; i < n; i++) {
-    segs.push({
-      days: 18 + Math.floor(rnd() * 18),
-      drift: (rnd() - 0.5) * 0.02,
-      vol: 0.012 + rnd() * 0.025,
-    });
+/** 近 100 局滚动胜率 (持久化在 prog, 跨回合生效)。 */
+function recentWinRate() {
+  const r = prog.guessRecent || [];
+  if (r.length < 20) return null; // 样本太少不干预
+  return r.reduce((a, b) => a + b, 0) / r.length;
+}
+
+/** 生成下一根 K 线。guessUp 为玩家本次的猜测 (铺历史时传 null, 不做胜率干预)。 */
+function engineNext(guessUp) {
+  const rnd = mkt.rnd;
+  const last = guess.data[guess.data.length - 1];
+  const price = last ? last.close : 100;
+  const lastDir = mkt.runDir || (rnd() < 0.5 ? 1 : -1);
+
+  // ① 读取最近 3 局涨跌记录, 分类当前状态 (标准判定第 1 步)
+  const n = guess.data.length;
+  const last3 = [];
+  for (let i = Math.max(1, n - 3); i < n; i++) {
+    last3.push(guess.data[i].close > guess.data[i - 1].close ? 1 : -1);
   }
-  guess.data = genCandles(seed, segs);
+  const sum3 = last3.reduce((a, b) => a + b, 0);
+  const trending = Math.abs(sum3) >= 2 && last3.length >= 2; // 3 局中 ≥2 局同向视为趋势
+  const trendDir3 = sum3 >= 0 ? 1 : -1;
+
+  // ② 概率加权 (标准判定第 2 步): 趋势 70% 延续 / 震荡 50-50 / 变盘局 80% 反向突破
+  let dir;
+  let fake = false;
+  if (--mkt.regimeLeft <= 0) {
+    // 变盘局 (每 5~8 局): 80% 反向突破当前方向
+    dir = rnd() < 0.8 ? -lastDir : lastDir;
+    fake = true;
+    mkt.regimeLeft = 5 + Math.floor(rnd() * 4);
+    mkt.fakeLeft = Math.max(mkt.fakeLeft, 2); // 刚变完盘, 别紧接着又洗盘
+  } else if (--mkt.fakeLeft <= 0) {
+    dir = -lastDir; // 假动作 (每 4~7 局): 诱多/诱空, 直接打断惯性
+    fake = true;
+    mkt.fakeLeft = 4 + Math.floor(rnd() * 4);
+  } else if (trending) {
+    dir = rnd() < 0.7 ? trendDir3 : -trendDir3;
+  } else {
+    dir = rnd() < 0.5 ? 1 : -1; // 震荡: 涨跌对半
+  }
+
+  // ③ 胜率修正 (只在真实下注时干预), 优先级: 新手保护 > 连胜/连输补救 > 全局回中
+  if (guessUp !== null) {
+    const guessDir = guessUp ? 1 : -1;
+    if (prog.guessTotal < 10) {
+      // 新手局: 前 10 局小幅利好, 胜率 ≈55%, 之后自动回归均衡
+      dir = rnd() < 0.55 ? guessDir : -guessDir;
+    } else if (guess.streak >= 3) {
+      dir = rnd() < 0.65 ? -guessDir : guessDir; // 连赢 3 局: 下一局 65% 反转 / 35% 继续让赢
+    } else if (guess.lossStreak >= 3) {
+      dir = rnd() < 0.65 ? guessDir : -guessDir; // 连输 3 局: 下一局 65% 送回 / 35% 继续压
+    } else {
+      const wr = recentWinRate();
+      if (wr !== null && Math.abs(wr - 0.5) > 0.015) {
+        // 偏差 3% 时拉力约 0.18, 偏差 6% 时约 0.54 —— 把各种玩家风格摁回 48%~52%
+        const pull = Math.min(0.9, (Math.abs(wr - 0.5) - 0.015) * 12);
+        if (rnd() < pull) {
+          dir = wr > 0.5 ? -guessDir : guessDir;
+        }
+      }
+    }
+  }
+
+  // ④ 极端抑制 (最高优先级): 长连 run 封顶、完美交替封顶
+  if (dir === mkt.runDir) {
+    if (mkt.runLen >= 7 || (mkt.runLen >= 5 && rnd() < 0.75)) dir = -dir;
+  } else if (mkt.altLen >= 6) {
+    dir = mkt.runDir || dir; // 已经天地板来回 6 次, 强制延续一根
+  }
+
+  // ⑤ 落 K 线: 假动作幅度更大一点 (突变感), 其余 0.3%~2.2%
+  const mag = (fake ? 0.008 : 0.003) + rnd() * (fake ? 0.022 : 0.019);
+  const open = price;
+  const close = Math.max(1, +(open * (1 + dir * mag)).toFixed(2));
+  const hi = +(Math.max(open, close) * (1 + rnd() * 0.006)).toFixed(2);
+  const lo = +(Math.min(open, close) * (1 - rnd() * 0.006)).toFixed(2);
+  const candle = { day: (last ? last.day : 0) + 1, open: +open.toFixed(2), close, high: hi, low: lo };
+
+  // 维护连根/交替计数
+  if (dir === mkt.runDir) { mkt.runLen++; mkt.altLen = 0; }
+  else { mkt.altLen = mkt.runDir === 0 ? 0 : mkt.altLen + 1; mkt.runDir = dir; mkt.runLen = 1; }
+
+  // 解说选池: 假动作 > 微幅震荡 > 方向话术 (揭晓后才显示, 不剧透)
+  candle.kind = fake ? "fake" : mag < 0.006 ? "chop" : dir > 0 ? "up" : "down";
+  guess.data.push(candle);
+  // 永续模式防内存无限涨: 只保留最近 120 根, 掐头并同步 visible 游标
+  if (guess.data.length > 120) {
+    const drop = guess.data.length - 120;
+    guess.data.splice(0, drop);
+    guess.visible -= drop;
+  }
+  return candle;
+}
+
+function newGuessRound(seedRnd) {
+  const rnd = seedRnd || mulberry32(Math.floor(Math.random() * 4294967295));
+  guess.data = [];
+  engineReset(rnd);
+  for (let i = 0; i < GUESS_WINDOW; i++) engineNext(null); // 铺可见历史, 走势自带惯性
   guess.visible = GUESS_WINDOW;
 }
 
 function refreshGuessChart() {
-  if (!guessChart) guessChart = echarts.init($("guess-chart"));
+  // 开局才显示图表 (空壳 300px 很难看); 容器刚解除 hidden 时必须 resize, 否则画布是 100px
+  const el = $("guess-chart");
+  const wasHidden = el.hidden;
+  el.hidden = false;
+  if (!guessChart) guessChart = echarts.init(el);
+  if (wasHidden) guessChart.resize();
   const from = Math.max(0, guess.visible - GUESS_WINDOW);
   const windowData = guess.data.slice(from, guess.visible).map((c, i) => ({ ...c, day: i + 1 }));
-  guessChart.setOption(buildKlineOption(windowData, windowData.length, false, null), true);
+  const opt = buildKlineOption(windowData, windowData.length, false, null);
+  // 右侧补一段"未来空位": 基准 K 线落在视野约 2/3 处而不是贴死右缘, 下一根有落点可想象
+  const FUTURE_SLOTS = 12;
+  const future = [];
+  for (let i = 0; i < FUTURE_SLOTS; i++) future.push(i === 0 ? "?" : "");
+  opt.xAxis.data = opt.xAxis.data.concat(future);
+  // 指示当前待猜的基准 K 线: 最后一根顶上挂「猜它的下一根」箭头标签
+  const lastIdx = windowData.length - 1;
+  const lastBar = windowData[lastIdx];
+  opt.series[0].markPoint = {
+    animation: false,
+    data: [{
+      coord: [lastIdx, lastBar.high],
+      value: t("guess.cursor"),
+      symbol: "arrow",
+      symbolSize: 14,
+      symbolRotate: 180,
+      symbolOffset: [0, -12],
+      itemStyle: { color: cssVar("--accent") },
+      label: { position: "top", distance: 10, color: cssVar("--accent"), fontSize: 12, fontWeight: 600 },
+    }],
+  };
+  guessChart.setOption(opt, true);
 }
 
 function refreshGuessStats() {
@@ -2316,7 +1333,7 @@ function refreshGuessStats() {
   $("guess-streak").textContent = String(guess.streak);
   $("guess-best").textContent = String(prog.bestStreak);
   $("guess-acc").textContent = prog.guessTotal > 0
-    ? fmtPct(prog.guessHit / prog.guessTotal)
+    ? ((prog.guessHit / prog.guessTotal) * 100).toFixed(1) + "%" // 命中率不带涨跌符号
     : "--";
 }
 
@@ -2326,11 +1343,17 @@ function startGuess() {
   guess.mode = "free";
   guess.score = 0;
   guess.streak = 0;
+  guess.lossStreak = 0;
   guess.shieldUsed = false;
   newGuessRound();
   refreshGuessChart();
   refreshGuessStats();
   $("btn-guess-start").hidden = true;
+  $("btn-guess-daily").hidden = true; // 对局中只留看涨/看跌一行, 别和大按钮挤在一起
+  $("btn-guess-rich").hidden = true;
+  $("rich-bar").hidden = true;
+  $("rich-wealth-wrap").hidden = true;
+  $("rich-best-wrap").hidden = true;
   $("btn-guess-up").hidden = false;
   $("btn-guess-down").hidden = false;
   $("guess-msg").textContent = t("guess.prompt");
@@ -2344,24 +1367,21 @@ function startDaily() {
     return;
   }
   const seed = Number(today.replace(/-/g, ""));
-  const rnd = mulberry32(seed ^ 0x51ab1e);
-  const segs = [];
-  for (let i = 0; i < 3; i++) {
-    segs.push({ days: 15, drift: (rnd() - 0.5) * 0.02, vol: 0.012 + rnd() * 0.02 });
-  }
-  guess.data = genCandles(seed, segs);
-  guess.visible = GUESS_WINDOW;
+  newGuessRound(mulberry32(seed ^ 0x51ab1e)); // 日期定种子: 当天初始走势全服一致
   guess.playing = true;
   guess.waiting = false;
   guess.mode = "daily";
   guess.dailyLeft = DAILY_GUESSES + (hasGear("coin") ? 2 : 0);
   guess.score = 0;
   guess.streak = 0;
+  guess.lossStreak = 0;
   guess.shieldUsed = false;
   refreshGuessChart();
   refreshGuessStats();
   $("btn-guess-start").hidden = true;
   $("btn-guess-daily").hidden = true;
+  $("btn-guess-rich").hidden = true;
+  $("rich-bar").hidden = true;
   $("btn-guess-up").hidden = false;
   $("btn-guess-down").hidden = false;
   $("guess-msg").textContent = t("guess.prompt") + " " + t("guess.dailyLeft", guess.dailyLeft);
@@ -2383,31 +1403,44 @@ function finishDaily(prefix) {
   $("btn-guess-down").hidden = true;
   $("btn-guess-start").hidden = false;
   $("btn-guess-daily").hidden = false;
+  $("btn-guess-rich").hidden = false;
 }
 
 function makeGuess(up) {
   if (!guess.playing || guess.waiting) return;
+  if (guess.mode === "rich" && !richStakeOk()) return; // 保证金不足, 不开这一注
   guess.waiting = true;
   const prev = guess.data[guess.visible - 1].close;
-  const next = guess.data[guess.visible];
+  const next = engineNext(up); // 猜完才生成下一根 (引擎含胜率回中与极端抑制)
   guess.visible++;
   refreshGuessChart();
   const wentUp = next.close > prev;
   const movePct = fmtPct((next.close - prev) / prev);
   const correct = up === wentUp;
   prog.guessTotal++;
-  let msg = t(wentUp ? "guess.wentUp" : "guess.wentDown", movePct) + " ";
+  // 近 100 局滚动战绩: 胜率回中的依据
+  prog.guessRecent = prog.guessRecent || [];
+  prog.guessRecent.push(correct ? 1 : 0);
+  if (prog.guessRecent.length > 100) prog.guessRecent.shift();
+  // 轻量化解说 (≤15字, 游戏风, 不构成任何投资建议)
+  const cmt = t("guess.cmt." + (next.kind || (wentUp ? "up" : "down")) + "." + Math.floor(Math.random() * 3));
+  let msg = t(wentUp ? "guess.wentUp" : "guess.wentDown", movePct) + "「" + cmt + "」 ";
   if (correct) {
     guess.streak++;
-    const pts = 10 + 2 * Math.min(guess.streak, 10) + (hasGear("finger") ? 5 : 0);
+    guess.lossStreak = 0;
+    const pts = guess.mode === "rich" ? 0
+      : 10 + 2 * Math.min(guess.streak, 10) + (hasGear("finger") ? 5 : 0);
     guess.score += pts;
     prog.guessHit++;
+    if (window.qsTask) qsTask("guessWin"); // 今日任务: 猜涨跌赢 3 把
     if (guess.streak > prog.bestStreak) prog.bestStreak = guess.streak;
     addXp(5);
     if (guess.streak >= 3) awardBadge("streak_3");
     if (guess.streak >= 10) awardBadge("streak_10");
     if (prog.guessHit >= 50) awardBadge("guess_50");
-    msg += t("guess.hit", pts) + (guess.streak >= 2 ? " " + t("guess.combo", guess.streak) : "");
+    msg += guess.mode === "rich"
+      ? settleRichBet(true) + (guess.streak >= 2 ? " " + t("guess.combo", guess.streak) : "")
+      : t("guess.hit", pts) + (guess.streak >= 2 ? " " + t("guess.combo", guess.streak) : "");
     replayAnim($("guess-score"), "anim-pop");
     replayAnim($("guess-streak"), "anim-pop");
     const card = document.querySelector(".guess-card");
@@ -2415,11 +1448,13 @@ function makeGuess(up) {
     if (guess.streak >= 3) spawnFloat(card, "combo-pop", t("guess.combo", guess.streak));
   } else if (hasGear("amulet") && !guess.shieldUsed) {
     guess.shieldUsed = true;
+    guess.lossStreak++;
     msg += t("gear.shielded");
     replayAnim($("guess-msg"), "anim-shake");
   } else {
     guess.streak = 0;
-    msg += t("guess.miss");
+    guess.lossStreak++;
+    msg += guess.mode === "rich" ? settleRichBet(false) : t("guess.miss");
     replayAnim($("guess-chart"), "anim-shake");
     replayAnim($("guess-msg"), "anim-shake");
   }
@@ -2427,6 +1462,14 @@ function makeGuess(up) {
   refreshGuessStats();
   checkGearUnlocks();
 
+  if (guess.mode === "rich") {
+    saveProg();
+    if (checkBankrupt()) {
+      $("guess-msg").textContent = msg + " " + t("rich.bankrupt");
+      guess.waiting = false;
+      return;
+    }
+  }
   if (guess.mode === "daily") {
     guess.dailyLeft--;
     if (guess.dailyLeft <= 0) {
@@ -2434,14 +1477,13 @@ function makeGuess(up) {
       return;
     }
     msg += " " + t("guess.dailyLeft", guess.dailyLeft);
-  } else if (guess.visible >= guess.data.length) {
-    newGuessRound();
-    refreshGuessChart();
-    msg += " " + t("guess.newRound");
   }
   $("guess-msg").textContent = msg;
   guess.waiting = false;
 }
+
+// 测试钩子: 冒烟/统计校验用, 只读 (不要在业务代码里依赖)
+window.qsGuessState = { guess, mkt };
 
 $("btn-guess-start").addEventListener("click", startGuess);
 $("btn-guess-daily").addEventListener("click", startDaily);
@@ -2457,6 +1499,7 @@ function renderProfile() {
   if (prog.titles.length) {
     const names = FAMOUS_LEVELS.concat(CASES)
       .concat((window.QUIZ_PERSONAS || []).map((p) => ({ award: p.name })))
+      .concat(window.CAREER_TITLES || []) // 生涯结局称号 (career.js 后加载, 同 QUIZ_PERSONAS 防顺序写法)
       .filter((l) => l.award && prog.titles.includes(l.award.zh)).map((l) => pick(l.award));
     titleEl.textContent = names.join(" · ");
     titleEl.hidden = false;
@@ -2497,6 +1540,7 @@ function renderProfile() {
   const allAwards = FAMOUS_LEVELS.map((l) => ({ level: l, kind: "famous" }))
     .concat(CASES.map((l) => ({ level: l, kind: "case" })))
     .concat((window.QUIZ_PERSONAS || []).map((p) => ({ level: { award: p.name, title: p.name }, kind: "quiz" })))
+    .concat((window.CAREER_TITLES || []).map((c) => ({ level: { award: c.award, title: c.award }, kind: "career" })))
     .filter((x) => x.level.award);
   titleList.innerHTML = "";
   let gotTitles = 0;
@@ -2589,57 +1633,85 @@ const TIMELINE_EVENTS = [
   { year: 2022, level: 12 },
 ];
 
+// 横向时间轴: 圆形节点 (通关发光/未通关灰/纯史料蓝灰), 悬停弹事件卡 (简介 + 声望/藏品奖励 + 进入挑战)
 function renderTimeline() {
-  const wrap = $("timeline");
-  if (!wrap) return;
-  wrap.innerHTML = "";
+  const rail = $("timeline");
+  if (!rail) return;
+  rail.innerHTML = "";
   TIMELINE_EVENTS.forEach((ev) => {
     const level = ev.level == null ? null : FAMOUS_LEVELS[ev.level];
     const done = level && prog.famous.includes(ev.level);
-    const item = document.createElement("div");
-    item.className = "tl-item" + (level ? " playable" : "") + (done ? " done" : "");
+    const node = document.createElement("div");
+    node.className = "tl-node" + (level ? " playable" : " info") + (done ? " done" : "");
+    node.tabIndex = 0;
     const dot = document.createElement("span");
-    dot.className = "tl-dot";
+    dot.className = "tl-dot2";
     const year = document.createElement("span");
-    year.className = "tl-year";
+    year.className = "tl-year2";
     year.textContent = ev.year;
-    const body = document.createElement("div");
-    body.className = "tl-body";
-    const title = document.createElement("div");
-    title.className = "tl-title";
-    title.textContent = level ? pick(level.title).replace(/^\d{4}\s*·\s*/, "") : pick(ev.title);
-    if (done) {
-      const badge = document.createElement("span");
-      badge.className = "tl-badge";
-      badge.textContent = t("tl.done");
-      title.appendChild(badge);
-    }
-    const blurb = document.createElement("p");
-    blurb.className = "tl-blurb";
-    blurb.textContent = pick(level ? level.desc : ev.blurb);
-    body.append(title, blurb);
-    if (level) {
-      const btn = document.createElement("button");
-      btn.className = (done ? "replay" : "primary") + " tl-btn";
-      btn.textContent = done ? t("academy.retry") : t("tl.play");
-      btn.addEventListener("click", () => openPlay("famous", ev.level));
-      body.appendChild(btn);
-    }
-    item.append(dot, year, body);
-    wrap.appendChild(item);
+    const name = document.createElement("span");
+    name.className = "tl-name";
+    name.textContent = level ? pick(level.title).replace(/^\d{4}\s*·\s*/, "") : pick(ev.title);
+    node.append(dot, year, name);
+    const show = () => showTlPop(node, ev, level, done);
+    node.addEventListener("mouseenter", show);
+    node.addEventListener("focus", show);
+    node.addEventListener("click", show); // 触屏: 点一下出卡, 卡内按钮进关
+    rail.appendChild(node);
   });
+  // 拖拽横向漫游 (滚轮纵向也转为横向)
+  if (!rail.dataset.dragBound) {
+    rail.dataset.dragBound = "1";
+    let down = false, sx = 0, sl = 0;
+    rail.addEventListener("pointerdown", (e) => { down = true; sx = e.clientX; sl = rail.scrollLeft; });
+    rail.addEventListener("pointermove", (e) => {
+      if (!down) return;
+      if (Math.abs(e.clientX - sx) > 6) rail.setPointerCapture(e.pointerId); // 阈值后再捕获, 不吃节点 click
+      rail.scrollLeft = sl - (e.clientX - sx);
+    });
+    const up = () => { down = false; };
+    rail.addEventListener("pointerup", up);
+    rail.addEventListener("pointercancel", up);
+    rail.addEventListener("wheel", (e) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { rail.scrollLeft += e.deltaY; e.preventDefault(); }
+    }, { passive: false });
+    // 鼠标离开整个轨道区才收卡
+    $("tl-rail-wrap").addEventListener("mouseleave", () => { $("tl-pop").hidden = true; });
+  }
+}
+
+function showTlPop(node, ev, level, done) {
+  const pop = $("tl-pop");
+  pop.innerHTML = "";
+  const title = document.createElement("b");
+  title.textContent = ev.year + " · " + (level ? pick(level.title).replace(/^\d{4}\s*·\s*/, "") : pick(ev.title));
+  const blurb = document.createElement("p");
+  blurb.className = "hint";
+  blurb.textContent = pick(level ? level.desc : ev.blurb);
+  pop.append(title, blurb);
+  if (level) {
+    // 奖励行: 声望 + 对应历史藏品 (relics.js 派生目录)
+    const relic = window.qsRelicOfLevel ? window.qsRelicOfLevel(ev.level) : null;
+    const reward = document.createElement("p");
+    reward.className = "tl-reward";
+    reward.textContent = t("tl.reward", 40) + (relic ? " · " + window.qsRelicName(relic) : "");
+    const btn = document.createElement("button");
+    btn.className = (done ? "replay" : "primary") + " small";
+    btn.textContent = done ? t("academy.retry") : t("tl.play");
+    btn.addEventListener("click", () => { pop.hidden = true; openPlay("famous", ev.level); });
+    pop.append(reward, btn);
+  }
+  pop.hidden = false;
+  // 跟随节点定位, 右缘防溢出
+  const wrapR = $("tl-rail-wrap").getBoundingClientRect();
+  const r = node.getBoundingClientRect();
+  pop.style.left = Math.max(4, Math.min(r.left - wrapR.left - 60, wrapR.width - 264)) + "px";
 }
 
 // ---------- 彩蛋 ----------
 
-function burstConfetti() {
-  if (REDUCED_MOTION) return;
-  const layer = document.createElement("div");
-  layer.className = "confetti-layer";
-  document.body.appendChild(layer);
-  spawnConfetti(layer);
-  setTimeout(() => layer.remove(), 3200);
-}
+// 全屏彩带 = 无参 spawnConfetti (app.js 统一实现), 保留旧名兼容本文件调用点
+const burstConfetti = () => spawnConfetti();
 
 // 彩蛋一: 对标题连点 7 次
 let titleClicks = 0;
@@ -2869,6 +1941,131 @@ $("guide-modal").addEventListener("click", (e) => {
   if (e.target === $("guide-modal")) closeGuide();
 });
 
+// ---------- 富豪场 (交易所·短线预判): 大额身家 + 高倍杠杆下注, 共用均衡引擎 ----------
+
+const rich = { stake: 100000, lev: 1 };
+const RICH_START = 1000000;
+const RICH_MIN_STAKE = 10000;
+
+function fmtWan(v) {
+  // 身家按「万」(zh) / 「k」(en) 展示, 富豪场的数字要有分量感。
+  // 不能用「除以一万再在译文里补 0k」的拼法: toLocaleString 的千分位逗号/小数
+  // 会把补出来的 0 拼坏 (如 1 亿 → "10,0000k")。
+  if (LANG === "en") {
+    return (v / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 }) + "k";
+  }
+  return (v / 10000).toLocaleString("zh-CN", { maximumFractionDigits: 1 }) + " 万";
+}
+
+function refreshRichStats() {
+  $("rich-wealth").textContent = fmtWan(prog.wealth);
+  $("rich-best").textContent = fmtWan(prog.wealthBest);
+}
+
+function startRich() {
+  guess.playing = true;
+  guess.waiting = false;
+  guess.mode = "rich";
+  guess.score = 0;
+  guess.streak = 0;
+  guess.lossStreak = 0;
+  guess.shieldUsed = false;
+  newGuessRound();
+  refreshGuessChart();
+  refreshGuessStats();
+  refreshRichStats();
+  $("rich-wealth-wrap").hidden = false;
+  $("rich-best-wrap").hidden = false;
+  $("rich-bar").hidden = false;
+  $("btn-guess-start").hidden = true;
+  $("btn-guess-daily").hidden = true;
+  $("btn-guess-rich").hidden = true;
+  $("btn-rich-exit").hidden = false;
+  $("btn-guess-up").hidden = false;
+  $("btn-guess-down").hidden = false;
+  $("guess-msg").textContent = t("rich.prompt");
+}
+
+function exitRich() {
+  guess.playing = false;
+  guess.mode = "free";
+  $("rich-bar").hidden = true;
+  $("btn-rich-exit").hidden = true;
+  $("btn-rich-reborn").hidden = true;
+  $("btn-guess-up").hidden = true;
+  $("btn-guess-down").hidden = true;
+  $("btn-guess-start").hidden = false;
+  $("btn-guess-daily").hidden = false;
+  $("btn-guess-rich").hidden = false;
+  $("guess-msg").textContent = t("rich.exited", fmtWan(prog.wealth));
+}
+
+/** 破产判定: 连最小注 ×1 都下不起就算出局, 给重生按钮。 */
+function checkBankrupt() {
+  if (prog.wealth >= RICH_MIN_STAKE) return false;
+  guess.playing = false;
+  $("btn-guess-up").hidden = true;
+  $("btn-guess-down").hidden = true;
+  $("btn-rich-reborn").hidden = false;
+  $("guess-msg").textContent = t("rich.bankrupt");
+  return true;
+}
+
+function richReborn() {
+  prog.wealth = RICH_START;
+  saveProg();
+  awardBadge("rich_reborn");
+  $("btn-rich-reborn").hidden = true;
+  refreshRichStats();
+  guess.playing = true;
+  guess.streak = 0;
+  guess.lossStreak = 0;
+  $("btn-guess-up").hidden = false;
+  $("btn-guess-down").hidden = false;
+  $("guess-msg").textContent = t("rich.rebornOk", fmtWan(RICH_START));
+}
+
+/** 富豪场结算一注: 返回展示文案; 保证金 = 注金×杠杆, 不足时拒单。 */
+function settleRichBet(correct) {
+  const stakeRaw = rich.stake === -1 ? Math.floor(prog.wealth / rich.lev) : rich.stake;
+  const exposure = stakeRaw * rich.lev;
+  const delta = correct ? exposure : -exposure;
+  prog.wealth = Math.max(0, prog.wealth + delta);
+  if (prog.wealth > prog.wealthBest) prog.wealthBest = prog.wealth;
+  if (prog.wealth >= RICH_START * 2) awardBadge("rich_double");
+  if (correct && guess.streak >= 5) awardBadge("rich_streak5");
+  refreshRichStats();
+  const card = document.querySelector(".guess-card");
+  spawnFloat(card, "score-pop " + (correct ? "pos" : "neg"), (correct ? "+" : "-") + fmtWan(exposure));
+  return t(correct ? "rich.win" : "rich.lose", fmtWan(exposure), fmtWan(prog.wealth));
+}
+
+/** 下注前校验保证金, 不足返回 false 并提示。 */
+function richStakeOk() {
+  const stakeRaw = rich.stake === -1 ? Math.floor(prog.wealth / rich.lev) : rich.stake;
+  if (stakeRaw < RICH_MIN_STAKE || stakeRaw * rich.lev > prog.wealth) {
+    toast(t("rich.noMargin", fmtWan(prog.wealth)));
+    return false;
+  }
+  return true;
+}
+
+document.querySelectorAll(".rich-stake").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    rich.stake = Number(btn.dataset.stake);
+    document.querySelectorAll(".rich-stake").forEach((b) => b.classList.toggle("active", b === btn));
+  });
+});
+document.querySelectorAll(".rich-lev").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    rich.lev = Number(btn.dataset.lev);
+    document.querySelectorAll(".rich-lev").forEach((b) => b.classList.toggle("active", b === btn));
+  });
+});
+$("btn-guess-rich").addEventListener("click", startRich);
+$("btn-rich-exit").addEventListener("click", exitRich);
+$("btn-rich-reborn").addEventListener("click", richReborn);
+
 // ---------- 期权入门沙盒: 欧式期权 BS 定价 + 到期损益曲线 ----------
 
 (() => {
@@ -2974,6 +2171,14 @@ document.addEventListener("qs:aiStreak", (e) => {
 
 // 上赛季颁奖台徽章 (ranking.js 派发名次)
 document.addEventListener("qs:seasonPodium", () => awardBadge("season_podium"));
+
+// 重生逆袭结算 (reborn.js 派发称号档位)
+document.addEventListener("qs:rebornTier", (e) => {
+  const tier = e.detail;
+  if (tier === "tycoon") awardBadge("reborn_tycoon");
+  if (tier === "tycoon" || tier === "magnate" || tier === "boss") awardBadge("reborn_boss");
+  addXp(tier === "tycoon" ? 80 : 40);
+});
 
 // 视图切换时图表重算尺寸 (隐藏容器中初始化尺寸为 0)
 document.addEventListener("qs:view", (e) => {

@@ -19,9 +19,10 @@ public final class BlindDates {
 
     private BlindDates() {}
 
-    /** 该对局是否需要隐藏真实日期。 */
+    /** 该对局是否需要隐藏真实日期。EVENT (事件回放) 盲测是玩法本体, 同样全程脱敏。 */
     public static boolean blind(GameSession session) {
-        return "DAILY".equals(session.getMode()) || "ROOM".equals(session.getMode());
+        return "DAILY".equals(session.getMode()) || "ROOM".equals(session.getMode())
+                || "EVENT".equals(session.getMode());
     }
 
     /** 竞技模式把 d 平移到虚拟纪元 (startDate -> BASE), 普通模式原样返回。 */
@@ -40,9 +41,22 @@ public final class BlindDates {
     public static final String MASK_CODE = "???";
     public static final String MASK_NAME = "神秘标的";
 
-    /** 进行中的竞技对局隐藏标的代码。 */
+    /** 进行中的竞技对局隐藏标的代码; 已结算揭晓时剥掉事件场景行情的内部后缀
+     *  ("600519@CN_2015_CRASH" -> "600519"), 内部命名不对用户暴露。 */
     public static String maskCode(GameSession session, String code) {
-        return hideStock(session) ? MASK_CODE : code;
+        if (hideStock(session)) {
+            return MASK_CODE;
+        }
+        return stripScenario(code);
+    }
+
+    /** 事件场景行情的复合代码剥后缀; 普通代码原样返回。 */
+    public static String stripScenario(String code) {
+        if (code == null) {
+            return null;
+        }
+        int at = code.indexOf('@');
+        return at > 0 ? code.substring(0, at) : code;
     }
 
     /** 进行中的竞技对局隐藏标的名称。 */

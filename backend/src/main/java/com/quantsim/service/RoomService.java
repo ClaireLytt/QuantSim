@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,10 +53,14 @@ public class RoomService {
     private final GameProperties props;
 
     @Transactional
-    public RoomView create(Long userId, String market, String aiLevel) {
+    public RoomView create(Long userId, String market, String aiLevel, boolean realRules) {
         AiLevel level = aiLevel == null || aiLevel.isBlank()
                 ? AiLevel.NORMAL : parseAiLevel(aiLevel);
         Market m = market == null || market.isBlank() ? null : parseMarket(market);
+        // 与 GameService.startGame 同口径: 真实规则 (T+1/涨跌停) 只对 A股有意义
+        if (realRules && m != Market.STOCK) {
+            throw new BusinessException("真实规则仅支持 A股市场, 请先选择 A股");
+        }
 
         long[] pick = gameService.pickDeterministic(m, ThreadLocalRandom.current());
         LocalDate startDate = marketData.load(pick[0]).prices().get((int) pick[1]).getTradeDate();
@@ -67,6 +70,7 @@ public class RoomService {
         room.setStockId(pick[0]);
         room.setStartDate(startDate);
         room.setAiLevel(level.name());
+        room.setRealRules(realRules);
         room.setExpiresAt(LocalDateTime.now().plusHours(EXPIRE_HOURS));
         room = saveWithUniqueCode(room);
 
@@ -107,6 +111,8 @@ public class RoomService {
         room.setStockId(session.getStockId());
         room.setStartDate(session.getStartDate());
         room.setAiLevel(level.name());
+        // 继承源对局的真实规则: 发起者的成绩是按这套规则打出来的, 挑战者必须同规则
+        room.setRealRules(session.isRealRules());
         room.setExpiresAt(LocalDateTime.now().plusHours(EXPIRE_HOURS));
         room = saveWithUniqueCode(room);
 
@@ -120,11 +126,13 @@ public class RoomService {
 
     private Room saveWithUniqueCode(Room room) {
         for (int attempt = 0; attempt < 5; attempt++) {
-            room.setCode(randomCode());
-            try {
-                return roomRepository.saveAndFlush(room);
-            } catch (DataIntegrityViolationException e) {
-                // 房间码撞唯一约束, 换一个再试
+            String code = randomCode();
+            // INSERT IGNORE: 撞码返回 0 行而不是抛唯一键冲突, 事务保持干净, 换码重试即可
+            int inserted = roomRepository.insertIgnore(code, room.getCreatorUserId(), room.getStockId(),
+                    room.getStartDate(), room.getAiLevel(), room.getMaxPlayers(), room.isRealRules(),
+                    room.getExpiresAt());
+            if (inserted > 0) {
+                return roomRepository.findByCode(code).orElseThrow();
             }
         }
         throw new BusinessException("房间码生成失败, 请重试");
@@ -177,7 +185,7 @@ public class RoomService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
         StartGameResponse res = gameService.startGameAt(user, room.getStockId(), room.getStartDate(),
-                parseAiLevel(room.getAiLevel()), "ROOM", null);
+                parseAiLevel(room.getAiLevel()), "ROOM", room.isRealRules(), null);
         member.setSessionId(res.sessionId());
         memberRepository.save(member);
         return res;
@@ -234,6 +242,7 @@ public class RoomService {
                 settledRoom ? stock.getName() : BlindDates.MASK_NAME,
                 settledRoom ? stock.getCode() : BlindDates.MASK_CODE,
                 room.getAiLevel(),
+                room.isRealRules(),
                 members.size(), room.getMaxPlayers(), room.getExpiresAt(),
                 joined, mySessionId, mySettled, standings);
     }
