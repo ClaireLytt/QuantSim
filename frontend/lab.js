@@ -1141,6 +1141,9 @@ document.addEventListener("qs:lang", renderLabWeekly);
 const LAB_GUIDE_KEY = "qs_lab_guide";
 
 function maybeShowLabGuide() {
+  // 新手引导会 switchView 路过研究所: 此时弹窗被 tour 遮罩压住, 引导结束后
+  // 它会凭空留在屏上挡住全页 (真实用户和冒烟都踩过), 等用户自己再进来时再弹
+  if (!$("tour-mask").hidden) return;
   try {
     if (localStorage.getItem(LAB_GUIDE_KEY)) return;
   } catch (e) { return; }

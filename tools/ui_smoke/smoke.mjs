@@ -88,6 +88,9 @@ await step("首页加载 (过登录门禁 + 首访弹层)", async () => {
 });
 
 await step("新手引导 10 步走完", async () => {
+  // 默认视图是首页 (home), 「新手引导」按钮在对局视图的开局卡片里, 先切过去
+  await page.click('#nav-groups .nav-group[data-group="play"]');
+  await page.waitForTimeout(250);
   await page.click("#btn-tour");
   await page.waitForSelector("#tour-pop", { state: "visible", timeout: 5000 });
   for (let i = 0; i < 12 && await page.isVisible("#tour-pop"); i++) {
@@ -98,18 +101,27 @@ await step("新手引导 10 步走完", async () => {
 });
 
 await step("遍历全部导航视图与子标签", async () => {
+  // 首次进研究所会弹 3 步引导 (lab-guide-modal 全屏遮罩), 不关掉会挡死后续一切点击
+  const dismissLabGuide = async () => {
+    if (await page.isVisible("#lab-guide-modal")) {
+      await page.click("#btn-lab-guide-skip");
+      await page.waitForTimeout(200);
+    }
+  };
   // 子标签每次切视图都整体重建 (innerHTML 重写), 不能复用 locator 句柄,
   // 用 data-view 值逐个重新定位
   const groupCount = await page.locator("#nav-groups .nav-group").count();
   for (let i = 0; i < groupCount; i++) {
     await page.locator("#nav-groups .nav-group").nth(i).click();
     await page.waitForTimeout(250);
+    await dismissLabGuide();
     // 单视图组的子标签条整体 hidden (无需点击); 只遍历可见 tab
     const views = await page.$$eval("#nav-subtabs .nav-tab",
       (els) => els.filter((e) => e.offsetParent !== null).map((e) => e.dataset.view));
     for (const v of views) {
       await page.click(`#nav-subtabs .nav-tab[data-view="${v}"]`, { timeout: 5000 });
       await page.waitForTimeout(200);
+      await dismissLabGuide();
     }
   }
   // 回到对局组, 为后续步骤定位
@@ -191,9 +203,8 @@ await step("重生逆袭: 开局→打工→过年", async () => {
     await page.click("#btn-header-fold");
     await page.waitForTimeout(200);
   }
-  await page.click('#nav-groups .nav-group[data-group="learn"]');
-  await page.waitForTimeout(250);
-  await page.click('#nav-subtabs .nav-tab[data-view="reborn"]');
+  // 重生已内化为 extra 组 (无导航页签, 从学堂任务卡/首页推荐进入), 冒烟只验玩法, 直达视图
+  await page.evaluate(() => switchView("reborn"));
   await page.waitForTimeout(250);
   // 新 context 无存档, 应停在开局页
   if (await page.isVisible("#rb-intro")) await page.click("#btn-rb-start");
