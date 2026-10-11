@@ -177,6 +177,7 @@
     $("rb-year").textContent = Math.min(rb.year, rb.maxYears) + " / " + rb.maxYears;
     $("rb-ap").textContent = rb.jail ? "⛓️" : String(rb.ap);
     $("rb-cash").textContent = rb.cash.toLocaleString();
+    if (window.qsRep) $("rb-rep").textContent = String(window.qsRep()); // 总声望 (relics.js 派生)
     $("rb-rent").textContent = rentPerYear().toLocaleString();
     $("rb-worth").textContent = worth().toLocaleString();
     $("rb-career").textContent = t("rb.career." + rb.career);
@@ -218,6 +219,9 @@
       box.appendChild(chip);
     });
   }
+
+  // 状态栏藏品入口: 直达历史藏品档案馆
+  $("btn-rb-relics").addEventListener("click", () => switchView("relics"));
 
   // 开局页: 生涯最佳 + 名人堂 (最近 10 世)
   function renderIntro() {
@@ -308,7 +312,11 @@
     // 名人堂与生涯最佳
     hall.unshift({ tier: tier.id, worth: w, persona: personaKey, destinyOk });
     hall = hall.slice(0, 10);
+    // 声望/藏品里程碑: 首次跨过 100万/1000万 身家 (relics.js 按 best 派生, 这里只负责报喜)
+    const prevBest = best ? best.worth : 0;
     if (!best || w > best.worth) best = { tier: tier.id, worth: w };
+    if (prevBest < 1000000 && w >= 1000000) toast(t("role.repGain", 30));
+    if (prevBest < 10000000 && w >= 10000000) toast(t("role.relicGain", t("relic.rich.n")));
     $("btn-rb-restart").hidden = false;
     document.dispatchEvent(new CustomEvent("qs:rebornTier", { detail: tier.id }));
     renderGifts(); // 本世结束, 礼包重新可买

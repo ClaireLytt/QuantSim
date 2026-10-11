@@ -229,6 +229,7 @@
     try {
       await api("/backtest/run", { method: "POST", body: JSON.stringify(await buildBody(false)) });
       toast(t("duel.build.entered"));
+      document.dispatchEvent(new CustomEvent("qs:duelSubmit")); // 桌宠里程碑: 提交策略上擂台
       playSound("win");
       showBoard();
       loadBoard();
@@ -394,7 +395,35 @@
   });
   $("btn-duel-history").addEventListener("click", () => switchView("ranking"));
 
+  // ---------- 竞技场右侧迷你擂台榜: TOP3 策略名 + 综合分, 点击去擂台 ----------
+  async function renderArenaTop3() {
+    const box = $("arena-top3");
+    try {
+      const raw = await api("/backtest/leaderboard");
+      const top = qsCompositeScores(raw).sort((a, b) => b.score - a.score).slice(0, 3);
+      box.hidden = !top.length;
+      if (!top.length) return;
+      const ul = $("arena-top3-list");
+      ul.innerHTML = "";
+      top.forEach((e, i) => {
+        const li = document.createElement("li");
+        const rank = document.createElement("i");
+        rank.textContent = "#" + (i + 1);
+        const name = document.createElement("span");
+        name.textContent = t("strat." + e.strategy); // 策略名是本地枚举文案
+        const score = document.createElement("b");
+        score.textContent = String(e.score);
+        li.append(rank, name, score);
+        ul.appendChild(li);
+      });
+    } catch (e) {
+      box.hidden = true; // 后端未起/无数据: 侧卡整体消失, 不留空壳
+    }
+  }
+  $("btn-arena-top3-go").addEventListener("click", () => switchView("duel"));
+
   document.addEventListener("qs:view", (e) => {
+    if (e.detail === "arena") renderArenaTop3();
     if (e.detail === "duel") {
       loadBoard();
       renderCountdown();

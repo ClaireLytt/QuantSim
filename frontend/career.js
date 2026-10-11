@@ -247,6 +247,10 @@
 
   const currentStep = () => STEPS.find((s) => !car.done.includes(s.id)) || null;
 
+  // 已完成章数 (0-5): 声望系统据此计分 (relics.js 读取, 防加载顺序挂 window)
+  window.qsCareerChapters = () =>
+    CAREER.filter((ch) => ch.steps.every((s) => car.done.includes(s.id))).length;
+
   function effective(step) {
     // 应用抉择分支: variants 按 flag 覆盖 goal/when
     if (step.variantKey && step.variants) {

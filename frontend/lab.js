@@ -893,9 +893,9 @@ function renderLabRecent() {
   const box = $("lab-recent");
   const list = loadLabRecent();
   const reports = loadLabReports();
-  box.hidden = !list.length && !reports.length;
+  $("lab-recent-wrap").hidden = !list.length && !reports.length;
   box.innerHTML = "";
-  if (box.hidden) return;
+  if ($("lab-recent-wrap").hidden) return;
   if (list.length) {
     const label = document.createElement("span");
     label.textContent = t("lab.recent");
@@ -915,7 +915,21 @@ function renderLabRecent() {
     rep.addEventListener("click", openLabReports);
     box.appendChild(rep);
   }
+  syncRecentArrows();
 }
+
+// 胶囊栏溢出时才显示左右滚动箭头 (规格要求; 通常 3+1 个 chip 不会溢出, 窄屏才触发)
+function syncRecentArrows() {
+  const box = $("lab-recent");
+  const over = box.scrollWidth > box.clientWidth + 4;
+  $("lab-rec-prev").hidden = !over;
+  $("lab-rec-next").hidden = !over;
+  $("lab-rec-prev").setAttribute("aria-label", t("lab.rec.prev"));
+  $("lab-rec-next").setAttribute("aria-label", t("lab.rec.next"));
+}
+$("lab-rec-prev").addEventListener("click", () => { $("lab-recent").scrollBy({ left: -160, behavior: "smooth" }); });
+$("lab-rec-next").addEventListener("click", () => { $("lab-recent").scrollBy({ left: 160, behavior: "smooth" }); });
+window.addEventListener("resize", syncRecentArrows);
 
 // ---------- 已体验标记: 打开过的实验卡右上角打勾 ----------
 
@@ -1000,6 +1014,7 @@ function saveLabReport(blockId) {
   try { localStorage.setItem(LAB_REPORTS_KEY, JSON.stringify(reports.slice(0, 20))); } catch (e) { /* 忽略 */ }
   toast(t("lab.cta.saved"));
   renderLabRecent(); // 报告数角标跟着变
+  document.dispatchEvent(new CustomEvent("qs:labReport")); // 桌宠"策略报告"任务埋点
 }
 
 function goPractice(blockId) {

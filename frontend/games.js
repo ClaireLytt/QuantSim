@@ -1,14 +1,16 @@
 // 小游戏专区: 六个量化小游戏的聚合入口, 左下研究积分面板, 底部回研究所。
 // 依赖 app.js 的 $ / switchView, auth.js 的 Auth, i18n 的 t。
 (() => {
-  document.querySelectorAll(".gz-card").forEach((card) => {
+  document.querySelectorAll(".gz-card").forEach(bindGoto);
+  document.querySelectorAll(".gz-link").forEach(bindGoto);
+  function bindGoto(card) {
     card.addEventListener("click", () => {
       const view = card.dataset.goto;
       switchView(view);
       // 幸存者陷阱: 进量化侦探后直达第三案
       if (card.dataset.case && window.qsOpenCase) qsOpenCase(card.dataset.case);
     });
-  });
+  }
 
   // 研究积分面板: 登录读服务端余额, 游客提示登录解锁
   async function renderPoints() {

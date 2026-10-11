@@ -1633,45 +1633,79 @@ const TIMELINE_EVENTS = [
   { year: 2022, level: 12 },
 ];
 
+// 横向时间轴: 圆形节点 (通关发光/未通关灰/纯史料蓝灰), 悬停弹事件卡 (简介 + 声望/藏品奖励 + 进入挑战)
 function renderTimeline() {
-  const wrap = $("timeline");
-  if (!wrap) return;
-  wrap.innerHTML = "";
+  const rail = $("timeline");
+  if (!rail) return;
+  rail.innerHTML = "";
   TIMELINE_EVENTS.forEach((ev) => {
     const level = ev.level == null ? null : FAMOUS_LEVELS[ev.level];
     const done = level && prog.famous.includes(ev.level);
-    const item = document.createElement("div");
-    item.className = "tl-item" + (level ? " playable" : "") + (done ? " done" : "");
+    const node = document.createElement("div");
+    node.className = "tl-node" + (level ? " playable" : " info") + (done ? " done" : "");
+    node.tabIndex = 0;
     const dot = document.createElement("span");
-    dot.className = "tl-dot";
+    dot.className = "tl-dot2";
     const year = document.createElement("span");
-    year.className = "tl-year";
+    year.className = "tl-year2";
     year.textContent = ev.year;
-    const body = document.createElement("div");
-    body.className = "tl-body";
-    const title = document.createElement("div");
-    title.className = "tl-title";
-    title.textContent = level ? pick(level.title).replace(/^\d{4}\s*·\s*/, "") : pick(ev.title);
-    if (done) {
-      const badge = document.createElement("span");
-      badge.className = "tl-badge";
-      badge.textContent = t("tl.done");
-      title.appendChild(badge);
-    }
-    const blurb = document.createElement("p");
-    blurb.className = "tl-blurb";
-    blurb.textContent = pick(level ? level.desc : ev.blurb);
-    body.append(title, blurb);
-    if (level) {
-      const btn = document.createElement("button");
-      btn.className = (done ? "replay" : "primary") + " tl-btn";
-      btn.textContent = done ? t("academy.retry") : t("tl.play");
-      btn.addEventListener("click", () => openPlay("famous", ev.level));
-      body.appendChild(btn);
-    }
-    item.append(dot, year, body);
-    wrap.appendChild(item);
+    const name = document.createElement("span");
+    name.className = "tl-name";
+    name.textContent = level ? pick(level.title).replace(/^\d{4}\s*·\s*/, "") : pick(ev.title);
+    node.append(dot, year, name);
+    const show = () => showTlPop(node, ev, level, done);
+    node.addEventListener("mouseenter", show);
+    node.addEventListener("focus", show);
+    node.addEventListener("click", show); // 触屏: 点一下出卡, 卡内按钮进关
+    rail.appendChild(node);
   });
+  // 拖拽横向漫游 (滚轮纵向也转为横向)
+  if (!rail.dataset.dragBound) {
+    rail.dataset.dragBound = "1";
+    let down = false, sx = 0, sl = 0;
+    rail.addEventListener("pointerdown", (e) => { down = true; sx = e.clientX; sl = rail.scrollLeft; });
+    rail.addEventListener("pointermove", (e) => {
+      if (!down) return;
+      if (Math.abs(e.clientX - sx) > 6) rail.setPointerCapture(e.pointerId); // 阈值后再捕获, 不吃节点 click
+      rail.scrollLeft = sl - (e.clientX - sx);
+    });
+    const up = () => { down = false; };
+    rail.addEventListener("pointerup", up);
+    rail.addEventListener("pointercancel", up);
+    rail.addEventListener("wheel", (e) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { rail.scrollLeft += e.deltaY; e.preventDefault(); }
+    }, { passive: false });
+    // 鼠标离开整个轨道区才收卡
+    $("tl-rail-wrap").addEventListener("mouseleave", () => { $("tl-pop").hidden = true; });
+  }
+}
+
+function showTlPop(node, ev, level, done) {
+  const pop = $("tl-pop");
+  pop.innerHTML = "";
+  const title = document.createElement("b");
+  title.textContent = ev.year + " · " + (level ? pick(level.title).replace(/^\d{4}\s*·\s*/, "") : pick(ev.title));
+  const blurb = document.createElement("p");
+  blurb.className = "hint";
+  blurb.textContent = pick(level ? level.desc : ev.blurb);
+  pop.append(title, blurb);
+  if (level) {
+    // 奖励行: 声望 + 对应历史藏品 (relics.js 派生目录)
+    const relic = window.qsRelicOfLevel ? window.qsRelicOfLevel(ev.level) : null;
+    const reward = document.createElement("p");
+    reward.className = "tl-reward";
+    reward.textContent = t("tl.reward", 40) + (relic ? " · " + window.qsRelicName(relic) : "");
+    const btn = document.createElement("button");
+    btn.className = (done ? "replay" : "primary") + " small";
+    btn.textContent = done ? t("academy.retry") : t("tl.play");
+    btn.addEventListener("click", () => { pop.hidden = true; openPlay("famous", ev.level); });
+    pop.append(reward, btn);
+  }
+  pop.hidden = false;
+  // 跟随节点定位, 右缘防溢出
+  const wrapR = $("tl-rail-wrap").getBoundingClientRect();
+  const r = node.getBoundingClientRect();
+  pop.style.left = Math.max(4, Math.min(r.left - wrapR.left - 60, wrapR.width - 264)) + "px";
 }
 
 // ---------- 彩蛋 ----------

@@ -2121,11 +2121,15 @@ async function runTune() {
 
 function renderBacktestResult(res) {
   state.lastBt = res;
-  // 回测完成信号 (生涯任务等订阅)
+  // 回测完成信号 (生涯任务/桌宠里程碑订阅); overfit = 样本内赚样本外亏, 过拟合预警时刻
+  const overfit = res.inSampleReturn != null && res.outSampleReturn != null
+    && Number(res.inSampleReturn) > 0 && Number(res.outSampleReturn) < 0;
   document.dispatchEvent(new CustomEvent("qs:backtest", {
-    detail: { strategy: res.strategy, totalReturn: Number(res.totalReturn), maxDrawdown: Number(res.maxDrawdown) },
+    detail: { strategy: res.strategy, totalReturn: Number(res.totalReturn),
+      maxDrawdown: Number(res.maxDrawdown), overfit },
   }));
   $("bt-result").hidden = false;
+  $("bt-skeleton").hidden = true; // 骨架占位只在首次出结果前存在
   $("bt-title").textContent = `${stockName(res.stockName, res.stockCode)} (${res.stockCode}) · ${t("strat." + res.strategy)}` +
     (res.params ? ` [${res.params}]` : "");
   $("bt-range").textContent = `${res.startDate} ~ ${res.endDate}`;
@@ -2340,9 +2344,13 @@ const NAV_GROUPS = {
   home: ["home"],
   play: ["game", "daily", "event", "rooms"],
   arenaG: ["arena", "duel", "ranking"],
-  learn: ["academy", "wiki", "games", "guess", "famous", "story", "quiz", "option", "tape", "reborn", "bubble", "newsjudge", "richman", "buydip", "stratbox", "qdetect"],
+  // 学堂 = 金融纪元大世界: 仅 4 个页签 (主线/行者档案/藏品馆/训练场), 旧小游戏不再独立设卡
+  learn: ["academy", "profile", "relics", "games"],
   labG: ["lab"],
-  me: ["mine", "career", "profile", "history", "account"],
+  me: ["mine", "career", "history", "account"],
+  // extra: 无导航入口但仍是合法视图 (章节任务/训练场/首页卡片经 switchView 进入)
+  extra: ["wiki", "guess", "famous", "story", "quiz", "option", "tape", "reborn", "bubble",
+    "newsjudge", "richman", "buydip", "stratbox", "qdetect"],
 };
 const VIEWS = Object.values(NAV_GROUPS).flat();
 const VIEW_GROUP = {};
@@ -2352,7 +2360,8 @@ let currentView = "home";
 
 function renderSubtabs(group, active) {
   const wrap = $("nav-subtabs");
-  const views = NAV_GROUPS[group] || [];
+  // extra 组 = 无导航的内化视图 (大世界任务直达), 不渲染子页签, 否则旧入口又复活了
+  const views = group === "extra" ? [] : (NAV_GROUPS[group] || []);
   wrap.hidden = views.length <= 1;
   wrap.innerHTML = "";
   views.forEach((v) => {

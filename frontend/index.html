@@ -14,7 +14,7 @@
     } catch (e) { /* no-op */ }
   </script>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=20261009b">
+  <link rel="stylesheet" href="style.css?v=20261009v">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -269,7 +269,7 @@
 
   <div id="view-arena" hidden>
   <section class="arena-panel center-panel arena-center">
-    <h2><span data-i18n="arena.title">策略回测竞技场</span> <span class="sub" data-i18n="arena.sub">用经典量化策略在整段历史行情上一决高下</span></h2>
+    <h2><span data-i18n="arena.title">策略回测竞技场</span> <span class="sub" data-i18n="arena.sub">调参回测你的量化策略，提交擂台同台 PK</span></h2>
     <div class="arena-config card">
       <label><span data-i18n="arena.stock">股票</span>
         <select id="bt-stock"></select>
@@ -341,14 +341,44 @@
           <button type="button" class="ghost small" id="btn-add-sell" data-i18n="arena.addCond">+ 添加条件</button>
         </div>
       </div>
-      <button id="btn-backtest" class="primary" data-i18n="arena.run">运行回测</button>
-      <button id="btn-tune" class="ghost" data-i18n="arena.tune">自动调参</button>
-      <button id="btn-code-copy" class="ghost" data-i18n="code.copy">复制策略码</button>
-      <button id="btn-code-import" class="ghost" data-i18n="code.import">导入策略码</button>
-      <label class="adv-wrap"><input type="checkbox" id="bt-compare"> <span data-i18n="arena.compare">叠加上次曲线</span></label>
-      <p class="hint" id="bt-strategy-desc"></p>
+      <div class="arena-run-row">
+        <button id="btn-backtest" class="primary big arena-run" data-i18n="arena.run">运行回测</button>
+      </div>
+      <div class="arena-ops">
+        <button id="btn-tune" class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6.5a4 4 0 0 0-5.3 5L4 16.7V20h3.3l5.2-5.2a4 4 0 0 0 5-5.3l-2.7 2.7-2.3-2.3z"/></svg><span data-i18n="arena.tune">自动调参</span></button>
+        <button id="btn-code-copy" class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span data-i18n="code.copy">复制策略码</span></button>
+        <button id="btn-code-import" class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10"/><path d="M8 10l4 4 4-4"/><path d="M4 18h16"/></svg><span data-i18n="code.import">导入策略码</span></button>
+      </div>
+      <p class="hint arena-desc"><span class="arena-info" data-i18n-title="arena.descTip" title="玩法说明随所选策略变化"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.8" fill="currentColor"/></svg></span><span id="bt-strategy-desc"></span></p>
       <p class="hint" id="bt-tune-msg" hidden></p>
     </div>
+
+    <!-- 回测结果预览区: 未运行时骨架占位, 结果出来后隐藏; 叠加复选框常驻预览区左上 -->
+    <div class="arena-preview-head">
+      <label class="adv-wrap"><input type="checkbox" id="bt-compare"> <span data-i18n="arena.compare">叠加上次曲线</span></label>
+    </div>
+    <div id="bt-skeleton" class="card arena-skeleton">
+      <svg viewBox="0 0 600 160" fill="none" aria-hidden="true" class="arena-skel-chart">
+        <g stroke-dasharray="4 7" stroke-width="1.5">
+          <line x1="20" y1="40" x2="580" y2="40" class="skel-grid"/>
+          <line x1="20" y1="80" x2="580" y2="80" class="skel-grid"/>
+          <line x1="20" y1="120" x2="580" y2="120" class="skel-grid"/>
+        </g>
+        <path d="M30 130 C 120 120, 170 70, 260 86 S 410 110, 470 56 S 540 30, 580 24" class="skel-curve" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 8"/>
+      </svg>
+      <div class="arena-skel-cards">
+        <div class="arena-skel-card"><span class="hint" data-i18n="bt.annual">年化收益</span><b>--</b></div>
+        <div class="arena-skel-card"><span class="hint" data-i18n="bt.drawdown">最大回撤</span><b>--</b></div>
+        <div class="arena-skel-card"><span class="hint" data-i18n="bt.sharpe">夏普比率</span><b>--</b></div>
+      </div>
+      <p class="hint arena-skel-hint" data-i18n="arena.skelHint">点击「运行回测」生成策略曲线，结果可提交擂台 PK</p>
+    </div>
+
+    <aside id="arena-top3" class="arena-top3" hidden>
+      <b data-i18n="arena.top3">本周擂台 TOP3</b>
+      <ul id="arena-top3-list"></ul>
+      <button id="btn-arena-top3-go" class="small ghost" data-i18n="arena.top3.go">去擂台看完整榜 →</button>
+    </aside>
 
     <div id="bt-result" class="arena-result" hidden>
       <div class="card arena-metrics">
@@ -387,11 +417,85 @@
 
   <div id="view-academy" hidden>
   <section class="academy-panel">
-    <h2><span data-i18n="academy.title">量化学堂</span> <span class="sub" data-i18n="academy.sub">边玩边学，从 K 线小白到股神</span></h2>
+    <h2><span data-i18n="academy.title">金融纪元：时空交易者</span> <span class="sub" data-i18n="walker.sub">市场行者 · 穿越金融历史的叙事 RPG</span></h2>
 
-    <h3 class="section-title" data-i18n="teach.section">实战教学关卡</h3>
-    <p class="hint" data-i18n="teach.sectionHint">不做选择题——直接上手：在真实走势里点买入卖出，立刻看到结果。</p>
-    <div id="teach-levels" class="academy-levels"></div>
+    <!-- 左上角一行档案入口: 点击进完整行者档案 -->
+    <button id="walker-line" class="walker-line"><b id="wm-name">--</b><span id="wm-rep-line"></span></button>
+    <div class="epoch-layout">
+      <!-- 中栏: 时空时间线地图 -->
+      <div id="epoch-center">
+        <div class="tl-rail-wrap walker-wrap">
+          <div id="walker-rail" class="tl-rail"></div>
+        </div>
+      </div>
+
+      <!-- 右栏: 全局进度面板 -->
+      <aside id="epoch-right" class="epoch-side">
+        <p class="pet-sec-title no-top" data-i18n="ep.mainline">主线进度</p>
+        <div class="pet-xp-track"><i id="ep-main-bar"></i></div>
+        <p class="hint" id="ep-main-text"></p>
+        <button id="btn-walker-end" class="small primary" hidden data-i18n="walker.endBtn">查看结局</button>
+        <button id="btn-walker-ng2" class="small ghost" hidden data-i18n="ep.ngBtn">开启二周目轮回</button>
+        <p class="pet-sec-title" data-i18n="ep.relics">藏品收集</p>
+        <div id="epoch-relics" class="role-relics"></div>
+        <p class="hint" id="ep-relic-sets"></p>
+        <p class="pet-sec-title" data-i18n="ep.tasks">行者任务</p>
+        <ul id="epoch-tasks" class="pet-log"></ul>
+        <button id="btn-ep-train" class="small ghost" data-i18n="ep.toTrain">去训练场 →</button>
+      </aside>
+    </div>
+
+    <!-- 时代章节详情抽屉 (选中节点弹出, 覆盖右栏) -->
+    <aside id="walker-panel" class="walker-drawer" hidden>
+      <button id="btn-walker-close" class="close walker-drawer-close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      <b id="walker-ch-title"></b>
+      <p class="hint" id="walker-ch-desc"></p>
+      <p class="walker-intro" id="walker-ch-intro"></p>
+      <div class="walker-tasks">
+        <div class="wt-card">
+          <p class="wt-head"><em>1</em><b data-i18n="walker.task.biz">资产经营历练</b><span class="wt-tag" id="wt-tag-biz"></span></p>
+          <p class="hint" data-i18n="ep.d.biz">在本时代建立账户，配置资产积累本金，解锁后续任务。</p>
+          <span class="wt-status" id="wt-status-biz"></span>
+          <i class="wt-bar"><u id="wt-bar-biz"></u></i>
+          <span class="wt-reward" data-i18n="walker.reward.biz">奖励：声望 · 首富奖杯藏品</span>
+          <p class="wt-btns">
+            <button id="btn-walker-biz" class="small primary" data-i18n="ep.b.biz">进入经营</button>
+            <button id="btn-walker-risky" class="small ghost walker-risky" hidden data-i18n="walker.risky">开启高风险模式</button>
+          </p>
+        </div>
+        <div class="wt-card">
+          <p class="wt-head"><em>2</em><b data-i18n="walker.task.case">市场悬案调查</b><span class="wt-tag" id="wt-tag-case"></span></p>
+          <p class="hint" data-i18n="ep.d.case">挖掘财务造假、市场操纵线索，破案获取时代情报，降低危机历练难度。</p>
+          <span class="wt-status" id="walker-task-case"><span></span> <i>0/1</i></span>
+          <span class="wt-status" id="wt-status-case"></span><span class="wt-status" id="wt-side-left" hidden></span>
+          <i class="wt-bar"><u id="wt-bar-case"></u></i>
+          <span class="wt-reward" data-i18n="walker.reward.case">奖励：声望 +30 · 时代情报</span>
+          <p class="wt-btns"><button id="btn-walker-case" class="small primary" data-i18n="ep.b.case">进入案件调查</button></p>
+        </div>
+        <div class="wt-card">
+          <p class="wt-head"><em>3</em><b data-i18n="walker.task.event">历史危机亲历</b><span class="wt-tag" id="wt-tag-event"></span></p>
+          <p class="hint" data-i18n="ep.d.event">携带你经营得到的本金，穿越危机行情，在市场暴跌中存活。</p>
+          <span class="wt-status" id="walker-task-event"><span data-i18n="walker.task.eventSub">带着本金穿越危机行情</span> <i>0/0</i></span>
+          <span class="wt-status" id="wt-status-event"></span>
+          <i class="wt-bar"><u id="wt-bar-event"></u></i>
+          <span class="wt-reward" data-i18n="walker.reward.event">奖励：声望 +40/关 · 藏品碎片</span>
+          <p class="wt-btns">
+            <button id="btn-walker-event" class="small primary" data-i18n="ep.b.event">进入危机历练</button>
+            <button id="btn-walker-loop" class="small ghost" hidden data-i18n="ep.b.loop">开启轮回扰动</button>
+          </p>
+        </div>
+      </div>
+      <div class="walker-ch-stats2">
+        <span><i data-i18n="walker.chWorth">本章总资产</i><b id="walker-ch-worth">--</b></span>
+        <span><i data-i18n="walker.chIntel">情报</i><b id="walker-ch-intel">0/1</b></span>
+        <span><i data-i18n="walker.chRelics">藏品</i><b id="walker-ch-relics">0/0</b></span>
+        <span><i data-i18n="walker.chRep">声望</i><b id="walker-ch-rep">0</b></span>
+      </div>
+      <p class="hint" data-i18n="ep.drawerHint">本时代资产情报互通。</p>
+    </aside>
+
+    <p class="hint tl-rail-hint" data-i18n="walker.hint">你的资产与情报，在同一个时代内互通。</p>
+
 
 
 
@@ -436,16 +540,30 @@
 
   <div id="view-famous" hidden>
   <section class="academy-panel">
-    <details class="fold-section">
-      <summary>
-        <h2><span data-i18n="tl.section">市场大事记</span> <span class="sub" data-i18n="tl.sectionHint">一条时间线读完百年市场史，带关卡的节点可以直接穿越进去。</span></h2>
-      </summary>
-      <div id="timeline" class="timeline"></div>
-    </details>
+    <h2><span data-i18n="famous.section">名场面挑战｜市场时间线</span> <span class="sub" data-i18n="famous.sectionHint">穿越回金融历史的关键节点，挑战危机，收集历史藏品。</span></h2>
+    <div class="famous-tools">
+      <button id="btn-famous-role" class="small ghost" data-i18n="role.open">我的声望与藏品</button>
+    </div>
+    <!-- 横向时间轴: 圆形节点 (通关发光/未通关灰), hover 弹事件卡, 可拖拽横向滚动 -->
+    <div id="tl-rail-wrap" class="tl-rail-wrap">
+      <div id="timeline" class="tl-rail"></div>
+      <div id="tl-pop" class="tl-pop" hidden></div>
+    </div>
+    <p class="hint tl-rail-hint" data-i18n="tl.railHint">拖动浏览时间线 · 悬停节点查看事件 · 点击进入挑战</p>
   </section>
   <section class="academy-panel">
-    <h2><span data-i18n="famous.section">名场面挑战</span> <span class="sub" data-i18n="famous.sectionHint">穿越回市场史上的著名时刻，通关赢取专属称号。</span></h2>
+    <h2><span data-i18n="famous.levelsTitle">全部关卡</span> <span class="sub" data-i18n="famous.levelsSub">通关赢取专属称号与历史藏品。</span></h2>
     <div id="famous-levels" class="academy-levels"></div>
+  </section>
+  </div>
+
+  <div id="view-relics" hidden>
+  <section class="academy-panel">
+    <h2><span data-i18n="relics.title">历史藏品档案馆</span> <span class="sub" data-i18n="relics.sub">收集金融历史的珍贵物证，集齐套装点亮声望。</span></h2>
+    <div class="famous-tools">
+      <button id="btn-relics-role" class="small ghost" data-i18n="role.open">我的声望与藏品</button>
+    </div>
+    <div id="relics-wrap" class="relics-wrap"></div>
   </section>
   </div>
 
@@ -466,14 +584,14 @@
       <span id="lab-weekly-desc" class="hint"></span>
       <button id="btn-lab-weekly" class="small primary" data-i18n="lab.weekly.go">立即开跑</button>
     </div>
-    <p id="lab-recent" class="lab-recent" hidden></p>
+    <div id="lab-recent-wrap" class="lab-recent-wrap" hidden><button id="lab-rec-prev" class="lab-rec-arrow">‹</button><p id="lab-recent" class="lab-recent"></p><button id="lab-rec-next" class="lab-rec-arrow">›</button></div>
     <div id="lab-tiles" class="lab-tiles">
-      <button class="lab-tile" data-lab="lab-b-compare"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h12"/><path d="M14 5l3 3-3 3"/><path d="M19 16H7"/><path d="M10 13l-3 3 3 3"/></svg></span><i class="lab-tier" data-i18n="lab.tier.adv">进阶</i></span><strong data-i18n="lab.compare">双股对比</strong><span class="sub" data-i18n="lab.compareHint">把两支股票放在同一起跑线（起点=100），看谁跑得远、走势像不像。</span></button>
-      <button class="lab-tile" data-lab="lab-b-models"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 4v3M15 4v3M9 17v3M15 17v3M4 9h3M4 15h3M17 9h3M17 15h3"/></svg></span><i class="lab-tier" data-i18n="lab.tier.ai">AI 专项</i></span><strong data-i18n="lab.models">AI 模型分歧</strong><span class="sub" data-i18n="lab.modelsHint">三个 AI 模型每天都预测次日涨跌。它们到底准不准？互相吵架吗？</span></button>
-      <button class="lab-tile" data-lab="lab-b-signal"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 3 6-8"/><path d="M14 6h4v4"/></svg></span><i class="lab-tier" data-i18n="lab.tier.easy">入门</i></span><strong data-i18n="lab.signals">指标信号胜率</strong><span class="sub" data-i18n="lab.signalsHint">“金叉必涨”“大跌必反弹”……这些江湖传闻到底靠不靠谱？用历史数据当场验证。</span></button>
-      <button class="lab-tile" data-lab="lab-b-calib"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.8" fill="currentColor"/></svg></span><i class="lab-tier" data-i18n="lab.tier.ai">AI 专项</i></span><strong data-i18n="lab.calib">预测置信度校准</strong><span class="sub" data-i18n="lab.calibHint">AI 说「70% 概率上涨」时，历史上真的有七成在涨吗？把全部预测分桶对照实际涨跌。</span></button>
-      <button class="lab-tile" data-lab="lab-b-timing"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h10M7 21h10"/><path d="M8 3v2l4 5 4-5V3"/><path d="M8 21v-2l4-5 4 5v2"/></svg></span><i class="lab-tier" data-i18n="lab.tier.adv">进阶</i></span><strong data-i18n="lab.timing">择时的代价</strong><span class="sub" data-i18n="lab.timingHint">“等回调再买”听起来很聪明——但如果因此错过涨得最猛的 5 天，会发生什么？用整段历史算给你看。</span></button>
-      <button class="lab-tile" data-lab="lab-b-overview"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 20v-9h6v9"/><path d="M4 20v-5h5"/><path d="M15 15h5v5"/><path d="M3 20h18"/></svg></span><i class="lab-tier" data-i18n="lab.tier.ai">AI 专项</i></span><strong data-i18n="lab.overview">市场风云榜</strong><span class="sub" data-i18n="lab.overviewHint2">全部标的一键横评：近 30 日涨幅、波动与 AI 看多度。</span></button>
+      <button class="lab-tile" data-lab="lab-b-compare"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h12"/><path d="M14 5l3 3-3 3"/><path d="M19 16H7"/><path d="M10 13l-3 3 3 3"/></svg></span><i class="lab-tier" data-i18n="lab.tier.adv">进阶</i></span><strong data-i18n="lab.compare">双股对比</strong><span class="sub" data-i18n="lab.compareHint">把两支股票放在同一起跑线（起点=100），看谁跑得远、走势像不像。</span><span class="lab-time-row"><span class="lab-time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span data-i18n="lab.t2m">约 2 分钟</span></span></span></button>
+      <button class="lab-tile" data-lab="lab-b-models"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 4v3M15 4v3M9 17v3M15 17v3M4 9h3M4 15h3M17 9h3M17 15h3"/></svg></span><i class="lab-tier" data-i18n="lab.tier.ai">AI 专项</i></span><strong data-i18n="lab.models">AI 模型分歧</strong><span class="sub" data-i18n="lab.modelsHint">三个 AI 模型每天都预测次日涨跌。它们到底准不准？互相吵架吗？</span><span class="lab-time-row"><span class="lab-time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span data-i18n="lab.t2m">约 2 分钟</span></span></span></button>
+      <button class="lab-tile" data-lab="lab-b-signal"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 3 6-8"/><path d="M14 6h4v4"/></svg></span><i class="lab-tier" data-i18n="lab.tier.easy">入门</i></span><strong data-i18n="lab.signals">指标信号胜率</strong><span class="sub" data-i18n="lab.signalsHint">“金叉必涨”“大跌必反弹”……这些江湖传闻到底靠不靠谱？用历史数据当场验证。</span><span class="lab-time-row"><span class="lab-time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span data-i18n="lab.t2m">约 2 分钟</span></span></span></button>
+      <button class="lab-tile" data-lab="lab-b-calib"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.8" fill="currentColor"/></svg></span><i class="lab-tier" data-i18n="lab.tier.ai">AI 专项</i></span><strong data-i18n="lab.calib">预测置信度校准</strong><span class="sub" data-i18n="lab.calibHint">AI 说「70% 概率上涨」时，历史上真的有七成在涨吗？把全部预测分桶对照实际涨跌。</span><span class="lab-time-row"><span class="lab-time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span data-i18n="lab.t3m">约 3 分钟</span></span></span></button>
+      <button class="lab-tile" data-lab="lab-b-timing"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h10M7 21h10"/><path d="M8 3v2l4 5 4-5V3"/><path d="M8 21v-2l4-5 4 5v2"/></svg></span><i class="lab-tier" data-i18n="lab.tier.adv">进阶</i></span><strong data-i18n="lab.timing">择时的代价</strong><span class="sub" data-i18n="lab.timingHint">“等回调再买”听起来很聪明——但如果因此错过涨得最猛的 5 天，会发生什么？用整段历史算给你看。</span><span class="lab-time-row"><span class="lab-time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span data-i18n="lab.t2m">约 2 分钟</span></span><span class="lab-mini"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="10" rx="5"/><path d="M8 12h4M10 10v4M16 13h.01M18 11h.01"/></svg><span data-i18n="lab.minigame">配套小游戏</span></span></span></button>
+      <button class="lab-tile" data-lab="lab-b-overview"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 20v-9h6v9"/><path d="M4 20v-5h5"/><path d="M15 15h5v5"/><path d="M3 20h18"/></svg></span><i class="lab-tier" data-i18n="lab.tier.ai">AI 专项</i></span><strong data-i18n="lab.overview">市场风云榜</strong><span class="sub" data-i18n="lab.overviewHint2">全部标的一键横评：近 30 日涨幅、波动与 AI 看多度。</span><span class="lab-time-row"><span class="lab-time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span data-i18n="lab.t1m">约 1 分钟</span></span></span></button>
     </div>
 
     <div class="lab-block" id="lab-b-compare" hidden>
@@ -683,8 +801,13 @@
 
   <div id="view-games" hidden>
   <section class="academy-panel">
-    <h2><span data-i18n="gz.title">量化小游戏专区</span> <span class="sub" data-i18n="gz.sub">边玩边学，在游戏里避开量化交易陷阱</span></h2>
+    <h2><span data-i18n="gz.title">交易训练场</span> <span class="sub" data-i18n="gz.sub">主线之外的日常修炼：教学关、盘感与陷阱训练</span></h2>
 
+    <h3 class="section-title" data-i18n="teach.section">实战教学关卡</h3>
+    <p class="hint" data-i18n="teach.sectionHint">不做选择题——直接上手：在真实走势里点买入卖出，立刻看到结果。</p>
+    <div id="teach-levels" class="academy-levels"></div>
+
+    <h3 class="section-title" data-i18n="gz.coreTitle">盘感与陷阱训练</h3>
     <div class="gz-grid">
       <button class="gz-card" data-goto="guess"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 3 5-7"/><path d="M17 12v8M15 18l2 2 2-2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.easy">入门</i></span><strong data-i18n="gz.g1.t">K 线猜涨跌</strong><span class="sub" data-i18n="gz.g1.d">隐藏未来 K 线，根据历史走势预测涨跌，训练看图能力</span></button>
       <button class="gz-card" data-goto="buydip"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span><i class="lab-tier" data-i18n="gz.tier.easy">入门</i></span><strong data-i18n="gz.g2.t">择时困境挑战</strong><span class="sub" data-i18n="gz.g2.d">体验等待回调的代价，看清踏空风险</span></button>
@@ -692,6 +815,17 @@
       <button class="gz-card" data-goto="qdetect"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g4.t">量化侦探</strong><span class="sub" data-i18n="gz.g4.d">办案式回测，找出策略盈利背后的真相</span></button>
       <button class="gz-card" data-goto="qdetect" data-case="survivor"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M8 20v-9a4 4 0 0 1 8 0v9"/><path d="M10 13h4"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g5.t">幸存者陷阱</strong><span class="sub" data-i18n="gz.g5.d">揭露幸存者偏差带来的选股幻觉</span></button>
       <button class="gz-card" data-goto="duel"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4l6 6M19 4l-6 6M7 14l-3 3 3 3 3-3M17 14l3 3-3 3-3-3"/><path d="M12 12l-5 5M12 12l5 5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g6.t">策略擂台战</strong><span class="sub" data-i18n="gz.g6.d">提交自定义策略，同台回测 PK</span></button>
+    </div>
+
+    <h3 class="section-title" data-i18n="gz.moreTitle">更多训练项目</h3>
+    <div class="gz-more">
+      <button class="small ghost gz-link" data-goto="quiz" data-i18n="nav.quiz">人格测试</button>
+      <button class="small ghost gz-link" data-goto="option" data-i18n="nav.option">期权沙盒</button>
+      <button class="small ghost gz-link" data-goto="tape" data-i18n="nav.tape">闪电盘口</button>
+      <button class="small ghost gz-link" data-goto="bubble" data-i18n="nav.bubble">泡沫大亨</button>
+      <button class="small ghost gz-link" data-goto="newsjudge" data-i18n="nav.newsjudge">新闻多空</button>
+      <button class="small ghost gz-link" data-goto="richman" data-i18n="nav.richman">财富环游</button>
+      <button class="small ghost gz-link" data-goto="wiki" data-i18n="nav.wiki">知识库</button>
     </div>
 
     <div class="gz-footer">
@@ -1183,6 +1317,8 @@
         <span><span data-i18n="rb.ap">行动点</span> <strong id="rb-ap">--</strong></span>
         <span><span data-i18n="rb.cash">现金</span> <strong id="rb-cash">--</strong></span>
         <span><span data-i18n="rb.rentY">年租金</span> <strong id="rb-rent">--</strong></span>
+        <span class="rb-rep"><span data-i18n="role.repLabel">总声望</span> <strong id="rb-rep">0</strong></span>
+        <button id="btn-rb-relics" class="small ghost" data-i18n="role.relicsBtn">藏品</button>
         <span><span data-i18n="rb.worth">身家</span> <strong id="rb-worth">--</strong></span>
         <span><span data-i18n="rb.careerLabel">职业</span> <strong id="rb-career">--</strong></span>
       </div>
@@ -2054,6 +2190,8 @@
           <ul id="story-clues" class="story-clues"></ul>
         </div>
         <p id="story-result" class="play-result" hidden></p>
+        <p class="hint story-intel"><span data-i18n="story.intelHint">本次破案获得的情报，可用于本时代的资产经营与历史事件历练。</span>
+          <button id="btn-story-pet" class="small ghost" data-i18n="story.askPet">问问金豆</button></p>
       </div>
       <div class="modal-foot">
         <button id="btn-story-next" class="primary" data-i18n="cutscene.next">继续</button>
@@ -2148,35 +2286,212 @@
     </div>
     <p id="pet-bubble" class="pet-bubble" hidden></p>
     <div id="pet-pop" class="pet-pop" hidden>
-      <div class="pet-name-row">
-        <b id="pet-name"></b>
-        <input id="pet-name-input" maxlength="12" hidden>
-        <span class="hint" id="pet-level"></span>
+      <!-- 形象区: 抽象 AI 助手头像 (眼神随情绪), 漫游本体仍是进化小宠 -->
+      <div class="pet-head-row">
+        <button id="pet-avatar" class="pet-avatar" data-i18n-title="pet.profile.title" title="金豆档案">
+          <svg viewBox="0 0 48 48" fill="none">
+            <line x1="24" y1="4" x2="24" y2="9" class="pav-line"/>
+            <circle cx="24" cy="3.5" r="2" class="pav-dot"/>
+            <rect x="8" y="9" width="32" height="28" rx="10" class="pav-face"/>
+            <g id="pav-eyes" class="pav-eyes">
+              <circle cx="17.5" cy="22" r="2.6" class="pav-eye"/>
+              <circle cx="30.5" cy="22" r="2.6" class="pav-eye"/>
+              <path d="M15 22a2.6 2.6 0 0 1 5 0" class="pav-eye-happy"/>
+              <path d="M28 22a2.6 2.6 0 0 1 5 0" class="pav-eye-happy"/>
+            </g>
+            <path d="M19 29.5c1.6 1.6 3.4 2.4 5 2.4s3.4-.8 5-2.4" class="pav-mouth"/>
+            <rect x="15" y="39" width="18" height="6" rx="3" class="pav-body"/>
+          </svg>
+        </button>
+        <div class="pet-head-main">
+          <div class="pet-name-row">
+            <b id="pet-name"></b>
+            <input id="pet-name-input" maxlength="12" hidden>
+          </div>
+          <span class="hint" id="pet-level"></span>
+          <span id="pet-stage-title" class="pet-stage-title"></span>
+        </div>
+        <button id="btn-pet-fold" class="close" data-i18n-title="modal.close" aria-label="收起">✕</button>
       </div>
+
+      <div id="pet-main">
+      <!-- ① 成长状态 -->
+      <p class="hint pet-xp-text" id="pet-xp-text"></p>
       <div class="pet-xp-track"><i id="pet-xp-bar"></i></div>
-      <div class="pet-actions">
-        <button id="btn-pet-feed" class="small" data-i18n="pet.feed">🍗 投喂</button>
-        <button id="btn-pet-chat" class="small" data-i18n="pet.chat">💬 聊聊</button>
-        <button id="btn-pet-skin" class="small" data-i18n="pet.skin">🔄 换形象</button>
+
+      <!-- ② 今日训练任务 -->
+      <p class="pet-sec-title" data-i18n="pet.tasks.title">今日训练任务</p>
+      <div class="pet-tasks">
+        <div class="pet-task" data-task="bt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 3 6-8"/><path d="M14 6h4v4"/></svg><span class="pet-task-main"><span data-i18n="pet.task.bt">完成 1 次指标回测</span><i id="pet-tp-bt">0/1</i></span><b class="pet-task-reward">+30</b></div>
+        <div class="pet-task" data-task="game"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M7 15l3-4 2.5 2L16 8"/><path d="M9 21h6"/></svg><span class="pet-task-main"><span data-i18n="pet.task.game">参与 1 场模拟对局</span><i id="pet-tp-game">0/1</i></span><b class="pet-task-reward">+20</b></div>
+        <div class="pet-task" data-task="report"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M10 13h5M10 17h5"/></svg><span class="pet-task-main"><span data-i18n="pet.task.report">保存 1 份策略研究报告</span><i id="pet-tp-report">0/1</i></span><b class="pet-task-reward">+25</b></div>
+        <div class="pet-task" data-task="guess"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 20v-8M7 12l-2 2M7 12l2 2"/><path d="M12 20V7M12 7l-2 2M12 7l2 2"/><path d="M17 20V10M17 10l-2 2M17 10l2 2"/></svg><span class="pet-task-main"><span data-i18n="pet.task.guess">参加 1 局 K 线猜涨跌</span><i id="pet-tp-guess">0/1</i></span><b class="pet-task-reward">+20</b></div>
+        <div class="pet-task" data-task="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"/></svg><span class="pet-task-main"><span data-i18n="pet.task.chat">和它聊 1 次交易想法</span><i id="pet-tp-chat">0/1</i></span><b class="pet-task-reward">+25</b></div>
       </div>
+
+      <!-- ④ 互动区 -->
+      <p class="pet-sec-title" id="pet-chat-title"></p>
       <div class="pet-ask-row">
-        <input id="pet-chat-input" maxlength="200" data-i18n-placeholder="pet.ask.ph" placeholder="跟它说点什么…">
+        <input id="pet-chat-input" maxlength="200" data-i18n-placeholder="pet.ask.ph" placeholder="输入你的交易想法或问题…">
         <button id="btn-pet-ask" class="small primary" data-i18n="pet.send">发送</button>
       </div>
-      <p class="hint" id="pet-loot"></p>
-      <p class="hint" data-i18n="pet.hint2">点名字可以改名</p>
+      </div>
+
+      <!-- 技能页: 紧凑 2 列卡片, 点卡片弹详情 (pet.js 渲染) -->
+      <div id="pet-tree" hidden>
+        <p class="pet-tree-title" id="pet-tree-title"></p>
+        <p class="hint pet-tree-sub" data-i18n="pet.tree.sub">升级解锁量化辅助能力</p>
+        <div id="pet-tree-grid" class="pet-sk-grid"></div>
+      </div>
+
+      <!-- 成长记录页: 紧凑版 (最近 3 条 + 迷你统计); 完整历史在「全部」弹窗 -->
+      <div id="pet-growth" hidden>
+        <p class="pet-sec-title pet-skill-head no-top"><span data-i18n="pet.tab.growth">成长记录</span><button id="btn-pet-growth-all" class="small ghost" data-i18n="pet.growth.all">全部</button></p>
+        <ul id="pet-log" class="pet-log"></ul>
+        <div class="pet-gstats">
+          <div class="pet-gstat"><span data-i18n="pet.gs.games">总对局</span><b id="pet-gs-games">0</b></div>
+          <div class="pet-gstat"><span data-i18n="pet.gs.bt">总回测次数</span><b id="pet-gs-bt">0</b></div>
+        </div>
+      </div>
+
+      <!-- 共享底部: 页签 + 动作钮 + 亲密度/宝物袋 (三个子页都可见) -->
+      <div class="pet-tabs">
+        <button class="pet-tab active" data-page="main" data-i18n="pet.tab.home">主页</button>
+        <button class="pet-tab" data-page="tree" data-i18n="pet.tab.skills">技能</button>
+        <button class="pet-tab" data-page="growth" data-i18n="pet.tab.growth">成长记录</button>
+      </div>
     </div>
   </div>
 
-  <script src="i18n.js?v=20261009d"></script>
+  <!-- 市场行者结局页 -->
+  <div id="walker-end-modal" class="modal-mask" hidden>
+    <div class="modal walker-end-box" role="dialog" aria-labelledby="walker-end-title">
+      <div class="modal-head">
+        <h2 id="walker-end-title"></h2>
+        <button id="btn-walker-end-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="pet-gstats walker-end-stats">
+          <div class="pet-gstat"><span data-i18n="walker.end.worth">最终总资产</span><b id="walker-end-worth">--</b></div>
+          <div class="pet-gstat"><span data-i18n="walker.end.caseRate">破案完成率</span><b id="walker-end-case">--</b></div>
+          <div class="pet-gstat"><span data-i18n="walker.end.relicRate">藏品收集率</span><b id="walker-end-relic">--</b></div>
+        </div>
+        <p class="pet-sec-title" data-i18n="walker.end.choices">关键选择回顾</p>
+        <p class="hint" id="walker-end-choices"></p>
+        <p class="walker-end-story" id="walker-end-story"></p>
+        <p class="walker-end-pet"><span id="walker-end-pet"></span></p>
+      </div>
+      <div class="modal-foot">
+        <button id="btn-walker-ng" class="primary" data-i18n="walker.ngBtn">开启二周目</button>
+        <button id="btn-walker-back" data-i18n="walker.backBtn">返回时间线</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 全局交易角色面板: 称号/声望 + 藏品预览 + 跨游戏概览 -->
+  <div id="role-modal" class="modal-mask" hidden>
+    <div class="modal pet-sk-box" role="dialog" aria-labelledby="role-name">
+      <div class="modal-head">
+        <h2 id="role-name"></h2>
+        <button id="btn-role-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="role-rep-line"><b id="role-rep"></b></p>
+        <div class="pet-xp-track"><i id="role-rep-bar"></i></div>
+        <p class="hint" id="role-rep-next"></p>
+        <p class="pet-sec-title"><span data-i18n="role.relics">藏品档案馆</span><button id="btn-role-archive" class="small ghost" data-i18n="role.archive" style="float:right">档案馆 →</button></p>
+        <div id="role-relics" class="role-relics"></div>
+        <p class="hint" id="role-relics-empty" data-i18n="role.relicsEmpty">还没有藏品——去名场面挑战里穿越历史吧</p>
+        <p class="pet-sec-title" data-i18n="role.cross">跨游戏数据概览</p>
+        <div class="pet-gstats">
+          <div class="pet-gstat"><span data-i18n="role.worth">重生最佳身家</span><b id="role-worth">--</b></div>
+          <div class="pet-gstat"><span data-i18n="role.famousN">名场面通关</span><b id="role-famous">--</b></div>
+        </div>
+        <div class="pet-gstats">
+          <div class="pet-gstat"><span data-i18n="walker.wis">市场学识</span><b id="role-wis">0</b></div>
+          <div class="pet-gstat"><span data-i18n="walker.cred">信誉值</span><b id="role-cred">0</b></div>
+        </div>
+        <p class="pet-sec-title" data-i18n="ep.talentTitle">职业天赋</p>
+        <select id="walker-talent-sel">
+          <option value="" data-i18n="walker.talent.none">未觉醒</option>
+          <option value="longline" data-i18n="ep.talent.longline">稳健长线型</option>
+          <option value="stormhunter" data-i18n="ep.talent.stormhunter">风暴猎手型</option>
+          <option value="historian" data-i18n="ep.talent.historian">真相史官型</option>
+          <option value="arbiter" data-i18n="ep.talent.arbiter">套利风控型</option>
+        </select>
+        <p class="pet-sec-title" data-i18n="walker.journal">历练日志</p>
+        <ul id="role-journal" class="pet-log"></ul>
+        <p class="pet-sec-title" data-i18n="walker.passives">二周目套装被动</p>
+        <div id="role-passives" class="role-passives"></div>
+        <p class="hint pet-stats-line" id="role-sets"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 桌宠档案弹窗: 属性 / 宝物袋 / 投喂 / 换形象 (主页只留头像入口) -->
+  <div id="pet-profile-modal" class="modal-mask" hidden>
+    <div class="modal pet-sk-box" role="dialog" aria-labelledby="pet-profile-name">
+      <div class="modal-head">
+        <h2 id="pet-profile-name"></h2>
+        <button id="btn-pet-profile-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="pet-attrs">
+          <div class="pet-attr attr-mood"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8"/><path d="M9 10h.01M15 10h.01"/></svg><span data-i18n="pet.attr.mood">心情</span><b id="pet-a-mood">--</b><i class="pet-attr-bar"><u id="pet-ab-mood"></u></i></div>
+          <div class="pet-attr attr-focus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r=".8" fill="currentColor"/></svg><span data-i18n="pet.attr.focus">专注</span><b id="pet-a-focus">--</b><i class="pet-attr-bar"><u id="pet-ab-focus"></u></i></div>
+          <div class="pet-attr attr-disc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.4-3 8.4-7 10-4-1.6-7-5.6-7-10V6z"/><path d="M9.5 12l2 2 3.5-4"/></svg><span data-i18n="pet.attr.disc">纪律</span><b id="pet-a-disc">--</b><i class="pet-attr-bar"><u id="pet-ab-disc"></u></i></div>
+          <div class="pet-attr attr-luck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.4 5.2 5.6.6-4.2 3.8 1.2 5.6-5-2.9-5 2.9 1.2-5.6L4 8.8l5.6-.6z"/></svg><span data-i18n="pet.attr.luck">幸运</span><b id="pet-a-luck">--</b><i class="pet-attr-bar"><u id="pet-ab-luck"></u></i></div>
+        </div>
+        <div class="pet-actions">
+          <button id="btn-pet-feed" class="small" data-i18n="pet.feed">投喂</button>
+          <button id="btn-pet-chat" class="small" data-i18n="pet.chat">随便聊聊</button>
+          <button id="btn-pet-skin" class="small" data-i18n="pet.skin">换形象</button>
+        </div>
+        <p class="hint pet-bond-line"><span id="pet-bond"></span> · <span id="pet-loot"></span></p>
+        <p class="hint" data-i18n="pet.hint2">点名字可以改名</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 桌宠完整成长历史弹窗 -->
+  <div id="pet-growth-modal" class="modal-mask" hidden>
+    <div class="modal pet-sk-box" role="dialog" aria-labelledby="pet-growth-title">
+      <div class="modal-head">
+        <h2 id="pet-growth-title"></h2>
+        <button id="btn-pet-growth-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="pet-timeline" class="pet-timeline"></div>
+        <p class="pet-sec-title" data-i18n="pet.ms.title">你的交易里程碑</p>
+        <div id="pet-milestones" class="pet-milestones"></div>
+        <p class="hint pet-stats-line" id="pet-stats-line"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 桌宠技能详情弹窗 -->
+  <div id="pet-skill-modal" class="modal-mask" hidden>
+    <div class="modal pet-sk-box" role="dialog" aria-labelledby="pet-sk-name">
+      <div class="modal-head">
+        <h2 id="pet-sk-name"></h2>
+        <button id="btn-pet-sk-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="pet-sk-desc"></p>
+        <p class="hint" id="pet-sk-cond"></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="i18n.js?v=20261010d"></script>
   <script src="glossary.js?v=20261002a"></script>
-  <script src="app.js?v=20261008r"></script>
+  <script src="app.js?v=20261009c"></script>
   <script src="auth.js?v=20261005b"></script>
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
   <script src="data/levels.js?v=20261008a"></script>
   <script src="data/cases.js?v=20261008a"></script>
-  <script src="academy.js?v=20261008d"></script>
-  <script src="lab.js?v=20261008d"></script>
+  <script src="academy.js?v=20261009b"></script>
+  <script src="lab.js?v=20261009a"></script>
   <script src="daily.js?v=20261002a"></script>
   <script src="event.js?v=20261006a"></script>
   <script src="option.js?v=20261008a"></script>
@@ -2191,7 +2506,7 @@
   <script src="history.js?v=20261002a"></script>
   <script src="home.js?v=20261008q"></script>
   <script src="points.js?v=20261004c"></script>
-  <script src="reborn.js?v=20261005e"></script>
+  <script src="reborn.js?v=20261009a"></script>
   <script src="bubble.js?v=20261008a"></script>
   <script src="newsjudge.js?v=20261008b"></script>
   <script src="richman.js?v=20261008b"></script>
@@ -2199,11 +2514,13 @@
   <script src="stratbox.js?v=20261008a"></script>
   <script src="qdetect.js?v=20261008d"></script>
   <script src="tasks.js?v=20261008a"></script>
-  <script src="pet.js?v=20261008e"></script>
-  <script src="career.js?v=20261008a"></script>
-  <script src="duel.js?v=20261008f"></script>
+  <script src="pet.js?v=20261009j"></script>
+  <script src="career.js?v=20261009a"></script>
+  <script src="relics.js?v=20261009c"></script>
+  <script src="walker.js?v=20261009h"></script>
+  <script src="duel.js?v=20261009a"></script>
   <script src="wiki.js?v=20261008a"></script>
-  <script src="games.js?v=20261008a"></script>
+  <script src="games.js?v=20261009c"></script>
   <script src="mine.js?v=20261008b"></script>
 </body>
 </html>
