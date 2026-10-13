@@ -2927,6 +2927,13 @@ footer {
   border-radius: 2px;
   background: linear-gradient(180deg, var(--accent), var(--accent-2));
 }
+/* 分组副标题: 写清"一局多久 / 玩完得到什么", 降低工具清单感 */
+.home-group-sub {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--text-muted);
+}
 .home-group-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -2946,6 +2953,23 @@ footer {
   border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 .home-group-grid .home-card.featured strong { font-size: 16px; }
+/* 推荐大卡 hover 柔光: 可玩内容的"发光邀请", 工具卡没有 */
+.home-group-grid .home-card.featured:hover {
+  box-shadow: 0 6px 20px var(--glow-accent);
+}
+/* 进阶工具小卡: 低饱和下沉 —— surface-2 底 + muted 标题, hover 只亮边框不上浮不发光 */
+.home-group-grid .home-card.tool {
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+.home-group-grid .home-card.tool strong { font-size: 13px; color: var(--text-muted); }
+.home-group-grid .home-card.tool:hover {
+  transform: none;
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+.home-group-grid .home-card.tool:hover strong { color: var(--text); }
 .home-group-grid .home-card strong {
   font-size: 14px;
   overflow: hidden;

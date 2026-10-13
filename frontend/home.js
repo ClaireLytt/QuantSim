@@ -1,12 +1,38 @@
 // 首页功能总览: 每个玩法一张卡片, 点击直达。依赖 app.js 的 $ / switchView 与 i18n.js 的 t()。
 
 (() => {
-  // 功能总览按使用域分 4 组, 每组首卡为主卡 (占两列); 全部去 emoji (评审: AI 卡片海)
+  // 功能总览按"玩法属性"分 4 组 (2026-10 游戏化改版): 可玩的突出、工具的下沉。
+  // 档位三档: hero = 大卡占两列高亮 (优先推荐玩法), 默认中卡, tool = 小号低饱和 (进阶硬核工具)。
+  // emoji 是视觉锚点不是文案, 本地映射不进 i18n (先例: pet.js 的配饰 emoji)。
   const CARD_GROUPS = [
-    { id: "play", views: ["game", "daily", "event", "rooms", "arena", "duel", "ranking"] },
-    { id: "learn", views: ["academy", "wiki", "lab", "guess", "famous", "story", "quiz"] },
-    { id: "fun", views: ["games", "newsjudge", "richman", "buydip", "stratbox", "qdetect", "option", "tape", "reborn", "bubble"] },
+    { id: "quick", cards: [ // ⚡即时速玩: 3-10 分钟碎片化开局
+      { view: "games", tier: "hero" }, { view: "guess" }, { view: "newsjudge" },
+      { view: "tape" }, { view: "qdetect" },
+      { view: "stratbox", tier: "tool" }, { view: "buydip", tier: "tool" },
+      { view: "richman", tier: "tool" }, { view: "option", tier: "tool" },
+      { view: "reborn", tier: "tool" }, { view: "bubble", tier: "tool" },
+    ] },
+    { id: "long", cards: [ // ⏳长线对局: 赛季冲榜主玩法
+      { view: "game", tier: "hero" }, { view: "daily", tier: "hero" },
+      { view: "rooms" }, { view: "event" },
+    ] },
+    { id: "learn", cards: [ // 📖学习闯关: 边玩边学
+      { view: "academy", tier: "hero" }, { view: "famous" }, { view: "story" },
+      { view: "quiz", tier: "tool" },
+    ] },
+    { id: "tools", cards: [ // 🧪进阶量化工具: 对局后复盘用, 视觉弱化
+      { view: "lab", tier: "tool" }, { view: "arena", tier: "tool" },
+      { view: "duel", tier: "tool" }, { view: "wiki", tier: "tool" },
+    ] },
   ];
+  const GROUP_EMOJI = { quick: "⚡", long: "⏳", learn: "📖", tools: "🧪" };
+  const CARD_EMOJI = {
+    games: "🎮", guess: "📈", newsjudge: "📰", tape: "⚡", qdetect: "🔍",
+    stratbox: "🎁", buydip: "🪂", richman: "🎲", option: "🧮", reborn: "🔄", bubble: "🫧",
+    game: "⚔️", daily: "🗓️", rooms: "👥", event: "⏪",
+    academy: "🏯", famous: "🎬", story: "🎭", quiz: "🧠",
+    lab: "🔬", arena: "🏟️", duel: "🥊", wiki: "📚",
+  };
 
   function renderHome() {
     const wrap = $("home-cards");
@@ -14,18 +40,19 @@
     CARD_GROUPS.forEach((g) => {
       const label = document.createElement("p");
       label.className = "home-group-label";
-      label.textContent = t("home.group." + g.id);
+      label.textContent = GROUP_EMOJI[g.id] + " " + t("home.group." + g.id);
+      const sub = document.createElement("span");
+      sub.className = "home-group-sub";
+      sub.textContent = t("home.groupSub." + g.id);
+      label.appendChild(sub);
       wrap.appendChild(label);
       const grid = document.createElement("div");
       grid.className = "home-group-grid";
-      // 组内全部等权紧凑卡 (标题 + 单行描述): 统一密度才可扫视,
-      // 之前"主卡+文字链"混排两套视觉语言反而最难用
-      g.views.forEach((view, vi) => {
+      g.cards.forEach(({ view, tier }) => {
         const btn = document.createElement("button");
-        // 每组首卡为旗舰主卡 (占两列、标题加重), 打破均质卡片海但不混入第二套组件语言
-        btn.className = "home-card" + (vi === 0 ? " featured" : "");
+        btn.className = "home-card" + (tier === "hero" ? " featured" : tier === "tool" ? " tool" : "");
         const title = document.createElement("strong");
-        title.textContent = t(`home.card.${view}.t`);
+        title.textContent = CARD_EMOJI[view] + " " + t(`home.card.${view}.t`);
         const desc = document.createElement("span");
         desc.className = "hint";
         desc.textContent = t(`home.card.${view}.d`);
