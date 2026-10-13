@@ -4675,20 +4675,7 @@ button.walker-mini:hover { border-color: var(--accent); filter: none; }
 #walker-rail .tl-node.walker-next .tl-dot2 { color: var(--on-accent); }
 #walker-rail .tl-node.locked { cursor: not-allowed; opacity: .55; }
 #walker-rail .tl-node.locked .tl-dot2 { border-style: dashed; }
-/* 时间线流光 */
-@media (prefers-reduced-motion: no-preference) {
-  #walker-rail.tl-rail {
-    background:
-      linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent-soft) 70%, transparent), transparent) no-repeat 0 32px / 220px 4px,
-      linear-gradient(transparent 32px, color-mix(in srgb, var(--accent) 45%, var(--border)) 32px,
-        color-mix(in srgb, var(--accent) 45%, var(--border)) 36px, transparent 36px);
-    animation: rail-flow 5s linear infinite;
-  }
-  @keyframes rail-flow {
-    from { background-position: -220px 32px, 0 0; }
-    to { background-position: 1800px 32px, 0 0; }
-  }
-}
+/* 时间线流光: 见下方 #walker-rail.tl-rail 合并定义 (此处旧块已并入, 避免层数不匹配把线位移出视口) */
 
 /* 任务卡 v2: 标签 + 描述 + 双按钮 */
 .wt-card {
@@ -4745,6 +4732,12 @@ button.walker-mini:hover { border-color: var(--accent); filter: none; }
 
 /* ---------- 纪元主线对齐规范版: 12 列栅格居中 / 360px 右栏 / 均布节点 / 克制光效 ---------- */
 
+/* 标题组居中靠上: 章节选择屏的仪式感 */
+#view-academy > .academy-panel > h2 {
+  justify-content: center;
+  text-align: center;
+}
+
 /* 主体容器居中 1600px; 右栏定宽 360 与时间线顶对齐 */
 .epoch-layout {
   grid-template-columns: minmax(0, 1fr) 360px;
@@ -4791,13 +4784,31 @@ button.walker-mini:hover { border-color: var(--accent); filter: none; }
   gap: 8px;
   overflow-x: visible;
   cursor: default;
-  /* 时空航道: 紫→青横向渐变 3px 线, 用 background-size/position 限制在节点圆心高度 */
-  background-image: linear-gradient(90deg,
+  /* 时空航道: 双层 background —— 第 1 层流光带(动画位移), 第 2 层通长 6px 紫→青渐变粗线(固定)。
+     层数与 rail-flow 关键帧一一对应, 别改成单层 (曾因层数不匹配把线平移出视口) */
+  background-image:
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent-soft) 70%, transparent), transparent),
+    linear-gradient(90deg,
       color-mix(in srgb, var(--accent) 60%, transparent),
       color-mix(in srgb, var(--accent-2) 60%, transparent));
-  background-size: 100% 3px;
-  background-position: 0 32px;
+  background-size: 220px 6px, 100% 6px;
+  background-position: -220px 35px, 0 35px;
   background-repeat: no-repeat;
+}
+@media (prefers-reduced-motion: no-preference) {
+  #walker-rail.tl-rail { animation: rail-flow 5s linear infinite; }
+}
+@keyframes rail-flow {
+  from { background-position: -220px 35px, 0 35px; }
+  to { background-position: 1800px 35px, 0 35px; }
+}
+/* 立体徽章节点: 28px 圆 + 顶部受光内高光 + 底部投影 */
+#walker-rail .tl-dot2 {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+  background-image: radial-gradient(circle at 50% 28%, var(--sheen), transparent 60%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
 }
 #walker-rail .tl-node { width: auto; flex: 1 1 0; min-width: 0; }
 /* 选中节点: 放大 1.35 + 蓝紫脉冲光环, "你在这里"的驻留感 */
