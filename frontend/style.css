@@ -4330,14 +4330,14 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
 .relic-era-head b { font-size: 15px; }
 .relic-era-bar { grid-column: 1 / -1; display: block; height: 4px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .relic-era-bar u { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
-/* 两列画廊: 卡面更大更像展品 (稀有卡 span2 即整行大卡); 720px 单列 */
-.relic-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 10px; }
-@media (max-width: 720px) { .relic-grid { grid-template-columns: 1fr; } }
+/* 小格画廊: 自适应多列小卡 (用户要求缩小每格); 720px 双列 */
+.relic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-top: 10px; }
+@media (max-width: 720px) { .relic-grid { grid-template-columns: 1fr 1fr; } }
 .relic-item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px;
+  gap: 5px;
+  padding: 10px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -4364,7 +4364,7 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   color: rgba(255, 255, 255, .92);
   border: 1px solid var(--border);
 }
-.relic-card { width: 100%; height: 72px; }
+.relic-card { width: 100%; height: 56px; }
 .relic-card svg, .relic-thumb svg { width: 26px; height: 26px; }
 .relic-thumb { width: 44px; height: 44px; }
 .relic-thumb svg { width: 20px; height: 20px; }
