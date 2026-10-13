@@ -68,12 +68,13 @@
       name.className = "tl-name";
       name.textContent = t("walker.ch" + ch.id + ".t");
       node.append(dot, year, name);
-      // 已通关节点挂绿色小胶囊, 时间轴上一眼可数通关数
+      // 已通关节点: 圆点右下角绿勾小徽 (悬停 title 给全文, 避免节点下方再挂胶囊)
       if (done) {
         const tag = document.createElement("i");
         tag.className = "tl-done-tag";
-        tag.textContent = t("academy.passed"); // 复用"已通关"键, 全站状态词统一
-        node.appendChild(tag);
+        tag.textContent = "✓";
+        tag.title = t("academy.passed"); // 复用"已通关"键, 全站状态词统一
+        dot.appendChild(tag);
       }
       if (!locked) {
         const open = () => { selected = ch.id; renderRail(); renderPanel(); };

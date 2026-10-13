@@ -1499,7 +1499,7 @@ function renderProfile() {
   // 头像: 登录用首字母, 游客保留狐狸向导
   const ava = $("profile-ava");
   const uname = window.Auth && Auth.user && Auth.user.username;
-  ava.textContent = uname ? uname.slice(0, 1).toUpperCase() : "🦊";
+  ava.textContent = uname ? uname.slice(0, 1).toUpperCase() : "🐺"; // 行者本体是狼, 狐狸是主线向导
   ava.classList.toggle("is-letter", !!uname);
   const titleEl = $("profile-title");
   if (prog.titles.length) {

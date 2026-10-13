@@ -198,6 +198,11 @@
         tag.textContent = t(has ? "relics.got" : "relics.notGot");
         card.appendChild(tag);
         card.appendChild(relicTile(r, true));
+        // 时代标签 chip: 展品的"馆藏编目", 与筛选分类互补
+        const eraTag = document.createElement("i");
+        eraTag.className = "relic-era-tag";
+        eraTag.textContent = t("relics.era." + era);
+        card.appendChild(eraTag);
         const nm = document.createElement("b");
         nm.textContent = has ? t("relic." + r.id + ".n") : t("relics.unknown");
         const ds = document.createElement("span");

@@ -566,6 +566,9 @@ main {
   flex-direction: column;
   transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
 }
+/* 教学关 2x3 固定网格: 六关整齐两行, 比 auto-fit 更像关卡选择屏 */
+#teach-levels { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 720px) { #teach-levels { grid-template-columns: 1fr; } }
 /* 教学关序号水印: 纯 CSS 计数器, 右上角淡色大数字, 关卡感不进文案 */
 #teach-levels { counter-reset: lv; }
 #teach-levels .level-card { counter-increment: lv; }
@@ -616,21 +619,34 @@ main {
 .academy-panel > .hint { margin: 0; }
 
 /* 段位与成就 */
-/* 4 分区 RPG 角色面板: 左段位 / 右上徽章+称号 / 下排偏差+装备, 窄屏退单列 */
+/* 2x2 四大玻璃卡面板: 左上段位 / 右上徽章 / 左下称号 / 右下装备+偏差, 窄屏退单列 */
 .profile-card {
   margin-top: 14px;
   display: grid;
   grid-template-areas:
     "main badges"
-    "main titles"
-    "bias gear";
-  grid-template-columns: minmax(240px, 300px) 1fr;
-  gap: 20px 24px;
+    "titles gear"
+    "titles bias";
+  grid-template-columns: minmax(280px, 1fr) 1.2fr;
+  gap: 24px;
+  /* 外层去卡片化: 四个分区各自成卡, 容器只负责栅格 */
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
 }
 .profile-main { grid-area: main; }
 .profile-badges { grid-area: badges; }
 .profile-badges + .profile-badges { grid-area: titles; }
 .profile-bias { grid-area: bias; }
+/* 四分区玻璃卡: 与全站 .card 同受光材质 */
+.profile-main, .profile-badges, .profile-bias, .profile-gear {
+  padding: 20px;
+  background: linear-gradient(180deg, var(--sheen), transparent 45%), var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow), inset 0 1px 0 var(--sheen);
+}
 /* 偏差风险小卡: 三列属性卡, 每项一卡 (名称+星级+点阵+趋势) */
 .bp-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
 .bp-card {
@@ -652,7 +668,7 @@ main {
 .bp-stars.bp-high { color: var(--bad); }
 .profile-gear { grid-area: gear; margin-top: 0; }
 @media (max-width: 720px) {
-  .profile-card { grid-template-areas: "main" "badges" "titles" "bias" "gear"; grid-template-columns: 1fr; }
+  .profile-card { grid-template-areas: "main" "badges" "titles" "gear" "bias"; grid-template-columns: 1fr; }
 }
 .profile-rank { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .profile-rank strong { font-size: 22px; color: var(--accent); }
@@ -713,11 +729,18 @@ main {
 }
 .profile-xp .hint { display: block; margin-top: 6px; }
 .profile-badges { flex: 1.4; min-width: 260px; }
-.badge-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+/* 徽章/称号画廊: 网格小卡 (2026-10 从胶囊标签云改版, 文本可换行、独卡呼吸感) */
+.badge-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 10px; }
 .badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  text-align: center;
   font-size: 12px;
-  padding: 4px 12px;
-  border-radius: 999px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   color: var(--text-muted);
   background: var(--surface-2);
@@ -4236,8 +4259,21 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
 
 /* 藏品档案馆 */
 .relics-wrap { display: flex; flex-direction: column; gap: 18px; margin-top: 14px; }
-/* 声望条: 档案馆顶部的收集总目标 */
+/* 时代标签 chip: 卡面左上的馆藏编目 */
+.relic-era-tag {
+  align-self: flex-start;
+  padding: 1px 8px;
+  font-size: 10px;
+  font-style: normal;
+  border-radius: 999px;
+  color: var(--lab-blue);
+  border: 1px solid color-mix(in srgb, var(--lab-blue) 40%, var(--border));
+  background: color-mix(in srgb, var(--lab-blue) 8%, transparent);
+}
+/* 声望小卡: 右上独立模块, 收集总目标 */
 .relic-rep {
+  align-self: flex-end;
+  width: min(380px, 100%);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -4280,7 +4316,9 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
 .relic-era-head b { font-size: 15px; }
 .relic-era-bar { grid-column: 1 / -1; display: block; height: 4px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .relic-era-bar u { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
-.relic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+/* 两列画廊: 卡面更大更像展品 (稀有卡 span2 即整行大卡); 720px 单列 */
+.relic-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 10px; }
+@media (max-width: 720px) { .relic-grid { grid-template-columns: 1fr; } }
 .relic-item {
   display: flex;
   flex-direction: column;
@@ -4775,16 +4813,30 @@ button.walker-mini:hover { border-color: var(--accent); filter: none; }
 @media (prefers-reduced-motion: reduce) {
   #walker-rail .tl-node.sel .tl-dot2 { animation: none; }
 }
-/* 已通关小胶囊: 挂在节点名下方, 绿色状态语言与关卡徽章一致 */
+/* 已通关绿勾: 贴在节点圆右下角的小圆徽, 状态一眼可辨不占排版 */
 .tl-done-tag {
-  margin-top: 3px;
-  padding: 1px 8px;
-  font-size: 10px;
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  font-size: 9px;
   font-style: normal;
-  border-radius: 999px;
-  color: var(--good);
-  border: 1px solid color-mix(in srgb, var(--good) 45%, var(--border));
-  background: color-mix(in srgb, var(--good) 10%, transparent);
+  line-height: 1;
+  border-radius: 50%;
+  color: var(--on-accent);
+  background: var(--good);
+  border: 1.5px solid var(--surface);
+}
+/* 已通关节点: 淡蓝内填充 (覆盖通用紫渐变), "已点亮入口"观感 */
+#walker-rail .tl-node.done .tl-dot2 {
+  position: relative;
+  color: var(--text);
+  background: color-mix(in srgb, var(--lab-blue) 26%, var(--panel));
+  border: 2px solid color-mix(in srgb, var(--lab-blue) 55%, var(--border));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--lab-blue) 30%, transparent);
 }
 
 /* 统一 12px 圆角 */
