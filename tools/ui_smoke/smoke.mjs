@@ -124,7 +124,11 @@ await step("经典对局: 开局→买入→推进→结算", async () => {
   await page.click("#btn-start");
   await page.waitForSelector("#game-area:not([hidden])", { timeout: 15000 });
   await page.waitForTimeout(500); // 等历史 K 线与状态加载
-
+  // 开局首日也可能命中历史事件弹决策卡 (随机标的/日期), 不关掉会挡死买入 —— 曾偶发超时
+  if (await page.isVisible("#newsgate-modal")) {
+    await page.click("#btn-newsgate-go");
+    await page.waitForTimeout(400);
+  }
   await page.click("#btn-buy");
   await page.waitForTimeout(400);
 
