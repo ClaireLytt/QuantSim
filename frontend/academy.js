@@ -1495,6 +1495,12 @@ $("btn-guess-down").addEventListener("click", () => makeGuess(false));
 function renderProfile() {
   const rank = rankOf(prog.xp);
   $("profile-level").textContent = pick(rank.name);
+  $("profile-lv").textContent = "Lv." + (RANKS.indexOf(rank) + 1); // 段位序号即等级
+  // 头像: 登录用首字母, 游客保留狐狸向导
+  const ava = $("profile-ava");
+  const uname = window.Auth && Auth.user && Auth.user.username;
+  ava.textContent = uname ? uname.slice(0, 1).toUpperCase() : "🦊";
+  ava.classList.toggle("is-letter", !!uname);
   const titleEl = $("profile-title");
   if (prog.titles.length) {
     const names = FAMOUS_LEVELS.concat(CASES)

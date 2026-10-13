@@ -16,21 +16,22 @@
     rocket: '<path d="M12 3c3 2 5 6 5 9l-2 5-3-2-3 2-2-5c0-3 2-7 5-9z"/><circle cx="12" cy="10" r="1.6"/><path d="M8 19l-2 2M16 19l2 2"/>',
   };
   // level: FAMOUS_LEVELS 下标; hue: 配图渐变色相 (藏品"彩色配图" = 渐变底 + 线性图形)
+  // cat: 筛选分类 (crisis 危机档案 / tech 技术革命 / policy 政策事件); rare: 稀有藏品 (大卡+光晕)
   const RELICS = [
-    { id: "r10", level: 10, year: 1929, g: "news", hue: 358 },
-    { id: "r6", level: 6, year: 1987, g: "tape", hue: 24 },
-    { id: "r7", level: 7, year: 1990, g: "coin", hue: 46 },
-    { id: "r11", level: 11, year: 1997, g: "coin", hue: 160 },
-    { id: "r5", level: 5, year: 2000, g: "rocket", hue: 200 },
-    { id: "r8", level: 8, year: 2007, g: "doc", hue: 28 },
-    { id: "r3", level: 3, year: 2008, g: "news", hue: 350 },
-    { id: "r0", level: 0, year: 2015, g: "fuse", hue: 0 },
-    { id: "r9", level: 9, year: 2016, g: "fuse", hue: 16 },
-    { id: "r4", level: 4, year: 2020, g: "doc", hue: 190 },
-    { id: "r2", level: 2, year: 2021, g: "rocket", hue: 265 },
-    { id: "r1", level: 1, year: 2021, g: "coin", hue: 280 },
-    { id: "r12", level: 12, year: 2022, g: "key", hue: 230 },
-    { id: "rich", level: null, year: 0, g: "trophy", hue: 44 }, // 重生逆袭: 最佳身家 ≥ 1000 万
+    { id: "r10", level: 10, year: 1929, g: "news", hue: 358, cat: "crisis", rare: true },
+    { id: "r6", level: 6, year: 1987, g: "tape", hue: 24, cat: "crisis" },
+    { id: "r7", level: 7, year: 1990, g: "coin", hue: 46, cat: "crisis" },
+    { id: "r11", level: 11, year: 1997, g: "coin", hue: 160, cat: "crisis" },
+    { id: "r5", level: 5, year: 2000, g: "rocket", hue: 200, cat: "tech" },
+    { id: "r8", level: 8, year: 2007, g: "doc", hue: 28, cat: "crisis" },
+    { id: "r3", level: 3, year: 2008, g: "news", hue: 350, cat: "crisis", rare: true },
+    { id: "r0", level: 0, year: 2015, g: "fuse", hue: 0, cat: "policy" },
+    { id: "r9", level: 9, year: 2016, g: "fuse", hue: 16, cat: "policy" },
+    { id: "r4", level: 4, year: 2020, g: "doc", hue: 190, cat: "crisis" },
+    { id: "r2", level: 2, year: 2021, g: "rocket", hue: 265, cat: "tech" },
+    { id: "r1", level: 1, year: 2021, g: "coin", hue: 280, cat: "tech" },
+    { id: "r12", level: 12, year: 2022, g: "key", hue: 230, cat: "policy" },
+    { id: "rich", level: null, year: 0, g: "trophy", hue: 44, rare: true }, // 重生逆袭奖杯: 不属三类, 仅"全部"可见
   ];
   // 分馆 (套装): 年代 → 组标签键
   const ERA = (y) => (y === 0 ? "reborn" : y <= 1929 ? "e1929" : y <= 1990 ? "e8090" : y <= 1997 ? "e1997"
@@ -124,12 +125,50 @@
   $("btn-famous-role").addEventListener("click", openRoleModal);
   $("btn-relics-role").addEventListener("click", openRoleModal);
 
-  // ---------- 藏品档案馆页: 按时代分馆的网格 + 套装进度 ----------
+  // ---------- 藏品档案馆页: 声望条 + 分类筛选 + 按时代分馆的网格 + 套装进度 ----------
+  const TIERS2 = [0, 150, 400, 800]; // 与角色面板同阈值 (role.tier.0-3)
+  let relicFilter = ""; // "" = 全部时代
+  const CATS = ["", "crisis", "tech", "policy"];
+
+  function renderRepBar(wrap) {
+    const rep = qsRep();
+    const tier = TIERS2.filter((v) => rep >= v).length - 1;
+    const next = TIERS2[tier + 1];
+    const box = document.createElement("div");
+    box.className = "relic-rep";
+    const line = document.createElement("p");
+    line.className = "relic-rep-line";
+    line.textContent = t("relics.repNow", rep, t("role.tier." + tier))
+      + (next != null ? " · " + t("role.repNext", next - rep, t("role.tier." + (tier + 1))) : "");
+    const bar = document.createElement("i");
+    bar.className = "relic-era-bar";
+    bar.innerHTML = "<u></u>";
+    bar.querySelector("u").style.width = (next != null ? Math.min(100, (rep / next) * 100) : 100) + "%";
+    box.append(line, bar);
+    wrap.appendChild(box);
+  }
+
+  function renderFilter(wrap) {
+    const row = document.createElement("div");
+    row.className = "relic-filter";
+    CATS.forEach((cat) => {
+      const btn = document.createElement("button");
+      btn.className = "small" + (relicFilter === cat ? " primary" : " ghost");
+      btn.textContent = t("relics.cat." + (cat || "all"));
+      btn.addEventListener("click", () => { relicFilter = cat; renderRelics(); });
+      row.appendChild(btn);
+    });
+    wrap.appendChild(row);
+  }
+
   function renderRelics() {
     const wrap = $("relics-wrap");
     wrap.innerHTML = "";
+    renderRepBar(wrap);
+    renderFilter(wrap);
     ERA_ORDER.forEach((era) => {
-      const list = RELICS.filter((r) => ERA(r.year) === era);
+      const list = RELICS.filter((r) => ERA(r.year) === era)
+        .filter((r) => !relicFilter || r.cat === relicFilter);
       if (!list.length) return;
       const got = list.filter(owned).length;
       const sec = document.createElement("div");
@@ -149,14 +188,21 @@
       const grid = document.createElement("div");
       grid.className = "relic-grid";
       list.forEach((r) => {
+        const has = owned(r);
         const card = document.createElement("div");
-        card.className = "relic-item" + (owned(r) ? "" : " lock");
+        // rare = 稀有藏品: 占两列 + 蓝紫光晕, 形成稀有度层级
+        card.className = "relic-item" + (has ? "" : " lock") + (r.rare ? " rare" : "");
+        // 右上角收集状态角标: 一眼区分"点亮/未获得"
+        const tag = document.createElement("i");
+        tag.className = "relic-tag" + (has ? " got" : "");
+        tag.textContent = t(has ? "relics.got" : "relics.notGot");
+        card.appendChild(tag);
         card.appendChild(relicTile(r, true));
         const nm = document.createElement("b");
-        nm.textContent = owned(r) ? t("relic." + r.id + ".n") : t("relics.unknown");
+        nm.textContent = has ? t("relic." + r.id + ".n") : t("relics.unknown");
         const ds = document.createElement("span");
         ds.className = "hint";
-        ds.textContent = owned(r) ? t("relic." + r.id + ".d") : t("relics.lockHint");
+        ds.textContent = has ? t("relic." + r.id + ".d") : t("relics.lockHint");
         card.append(nm, ds);
         grid.appendChild(card);
       });

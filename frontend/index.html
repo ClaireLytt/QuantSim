@@ -14,7 +14,7 @@
     } catch (e) { /* no-op */ }
   </script>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=20261014d">
+  <link rel="stylesheet" href="style.css?v=20261014e">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -448,17 +448,24 @@
 
       <!-- 右栏: 全局进度面板 -->
       <aside id="epoch-right" class="epoch-side">
-        <p class="pet-sec-title no-top" data-i18n="ep.mainline">主线进度</p>
-        <div class="pet-xp-track"><i id="ep-main-bar"></i></div>
-        <p class="hint" id="ep-main-text"></p>
-        <button id="btn-walker-end" class="small primary" hidden data-i18n="walker.endBtn">查看结局</button>
-        <button id="btn-walker-ng2" class="small ghost" hidden data-i18n="ep.ngBtn">开启二周目轮回</button>
-        <p class="pet-sec-title" data-i18n="ep.relics">藏品收集</p>
-        <div id="epoch-relics" class="role-relics"></div>
-        <p class="hint" id="ep-relic-sets"></p>
-        <p class="pet-sec-title" data-i18n="ep.tasks">行者任务</p>
-        <ul id="epoch-tasks" class="pet-log"></ul>
-        <button id="btn-ep-train" class="small ghost" data-i18n="ep.toTrain">去训练场 →</button>
+        <!-- 三个独立圆角模块: 进度 / 收集 / 任务, 比平铺一列更像游戏侧栏 -->
+        <div class="ep-mod">
+          <p class="pet-sec-title no-top" data-i18n="ep.mainline">主线进度</p>
+          <div class="pet-xp-track"><i id="ep-main-bar"></i></div>
+          <p class="hint" id="ep-main-text"></p>
+          <button id="btn-walker-end" class="small primary" hidden data-i18n="walker.endBtn">查看结局</button>
+          <button id="btn-walker-ng2" class="small ghost" hidden data-i18n="ep.ngBtn">开启二周目轮回</button>
+        </div>
+        <div class="ep-mod">
+          <p class="pet-sec-title no-top" data-i18n="ep.relics">藏品收集</p>
+          <div id="epoch-relics" class="role-relics"></div>
+          <p class="hint" id="ep-relic-sets"></p>
+        </div>
+        <div class="ep-mod">
+          <p class="pet-sec-title no-top" data-i18n="ep.tasks">行者任务</p>
+          <ul id="epoch-tasks" class="pet-log"></ul>
+          <button id="btn-ep-train" class="small ghost" data-i18n="ep.toTrain">去训练场 →</button>
+        </div>
       </aside>
     </div>
 
@@ -527,16 +534,18 @@
     <section class="card profile-card">
       <div class="profile-main">
         <div class="profile-rank">
+          <span class="profile-ava" id="profile-ava" aria-hidden="true">🦊</span>
           <span class="hint" data-i18n="profile.rank">当前段位</span>
-          <!-- 段位环形进度: RPG 角色面板的"等级环", 数值与下方直条同源 -->
+          <!-- 段位环形进度: RPG 角色面板的"等级环", Lv 数与进度同源 -->
           <span class="xp-ring-box" aria-hidden="true">
             <svg viewBox="0 0 72 72" class="xp-ring-svg">
               <circle class="xp-ring-bg" cx="36" cy="36" r="31"/>
               <circle id="xp-ring" class="xp-ring-fill" cx="36" cy="36" r="31"/>
             </svg>
-            <strong id="profile-level">--</strong>
+            <span class="xp-ring-core"><b id="profile-lv">Lv.0</b><strong id="profile-level">--</strong></span>
           </span>
           <span id="profile-title" class="profile-title" hidden></span>
+          <span class="hint profile-rank-desc" data-i18n="profile.rankDesc">穿越的周期越多，对市场波动的理解越深。</span>
         </div>
         <div class="profile-xp">
           <div class="xp-track"><div id="xp-fill" class="xp-fill"></div></div>
@@ -840,6 +849,8 @@
       <button class="gz-card" data-goto="qdetect"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g4.t">量化侦探</strong><span class="sub" data-i18n="gz.g4.d">办案式回测，找出策略盈利背后的真相</span></button>
       <button class="gz-card" data-goto="qdetect" data-case="survivor"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M8 20v-9a4 4 0 0 1 8 0v9"/><path d="M10 13h4"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g5.t">幸存者陷阱</strong><span class="sub" data-i18n="gz.g5.d">揭露幸存者偏差带来的选股幻觉</span></button>
       <button class="gz-card" data-goto="duel"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4l6 6M19 4l-6 6M7 14l-3 3 3 3 3-3M17 14l3 3-3 3-3-3"/><path d="M12 12l-5 5M12 12l5 5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g6.t">策略擂台战</strong><span class="sub" data-i18n="gz.g6.d">提交自定义策略，同台回测 PK</span></button>
+      <!-- 预留位: 不可点的"即将开放"占位卡, 暗示训练场还在扩建 -->
+      <div class="gz-card gz-card-soon" aria-hidden="true"><strong data-i18n="gz.soon">即将开放</strong><span class="sub" data-i18n="gz.soonHint">新的训练项目正在打磨中</span></div>
     </div>
 
     <h3 class="section-title" data-i18n="gz.moreTitle">更多训练项目</h3>
@@ -2508,19 +2519,19 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261014c"></script>
+  <script src="i18n.js?v=20261014d"></script>
   <script src="glossary.js?v=20261002a"></script>
   <script src="app.js?v=20261014"></script>
   <script src="auth.js?v=20261005b"></script>
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
   <script src="data/levels.js?v=20261008a"></script>
   <script src="data/cases.js?v=20261008a"></script>
-  <script src="academy.js?v=20261014"></script>
+  <script src="academy.js?v=20261014b"></script>
   <script src="lab.js?v=20261011a"></script>
   <script src="daily.js?v=20261002a"></script>
   <script src="event.js?v=20261006a"></script>
   <script src="option.js?v=20261008a"></script>
-  <script src="biasprofile.js?v=20261014"></script>
+  <script src="biasprofile.js?v=20261014b"></script>
   <script src="tape.js?v=20261008a"></script>
   <script src="rooms.js?v=20261006a"></script>
   <script src="ranking.js?v=20261004a"></script>
@@ -2541,8 +2552,8 @@
   <script src="tasks.js?v=20261008a"></script>
   <script src="pet.js?v=20261009j"></script>
   <script src="career.js?v=20261009a"></script>
-  <script src="relics.js?v=20261009c"></script>
-  <script src="walker.js?v=20261014"></script>
+  <script src="relics.js?v=20261014"></script>
+  <script src="walker.js?v=20261014b"></script>
   <script src="duel.js?v=20261014"></script>
   <script src="wiki.js?v=20261008a"></script>
   <script src="games.js?v=20261009c"></script>
