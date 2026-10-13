@@ -4270,19 +4270,20 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   border: 1px solid color-mix(in srgb, var(--lab-blue) 40%, var(--border));
   background: color-mix(in srgb, var(--lab-blue) 8%, transparent);
 }
-/* 声望小卡: 右上独立模块, 收集总目标 */
+/* 声望小卡: 右上紧凑模块, 收集总目标 (小卡不抢画廊视线) */
 .relic-rep {
   align-self: flex-end;
-  width: min(380px, 100%);
+  width: min(300px, 100%);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 16px;
+  gap: 6px;
+  padding: 10px 14px;
+  font-size: 12px;
   background: linear-gradient(180deg, var(--sheen), transparent 45%), var(--panel);
   border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
   border-radius: var(--radius-sm);
 }
-.relic-rep-line { margin: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.relic-rep-line { margin: 0; font-size: 12px; font-variant-numeric: tabular-nums; }
 /* 分类筛选 chips */
 .relic-filter { display: flex; gap: 8px; flex-wrap: wrap; }
 /* 收集状态角标 */
@@ -4304,14 +4305,27 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   border-color: color-mix(in srgb, var(--good) 45%, var(--border));
   background: color-mix(in srgb, var(--good) 10%, transparent);
 }
-/* 稀有藏品: 占两列 + 蓝紫渐变光晕, 稀有度层级 (锁定时光晕随 opacity 一起灰化) */
-.relic-item.rare { grid-column: span 2; }
+/* 套装集齐小徽: 卡片左上角, 与收集角标对称 */
+.relic-set-tag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 1px 8px;
+  font-size: 10px;
+  font-style: normal;
+  border-radius: 999px;
+  color: var(--warn);
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+}
+/* 未收集: 预览图灰度, "未点亮的展品" */
+.relic-item.lock .relic-card { filter: grayscale(1); }
+/* 稀有藏品: 同尺寸小卡只用光晕分层 (禁横向长条, 2026-10 评审: 卡片不得铺满整行) */
 .relic-item.rare:not(.lock) {
   border-color: color-mix(in srgb, var(--accent) 55%, var(--accent-2));
   box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 22%, transparent),
               0 0 26px color-mix(in srgb, var(--accent-2) 12%, transparent);
 }
-@media (max-width: 720px) { .relic-item.rare { grid-column: auto; } }
 .relic-era-head { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: baseline; }
 .relic-era-head b { font-size: 15px; }
 .relic-era-bar { grid-column: 1 / -1; display: block; height: 4px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
@@ -4732,8 +4746,9 @@ button.walker-mini:hover { border-color: var(--accent); filter: none; }
 
 /* ---------- 纪元主线对齐规范版: 12 列栅格居中 / 360px 右栏 / 均布节点 / 克制光效 ---------- */
 
-/* 标题组居中靠上: 章节选择屏的仪式感 */
-#view-academy > .academy-panel > h2 {
+/* 标题组居中靠上: 章节选择屏/档案馆的仪式感 */
+#view-academy > .academy-panel > h2,
+#view-relics > .academy-panel > h2 {
   justify-content: center;
   text-align: center;
 }

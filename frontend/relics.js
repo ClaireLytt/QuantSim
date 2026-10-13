@@ -187,28 +187,38 @@
       head.append(label, progEl, bar);
       const grid = document.createElement("div");
       grid.className = "relic-grid";
+      const setDone = got >= list.length;
       list.forEach((r) => {
         const has = owned(r);
         const card = document.createElement("div");
-        // rare = 稀有藏品: 占两列 + 蓝紫光晕, 形成稀有度层级
+        // rare = 稀有藏品: 同尺寸但带蓝紫光晕, 形成稀有度层级
         card.className = "relic-item" + (has ? "" : " lock") + (r.rare ? " rare" : "");
-        // 右上角收集状态角标: 一眼区分"点亮/未获得"
+        // 右上角收集状态角标: 已收集=绿标, 未收集=锁图标 (title 保留文字说明)
         const tag = document.createElement("i");
         tag.className = "relic-tag" + (has ? " got" : "");
-        tag.textContent = t(has ? "relics.got" : "relics.notGot");
+        tag.textContent = has ? t("relics.got") : "🔒";
+        tag.title = t(has ? "relics.got" : "relics.notGot");
         card.appendChild(tag);
+        // 套装集齐: 组内全收集时每张卡左上角小徽
+        if (setDone) {
+          const setTag = document.createElement("i");
+          setTag.className = "relic-set-tag";
+          setTag.textContent = t("relics.setDone");
+          card.appendChild(setTag);
+        }
         card.appendChild(relicTile(r, true));
-        // 时代标签 chip: 展品的"馆藏编目", 与筛选分类互补
+        const nm = document.createElement("b");
+        nm.textContent = has ? t("relic." + r.id + ".n") : t("relics.unknown");
+        card.appendChild(nm);
+        // 时代标签 chip 放名称之后: 展品的"馆藏编目", 与筛选分类互补
         const eraTag = document.createElement("i");
         eraTag.className = "relic-era-tag";
         eraTag.textContent = t("relics.era." + era);
         card.appendChild(eraTag);
-        const nm = document.createElement("b");
-        nm.textContent = has ? t("relic." + r.id + ".n") : t("relics.unknown");
         const ds = document.createElement("span");
         ds.className = "hint";
         ds.textContent = has ? t("relic." + r.id + ".d") : t("relics.lockHint");
-        card.append(nm, ds);
+        card.appendChild(ds);
         grid.appendChild(card);
       });
       sec.append(head, grid);
