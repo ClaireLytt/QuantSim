@@ -4241,7 +4241,11 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
 .tl-rail-hint { text-align: center; margin: 6px 0 0; }
 
 /* 藏品档案馆 */
-.relics-wrap { display: flex; flex-direction: column; gap: 18px; margin-top: 14px; }
+/* 画廊页: 居中限宽留白; 分组卡之间 24px 呼吸 */
+#view-relics .academy-panel { max-width: 1240px; margin-inline: auto; }
+.relics-wrap { display: flex; flex-direction: column; gap: 24px; margin-top: 14px; }
+/* 时代分组玻璃卡 (材质来自 .card): 标题区与卡墙的内边距节奏 */
+.relic-era { padding: 16px; }
 /* 藏品小胶囊三件套: 共用盒模型, 颜色用 --chip-c 参数化 (新增角标请复用这套, 别再复制) */
 .relic-era-tag, .relic-tag, .relic-set-tag {
   padding: 1px 8px;
@@ -4269,10 +4273,35 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
 .relic-rep-line { margin: 0; font-size: 12px; font-variant-numeric: tabular-nums; }
 /* 分类筛选 chips */
 .relic-filter { display: flex; gap: 8px; flex-wrap: wrap; }
-/* 收集状态角标 (右上) 与套装集齐小徽 (左上): 盒模型见上方三件套共用块 */
-.relic-tag { position: absolute; top: 8px; right: 8px; background: var(--surface-2); }
-.relic-tag.got { --chip-c: var(--good); background: color-mix(in srgb, var(--good) 10%, transparent); }
-.relic-set-tag { position: absolute; top: 8px; left: 8px; --chip-c: var(--warn); }
+/* 已收集小绿勾徽 (卡右上角圆徽, 不占文字); 套装集齐小徽挂分组标题右侧 */
+.relic-tag.got {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  font-size: 10px;
+  color: var(--on-accent);
+  background: var(--good);
+  border: none;
+}
+.relic-set-tag { --chip-c: var(--warn); }
+/* 未收集: 白锁图标压在灰度预览图中心 */
+.relic-lock {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 1;
+  color: var(--on-accent);
+  opacity: .85;
+  pointer-events: none;
+}
+.relic-lock svg { width: 18px; height: 18px; }
 /* 未收集: 预览图灰度, "未点亮的展品" */
 .relic-item.lock .relic-card { filter: grayscale(1); }
 /* 稀有藏品: 同尺寸小卡只用光晕分层 (禁横向长条, 2026-10 评审: 卡片不得铺满整行) */
@@ -4281,12 +4310,13 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 22%, transparent),
               0 0 26px color-mix(in srgb, var(--accent-2) 12%, transparent);
 }
-.relic-era-head { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: baseline; }
+/* 分组头: 标题 + 进度 + (可选)集齐徽 一行, 进度条独占次行 */
+.relic-era-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
 .relic-era-head b { font-size: 15px; }
-.relic-era-bar { grid-column: 1 / -1; display: block; height: 4px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.relic-era-bar { flex-basis: 100%; display: block; height: 4px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .relic-era-bar u { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
-/* 小格画廊: 自适应多列小卡 (用户要求缩小每格); 720px 双列 */
-.relic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-top: 10px; }
+/* 小格画廊: 自适应多列小卡 (用户要求缩小每格, 优先于提示词的两列); 720px 双列 */
+.relic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px 14px; margin-top: 12px; }
 @media (max-width: 720px) { .relic-grid { grid-template-columns: 1fr 1fr; } }
 .relic-item {
   position: relative; /* 角标/集齐徽绝对定位锚点 */
@@ -4310,8 +4340,17 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 .relic-item.lock { opacity: .6; }
-.relic-item b { font-size: 13px; }
-.relic-item .hint { margin: 0; font-size: 11px; line-height: 1.5; }
+.relic-item b { font-size: 14px; font-weight: 600; }
+.relic-item .hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  /* 故事限两行截断, 不许长文案撑高卡片 */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
 .relic-card, .relic-thumb {
   display: grid;
   place-content: center;

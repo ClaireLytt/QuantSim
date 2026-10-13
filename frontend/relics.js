@@ -171,15 +171,23 @@
       const list = full.filter((r) => !relicFilter || r.cat === relicFilter);
       if (!list.length) return;
       const got = full.filter(owned).length;
+      // 每个时代套装包独立玻璃卡 (复用 .card 材质), 分组标题在卡顶
       const sec = document.createElement("div");
-      sec.className = "relic-era";
+      sec.className = "card relic-era";
       const head = document.createElement("div");
       head.className = "relic-era-head";
       const label = document.createElement("b");
       label.textContent = t("relics.era." + era);
       const progEl = document.createElement("span");
       progEl.className = "hint";
-      progEl.textContent = got + " / " + full.length + (got >= full.length ? " · " + t("relics.setDone") : "");
+      progEl.textContent = got + " / " + full.length;
+      // 套装集齐徽挂分组标题右侧 (不再逐卡标注)
+      if (got >= full.length) {
+        const setTag = document.createElement("i");
+        setTag.className = "relic-set-tag";
+        setTag.textContent = t("relics.setDone");
+        head.appendChild(setTag);
+      }
       const bar = document.createElement("i");
       bar.className = "relic-era-bar";
       bar.innerHTML = "<u></u>";
@@ -187,24 +195,26 @@
       head.append(label, progEl, bar);
       const grid = document.createElement("div");
       grid.className = "relic-grid";
-      const setDone = got >= full.length;
       list.forEach((r) => {
         const has = owned(r);
         const card = document.createElement("div");
         // rare = 稀有藏品: 同尺寸但带蓝紫光晕, 形成稀有度层级
         card.className = "relic-item" + (has ? "" : " lock") + (r.rare ? " rare" : "");
-        // 右上角收集状态角标: 已收集=绿标, 未收集=锁图标 (title 保留文字说明)
-        const tag = document.createElement("i");
-        tag.className = "relic-tag" + (has ? " got" : "");
-        tag.textContent = has ? t("relics.got") : "🔒";
-        tag.title = t(has ? "relics.got" : "relics.notGot");
-        card.appendChild(tag);
-        // 套装集齐: 组内全收集时每张卡左上角小徽
-        if (setDone) {
-          const setTag = document.createElement("i");
-          setTag.className = "relic-set-tag";
-          setTag.textContent = t("relics.setDone");
-          card.appendChild(setTag);
+        // 已收集: 右上角小绿勾徽 (不占文字); 未收集: 锁图标压在预览图中心
+        if (has) {
+          const tag = document.createElement("i");
+          tag.className = "relic-tag got";
+          tag.textContent = "✓";
+          tag.title = t("relics.got");
+          card.appendChild(tag);
+        } else {
+          const lockIco = document.createElement("span");
+          lockIco.className = "relic-lock";
+          lockIco.title = t("relics.notGot");
+          lockIco.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+            + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+            + '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+          card.appendChild(lockIco);
         }
         card.appendChild(relicTile(r, true));
         const nm = document.createElement("b");
