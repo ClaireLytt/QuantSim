@@ -167,10 +167,11 @@
     renderRepBar(wrap);
     renderFilter(wrap);
     ERA_ORDER.forEach((era) => {
-      const list = RELICS.filter((r) => ERA(r.year) === era)
-        .filter((r) => !relicFilter || r.cat === relicFilter);
+      // 套装进度/集齐徽章必须按"全套"算, 分类筛选只决定展示哪些卡 (否则筛选下会误标集齐)
+      const full = RELICS.filter((r) => ERA(r.year) === era);
+      const list = full.filter((r) => !relicFilter || r.cat === relicFilter);
       if (!list.length) return;
-      const got = list.filter(owned).length;
+      const got = full.filter(owned).length;
       const sec = document.createElement("div");
       sec.className = "relic-era";
       const head = document.createElement("div");
@@ -179,15 +180,15 @@
       label.textContent = t("relics.era." + era);
       const progEl = document.createElement("span");
       progEl.className = "hint";
-      progEl.textContent = got + " / " + list.length + (got >= list.length ? " · " + t("relics.setDone") : "");
+      progEl.textContent = got + " / " + full.length + (got >= full.length ? " · " + t("relics.setDone") : "");
       const bar = document.createElement("i");
       bar.className = "relic-era-bar";
       bar.innerHTML = "<u></u>";
-      bar.querySelector("u").style.width = (got / list.length) * 100 + "%";
+      bar.querySelector("u").style.width = (got / full.length) * 100 + "%";
       head.append(label, progEl, bar);
       const grid = document.createElement("div");
       grid.className = "relic-grid";
-      const setDone = got >= list.length;
+      const setDone = got >= full.length;
       list.forEach((r) => {
         const has = owned(r);
         const card = document.createElement("div");

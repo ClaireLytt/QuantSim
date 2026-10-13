@@ -21,9 +21,14 @@ page.on("dialog", (d) => d.accept()); // 无头浏览器默认 dismiss confirm, 
 await page.addInitScript(() => {
   const orig = EventTarget.prototype.addEventListener;
   EventTarget.prototype.addEventListener = function (type, ...rest) {
-    if (type === "click" && this instanceof Element) this.__qsHasClick = true;
-    if (type === "click" && (this === document || this === window)) {
-      document.documentElement.__qsHasClick = true; // 全局委托: 一律视为有监听
+    // document/window/body 级委托单独计数, 不给元素打标 —— 否则一个全局监听就让所有死按钮"复活",
+    // 检测形同虚设 (2026-10 代码审查指出)
+    if (type === "click") {
+      if (this === document || this === window || this === document.body || this === document.documentElement) {
+        window.__qsGlobalClick = (window.__qsGlobalClick || 0) + 1;
+      } else if (this instanceof Element) {
+        this.__qsHasClick = true;
+      }
     }
     return orig.call(this, type, ...rest);
   };
@@ -47,7 +52,7 @@ page.on("requestfailed", (r) => {
 
 // 页面内执行: 对当前可见 DOM 做按钮级检查
 function domChecks() {
-  const out = { dead: [], noName: [], dupIds: [], zeroSize: [] };
+  const out = { dead: [], maybeDead: [], noName: [], dupIds: [], zeroSize: [] };
   const visible = (el) => {
     const r = el.getBoundingClientRect();
     if (r.width === 0 && r.height === 0) return false;
@@ -62,11 +67,17 @@ function domChecks() {
   };
   for (const el of document.querySelectorAll('button, [role="button"]')) {
     if (!visible(el)) continue;
-    // 1. 死按钮: 自身/祖先都没有 click 监听, 也没有 onclick, 也不是表单 submit
-    let alive = !!el.onclick || el.type === "submit" || !!el.closest("form");
-    for (let n = el; n && !alive; n = n.parentElement) if (n.__qsHasClick) alive = true;
-    if (document.documentElement.__qsHasClick) alive = true; // 全局委托兜底
-    if (!alive) out.dead.push(describe(el));
+    // 1. 死按钮: 自身/祖先 (body 以下) 都没有 click 监听, 也没有 onclick, 也不是表单 submit。
+    // 注意 form 内 <button> 默认 type=submit, 已被 submit 条件覆盖; 不要再按 closest(form) 放行,
+    // 否则 type=button 的死按钮藏在表单里永远测不出来 (2026-10 代码审查指出)
+    let alive = !!el.onclick || el.type === "submit";
+    for (let n = el; n && !alive && n !== document.body; n = n.parentElement) {
+      if (n.__qsHasClick) alive = true;
+    }
+    if (!alive) {
+      // 存在全局委托时无法静态判死 (可能经 document 委托处理), 降级为疑似而非 error
+      (window.__qsGlobalClick ? out.maybeDead : out.dead).push(describe(el));
+    }
     // 2. 无可访问名称 (纯图标按钮须有 aria-label/title)
     const name = (el.getAttribute("aria-label") || el.title || el.textContent || "").trim();
     if (!name) out.noName.push(describe(el));
@@ -85,6 +96,7 @@ async function checkCurrent(view) {
   currentView = view;
   const res = await page.evaluate(domChecks);
   for (const d of res.dead) add(view, "dead-button", "error", d);
+  for (const d of res.maybeDead) add(view, "maybe-dead-button", "warn", d);
   for (const d of res.noName) add(view, "no-accessible-name", "warn", d);
   for (const d of res.dupIds) add(view, "dup-id", "error", d);
   for (const d of res.zeroSize) add(view, "zero-size", "warn", d);
