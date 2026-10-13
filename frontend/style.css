@@ -3409,16 +3409,14 @@ header.collapsed h1 .sub { display: none; }
   line-height: 1;
   display: block;
   animation: pet-bob 1.6s ease-in-out infinite;
-  /* 冷色化: emoji 原生橙黄与全站紫蓝冷色系冲突 (评审 3/3 提及), 整体转蓝紫调降饱和 */
-  filter: hue-rotate(195deg) saturate(.55) brightness(1.05);
+  /* 保持 emoji 原色: 曾按评审意见做过冷色化滤镜, 用户要求还原 */
   transition: font-size .3s var(--ease-out);
 }
 /* 进化体型: 幼年小只 → 成年标准 → 完全体更大并自带光环 */
 .pet-stage-0 .pet-sprite { font-size: 62px; }
 .pet-stage-2 .pet-sprite {
   font-size: 90px;
-  filter: hue-rotate(195deg) saturate(.55) brightness(1.05)
-          drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 65%, transparent));
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 65%, transparent));
 }
 /* 走路时颠得更快; emoji 默认朝左, 向右走由 .pet-flip 翻面 */
 .pet-walking .pet-sprite { animation-duration: .5s; }

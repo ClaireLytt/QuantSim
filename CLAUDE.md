@@ -50,6 +50,21 @@ error / pageerror / requestfailed）。跑法：起后端（库里要有数据�
 `cd tools/ui_smoke && npm run smoke`；首次先 `npm install && npx playwright install chromium`。
 注意无头浏览器会 dismiss 原生 `confirm()`——脚本已统一 accept；新增 confirm 流程时记得冒烟会自动确认。
 
+**③ 按钮体检 `tools/ui_smoke/button_check.mjs`（强制）**：真浏览器遍历全部视图，专查死按钮
+（无 click 监听，含事件委托识别）/ 无可访问名称 / 重复 id / 零尺寸按钮，并监听 console error /
+pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端后
+`cd tools/ui_smoke && npm run buttons`，有 error 立即修复到退出码 0 为止。
+
+## 工作流纪律（强制）
+
+1. **CLI 脚本出问题必须记录**：每次运行 CLI 脚本发生问题后，在根目录 `issue_recode/` 下找到当前
+   任务对应 issue 号命名的 md 文件（如 QuantSim#1 → `1.md`）追加记录；文件不存在则创建。每条记录
+   开头必须写清日期（年月日，如 `## 2026-10-14`），写明问题现象、根因、处理结果。
+2. **写代码后必须跑按钮体检**：任何代码写入/修改完成后，运行 `cd tools/ui_smoke && npm run buttons`
+   （见上「UI 自动体检 ③」），通过后才算完成。
+3. **检查通过后必须 commit**：按钮体检（及相关检查）通过后，立即 `git commit` 本次改动，不要积攒
+   未提交的变更。
+
 ## 设计规范（强制）
 
 **每次新建或修改前端页面/组件/样式之前，必须先读根目录的 `design.md`，并严格按其中的色值、字号、间距、圆角、阴影规范实现，保证全站风格统一。** 颜色永远引用 `style.css` 的 CSS 变量（图表色用 `cssVar()` 取），不得硬编码色值；新增颜色先在 `:root` 和 `:root[data-theme="light"]` 两个主题里都定义。
