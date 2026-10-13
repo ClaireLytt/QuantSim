@@ -2149,6 +2149,7 @@ $("btn-rich-reborn").addEventListener("click", richReborn);
   $("opt-strike").addEventListener("input", renderOption);
   document.addEventListener("qs:view", (e) => { if (e.detail === "option") renderOption(); });
   document.addEventListener("qs:lang", () => { if (!$("view-option").hidden) renderOption(); });
+  if (!$("view-option").hidden) renderOption(); // 启动兜底: 停在期权沙盒刷新会错过首次 qs:view
 })();
 
 // ---------- 事件联动 ----------

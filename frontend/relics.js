@@ -242,4 +242,7 @@
   document.addEventListener("qs:lang", () => {
     if (!$("view-relics").hidden) renderRelics();
   });
+  // 启动兜底: app.js 的首次 switchView 在本脚本加载前就派发了 qs:view,
+  // 停在本视图刷新页面会错过事件 → 永久空白, 这里补一次初始渲染
+  if (!$("view-relics").hidden) renderRelics();
 })();

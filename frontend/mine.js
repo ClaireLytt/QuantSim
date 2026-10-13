@@ -209,4 +209,6 @@
       renderStats();
     }
   });
+  // 启动兜底: 停在本视图刷新会错过首次 qs:view
+  if (!$("view-mine").hidden) { renderUserCard(); switchTab(curTab); renderStats(); }
 })();

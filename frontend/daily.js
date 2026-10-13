@@ -145,4 +145,6 @@
   });
   document.addEventListener("qs:lang", renderInfo);
   if (window.Auth) Auth.onChange(() => { today = null; renderInfo(); });
+  // 启动兜底: app.js 首次 switchView 早于本脚本, 停在本视图刷新会错过 qs:view
+  if (!$("view-daily").hidden) load();
 })();

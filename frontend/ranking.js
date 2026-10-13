@@ -94,4 +94,6 @@
     loadSeasons();
     refreshBoards();
   });
+  // 启动兜底: 停在本视图刷新会错过首次 qs:view
+  if (!$("view-ranking").hidden) { loadSeasons(); refreshBoards(); }
 })();

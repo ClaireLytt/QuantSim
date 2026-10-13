@@ -319,4 +319,5 @@
   document.addEventListener("qs:lang", () => {
     if (!$("view-option").hidden) { renderBest(); if (g && !g.over) render(); }
   });
+  renderBest(); // 启动兜底: 与其他小游戏的 renderIntroBest 口径一致
 })();

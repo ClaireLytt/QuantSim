@@ -442,4 +442,11 @@
       renderCountdown();
     }
   });
+  // 启动兜底: 停在擂台/竞技场刷新会错过首次 qs:view
+  if (!$("view-duel").hidden) {
+    loadBoard();
+    renderCountdown();
+    timer = setInterval(renderCountdown, 1000);
+  }
+  if (!$("view-arena").hidden) renderArenaTop3();
 })();

@@ -86,4 +86,6 @@
   document.addEventListener("qs:view", (e) => { if (e.detail === "profile") load(); });
   document.addEventListener("qs:lang", () => { if (!$("view-profile").hidden) load(); });
   if (window.Auth) Auth.onChange(() => { if (!$("view-profile").hidden) load(); });
+  // 启动兜底: 停在档案页刷新会错过首次 qs:view
+  if (!$("view-profile").hidden) load();
 })();
