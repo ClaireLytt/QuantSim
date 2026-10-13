@@ -421,6 +421,8 @@
     }
   }
   $("btn-arena-top3-go").addEventListener("click", () => switchView("duel"));
+  // 回测结果卡底部 CTA: 跑完顺手去擂台 PK, 闭环竞技动线
+  $("btn-arena-to-duel").addEventListener("click", () => switchView("duel"));
 
   document.addEventListener("qs:view", (e) => {
     if (e.detail === "arena") renderArenaTop3();

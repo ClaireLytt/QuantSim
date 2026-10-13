@@ -275,7 +275,28 @@ h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: -.1px; }
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
-.intro-mode:hover:not(:disabled) { border-color: var(--accent); filter: none; }
+/* 推荐挑战卡: accent 淡底高亮 + hover 上浮柔光, "可玩内容发光邀请"与首页大卡同语言 */
+.intro-mode {
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  transition: transform .18s var(--ease-out), border-color .18s ease, box-shadow .18s ease;
+}
+.intro-mode:hover:not(:disabled) {
+  border-color: var(--accent);
+  filter: none;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--glow-accent);
+}
+/* 开局主按钮: 独行超大, 页面唯一视觉焦点 */
+.start-cta-main { margin-top: 18px; }
+.start-xl {
+  font-size: 18px;
+  font-weight: 700;
+  padding: 14px 32px;
+  min-width: 280px;
+  box-shadow: 0 6px 22px var(--glow-accent);
+}
+.start-xl:hover:not(:disabled) { box-shadow: 0 8px 28px var(--glow-accent); }
 .intro-mode strong { font-size: 14px; color: var(--text); }
 .intro-mode .hint { margin: 0; font-size: 12px; line-height: 1.5; }
 @media (max-width: 720px) {
@@ -1276,6 +1297,28 @@ button.small { width: auto; margin-top: 8px; padding: 4px 12px; font-size: 12px;
   flex-wrap: wrap;
   gap: 16px;
   margin-top: 16px;
+}
+/* 三大核心指标大卡: 独占一整行, 一眼读出策略强弱 */
+.arena-stat-row {
+  flex: 1 1 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.arena-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  padding: 14px 12px;
+  text-align: center;
+}
+.arena-stat .hint { margin: 0; }
+.arena-stat b { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.arena-duel-hint { margin: 10px 0 6px; }
+#btn-arena-to-duel { width: 100%; }
+@media (max-width: 720px) {
+  .arena-stat-row { grid-template-columns: 1fr; }
 }
 .arena-metrics { flex: 0 1 290px; min-width: 260px; }
 .arena-chart-card { flex: 1 1 500px; min-width: 0; }
@@ -2539,6 +2582,13 @@ footer {
   border-radius: var(--radius-sm);
 }
 .mine-badge .hint { margin: 0; font-size: 12px; }
+/* 未解锁徽章: 灰态占位 + 解锁条件可见, 收集墙的"还差什么"激励 (参照 .pet-skill.locked) */
+.mine-badge.locked {
+  opacity: .55;
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+.mine-badge.locked b { color: var(--text-muted); }
 .mine-stats { flex: 0 0 210px; }
 .mine-stats .hint { margin: 0 0 10px; }
 .mine-stats dl { display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; margin: 0; }
@@ -4298,6 +4348,19 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   border-radius: var(--radius-lg);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent),
     0 0 28px color-mix(in srgb, var(--accent) 16%, transparent), var(--shadow-lg);
+}
+/* 底部世界观叙事段: 与章节引子同一引言语言, 居中收束整页 */
+.walker-lore {
+  margin: 16px auto 0;
+  max-width: 640px;
+  padding: 10px 16px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  text-align: center;
+  color: var(--accent-soft);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-radius: var(--radius-sm);
 }
 /* 故事引子: 衬线引言感 */
 .walker-intro {

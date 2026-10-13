@@ -2138,6 +2138,10 @@ function renderBacktestResult(res) {
   setOptional($("bt-annual"), res.annualReturn, (v) => fmtPct(v), true);
   setOptional($("bt-sharpe"), res.sharpeRatio, (v) => v.toFixed(2), true);
   setDrawdown($("bt-drawdown"), Number(res.maxDrawdown));
+  // 顶部三大指标大卡与 dl 同源同步 (一眼结论区, 明细仍看 dl)
+  setOptional($("bt-stat-annual"), res.annualReturn, (v) => fmtPct(v), true);
+  setOptional($("bt-stat-sharpe"), res.sharpeRatio, (v) => v.toFixed(2), true);
+  setDrawdown($("bt-stat-dd"), Number(res.maxDrawdown));
   $("bt-trades").textContent = res.tradeCount;
   setOptional($("bt-winrate"), res.winRate, (v) => (v * 100).toFixed(1) + "%", false);
   setOptional($("bt-vol"), res.volatility, (v) => (v * 100).toFixed(1) + "%", false);

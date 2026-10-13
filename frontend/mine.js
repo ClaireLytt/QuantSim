@@ -148,15 +148,16 @@
     wrap.innerHTML = "";
     const got = (typeof prog !== "undefined" && prog.badges) ? prog.badges : [];
     $("mine-badges-empty").hidden = !!got.length;
+    // 未解锁也渲染灰态占位: desc 本身就是解锁条件, 收集墙要让人看见"还差什么"
     (typeof BADGES !== "undefined" ? BADGES : []).forEach((b) => {
-      if (!got.includes(b.id)) return;
+      const unlocked = got.includes(b.id);
       const card = document.createElement("div");
-      card.className = "mine-badge";
+      card.className = "mine-badge" + (unlocked ? "" : " locked");
       const name = document.createElement("b");
       name.textContent = pick(b.name);
       const desc = document.createElement("span");
       desc.className = "hint";
-      desc.textContent = pick(b.desc);
+      desc.textContent = (unlocked ? "" : t("mine.badgeLocked") + " · ") + pick(b.desc);
       card.append(name, desc);
       wrap.appendChild(card);
     });

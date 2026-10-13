@@ -14,7 +14,7 @@
     } catch (e) { /* no-op */ }
   </script>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=20261014b">
+  <link rel="stylesheet" href="style.css?v=20261014c">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -93,20 +93,23 @@
         <input type="checkbox" id="reason-toggle"> <span data-i18n="start.constraints.reason">交易日志</span>
       </label>
     </div>
-    <div class="start-cta">
-      <button id="btn-start" class="primary big" data-i18n="btn.start">开始新对局</button>
-      <button id="btn-help" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
-      <button id="btn-tour" data-i18n="tour.btn" data-i18n-title="tour.btn">新手引导</button>
+    <!-- 主按钮独行放大建立层级: 玩法说明/新手引导降为次级行 -->
+    <div class="start-cta start-cta-main">
+      <button id="btn-start" class="primary start-xl" data-i18n="btn.start">开始新对局</button>
     </div>
-    <!-- 两种特殊开局: 并列小选项卡各带一句描述 (替代一行逗号串联的脚注) -->
+    <div class="start-cta">
+      <button id="btn-help" class="ghost" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
+      <button id="btn-tour" class="ghost" data-i18n="tour.btn" data-i18n-title="tour.btn">新手引导</button>
+    </div>
+    <!-- 推荐挑战: 两张高亮玩法卡 (emoji 为视觉锚点不进 i18n, 文案 span 单独挂键) -->
     <div class="intro-modes">
       <button id="btn-survival" class="intro-mode">
-        <strong data-i18n="survival.btn">熊市生存挑战</strong>
-        <span class="hint" data-i18n="intro.mode.survival">穿越历史暴跌段，目标：亏得比「买入持有」少</span>
+        <strong>🐻 <span data-i18n="survival.btn">熊市生存挑战</span></strong>
+        <span class="hint" data-i18n="intro.mode.survival">穿越历史暴跌段，跑赢「买入持有」基准——风控大考，赢了冲榜</span>
       </button>
       <button id="btn-blindbox-start" class="intro-mode">
-        <strong data-i18n="blindstart.btn">盲盒开局</strong>
-        <span class="hint" data-i18n="intro.mode.blind">市场 / 行业 / AI 全随机，开出什么打什么</span>
+        <strong>🎲 <span data-i18n="blindstart.btn">盲盒开局</span></strong>
+        <span class="hint" data-i18n="intro.mode.blind">市场 / 行业 / AI 全随机的手气局，开出什么打什么</span>
       </button>
     </div>
   </section>
@@ -381,6 +384,12 @@
     </aside>
 
     <div id="bt-result" class="arena-result" hidden>
+      <!-- 三大核心指标大卡: 一眼读出这套策略强不强, 明细仍在下方 dl -->
+      <div class="arena-stat-row">
+        <div class="card arena-stat"><span class="hint" data-i18n="bt.annual">年化收益</span><b id="bt-stat-annual">--</b></div>
+        <div class="card arena-stat"><span class="hint" data-i18n="bt.drawdown">最大回撤</span><b id="bt-stat-dd">--</b></div>
+        <div class="card arena-stat"><span class="hint" data-i18n="bt.sharpe">夏普比率</span><b id="bt-stat-sharpe">--</b></div>
+      </div>
       <div class="card arena-metrics">
         <h2 id="bt-title">回测结果</h2>
         <dl>
@@ -400,6 +409,9 @@
           <dt><span class="term" data-term="buyhold" data-i18n="bt.hold">买入持有基准</span></dt><dd id="bt-hold">--</dd>
         </dl>
         <p id="bt-verdict" class="verdict"></p>
+        <!-- 结果态擂台 CTA: 回测跑完顺手把参数带去 PK, 闭环竞技动线 -->
+        <p class="hint arena-duel-hint" data-i18n="arena.toDuelHint">觉得这套参数能打？去擂台和全服策略碰一碰。</p>
+        <button id="btn-arena-to-duel" class="replay" data-i18n="arena.toDuel">带着这套参数去擂台 PK →</button>
       </div>
       <div class="card arena-chart-card">
         <h2><span class="term" data-term="equitycurve" data-i18n="bt.equity">资金曲线</span> <span class="sub" data-i18n="bt.equitySub">策略 vs 买入持有</span></h2>
@@ -494,7 +506,8 @@
       <p class="hint" data-i18n="ep.drawerHint">本时代资产情报互通。</p>
     </aside>
 
-    <p class="hint tl-rail-hint" data-i18n="walker.hint">你的资产与情报，在同一个时代内互通。</p>
+    <!-- 底部叙事段: 把世界观规则讲成故事, 不再是一行小字脚注 -->
+    <p class="walker-lore" data-i18n="walker.hint">同一时代资产情报互通；全局声望、藏品、角色天赋永久保留。全部时代通关解锁二周目历史扰动轮回。</p>
 
 
 
@@ -2483,9 +2496,9 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261014"></script>
+  <script src="i18n.js?v=20261014b"></script>
   <script src="glossary.js?v=20261002a"></script>
-  <script src="app.js?v=20261009c"></script>
+  <script src="app.js?v=20261014"></script>
   <script src="auth.js?v=20261005b"></script>
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
   <script src="data/levels.js?v=20261008a"></script>
@@ -2518,9 +2531,9 @@
   <script src="career.js?v=20261009a"></script>
   <script src="relics.js?v=20261009c"></script>
   <script src="walker.js?v=20261009h"></script>
-  <script src="duel.js?v=20261009a"></script>
+  <script src="duel.js?v=20261014"></script>
   <script src="wiki.js?v=20261008a"></script>
   <script src="games.js?v=20261009c"></script>
-  <script src="mine.js?v=20261008b"></script>
+  <script src="mine.js?v=20261014"></script>
 </body>
 </html>
