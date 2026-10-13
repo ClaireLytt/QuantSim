@@ -51,6 +51,15 @@
       rate.textContent = t("bp.rate", tr.triggered, tr.games);
       row.appendChild(rate);
 
+      // 风险星级: 触发率 <20% 绿★ / 20-50% 黄★★ / ≥50% 红★★★, 一眼读出轻重
+      const ratio = tr.triggered / tr.games;
+      const level = ratio < 0.2 ? "low" : ratio < 0.5 ? "mid" : "high";
+      const stars = document.createElement("span");
+      stars.className = "bp-stars bp-" + level;
+      stars.textContent = level === "low" ? "★" : level === "mid" ? "★★" : "★★★";
+      stars.title = t("bp.star." + level);
+      row.appendChild(stars);
+
       // 每局一个点: 触发=警示色, 未触发=健康色 (复用预测命中点阵的视觉语言)
       const dots = document.createElement("span");
       dots.className = "bp-dots";

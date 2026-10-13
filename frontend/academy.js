@@ -1511,6 +1511,11 @@ function renderProfile() {
   const span = next ? next.xp - base : 1;
   const fillPct = next ? Math.min(100, ((prog.xp - base) / span) * 100) : 100;
   $("xp-fill").style.width = fillPct + "%";
+  // 段位环形进度与直条同源: r=31, 周长 2πr≈194.8
+  const ring = $("xp-ring");
+  const circ = 2 * Math.PI * 31;
+  ring.style.strokeDasharray = circ.toFixed(1);
+  ring.style.strokeDashoffset = (circ * (1 - fillPct / 100)).toFixed(1);
   $("xp-text").textContent = next
     ? t("profile.xpNext", prog.xp, next.xp, pick(next.name))
     : t("profile.xpMax", prog.xp);

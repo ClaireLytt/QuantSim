@@ -165,6 +165,8 @@
     $("wm-name").textContent = (window.Auth && Auth.user && Auth.user.username) || t("role.guest");
     $("wm-rep-line").textContent = t("role.rep", window.qsRep ? qsRep() : 0);
     $("walker-talent-sel").value = prog.talent || ""; // 选择器已移入完整档案弹窗
+    // 向导狐狸台词: 按周轮换 3 句叙事引导 (口径与首页本周推荐一致)
+    $("walker-fox-bubble").textContent = t("walker.fox." + (qsWeekIndex() % 3));
   }
   $("walker-line").addEventListener("click", () => window.qsOpenRole && qsOpenRole());
   document.addEventListener("qs:view", renderMini);

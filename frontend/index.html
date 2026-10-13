@@ -14,7 +14,7 @@
     } catch (e) { /* no-op */ }
   </script>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=20261014c">
+  <link rel="stylesheet" href="style.css?v=20261014d">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -433,6 +433,11 @@
 
     <!-- 左上角一行档案入口: 点击进完整行者档案 -->
     <button id="walker-line" class="walker-line"><b id="wm-name">--</b><span id="wm-rep-line"></span></button>
+    <!-- 向导角色: 🦊 头像 + 叙事气泡 (纯装饰, 台词按周轮换) -->
+    <div class="walker-fox" aria-hidden="true">
+      <span class="walker-fox-face">🦊</span>
+      <span id="walker-fox-bubble" class="walker-fox-bubble"></span>
+    </div>
     <div class="epoch-layout">
       <!-- 中栏: 时空时间线地图 -->
       <div id="epoch-center">
@@ -523,7 +528,14 @@
       <div class="profile-main">
         <div class="profile-rank">
           <span class="hint" data-i18n="profile.rank">当前段位</span>
-          <strong id="profile-level">--</strong>
+          <!-- 段位环形进度: RPG 角色面板的"等级环", 数值与下方直条同源 -->
+          <span class="xp-ring-box" aria-hidden="true">
+            <svg viewBox="0 0 72 72" class="xp-ring-svg">
+              <circle class="xp-ring-bg" cx="36" cy="36" r="31"/>
+              <circle id="xp-ring" class="xp-ring-fill" cx="36" cy="36" r="31"/>
+            </svg>
+            <strong id="profile-level">--</strong>
+          </span>
           <span id="profile-title" class="profile-title" hidden></span>
         </div>
         <div class="profile-xp">
@@ -2496,19 +2508,19 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261014b"></script>
+  <script src="i18n.js?v=20261014c"></script>
   <script src="glossary.js?v=20261002a"></script>
   <script src="app.js?v=20261014"></script>
   <script src="auth.js?v=20261005b"></script>
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
   <script src="data/levels.js?v=20261008a"></script>
   <script src="data/cases.js?v=20261008a"></script>
-  <script src="academy.js?v=20261009b"></script>
+  <script src="academy.js?v=20261014"></script>
   <script src="lab.js?v=20261011a"></script>
   <script src="daily.js?v=20261002a"></script>
   <script src="event.js?v=20261006a"></script>
   <script src="option.js?v=20261008a"></script>
-  <script src="biasprofile.js?v=20261006a"></script>
+  <script src="biasprofile.js?v=20261014"></script>
   <script src="tape.js?v=20261008a"></script>
   <script src="rooms.js?v=20261006a"></script>
   <script src="ranking.js?v=20261004a"></script>
@@ -2530,7 +2542,7 @@
   <script src="pet.js?v=20261009j"></script>
   <script src="career.js?v=20261009a"></script>
   <script src="relics.js?v=20261009c"></script>
-  <script src="walker.js?v=20261009h"></script>
+  <script src="walker.js?v=20261014"></script>
   <script src="duel.js?v=20261014"></script>
   <script src="wiki.js?v=20261008a"></script>
   <script src="games.js?v=20261009c"></script>
