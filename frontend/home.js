@@ -4,35 +4,28 @@
   // 功能总览按"玩法属性"分 4 组 (2026-10 游戏化改版): 可玩的突出、工具的下沉。
   // 档位三档: hero = 大卡占两列高亮 (优先推荐玩法), 默认中卡, tool = 小号低饱和 (进阶硬核工具)。
   // emoji 是视觉锚点不是文案, 本地映射不进 i18n (先例: pet.js 的配饰 emoji)。
+  // 每张卡的数据 (view/tier/emoji) 收在一个对象里, 不另开平行映射表 —— 删卡时不会漏删
   const CARD_GROUPS = [
-    { id: "quick", cards: [ // ⚡即时速玩: 3-10 分钟碎片化开局
-      { view: "games", tier: "hero" }, { view: "guess" }, { view: "newsjudge" },
-      { view: "tape" }, { view: "qdetect" },
-      { view: "stratbox", tier: "tool" }, { view: "buydip", tier: "tool" },
-      { view: "richman", tier: "tool" }, { view: "option", tier: "tool" },
-      { view: "reborn", tier: "tool" }, { view: "bubble", tier: "tool" },
+    { id: "quick", emoji: "⚡", cards: [ // 即时速玩: 3-10 分钟碎片化开局
+      { view: "games", tier: "hero", emoji: "🎮" }, { view: "guess", emoji: "📈" },
+      { view: "newsjudge", emoji: "📰" }, { view: "tape", emoji: "⚡" }, { view: "qdetect", emoji: "🔍" },
+      { view: "stratbox", tier: "tool", emoji: "🎁" }, { view: "buydip", tier: "tool", emoji: "🪂" },
+      { view: "richman", tier: "tool", emoji: "🎲" }, { view: "option", tier: "tool", emoji: "🧮" },
+      { view: "reborn", tier: "tool", emoji: "🔄" }, { view: "bubble", tier: "tool", emoji: "🫧" },
     ] },
-    { id: "long", cards: [ // ⏳长线对局: 赛季冲榜主玩法
-      { view: "game", tier: "hero" }, { view: "daily", tier: "hero" },
-      { view: "rooms" }, { view: "event" },
+    { id: "long", emoji: "⏳", cards: [ // 长线对局: 赛季冲榜主玩法
+      { view: "game", tier: "hero", emoji: "⚔️" }, { view: "daily", tier: "hero", emoji: "🗓️" },
+      { view: "rooms", emoji: "👥" }, { view: "event", emoji: "⏪" },
     ] },
-    { id: "learn", cards: [ // 📖学习闯关: 边玩边学
-      { view: "academy", tier: "hero" }, { view: "famous" }, { view: "story" },
-      { view: "quiz", tier: "tool" },
+    { id: "learn", emoji: "📖", cards: [ // 学习闯关: 边玩边学
+      { view: "academy", tier: "hero", emoji: "🏯" }, { view: "famous", emoji: "🎬" },
+      { view: "story", emoji: "🎭" }, { view: "quiz", tier: "tool", emoji: "🧠" },
     ] },
-    { id: "tools", cards: [ // 🧪进阶量化工具: 对局后复盘用, 视觉弱化
-      { view: "lab", tier: "tool" }, { view: "arena", tier: "tool" },
-      { view: "duel", tier: "tool" }, { view: "wiki", tier: "tool" },
+    { id: "tools", emoji: "🧪", cards: [ // 进阶量化工具: 对局后复盘用, 视觉弱化
+      { view: "lab", tier: "tool", emoji: "🔬" }, { view: "arena", tier: "tool", emoji: "🏟️" },
+      { view: "duel", tier: "tool", emoji: "🥊" }, { view: "wiki", tier: "tool", emoji: "📚" },
     ] },
   ];
-  const GROUP_EMOJI = { quick: "⚡", long: "⏳", learn: "📖", tools: "🧪" };
-  const CARD_EMOJI = {
-    games: "🎮", guess: "📈", newsjudge: "📰", tape: "⚡", qdetect: "🔍",
-    stratbox: "🎁", buydip: "🪂", richman: "🎲", option: "🧮", reborn: "🔄", bubble: "🫧",
-    game: "⚔️", daily: "🗓️", rooms: "👥", event: "⏪",
-    academy: "🏯", famous: "🎬", story: "🎭", quiz: "🧠",
-    lab: "🔬", arena: "🏟️", duel: "🥊", wiki: "📚",
-  };
 
   function renderHome() {
     const wrap = $("home-cards");
@@ -40,7 +33,7 @@
     CARD_GROUPS.forEach((g) => {
       const label = document.createElement("p");
       label.className = "home-group-label";
-      label.textContent = GROUP_EMOJI[g.id] + " " + t("home.group." + g.id);
+      label.textContent = g.emoji + " " + t("home.group." + g.id);
       const sub = document.createElement("span");
       sub.className = "home-group-sub";
       sub.textContent = t("home.groupSub." + g.id);
@@ -48,11 +41,11 @@
       wrap.appendChild(label);
       const grid = document.createElement("div");
       grid.className = "home-group-grid";
-      g.cards.forEach(({ view, tier }) => {
+      g.cards.forEach(({ view, tier, emoji }) => {
         const btn = document.createElement("button");
         btn.className = "home-card" + (tier === "hero" ? " featured" : tier === "tool" ? " tool" : "");
         const title = document.createElement("strong");
-        title.textContent = CARD_EMOJI[view] + " " + t(`home.card.${view}.t`);
+        title.textContent = emoji + " " + t(`home.card.${view}.t`);
         const desc = document.createElement("span");
         desc.className = "hint";
         desc.textContent = t(`home.card.${view}.d`);

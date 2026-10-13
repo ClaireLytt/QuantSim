@@ -126,16 +126,15 @@
   $("btn-relics-role").addEventListener("click", openRoleModal);
 
   // ---------- 藏品档案馆页: 声望条 + 分类筛选 + 按时代分馆的网格 + 套装进度 ----------
-  const TIERS2 = [0, 150, 400, 800]; // 与角色面板同阈值 (role.tier.0-3)
   let relicFilter = ""; // "" = 全部时代
   const CATS = ["", "crisis", "tech", "policy"];
 
   function renderRepBar(wrap) {
     const rep = qsRep();
-    const tier = TIERS2.filter((v) => rep >= v).length - 1;
-    const next = TIERS2[tier + 1];
+    const tier = tierIdx(rep); // 复用角色面板同一阈值表, 别再抄一份
+    const next = TIERS[tier + 1];
     const box = document.createElement("div");
-    box.className = "relic-rep";
+    box.className = "card relic-rep"; // 复用全站卡片材质
     const line = document.createElement("p");
     line.className = "relic-rep-line";
     line.textContent = t("relics.repNow", rep, t("role.tier." + tier))

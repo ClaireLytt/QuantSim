@@ -46,45 +46,9 @@ async function step(name, fn) {
 }
 
 await step("首页加载 (过登录门禁 + 首访弹层)", async () => {
-  await page.goto(BASE, { waitUntil: "domcontentloaded" });
-  // 首访会被 index.html 内联脚本 location.replace 到 landing.html (营销落地页),
-  // 点「进入游戏」CTA 回主应用 (此时 qs_seen 已写入, 不会再跳)
-  if (page.url().includes("landing")) {
-    await page.click('a.ld-cta[href^="index.html"]', { timeout: 5000 });
-    await page.waitForTimeout(300);
-  }
-  await page.waitForSelector("#nav-groups .nav-group", { timeout: 15000 });
-  await page.waitForTimeout(800);
-  // 首访自动弹新手引导 (tour-mask 盖全屏), 点「跳过引导」
-  if (await page.isVisible("#btn-tour-skip")) {
-    await page.click("#btn-tour-skip");
-    await page.waitForTimeout(300);
-  }
-  // 部分版本还会弹玩法说明
-  if (await page.isVisible("#help-modal")) {
-    await page.click("#btn-help-close");
-  }
-  // 登录门禁: 注册一次性账号过闸 (门禁上线后不登录看不到应用)
-  if (await page.isVisible("#login-gate")) {
-    if (!(await page.isVisible("#auth-modal"))) {
-      await page.click("#btn-gate-login");
-    }
-    await page.click("#link-register");
-    await page.fill("#reg-name", "smoke_" + Date.now().toString().slice(-8));
-    await page.fill("#reg-pass", "smoke123");
-    await page.fill("#reg-pass2", "smoke123");
-    await page.click("#btn-register");
-    await page.waitForSelector("#login-gate[hidden]", { state: "attached", timeout: 10000 });
-    // 首访引导在过闸后才弹 (登录前不打扰), 这里再跳一次
-    await page.waitForTimeout(800);
-    if (await page.isVisible("#btn-tour-skip")) {
-      await page.click("#btn-tour-skip");
-      await page.waitForTimeout(300);
-    }
-    if (await page.isVisible("#help-modal")) {
-      await page.click("#btn-help-close");
-    }
-  }
+  // 引导流程 (landing/引导/门禁注册) 抽到 enter_app.mjs, 与按钮体检共用一份
+  const { enterApp } = await import("./enter_app.mjs");
+  await enterApp(page, BASE, "smoke_");
 });
 
 await step("新手引导 10 步走完", async () => {

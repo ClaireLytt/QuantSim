@@ -102,34 +102,15 @@ async function checkCurrent(view) {
   for (const d of res.zeroSize) add(view, "zero-size", "warn", d);
 }
 
-// ── 进应用 (过 landing / 登录门禁 / 新手引导, 逻辑同 smoke.mjs) ──
+// ── 进应用: 共享引导流程 (enter_app.mjs, 与 smoke.mjs 同源) ──
 try {
   await fetch(BASE, { signal: AbortSignal.timeout(3000) });
 } catch {
   console.error(`后端不可达: ${BASE} — 先启动后端 (mvn spring-boot:run 或 start.ps1)`);
   process.exit(1);
 }
-await page.goto(BASE, { waitUntil: "domcontentloaded" });
-if (page.url().includes("landing")) {
-  await page.click('a.ld-cta[href^="index.html"]', { timeout: 5000 });
-  await page.waitForTimeout(300);
-}
-await page.waitForSelector("#nav-groups .nav-group", { timeout: 15000 });
-await page.waitForTimeout(800);
-if (await page.isVisible("#btn-tour-skip")) { await page.click("#btn-tour-skip"); await page.waitForTimeout(300); }
-if (await page.isVisible("#help-modal")) await page.click("#btn-help-close");
-if (await page.isVisible("#login-gate")) {
-  if (!(await page.isVisible("#auth-modal"))) await page.click("#btn-gate-login");
-  await page.click("#link-register");
-  await page.fill("#reg-name", "btncheck_" + Date.now().toString().slice(-8));
-  await page.fill("#reg-pass", "smoke123");
-  await page.fill("#reg-pass2", "smoke123");
-  await page.click("#btn-register");
-  await page.waitForSelector("#login-gate[hidden]", { state: "attached", timeout: 10000 });
-  await page.waitForTimeout(800);
-  if (await page.isVisible("#btn-tour-skip")) { await page.click("#btn-tour-skip"); await page.waitForTimeout(300); }
-  if (await page.isVisible("#help-modal")) await page.click("#btn-help-close");
-}
+const { enterApp } = await import("./enter_app.mjs");
+await enterApp(page, BASE, "btncheck_");
 
 // ── 遍历全部导航组与子标签, 每个视图跑一遍按钮检查 ──
 console.log(`▶ 按钮体检 ${BASE}\n`);
@@ -144,7 +125,7 @@ for (let i = 0; i < groupCount; i++) {
   const group = page.locator("#nav-groups .nav-group").nth(i);
   const gName = (await group.getAttribute("data-group")) || `group${i}`;
   await group.click();
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(120); // 视图 hidden 切换是同步的, 留一拍给异步渲染
   await dismissLabGuide();
   // 子标签每次切视图整体重建, 用 data-view 逐个重新定位
   const views = await page.$$eval("#nav-subtabs .nav-tab",
@@ -157,7 +138,9 @@ for (let i = 0; i < groupCount; i++) {
   }
   for (const v of views) {
     await page.click(`#nav-subtabs .nav-tab[data-view="${v}"]`);
-    await page.waitForTimeout(300);
+    // 条件等待代替固定 sleep: 视图容器可见即可做 DOM 检查 (本工具是高频强制步骤, 空等会天天乘几十次)
+    await page.waitForSelector(`#view-${v}:not([hidden])`, { timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(120);
     await dismissLabGuide();
     await checkCurrent(`${gName}/${v}`);
     const n = findings.filter((f) => f.view === `${gName}/${v}`).length;

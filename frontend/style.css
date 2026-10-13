@@ -619,7 +619,8 @@ main {
 .academy-panel > .hint { margin: 0; }
 
 /* 段位与成就 */
-/* 2x2 四大玻璃卡面板: 左上段位 / 右上徽章 / 左下称号 / 右下装备+偏差, 窄屏退单列 */
+/* 2x2 四大玻璃卡面板: 左上段位 / 右上徽章 / 左下称号 / 右下装备+偏差, 窄屏退单列。
+   外层只做栅格; 四分区在 HTML 挂 .card 复用全站受光材质, 不手抄配方 */
 .profile-card {
   margin-top: 14px;
   display: grid;
@@ -629,24 +630,11 @@ main {
     "titles bias";
   grid-template-columns: minmax(280px, 1fr) 1.2fr;
   gap: 24px;
-  /* 外层去卡片化: 四个分区各自成卡, 容器只负责栅格 */
-  background: none;
-  border: none;
-  box-shadow: none;
-  padding: 0;
 }
 .profile-main { grid-area: main; }
 .profile-badges { grid-area: badges; }
-.profile-badges + .profile-badges { grid-area: titles; }
+.profile-titles { grid-area: titles; }
 .profile-bias { grid-area: bias; }
-/* 四分区玻璃卡: 与全站 .card 同受光材质 */
-.profile-main, .profile-badges, .profile-bias, .profile-gear {
-  padding: 20px;
-  background: linear-gradient(180deg, var(--sheen), transparent 45%), var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow), inset 0 1px 0 var(--sheen);
-}
 /* 偏差风险小卡: 三列属性卡, 每项一卡 (名称+星级+点阵+趋势) */
 .bp-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
 .bp-card {
@@ -666,7 +654,7 @@ main {
 .bp-stars.bp-low { color: var(--good); }
 .bp-stars.bp-mid { color: var(--warn); }
 .bp-stars.bp-high { color: var(--bad); }
-.profile-gear { grid-area: gear; margin-top: 0; }
+.profile-gear { grid-area: gear; }
 @media (max-width: 720px) {
   .profile-card { grid-template-areas: "main" "badges" "titles" "gear" "bias"; grid-template-columns: 1fr; }
 }
@@ -728,7 +716,6 @@ main {
   transition: width .4s ease;
 }
 .profile-xp .hint { display: block; margin-top: 6px; }
-.profile-badges { flex: 1.4; min-width: 260px; }
 /* 徽章/称号画廊: 网格小卡 (2026-10 从胶囊标签云改版, 文本可换行、独卡呼吸感) */
 .badge-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 10px; }
 .badge {
@@ -1245,7 +1232,6 @@ main {
 
 /* ---------- 装备 ---------- */
 
-.profile-gear { margin-top: 12px; }
 .gear-hint { margin-left: 10px; }
 .gear-list {
   display: flex;
@@ -1712,8 +1698,6 @@ footer {
 
 /* 行为偏差档案 (成长档案页) */
 .profile-bias { display: flex; flex-direction: column; gap: 6px; }
-.bp-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
-.bp-row strong { min-width: 72px; }
 .bp-dots { display: inline-flex; gap: 3px; align-items: center; }
 .bp-trend.improving { color: var(--good); }
 .bp-trend.worsening { color: var(--bad); }
@@ -3176,7 +3160,6 @@ footer {
 .home-rank-empty svg { width: 34px; height: 34px; opacity: .7; }
 @media (max-width: 720px) {
   .home-group-grid { grid-template-columns: 1fr 1fr; }
-  .home-card.primary { grid-column: 1 / -1; }
 }
 .home-card {
   display: flex;
@@ -4259,18 +4242,19 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
 
 /* 藏品档案馆 */
 .relics-wrap { display: flex; flex-direction: column; gap: 18px; margin-top: 14px; }
-/* 时代标签 chip: 卡面左上的馆藏编目 */
-.relic-era-tag {
-  align-self: flex-start;
+/* 藏品小胶囊三件套: 共用盒模型, 颜色用 --chip-c 参数化 (新增角标请复用这套, 别再复制) */
+.relic-era-tag, .relic-tag, .relic-set-tag {
   padding: 1px 8px;
   font-size: 10px;
   font-style: normal;
   border-radius: 999px;
-  color: var(--lab-blue);
-  border: 1px solid color-mix(in srgb, var(--lab-blue) 40%, var(--border));
-  background: color-mix(in srgb, var(--lab-blue) 8%, transparent);
+  color: var(--chip-c, var(--text-muted));
+  border: 1px solid color-mix(in srgb, var(--chip-c, var(--text-muted)) 40%, var(--border));
+  background: color-mix(in srgb, var(--chip-c, var(--text-muted)) 8%, transparent);
 }
-/* 声望小卡: 右上紧凑模块, 收集总目标 (小卡不抢画廊视线) */
+/* 时代标签 chip: 卡面左上的馆藏编目 */
+.relic-era-tag { align-self: flex-start; --chip-c: var(--lab-blue); }
+/* 声望小卡: 右上紧凑模块, 挂 .card 复用材质, 这里只收紧密度与 accent 描边 */
 .relic-rep {
   align-self: flex-end;
   width: min(300px, 100%);
@@ -4279,45 +4263,16 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   gap: 6px;
   padding: 10px 14px;
   font-size: 12px;
-  background: linear-gradient(180deg, var(--sheen), transparent 45%), var(--panel);
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
   border-radius: var(--radius-sm);
 }
 .relic-rep-line { margin: 0; font-size: 12px; font-variant-numeric: tabular-nums; }
 /* 分类筛选 chips */
 .relic-filter { display: flex; gap: 8px; flex-wrap: wrap; }
-/* 收集状态角标 */
-.relic-item { position: relative; }
-.relic-tag {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 1px 8px;
-  font-size: 10px;
-  font-style: normal;
-  border-radius: 999px;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-}
-.relic-tag.got {
-  color: var(--good);
-  border-color: color-mix(in srgb, var(--good) 45%, var(--border));
-  background: color-mix(in srgb, var(--good) 10%, transparent);
-}
-/* 套装集齐小徽: 卡片左上角, 与收集角标对称 */
-.relic-set-tag {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  padding: 1px 8px;
-  font-size: 10px;
-  font-style: normal;
-  border-radius: 999px;
-  color: var(--warn);
-  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
-  background: color-mix(in srgb, var(--warn) 10%, transparent);
-}
+/* 收集状态角标 (右上) 与套装集齐小徽 (左上): 盒模型见上方三件套共用块 */
+.relic-tag { position: absolute; top: 8px; right: 8px; background: var(--surface-2); }
+.relic-tag.got { --chip-c: var(--good); background: color-mix(in srgb, var(--good) 10%, transparent); }
+.relic-set-tag { position: absolute; top: 8px; left: 8px; --chip-c: var(--warn); }
 /* 未收集: 预览图灰度, "未点亮的展品" */
 .relic-item.lock .relic-card { filter: grayscale(1); }
 /* 稀有藏品: 同尺寸小卡只用光晕分层 (禁横向长条, 2026-10 评审: 卡片不得铺满整行) */
@@ -4334,6 +4289,7 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
 .relic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-top: 10px; }
 @media (max-width: 720px) { .relic-grid { grid-template-columns: 1fr 1fr; } }
 .relic-item {
+  position: relative; /* 角标/集齐徽绝对定位锚点 */
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -4528,12 +4484,7 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   background-size: 48px 48px;
 }
 
-/* 时间线加粗 + 节点放大 + 年份更大 */
-#walker-rail.tl-rail {
-  background: linear-gradient(transparent 32px, color-mix(in srgb, var(--accent) 45%, var(--border)) 32px,
-    color-mix(in srgb, var(--accent) 45%, var(--border)) 36px, transparent 36px);
-}
-#walker-rail .tl-dot2 { width: 20px; height: 20px; border-width: 2.5px; }
+/* 时间线背景与节点尺寸统一在文件尾部"时空航道"段定义 (旧细线定义已回收, 勿在此重加) */
 #walker-rail .tl-year2 { font-size: 16px; }
 #walker-rail .tl-name { font-size: 12px; }
 /* 三态: 灰=未推进 / 蓝=可进入 / 紫=已通关 */
@@ -4617,39 +4568,39 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
 .walker-ch-stats2 span:nth-child(3) b { color: var(--accent-soft); }
 .walker-ch-stats2 span:nth-child(4) b { color: var(--warn); }
 
-/* 互通提示放大居中 */
-.tl-rail-hint { font-size: 14px; color: var(--text); opacity: .85; margin-top: 2px; }
+/* (旧"互通提示"覆盖已随 .walker-lore 改版回收, 名场面页提示用 4255 行通用定义) */
 
 /* 迷你预览: 两行极简, 可点 */
 button.walker-mini { width: 170px; padding: 10px 14px; gap: 4px; cursor: pointer; text-align: left; }
 button.walker-mini:hover { border-color: var(--accent); filter: none; }
 
 /* ---------- 纪元主线 v3: 轮回图标 / 状态行 / 奖励小字 / 高风险按钮 ---------- */
-#walker-rail .tl-node.done .tl-dot2 { display: grid; place-content: center; color: var(--on-accent); }
-#walker-rail .tl-node.done .tl-dot2 svg { width: 12px; height: 12px; }
+/* (done 节点样式统一并入文件尾部"时空航道"段, 此处不再重复定义) */
 .wt-status { font-size: 11px; color: var(--lab-blue); margin-top: 3px; }
 .wt-reward { font-size: 10.5px; color: var(--warn); opacity: .85; margin-top: 1px; }
 .walker-risky { width: auto; align-self: flex-end; margin-top: -2px; border-color: color-mix(in srgb, var(--up) 45%, var(--border)); color: var(--up); }
 .walker-risky:hover:not(:disabled) { border-color: var(--up); filter: none; }
 
 /* ---------- 纪元主线三栏布局 ---------- */
+/* 主体容器居中 1600px; 右栏定宽 360 (规范版属性已并入, 勿在文件尾再开同名覆盖块) */
 .epoch-layout {
   display: grid;
-  grid-template-columns: 1fr 22%;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  max-width: 1600px;
   gap: 16px;
   align-items: start;
-  margin-top: 14px;
+  margin: 14px auto 0;
 }
 .epoch-side {
   position: sticky;
   top: 160px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   padding: 14px 16px;
-  background: color-mix(in srgb, var(--panel) 92%, transparent);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: 12px;
 }
 .ep-name { font-size: 14px; color: var(--accent-soft); }
 .ep-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
@@ -4746,34 +4697,16 @@ button.walker-mini:hover { border-color: var(--accent); filter: none; }
 
 /* ---------- 纪元主线对齐规范版: 12 列栅格居中 / 360px 右栏 / 均布节点 / 克制光效 ---------- */
 
-/* 标题组居中靠上: 章节选择屏/档案馆的仪式感 */
-#view-academy > .academy-panel > h2,
-#view-relics > .academy-panel > h2 {
-  justify-content: center;
-  text-align: center;
-}
+/* 标题居中由全局 .academy-panel > h2 规则承担 (143 行), 不再做视图级重复覆盖 */
 
-/* 主体容器居中 1600px; 右栏定宽 360 与时间线顶对齐 */
-.epoch-layout {
-  grid-template-columns: minmax(0, 1fr) 360px;
-  max-width: 1600px;
-  margin: 14px auto 0;
-}
-.epoch-side {
-  border-radius: 12px;
-  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
-  background: color-mix(in srgb, var(--panel) 82%, transparent);
-  gap: 10px;
-}
-/* 侧栏三模块: 独立圆角卡, 受光 sheen 与全站卡片同语言 */
+/* (布局与侧栏定义已并入上方 .epoch-layout/.epoch-side 单一块) */
+/* 侧栏三模块: 挂 .card 复用受光材质, 这里只收紧密度 */
 .ep-mod {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 12px 14px;
-  background: linear-gradient(180deg, var(--sheen), transparent 45%), var(--panel);
-  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: inset 0 1px 0 var(--sheen);
 }
@@ -4782,7 +4715,7 @@ button.walker-mini:hover { border-color: var(--accent); filter: none; }
 .epoch-side .pet-sec-title { width: 100%; }
 #epoch-tasks { width: 100%; }
 
-/* 时间线: 节点均匀分布同一水平线, 容器居中, 线条粗细统一 (去流光/粒子, 克制微光) */
+/* 时间线: 节点均匀分布同一水平线, 容器居中 */
 #view-academy { animation: none; }
 @media (prefers-reduced-motion: no-preference) {
   #view-academy {
@@ -4792,30 +4725,40 @@ button.walker-mini:hover { border-color: var(--accent); filter: none; }
     background-size: 48px 48px, 48px 48px;
     animation: none;
   }
-  #walker-rail.tl-rail { animation: none; }
 }
 #walker-rail.tl-rail {
+  position: relative;
   justify-content: space-between;
   gap: 8px;
   overflow-x: visible;
   cursor: default;
-  /* 时空航道: 双层 background —— 第 1 层流光带(动画位移), 第 2 层通长 6px 紫→青渐变粗线(固定)。
-     层数与 rail-flow 关键帧一一对应, 别改成单层 (曾因层数不匹配把线平移出视口) */
-  background-image:
-    linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent-soft) 70%, transparent), transparent),
-    linear-gradient(90deg,
+  /* 时空航道: 通长 6px 紫→青渐变粗线 (静态背景); 流光带走 ::after + transform (合成器, 零重绘) */
+  background-image: linear-gradient(90deg,
       color-mix(in srgb, var(--accent) 60%, transparent),
       color-mix(in srgb, var(--accent-2) 60%, transparent));
-  background-size: 220px 6px, 100% 6px;
-  background-position: -220px 35px, 0 35px;
+  background-size: 100% 6px;
+  background-position: 0 35px;
   background-repeat: no-repeat;
 }
-@media (prefers-reduced-motion: no-preference) {
-  #walker-rail.tl-rail { animation: rail-flow 5s linear infinite; }
+/* 流光带: 仅动 transform, 不触发 paint; reduced-motion 下整条隐藏 */
+#walker-rail.tl-rail::after {
+  content: "";
+  position: absolute;
+  left: -220px;
+  top: 35px;
+  width: 220px;
+  height: 6px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent-soft) 70%, transparent), transparent);
+  pointer-events: none;
+  will-change: transform;
+  animation: rail-flow 5s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  #walker-rail.tl-rail::after { display: none; }
 }
 @keyframes rail-flow {
-  from { background-position: -220px 35px, 0 35px; }
-  to { background-position: 1800px 35px, 0 35px; }
+  from { transform: translateX(0); }
+  to { transform: translateX(2020px); }
 }
 /* 立体徽章节点: 28px 圆 + 顶部受光内高光 + 底部投影 */
 #walker-rail .tl-dot2 {
@@ -4826,18 +4769,28 @@ button.walker-mini:hover { border-color: var(--accent); filter: none; }
   box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
 }
 #walker-rail .tl-node { width: auto; flex: 1 1 0; min-width: 0; }
-/* 选中节点: 放大 1.35 + 蓝紫脉冲光环, "你在这里"的驻留感 */
+/* 选中节点: 放大 1.35 + 蓝紫脉冲光环 (光晕预画在 ::before 上, 动画只调 opacity, 走合成器) */
 #walker-rail .tl-node.sel .tl-dot2 {
+  position: relative;
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
   transform: scale(1.35);
+}
+#walker-rail .tl-node.sel .tl-dot2::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent),
+              0 0 14px color-mix(in srgb, var(--accent-2) 35%, transparent);
+  pointer-events: none;
   animation: walker-pulse 2s ease-in-out infinite;
 }
 @keyframes walker-pulse {
-  0%, 100% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
-  50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 12%, transparent), 0 0 14px color-mix(in srgb, var(--accent-2) 35%, transparent); }
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  #walker-rail .tl-node.sel .tl-dot2 { animation: none; }
+  #walker-rail .tl-node.sel .tl-dot2::before { display: none; }
 }
 /* 已通关绿勾: 贴在节点圆右下角的小圆徽, 状态一眼可辨不占排版 */
 .tl-done-tag {
