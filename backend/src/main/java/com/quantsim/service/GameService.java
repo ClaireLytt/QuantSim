@@ -3,15 +3,11 @@ package com.quantsim.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -32,7 +28,6 @@ import com.quantsim.dto.GameDtos;
 import com.quantsim.dto.GameDtos.BiasReport;
 import com.quantsim.dto.GameDtos.SettleResponse;
 import com.quantsim.dto.GameDtos.TransactionInfo;
-import com.quantsim.dto.GameDtos.StartGameRequest;
 import com.quantsim.dto.GameDtos.StartGameResponse;
 import com.quantsim.dto.GameDtos.StatusResponse;
 import com.quantsim.dto.GameDtos.StockLite;
@@ -45,20 +40,15 @@ import com.quantsim.entity.DailyIndicator;
 import com.quantsim.entity.DailyPrediction;
 import com.quantsim.entity.DailyPrice;
 import com.quantsim.entity.GameSession;
-import com.quantsim.entity.Market;
 import com.quantsim.entity.Position;
-import com.quantsim.entity.SessionStock;
 import com.quantsim.entity.Stock;
 import com.quantsim.entity.TradeTransaction;
 import com.quantsim.entity.User;
 import com.quantsim.exception.BusinessException;
 import com.quantsim.exception.NotFoundException;
 import com.quantsim.repository.AccountRepository;
-import com.quantsim.repository.DailyPriceRepository;
 import com.quantsim.repository.GameSessionRepository;
 import com.quantsim.repository.PositionRepository;
-import com.quantsim.repository.SessionStockRepository;
-import com.quantsim.repository.StockRepository;
 import com.quantsim.repository.TransactionRepository;
 import com.quantsim.repository.UserRepository;
 import com.quantsim.service.MarketDataService.StockData;
@@ -72,19 +62,14 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class GameService {
 
-    private final StockRepository stockRepository;
-    private final DailyPriceRepository priceRepository;
     private final MarketDataService marketData;
-    private final UserService userService;
     private final UserRepository userRepository;
     private final GameSessionRepository sessionRepository;
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
-    private final SessionStockRepository sessionStockRepository;
     private final PositionRepository positionRepository;
     private final PointsService pointsService;
     private final TradeEngine tradeEngine;
-    private final FeeCalculator feeCalculator;
     private final OrderService orderService;
     private final NewsService newsService;
     private final BiasAnalysisService biasAnalysisService;
@@ -92,107 +77,11 @@ public class GameService {
     private final com.quantsim.repository.EventTimelineRepository eventTimelineRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final GameProperties props;
+    private final GameAiService gameAi;
+    private final GameBenchmarks benchmarks;
 
     public static final ZoneId GAME_ZONE = ZoneId.of("Asia/Shanghai");
 
-    /** probUp 达到该值即视为"预测上涨"。 */
-    private static final double PROB_UP_THRESHOLD = 0.5;
-
-    // 风格画像标签及判定阈值
-    private static final String STYLE_WATCHER = "WATCHER";
-    private static final String STYLE_CHASER = "CHASER";
-    private static final String STYLE_ACTIVE = "ACTIVE";
-    private static final String STYLE_HOLDER = "HOLDER";
-    private static final String STYLE_SWING = "SWING";
-    private static final int CHASER_MIN_TRADES = 3;
-    private static final double CHASER_RATIO = 0.7;
-    private static final int ACTIVE_MIN_TRADES = 8;
-    private static final int HOLDER_MAX_TRADES = 2;
-
-    @Transactional
-    public StartGameResponse startGame(StartGameRequest request, Long authUserId) {
-        // 已登录以会话身份为准; 游客昵称撞注册用户名会被拒 (防冒名刷榜)
-        User user = userService.resolve(request.username(), authUserId);
-        Market market = parseMarket(request.market());
-        AiLevel aiLevel = parseAiLevel(request.aiLevel());
-        String mode = parseMode(request.mode());
-        boolean advanced = Boolean.TRUE.equals(request.advanced());
-        if (advanced && market != Market.US && market != Market.CRYPTO) {
-            throw new BusinessException("进阶模式（做空/杠杆）仅支持美股或币圈, 请先选定市场");
-        }
-        boolean realRules = Boolean.TRUE.equals(request.realRules());
-        if (realRules && market != Market.STOCK) {
-            throw new BusinessException("真实规则（T+1/涨跌停）仅支持 A股, 请先选定市场");
-        }
-        // 限制条件 (可选): 笔数上限 / 强制交易理由, 开局固化
-        Integer maxTrades = request.maxTrades();
-        if (maxTrades != null && (maxTrades < 1 || maxTrades > 50)) {
-            throw new BusinessException("交易笔数上限须在 1~50 之间");
-        }
-        boolean requireReason = Boolean.TRUE.equals(request.requireReason());
-
-        Map<Long, Long> counts = eligibleCounts();
-        List<Stock> allStocks = stockRepository.findByHiddenFalse();
-        Map<Long, Market> marketById = allStocks.stream()
-                .collect(Collectors.toMap(Stock::getStockId, Stock::getMarket));
-        List<Long> eligible = filterEligible(counts, marketById, market);
-        // 行业偏好: 在市场过滤之上再收一层 (玩家挑喜欢的行业开局)
-        String industry = request.industry() == null ? "" : request.industry().trim();
-        if (!industry.isEmpty()) {
-            Map<Long, String> industryById = new HashMap<>();
-            for (Stock st : allStocks) {
-                if (st.getIndustry() != null) {
-                    industryById.put(st.getStockId(), st.getIndustry());
-                }
-            }
-            eligible = eligible.stream()
-                    .filter(id -> industry.equals(industryById.get(id)))
-                    .toList();
-        }
-        if (eligible.isEmpty()) {
-            throw new BusinessException(!industry.isEmpty()
-                    ? "该行业暂无数据量足够的标的, 换个行业试试"
-                    : market == null
-                            ? "没有数据量足够的股票, 请检查行情数据"
-                            : "该市场暂无数据量足够的标的, 请先运行数据管道导入行情数据");
-        }
-        ThreadLocalRandom random = ThreadLocalRandom.current();
-
-        if ("PORTFOLIO".equals(mode)) {
-            return withConstraints(
-                    startPortfolio(user, eligible, marketById, counts, aiLevel, advanced, realRules, random),
-                    maxTrades, requireReason);
-        }
-        if ("SURVIVAL".equals(mode)) {
-            // 熊市生存: 专挑历史上买入持有亏得最惨的窗口, 目标是跑赢基准 (亏得比它少)
-            long[] pick = pickCrashWindow(eligible, random);
-            LocalDate crashStart = marketData.load(pick[0]).prices().get((int) pick[1]).getTradeDate();
-            return withConstraints(
-                    persistSession(user, List.of(pick[0]), crashStart, aiLevel, "SURVIVAL", advanced, realRules, null),
-                    maxTrades, requireReason);
-        }
-
-        Long stockId = eligible.get(random.nextInt(eligible.size()));
-        int startIdx = randomStartIdx(counts.get(stockId), random);
-        LocalDate startDate = marketData.load(stockId).prices().get(startIdx).getTradeDate();
-        return withConstraints(
-                persistSession(user, List.of(stockId), startDate, aiLevel, "CLASSIC", advanced, realRules, null),
-                maxTrades, requireReason);
-    }
-
-    /** 行业筛选候选: 去重排序, 只含有行业标注的标的 (前端按所选市场二次过滤)。 */
-    @Transactional(readOnly = true)
-    public List<com.quantsim.dto.GameDtos.IndustryOption> listIndustries() {
-        return stockRepository.findByHiddenFalse().stream()
-                .filter(st -> st.getIndustry() != null && !st.getIndustry().isBlank())
-                .map(st -> new com.quantsim.dto.GameDtos.IndustryOption(
-                        st.getIndustry(), st.getMarket().name()))
-                .distinct()
-                .sorted(java.util.Comparator
-                        .comparing(com.quantsim.dto.GameDtos.IndustryOption::market)
-                        .thenComparing(com.quantsim.dto.GameDtos.IndustryOption::industry))
-                .toList();
-    }
 
     /**
      * 会话级访问控制: 注册用户的对局只有本人可读写, 其他人一律 404 (不泄露存在性)。
@@ -208,197 +97,6 @@ public class GameService {
         if (owner != null && owner.getPasswordHash() != null) {
             throw new NotFoundException("对局不存在: " + sessionId);
         }
-    }
-
-    /**
-     * 每日挑战 / 房间等确定性开局: 由调用方指定标的与起始日。
-     * realRules 由调用方给定且全员一致 (每日挑战固定 false 保证榜单可比,
-     * 房间按建房配置, 事件回放按场景配置); advanced 一律关闭。
-     */
-    @Transactional
-    public StartGameResponse startGameAt(User user, Long stockId, LocalDate startDate,
-                                         AiLevel aiLevel, String mode, boolean realRules,
-                                         LocalDate challengeDate) {
-        return persistSession(user, List.of(stockId), startDate, aiLevel, mode, false, realRules, challengeDate);
-    }
-
-    /** 供确定性开局挑选标的: 合格标的按 stockId 排序 + 指定随机源。 */
-    @Transactional(readOnly = true)
-    public long[] pickDeterministic(Market market, Random random) {
-        Map<Long, Long> counts = eligibleCounts();
-        Map<Long, Market> marketById = stockRepository.findByHiddenFalse().stream()
-                .collect(Collectors.toMap(Stock::getStockId, Stock::getMarket));
-        List<Long> eligible = filterEligible(counts, marketById, market).stream()
-                .sorted()
-                .toList();
-        if (eligible.isEmpty()) {
-            throw new BusinessException("没有数据量足够的股票, 请检查行情数据");
-        }
-        Long stockId = eligible.get(random.nextInt(eligible.size()));
-        int startIdx = randomStartIdx(counts.get(stockId), random);
-        return new long[] { stockId, startIdx };
-    }
-
-    private Map<Long, Long> eligibleCounts() {
-        Map<Long, Long> counts = priceRepository.countGroupByStock().stream()
-                .collect(Collectors.toMap(r -> (Long) r[0], r -> (Long) r[1]));
-        if (counts.isEmpty()) {
-            throw new BusinessException("股票池为空, 请先运行数据管道导入行情数据");
-        }
-        return counts;
-    }
-
-    private List<Long> filterEligible(Map<Long, Long> counts, Map<Long, Market> marketById, Market market) {
-        int required = props.getMinHistoryDays() + props.getTotalTicks() + 1;
-        return counts.entrySet().stream()
-                .filter(e -> e.getValue() >= required)
-                // marketById 来自 findByHiddenFalse: 不在表里的就是 hidden 场景标的, 全市场随机也不能抽中
-                .filter(e -> marketById.containsKey(e.getKey()))
-                .filter(e -> market == null || marketById.get(e.getKey()) == market)
-                .map(Map.Entry::getKey)
-                .toList();
-    }
-
-    /**
-     * 熊市生存窗口: 扫全部合格标的的每个可开局窗口, 收集跌幅最深的前 20 个,
-     * 随机挑一个 (返回 [stockId, startIdx])。没有明显下跌段就退回最差的那个。
-     */
-    private long[] pickCrashWindow(List<Long> eligible, Random random) {
-        record Window(long stockId, int startIdx, double ret) {}
-        List<Window> worst = new ArrayList<>();
-        int span = props.getTotalTicks();
-        int minIdx = props.getMinHistoryDays() - 1;
-        for (Long sid : eligible) {
-            List<DailyPrice> prices = marketData.load(sid).prices();
-            for (int i = minIdx; i + span < prices.size(); i++) {
-                double start = prices.get(i).getClose().doubleValue();
-                if (start <= 0) {
-                    continue;
-                }
-                double ret = prices.get(i + span).getClose().doubleValue() / start - 1;
-                worst.add(new Window(sid, i, ret));
-            }
-        }
-        if (worst.isEmpty()) {
-            throw new BusinessException("没有数据量足够的股票, 请检查行情数据");
-        }
-        worst.sort(java.util.Comparator.comparingDouble(Window::ret));
-        List<Window> pool = worst.subList(0, Math.min(20, worst.size()));
-        Window w = pool.get(random.nextInt(pool.size()));
-        return new long[] { w.stockId(), w.startIdx() };
-    }
-
-    private int randomStartIdx(long total, Random random) {
-        int minIdx = props.getMinHistoryDays() - 1;
-        int maxIdx = (int) total - props.getTotalTicks() - 1;
-        return minIdx + random.nextInt(maxIdx - minIdx + 1);
-    }
-
-    /** 组合模式: 同市场挑 3 只窗口对齐的标的。 */
-    private StartGameResponse startPortfolio(User user, List<Long> eligible,
-                                             Map<Long, Market> marketById, Map<Long, Long> counts,
-                                             AiLevel aiLevel, boolean advanced, boolean realRules,
-                                             ThreadLocalRandom random) {
-        // 按市场分组, 只保留标的数够的市场
-        Map<Market, List<Long>> byMarket = eligible.stream()
-                .collect(Collectors.groupingBy(marketById::get));
-        List<Market> candidates = byMarket.entrySet().stream()
-                .filter(e -> e.getValue().size() >= props.getPortfolioSize())
-                .map(Map.Entry::getKey)
-                .toList();
-        if (candidates.isEmpty()) {
-            throw new BusinessException("没有市场拥有足够多 (" + props.getPortfolioSize() + " 只) 的合格标的");
-        }
-        Market market = candidates.get(random.nextInt(candidates.size()));
-        List<Long> pool = new ArrayList<>(byMarket.get(market));
-        Collections.shuffle(pool, new Random(random.nextLong()));
-
-        // 主标的定窗口, 其余标的必须覆盖同一窗口 (同市场交易日历一致时天然满足)
-        Long primary = pool.get(0);
-        int startIdx = randomStartIdx(counts.get(primary), random);
-        StockData psd = marketData.load(primary);
-        LocalDate startDate = psd.prices().get(startIdx).getTradeDate();
-        LocalDate endDate = psd.prices().get(startIdx + props.getTotalTicks()).getTradeDate();
-
-        List<Long> picked = new ArrayList<>();
-        picked.add(primary);
-        for (int i = 1; i < pool.size() && picked.size() < props.getPortfolioSize(); i++) {
-            StockData sd = marketData.load(pool.get(i));
-            if (sd.indexOf(startDate) != null && sd.indexOf(endDate) != null
-                    && sd.indexOf(startDate) >= props.getMinHistoryDays() - 1) {
-                picked.add(pool.get(i));
-            }
-        }
-        if (picked.size() < props.getPortfolioSize()) {
-            throw new BusinessException("未找到窗口对齐的 " + props.getPortfolioSize() + " 只标的, 请再试一次");
-        }
-        return persistSession(user, picked, startDate, aiLevel, "PORTFOLIO", advanced, realRules, null);
-    }
-
-    private StartGameResponse persistSession(User user, List<Long> stockIds, LocalDate startDate,
-                                             AiLevel aiLevel, String mode, boolean advanced,
-                                             boolean realRules, LocalDate challengeDate) {
-        GameSession session = new GameSession();
-        session.setUserId(user.getUserId());
-        session.setStockId(stockIds.get(0));
-        session.setStartDate(startDate);
-        session.setCurrentTradeDate(startDate);
-        session.setInitialCash(props.getInitialCash());
-        session.setAiCash(props.getInitialCash());
-        session.setAiModel(aiLevel.getModel());
-        session.setMode(mode);
-        session.setAdvanced(advanced);
-        session.setRealRules(realRules);
-        session.setSeason(YearMonth.now(GAME_ZONE).toString());
-        session.setChallengeDate(challengeDate);
-        session = sessionRepository.save(session);
-
-        Account account = new Account();
-        account.setSessionId(session.getSessionId());
-        account.setCashBalance(props.getInitialCash());
-        accountRepository.save(account);
-
-        List<StockLite> stocks = new ArrayList<>();
-        for (int slot = 0; slot < stockIds.size(); slot++) {
-            Stock st = marketData.load(stockIds.get(slot)).stock();
-            stocks.add(new StockLite(BlindDates.maskCode(session, st.getCode()),
-                    BlindDates.maskName(session, st.getName())));
-            if ("PORTFOLIO".equals(mode)) {
-                SessionStock ss = new SessionStock();
-                ss.setSessionId(session.getSessionId());
-                ss.setSlot(slot);
-                ss.setStockId(stockIds.get(slot));
-                sessionStockRepository.save(ss);
-            }
-        }
-
-        Stock stock = marketData.load(stockIds.get(0)).stock();
-        return new StartGameResponse(
-                session.getSessionId(),
-                BlindDates.maskCode(session, stock.getCode()),
-                BlindDates.maskName(session, stock.getName()),
-                stock.getMarket().name(), stock.getMarket().getLotSize(),
-                BlindDates.mask(session, startDate),
-                props.getInitialCash(), props.getTotalTicks(), aiLevel.name(),
-                mode, advanced, realRules, stocks, session.getStatus().name(),
-                null, false);
-    }
-
-    /**
-     * 开局后补写限制条件 (同事务, 托管实体提交时落库)。
-     * 不塞进 persistSession 的参数列表: 竞技入口 (每日/房间/事件) 不支持限制条件。
-     */
-    private StartGameResponse withConstraints(StartGameResponse res, Integer maxTrades, boolean requireReason) {
-        if (maxTrades == null && !requireReason) {
-            return res;
-        }
-        GameSession session = sessionRepository.findById(res.sessionId()).orElseThrow();
-        session.setMaxTrades(maxTrades);
-        session.setRequireReason(requireReason);
-        return new StartGameResponse(res.sessionId(), res.stockCode(), res.stockName(), res.market(),
-                res.lotSize(), res.startDate(), res.initialCash(), res.totalTicks(), res.aiLevel(),
-                res.mode(), res.advanced(), res.realRules(), res.stocks(), res.status(),
-                maxTrades, requireReason);
     }
 
     /** 用于恢复/接管已有对局 (房间/每日挑战): 把会话描述成开局响应。 */
@@ -466,7 +164,7 @@ public class GameService {
         DailyPrice next = sd.prices().get(curIdx + 1);
 
         // AI 在推进前用今日预测决策, 按今日收盘价成交 (只用已揭晓的数据, 无未来泄漏)
-        int aiTradeShares = applyAiTrade(session, sd);
+        int aiTradeShares = gameAi.applyAiTrade(session, sd);
 
         session.setCurrentTradeDate(next.getTradeDate());
         session.setDaysElapsed(session.getDaysElapsed() + 1);
@@ -531,27 +229,17 @@ public class GameService {
      * (杠杆不白借)。玩家与 AI 同口径; 结算重放资金曲线 (equityCurve) 必须复现同一公式与舍入。
      */
     private void accrueInterest(GameSession session, Account account) {
-        BigDecimal interest = dailyInterest(account.getCashBalance());
+        BigDecimal interest = benchmarks.dailyInterest(account.getCashBalance());
         if (interest.signum() != 0) {
             account.setCashBalance(account.getCashBalance().add(interest));
             account.setInterestTotal(account.getInterestTotal().add(interest));
         }
         if (aiInitialized(session)) {
-            BigDecimal aiInterest = dailyInterest(session.getAiCash());
+            BigDecimal aiInterest = benchmarks.dailyInterest(session.getAiCash());
             if (aiInterest.signum() != 0) {
                 session.setAiCash(session.getAiCash().add(aiInterest));
             }
         }
-    }
-
-    /** 单日利息: 现金 × 年化利率 / 252, 两位小数。利率配置为 0 时即关闭。 */
-    private BigDecimal dailyInterest(BigDecimal cash) {
-        double rate = cash.signum() >= 0 ? props.getCashRateAnnual() : props.getBorrowRateAnnual();
-        if (rate == 0) {
-            return BigDecimal.ZERO;
-        }
-        return cash.multiply(BigDecimal.valueOf(rate / RiskMath.TRADING_DAYS_PER_YEAR))
-                .setScale(2, RoundingMode.HALF_UP);
     }
 
     /** 净值归零强平: 全部持仓按现价了结 (含费用), 现金落定。 */
@@ -744,18 +432,18 @@ public class GameService {
         List<BigDecimal> curve = null;
         List<BigDecimal> holdCurve = null;
         if (startIdx != null && endIdx != null) {
-            holdReturn = buyAndHoldReturn(sd, startIdx, endIdx, initial);
-            maCrossReturn = maCrossReturn(sd, startIdx, endIdx, initial);
-            dcaReturn = dcaReturn(sd, startIdx, endIdx, initial);
-            predictionDays = predictionDays(session, sd, startIdx, endIdx);
-            curve = equityCurve(session, sd, startIdx, endIdx);
+            holdReturn = benchmarks.buyAndHoldReturn(sd, startIdx, endIdx, initial);
+            maCrossReturn = benchmarks.maCrossReturn(sd, startIdx, endIdx, initial);
+            dcaReturn = benchmarks.dcaReturn(sd, startIdx, endIdx, initial);
+            predictionDays = benchmarks.predictionDays(session, sd, startIdx, endIdx);
+            curve = benchmarks.equityCurve(session, sd, startIdx, endIdx);
             if (curve != null) {
-                risk = riskMetrics(curve);
+                risk = benchmarks.riskMetrics(curve);
             }
-            holdCurve = holdEquityCurve(sd, startIdx, endIdx, initial);
-            holdRisk = riskMetrics(holdCurve);
+            holdCurve = benchmarks.holdEquityCurve(sd, startIdx, endIdx, initial);
+            holdRisk = benchmarks.riskMetrics(holdCurve);
         }
-        String styleTag = styleTag(session, sd);
+        String styleTag = benchmarks.styleTag(session, sd);
         List<TradeTransaction> allTxs =
                 transactionRepository.findBySessionIdOrderByCreatedAtAsc(session.getSessionId());
         BiasReport biasReport = computeAndStoreBias(session, allTxs);
@@ -908,8 +596,8 @@ public class GameService {
         if (startIdx == null || endIdx == null) {
             return null;
         }
-        List<BigDecimal> curve = equityCurve(session, sd, startIdx, endIdx);
-        return curve == null ? null : riskMetrics(curve);
+        List<BigDecimal> curve = benchmarks.equityCurve(session, sd, startIdx, endIdx);
+        return curve == null ? null : benchmarks.riskMetrics(curve);
     }
 
     /** 从初始资金重放全部流水, 重建账户现金/持仓/均价/累计利息 (undo 用)。 */
@@ -930,7 +618,7 @@ public class GameService {
         for (int i = startIdx; i <= endIdx; i++) {
             LocalDate day = sd.prices().get(i).getTradeDate();
             if (i > startIdx) {
-                BigDecimal interest = dailyInterest(cash);
+                BigDecimal interest = benchmarks.dailyInterest(cash);
                 cash = cash.add(interest);
                 interestTotal = interestTotal.add(interest);
             }
@@ -971,291 +659,6 @@ public class GameService {
             account.setHoldingShares(f.shares());
             account.setHoldingCost(f.avgCost());
         }
-    }
-
-    /** 逐日复盘 AI 预测: 每天的"次日涨跌"预测 vs 实际走势 (最后一天没有次日, 不计入)。 */
-    private List<PredictionDay> predictionDays(GameSession session, StockData sd, int startIdx, int endIdx) {
-        List<PredictionDay> days = new ArrayList<>();
-        for (int i = startIdx; i < endIdx; i++) {
-            DailyPrice p = sd.prices().get(i);
-            DailyPrediction pred = sd.prediction(p.getTradeDate(), session.getAiModel());
-            if (pred == null) {
-                continue;
-            }
-            boolean predictedUp = pred.getProbUp().doubleValue() >= PROB_UP_THRESHOLD;
-            boolean actualUp = sd.prices().get(i + 1).getClose().compareTo(p.getClose()) > 0;
-            days.add(new PredictionDay(BlindDates.mask(session, p.getTradeDate()),
-                    predictedUp, predictedUp == actualUp));
-        }
-        return days;
-    }
-
-    /** 规则式风格画像: 观望者/追涨杀跌/高频交易/佛系持有/波段操作。 */
-    private String styleTag(GameSession session, StockData sd) {
-        List<TradeTransaction> txs =
-                transactionRepository.findBySessionIdOrderByCreatedAtAsc(session.getSessionId());
-        if (txs.isEmpty()) {
-            return STYLE_WATCHER;
-        }
-        int withSign = 0;
-        int chase = 0;
-        for (TradeTransaction tx : txs) {
-            DailyIndicator ind = sd.indicators().get(tx.getTradeDate());
-            if (ind == null || ind.getPctChange() == null || ind.getPctChange().signum() == 0) {
-                continue;
-            }
-            withSign++;
-            boolean buy = tx.getDirection() == TradeTransaction.Direction.BUY;
-            boolean up = ind.getPctChange().signum() > 0;
-            if (buy == up) {
-                chase++;
-            }
-        }
-        if (txs.size() >= CHASER_MIN_TRADES && withSign > 0 && chase >= withSign * CHASER_RATIO) {
-            return STYLE_CHASER;
-        }
-        if (txs.size() >= ACTIVE_MIN_TRADES) {
-            return STYLE_ACTIVE;
-        }
-        if (txs.size() <= HOLDER_MAX_TRADES) {
-            return STYLE_HOLDER;
-        }
-        return STYLE_SWING;
-    }
-
-    /**
-     * AI 用当日预测决策, 按当日收盘价成交 (整手、扣费, 与玩家同规则)。
-     * EASY 保留全进全出; 其余难度按置信度调仓: 目标仓位比例 = clamp((probUp-0.5)/0.15, 0, 1)。
-     */
-    private int applyAiTrade(GameSession session, StockData sd) {
-        DailyPrediction pred = sd.prediction(session.getCurrentTradeDate(), session.getAiModel());
-        DailyPrice bar = sd.bar(session.getCurrentTradeDate());
-        if (pred == null || bar == null) {
-            return 0;
-        }
-        Market market = sd.stock().getMarket();
-        int lotSize = market.getLotSize();
-        BigDecimal close = bar.getClose();
-        double probUp = pred.getProbUp().doubleValue();
-
-        // 真实规则下 AI 与玩家同受封板限制 (T+1 对一天一次操作的 AI 天然满足)
-        boolean limitUp = session.isRealRules() && tradeEngine.limitBandError(sd,
-                session.getCurrentTradeDate(), TradeTransaction.Direction.BUY) != null;
-        boolean limitDown = session.isRealRules() && tradeEngine.limitBandError(sd,
-                session.getCurrentTradeDate(), TradeTransaction.Direction.SELL) != null;
-
-        if (AiLevel.EASY.getModel().equals(session.getAiModel())) {
-            // 简单 AI: 老式全进全出
-            if (probUp >= props.getAiBuyThreshold() && !limitUp) {
-                int bought = feeCalculator.maxAffordableShares(session.getAiCash(), close, lotSize, market);
-                aiBuy(session, market, close, bought);
-                return bought;
-            }
-            if (probUp <= props.getAiSellThreshold() && session.getAiShares() > 0 && !limitDown) {
-                int sold = session.getAiShares();
-                aiSell(session, market, close, sold);
-                return -sold;
-            }
-            return 0;
-        }
-
-        // 按置信度定目标仓位; NORMAL/HARD 在此基础上体现"性格" (EASY/HELL 行为有集成测试锁定)
-        double adjProb = probUp;
-        if (AiLevel.HARD.getModel().equals(session.getAiModel())) {
-            // 量化狂魔: 动量派, 价格站上 MA5 加码看多, 跌破减码 (追涨杀跌的纪律版)
-            DailyIndicator ind = sd.indicators().get(session.getCurrentTradeDate());
-            if (ind != null && ind.getMa5() != null) {
-                adjProb += close.compareTo(ind.getMa5()) > 0 ? 0.04 : -0.04;
-            }
-        }
-        double targetFraction = Math.max(0, Math.min(1, (adjProb - 0.5) / 0.15));
-        BigDecimal aiEquity = session.getAiCash()
-                .add(close.multiply(BigDecimal.valueOf(session.getAiShares())));
-        BigDecimal targetValue = aiEquity.multiply(BigDecimal.valueOf(targetFraction));
-        int targetShares = targetValue.divide(close, 0, RoundingMode.DOWN).intValue() / lotSize * lotSize;
-        int delta = targetShares - session.getAiShares();
-        // 稳健王: 价值派低换手, 调仓幅度小于净值 15% 时按兵不动 (建仓/清仓不受限)
-        if (AiLevel.NORMAL.getModel().equals(session.getAiModel())
-                && session.getAiShares() > 0 && targetShares > 0
-                && close.multiply(BigDecimal.valueOf(Math.abs(delta)))
-                        .compareTo(aiEquity.multiply(BigDecimal.valueOf(0.15))) < 0) {
-            return 0;
-        }
-        if (delta > 0 && !limitUp) {
-            int bought = Math.min(delta, feeCalculator.maxAffordableShares(session.getAiCash(), close, lotSize, market));
-            aiBuy(session, market, close, bought);
-            return bought;
-        }
-        if (delta < 0 && !limitDown) {
-            aiSell(session, market, close, -delta);
-            return delta;
-        }
-        return 0;
-    }
-
-    private void aiBuy(GameSession session, Market market, BigDecimal close, int shares) {
-        if (shares <= 0) {
-            return;
-        }
-        BigDecimal gross = close.multiply(BigDecimal.valueOf(shares));
-        BigDecimal fee = feeCalculator.fee(market, TradeTransaction.Direction.BUY, gross);
-        session.setAiCash(session.getAiCash().subtract(gross).subtract(fee));
-        session.setAiShares(session.getAiShares() + shares);
-    }
-
-    private void aiSell(GameSession session, Market market, BigDecimal close, int shares) {
-        if (shares <= 0) {
-            return;
-        }
-        BigDecimal gross = close.multiply(BigDecimal.valueOf(shares));
-        BigDecimal fee = feeCalculator.fee(market, TradeTransaction.Direction.SELL, gross);
-        session.setAiCash(session.getAiCash().add(gross).subtract(fee));
-        session.setAiShares(session.getAiShares() - shares);
-    }
-
-    /**
-     * 逐日重放交易流水得到玩家资金曲线 (首点为初始资金)。
-     * 流水只记成交价与费用, 重放结果与实际现金流严格一致;
-     * 组合模式的旧流水缺 stock_id 无法归属标的, 此时放弃 (返回 null, 前端不展示)。
-     */
-    private List<BigDecimal> equityCurve(GameSession session, StockData sd, int startIdx, int endIdx) {
-        List<TradeTransaction> txs =
-                transactionRepository.findBySessionIdOrderByCreatedAtAsc(session.getSessionId());
-        boolean portfolio = "PORTFOLIO".equals(session.getMode());
-        if (portfolio && txs.stream().anyMatch(tx -> tx.getStockId() == null)) {
-            return null;
-        }
-        Map<LocalDate, List<TradeTransaction>> byDate =
-                txs.stream().collect(Collectors.groupingBy(TradeTransaction::getTradeDate));
-        Map<Long, StockData> datas = new HashMap<>();
-        for (Long sid : tradeEngine.stockIds(session)) {
-            datas.put(sid, marketData.load(sid));
-        }
-        Map<Long, Integer> shares = new HashMap<>();
-        BigDecimal cash = session.getInitialCash();
-        List<BigDecimal> curve = new ArrayList<>(endIdx - startIdx + 2);
-        curve.add(cash);
-        for (int i = startIdx; i <= endIdx; i++) {
-            LocalDate day = sd.prices().get(i).getTradeDate();
-            if (i > startIdx) {
-                // 与 tick 同序: 新交易日先计隔夜利息, 再发生当日交易
-                cash = cash.add(dailyInterest(cash));
-            }
-            for (TradeTransaction tx : byDate.getOrDefault(day, List.of())) {
-                BigDecimal gross = tx.getPrice().multiply(BigDecimal.valueOf(tx.getShares()));
-                boolean buy = tx.getDirection() == TradeTransaction.Direction.BUY;
-                cash = cash.add(buy ? gross.negate() : gross).subtract(tx.getFee());
-                Long sid = tx.getStockId() != null ? tx.getStockId() : session.getStockId();
-                shares.merge(sid, buy ? tx.getShares() : -tx.getShares(), Integer::sum);
-            }
-            // 副标的当日可能停牌, 与 TradeEngine 同口径: 回退最近收盘估值
-            BigDecimal eq = cash;
-            for (Map.Entry<Long, Integer> e : shares.entrySet()) {
-                StockData sdd = datas.computeIfAbsent(e.getKey(), marketData::load);
-                eq = eq.add(tradeEngine.lastCloseOnOrBefore(sdd, day)
-                        .multiply(BigDecimal.valueOf(e.getValue())));
-            }
-            curve.add(eq);
-        }
-        return curve;
-    }
-
-    /** 买入持有基准的资金曲线, 建仓规则与 buyAndHoldReturn 完全一致 (整手、扣费)。 */
-    private List<BigDecimal> holdEquityCurve(StockData sd, int startIdx, int endIdx, BigDecimal initial) {
-        Market market = sd.stock().getMarket();
-        BigDecimal startClose = sd.prices().get(startIdx).getClose();
-        int shares = feeCalculator.maxAffordableShares(initial, startClose, market.getLotSize(), market);
-        BigDecimal gross = startClose.multiply(BigDecimal.valueOf(shares));
-        BigDecimal cash = initial.subtract(gross)
-                .subtract(feeCalculator.fee(market, TradeTransaction.Direction.BUY, gross));
-        List<BigDecimal> curve = new ArrayList<>(endIdx - startIdx + 2);
-        curve.add(initial);
-        for (int i = startIdx; i <= endIdx; i++) {
-            curve.add(cash.add(sd.prices().get(i).getClose().multiply(BigDecimal.valueOf(shares))));
-        }
-        return curve;
-    }
-
-    private RiskMetrics riskMetrics(List<BigDecimal> curve) {
-        double[] returns = RiskMath.dailyReturns(curve);
-        return new RiskMetrics(RiskMath.maxDrawdown(curve), RiskMath.volatility(returns),
-                RiskMath.sharpe(returns), RiskMath.sortino(returns),
-                RiskMath.winRate(returns), RiskMath.profitLossRatio(returns));
-    }
-
-    /**
-     * 定投基准: 初始资金均分 N 期, 每隔 dcaIntervalDays 个交易日按收盘价投一期
-     * (整手、扣费), 持有到结算。与"择时"的玩家收益对比是最直观的纪律教学。
-     */
-    private BigDecimal dcaReturn(StockData sd, int startIdx, int endIdx, BigDecimal initial) {
-        Market market = sd.stock().getMarket();
-        int lotSize = market.getLotSize();
-        int interval = Math.max(1, props.getDcaIntervalDays());
-        int buys = (endIdx - startIdx) / interval + 1;
-        BigDecimal tranche = initial.divide(BigDecimal.valueOf(buys), 2, RoundingMode.DOWN);
-        BigDecimal cash = initial;
-        int shares = 0;
-        for (int k = 0; k < buys; k++) {
-            BigDecimal close = sd.prices().get(startIdx + k * interval).getClose();
-            int bought = feeCalculator.maxAffordableShares(tranche.min(cash), close, lotSize, market);
-            if (bought <= 0) {
-                continue;
-            }
-            BigDecimal gross = close.multiply(BigDecimal.valueOf(bought));
-            cash = cash.subtract(gross)
-                    .subtract(feeCalculator.fee(market, TradeTransaction.Direction.BUY, gross));
-            shares += bought;
-        }
-        BigDecimal finalAssets = cash
-                .add(sd.prices().get(endIdx).getClose().multiply(BigDecimal.valueOf(shares)));
-        return TradeMath.returnRate(finalAssets, initial);
-    }
-
-    private BigDecimal buyAndHoldReturn(StockData sd, int startIdx, int endIdx, BigDecimal initial) {
-        Market market = sd.stock().getMarket();
-        int lotSize = market.getLotSize();
-        BigDecimal startClose = sd.prices().get(startIdx).getClose();
-        BigDecimal endClose = sd.prices().get(endIdx).getClose();
-        int shares = feeCalculator.maxAffordableShares(initial, startClose, lotSize, market);
-        BigDecimal buyGross = startClose.multiply(BigDecimal.valueOf(shares));
-        BigDecimal buyFee = feeCalculator.fee(market, TradeTransaction.Direction.BUY, buyGross);
-        BigDecimal finalAssets = initial.subtract(buyGross).subtract(buyFee)
-                .add(endClose.multiply(BigDecimal.valueOf(shares)));
-        return TradeMath.returnRate(finalAssets, initial);
-    }
-
-    /** 基准二: MA5 上穿 MA20 全仓买入, 下穿清仓, 按当日收盘价成交 (含费用)。 */
-    private BigDecimal maCrossReturn(StockData sd, int startIdx, int endIdx, BigDecimal initial) {
-        Market market = sd.stock().getMarket();
-        int lotSize = market.getLotSize();
-        BigDecimal cash = initial;
-        int shares = 0;
-        for (int i = startIdx; i <= endIdx; i++) {
-            DailyPrice p = sd.prices().get(i);
-            DailyIndicator ind = sd.indicators().get(p.getTradeDate());
-            if (ind == null || ind.getMa5() == null || ind.getMa20() == null) {
-                continue;
-            }
-            BigDecimal close = p.getClose();
-            int cmp = ind.getMa5().compareTo(ind.getMa20());
-            if (cmp > 0 && shares == 0) {
-                int bought = feeCalculator.maxAffordableShares(cash, close, lotSize, market);
-                if (bought > 0) {
-                    shares = bought;
-                    BigDecimal gross = close.multiply(BigDecimal.valueOf(shares));
-                    cash = cash.subtract(gross)
-                            .subtract(feeCalculator.fee(market, TradeTransaction.Direction.BUY, gross));
-                }
-            } else if (cmp < 0 && shares > 0) {
-                BigDecimal gross = close.multiply(BigDecimal.valueOf(shares));
-                cash = cash.add(gross)
-                        .subtract(feeCalculator.fee(market, TradeTransaction.Direction.SELL, gross));
-                shares = 0;
-            }
-        }
-        BigDecimal endClose = sd.prices().get(endIdx).getClose();
-        BigDecimal finalAssets = cash.add(endClose.multiply(BigDecimal.valueOf(shares)));
-        return TradeMath.returnRate(finalAssets, initial);
     }
 
     // ---------- helpers ----------
@@ -1345,31 +748,6 @@ public class GameService {
             }
         }
         throw new BusinessException("标的不在本局清单内: " + stockCode);
-    }
-
-    private AiLevel parseAiLevel(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return AiLevel.NORMAL;
-        }
-        return Enums.parse(raw, AiLevel.class, " AI 难度");
-    }
-
-    private Market parseMarket(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return null;
-        }
-        return Enums.parse(raw, Market.class, "市场");
-    }
-
-    private String parseMode(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return "CLASSIC";
-        }
-        String mode = raw.trim().toUpperCase();
-        if (!mode.equals("CLASSIC") && !mode.equals("PORTFOLIO") && !mode.equals("SURVIVAL")) {
-            throw new BusinessException("未知模式: " + raw + "（可选 CLASSIC / PORTFOLIO / SURVIVAL）");
-        }
-        return mode;
     }
 
     private GameSession getSession(Long sessionId) {

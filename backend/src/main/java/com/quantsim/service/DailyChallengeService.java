@@ -40,6 +40,7 @@ public class DailyChallengeService {
     private final GameSessionRepository sessionRepository;
     private final UserRepository userRepository;
     private final GameService gameService;
+    private final GameStartService gameStart;
     private final MarketDataService marketData;
     private final GameProperties props;
 
@@ -73,7 +74,7 @@ public class DailyChallengeService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
         try {
-            return gameService.startGameAt(user, challenge.getStockId(), challenge.getStartDate(),
+            return gameStart.startGameAt(user, challenge.getStockId(), challenge.getStartDate(),
                     DAILY_AI, "DAILY", false, date);
         } catch (DataIntegrityViolationException e) {
             // 并发双开撞 uk_user_daily
@@ -119,7 +120,7 @@ public class DailyChallengeService {
     private DailyChallenge getOrCreate(LocalDate date) {
         return challengeRepository.findById(date).orElseGet(() -> {
             Random random = new Random(seedFor(date));
-            long[] pick = gameService.pickDeterministic(null, random);
+            long[] pick = gameStart.pickDeterministic(null, random);
             LocalDate startDate = marketData.load(pick[0]).prices().get((int) pick[1]).getTradeDate();
             // 不能 saveAndFlush + catch 唯一键冲突: flush 失败会把事务标记 rollback-only,
             // 后续写入全部在提交时翻车 (500)。INSERT IGNORE 撞主键静默跳过; 选股是日期种子

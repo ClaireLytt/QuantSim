@@ -49,6 +49,7 @@ public class RoomService {
     private final GameSessionRepository sessionRepository;
     private final UserRepository userRepository;
     private final GameService gameService;
+    private final GameStartService gameStart;
     private final MarketDataService marketData;
     private final GameProperties props;
 
@@ -62,7 +63,7 @@ public class RoomService {
             throw new BusinessException("真实规则仅支持 A股市场, 请先选择 A股");
         }
 
-        long[] pick = gameService.pickDeterministic(m, ThreadLocalRandom.current());
+        long[] pick = gameStart.pickDeterministic(m, ThreadLocalRandom.current());
         LocalDate startDate = marketData.load(pick[0]).prices().get((int) pick[1]).getTradeDate();
 
         Room room = new Room();
@@ -178,7 +179,7 @@ public class RoomService {
         }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
-        StartGameResponse res = gameService.startGameAt(user, room.getStockId(), room.getStartDate(),
+        StartGameResponse res = gameStart.startGameAt(user, room.getStockId(), room.getStartDate(),
                 parseAiLevel(room.getAiLevel()), "ROOM", room.isRealRules(), null);
         member.setSessionId(res.sessionId());
         memberRepository.save(member);

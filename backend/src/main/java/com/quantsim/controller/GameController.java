@@ -27,6 +27,7 @@ import com.quantsim.config.GameProperties;
 import com.quantsim.config.RateLimiter;
 import com.quantsim.service.AdvisorService;
 import com.quantsim.service.GameService;
+import com.quantsim.service.GameStartService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -45,6 +46,7 @@ public class GameController {
     private static final int ADVISOR_PER_MINUTE = 10;
 
     private final GameService gameService;
+    private final GameStartService gameStart;
     private final AdvisorService advisorService;
     private final RateLimiter rateLimiter;
     private final GameProperties gameProps;
@@ -59,7 +61,7 @@ public class GameController {
     /** 开局行业筛选候选项 (游客可用) */
     @GetMapping("/industries")
     public List<com.quantsim.dto.GameDtos.IndustryOption> industries() {
-        return gameService.listIndustries();
+        return gameStart.listIndustries();
     }
 
     @PostMapping("/start")
@@ -71,7 +73,7 @@ public class GameController {
             // 游客开局会 findOrCreate users 行, 不限频可被刷库 (审计遗留项#10)
             rateLimiter.check("guest-start", "ip:" + http.getRemoteAddr(), gameProps.getGuestStartPerMinute());
         }
-        return gameService.startGame(request, userId);
+        return gameStart.startGame(request, userId);
     }
 
     @GetMapping("/{sessionId}/history")
