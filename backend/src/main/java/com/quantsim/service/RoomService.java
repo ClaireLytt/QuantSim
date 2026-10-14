@@ -30,12 +30,14 @@ import com.quantsim.repository.RoomRepository;
 import com.quantsim.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 好友房间 (异步对战): 建房时随机固化 (标的, 起始日), 成员各自开局同一隐藏行情。
  * 状态迁移惰性触发: 每次查看房间时评估「全员完成 -> SETTLED」与「到期 -> 强制结算」。
  * 防剧透: 房间未结算前不下发任何人的收益率。
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RoomService {
@@ -258,7 +260,8 @@ public class RoomService {
                         sessions.put(s.getSessionId(),
                                 sessionRepository.findById(s.getSessionId()).orElse(s));
                     } catch (BusinessException e) {
-                        // 并发下已被结算, 忽略
+                        // 并发下已被结算属预期; 其余失败 (如行情缺失) 留日志供线上告警 (回归评估 M-2)
+                        log.warn("[room] 成员对局 {} 强制结算失败: {}", s.getSessionId(), e.getMessage());
                     }
                 }
             }

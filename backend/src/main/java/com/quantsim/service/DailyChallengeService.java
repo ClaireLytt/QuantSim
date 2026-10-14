@@ -124,13 +124,16 @@ public class DailyChallengeService {
             Random random = new Random(seedFor(date));
             long[] pick = gameStart.pickDeterministic(null, random);
             LocalDate startDate = marketData.load(pick[0]).prices().get((int) pick[1]).getTradeDate();
-            // 不能 saveAndFlush + catch 唯一键冲突: flush 失败会把事务标记 rollback-only,
-            // 后续写入全部在提交时翻车 (500)。INSERT IGNORE 撞主键静默跳过; 选股是日期种子
-            // 确定性的, 并发双方插的是同一行, 重读结果一致。
+            // INSERT IGNORE 保证行存在 (并发首访同日时双方插的是同一行, 撞主键静默跳过)。
+            // 内容由日期种子完全确定, 直接用计算值构造返回, 不再 SELECT ... FOR UPDATE 回读——
+            // 那个锁读会与 INSERT IGNORE 的插入意向锁交错成 MySQL 死锁 (回归 T-06 暴露的 500);
+            // 既然值是确定性的, 回读没有意义, 也顺带绕开 RR 快照看不到并发已提交行的问题。
             challengeRepository.insertIgnore(date, pick[0], startDate);
-            // 重读用锁定读: IGNORE 被并发已提交行吃掉时, RR 快照下 findById 看不到, 会误报失败
-            return challengeRepository.findWithLockByChallengeDate(date)
-                    .orElseThrow(() -> new BusinessException("每日挑战生成失败"));
+            DailyChallenge c = new DailyChallenge();
+            c.setChallengeDate(date);
+            c.setStockId(pick[0]);
+            c.setStartDate(startDate);
+            return c;
         });
     }
 
