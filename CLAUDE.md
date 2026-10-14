@@ -57,6 +57,12 @@ error / pageerror / requestfailed）。跑法：起后端（库里要有数据�
 pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端后
 `cd tools/ui_smoke && npm run buttons`，有 error 立即修复到退出码 0 为止。
 
+**④ 点击爬虫 `tools/ui_smoke/click_crawler.mjs`（手动巡检）**：真浏览器遍历全部视图、逐个点击可见按钮，
+观察 console error / pageerror / 5xx（=error）与"点了没反应"（=noop 警告）；与 ③ 互补——③ 查"有没有监听"，
+这里查"真点下去会不会炸"。跑法：起后端后 `cd tools/ui_smoke && npm run crawl`（可 `--view=lab` 单视图）。
+业务 400 视为预期拒绝放行；回测请求自动改 preview 不入榜；桌宠悬浮层/登出按钮不点。
+注意：**改完后端必须重启再爬**，旧 JVM 配新 target/classes 会报 NoClassDefFoundError 之类的假 500。
+
 ## 工作流纪律（强制）
 
 1. **CLI 脚本出问题必须记录**：每次运行 CLI 脚本发生问题后，在根目录 `issue_recode/` 下找到当前

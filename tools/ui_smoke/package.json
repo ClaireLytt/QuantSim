@@ -5,6 +5,7 @@
   "scripts": {
     "smoke": "node smoke.mjs",
     "buttons": "node button_check.mjs",
+    "crawl": "node click_crawler.mjs",
     "shot": "node shot.js"
   },
   "dependencies": {
