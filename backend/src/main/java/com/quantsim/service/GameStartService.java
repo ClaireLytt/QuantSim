@@ -279,7 +279,9 @@ public class GameStartService {
         session.setRealRules(realRules);
         session.setSeason(YearMonth.now(GameService.GAME_ZONE).toString());
         session.setChallengeDate(challengeDate);
-        session = sessionRepository.save(session);
+        // saveAndFlush: 每日挑战的 uk_user_daily 冲突要在 DailyChallengeService.start 的
+        // catch 块内暴露 (转"今天已玩"业务提示), commit 时才炸就只剩 500 了
+        session = sessionRepository.saveAndFlush(session);
 
         Account account = new Account();
         account.setSessionId(session.getSessionId());

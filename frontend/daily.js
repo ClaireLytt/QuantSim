@@ -38,7 +38,7 @@
       today = await api("/daily/today");
       renderInfo();
     } catch (e) {
-      if (!String(e.message).includes("登录")) toast(e.message);
+      if (e.status !== 401) toast(e.message); // 未登录是预期态, 其余才值得提示
       renderInfo();
     }
     loadBoard();
@@ -112,8 +112,8 @@
 
     // 我的百分位: 已登录且今日已入榜时展示
     const pctEl = $("daily-pct");
-    const myName = window.Auth && Auth.user && Auth.user.username;
-    const mine = myName ? rows.find((r) => r.username === myName) : null;
+    // 榜单用户名已在后端脱敏, 按名字认不出自己了——用后端下发的 isSelf 标记
+    const mine = rows.find((r) => r.isSelf);
     if (mine) {
       const below = rates.filter((v) => v < Number(mine.returnRate)).length;
       pctEl.hidden = false;

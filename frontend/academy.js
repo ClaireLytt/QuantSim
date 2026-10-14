@@ -1368,6 +1368,10 @@ function startDaily() {
   }
   const seed = Number(today.replace(/-/g, ""));
   newGuessRound(mulberry32(seed ^ 0x51ab1e)); // 日期定种子: 当天初始走势全服一致
+  // 开局即落"已玩"标记 (结束时再写得分): 结束才写日期会被两种方式绕过——
+  // 跨夜局把标记写到第二天吞掉名额, 或中途刷新无限重开当日局
+  prog.daily = { date: today, score: 0, best: prog.daily.best || 0 };
+  saveProg();
   guess.playing = true;
   guess.waiting = false;
   guess.mode = "daily";
@@ -1391,7 +1395,9 @@ function finishDaily(prefix) {
   guess.playing = false;
   guess.waiting = false;
   guess.mode = "free";
-  prog.daily = { date: todayStr(), score: guess.score, best: Math.max(prog.daily.best || 0, guess.score) };
+  // 日期在 startDaily 已落 (防跨夜/刷新重开), 这里只更新得分; 不用 todayStr():
+  // 跨夜结束时应记在开局那天名下
+  prog.daily = { date: prog.daily.date, score: guess.score, best: Math.max(prog.daily.best || 0, guess.score) };
   prog.dailyCount = (prog.dailyCount || 0) + 1;
   saveProg();
   awardBadge("daily_first");

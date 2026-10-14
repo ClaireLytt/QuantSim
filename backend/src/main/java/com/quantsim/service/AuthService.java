@@ -42,7 +42,13 @@ public class AuthService {
         u.setUsername(name);
         u.setPasswordHash(encoder.encode(rawPassword));
         u.setLastLoginAt(LocalDateTime.now());
-        return userRepository.save(u);
+        try {
+            return userRepository.saveAndFlush(u);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // 并发同名注册 (或游客行刚被创建) 撞唯一键: 转业务提示而非 500。
+            // catch 后直接抛业务异常收场, 不在本事务继续写, 符合 CLAUDE.md 的约定
+            throw new BusinessException("用户名已被注册");
+        }
     }
 
     /** 登录。游客行 (无密码) 提示先注册认领。 */

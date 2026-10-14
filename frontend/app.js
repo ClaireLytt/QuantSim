@@ -175,7 +175,9 @@ async function api(path, options = {}) {
   // 非 JSON 响应 (502 HTML / 空体) 不能让解析错误盖过真实失败原因
   const data = await resp.json().catch(() => null);
   if (!resp.ok) {
-    throw new Error((data && data.message) || t("err.http", resp.status));
+    const err = new Error((data && data.message) || t("err.http", resp.status));
+    err.status = resp.status; // 调用方按状态码判断 (401 未登录等), 别依赖文案子串
+    throw err;
   }
   if (data === null) {
     throw new Error(t("err.badResp"));
@@ -453,12 +455,16 @@ function renderAiLevelLabel() {
 }
 
 // 头部不再放用户名输入框: 已登录用账户名, 游客自动生成持久昵称 (localStorage)
+let guestNameCache = null; // 隐私模式下 localStorage 不可用时的进程内游客名
 function currentUsername() {
   if (window.Auth && Auth.user) return Auth.user.username;
   let name = null;
   try { name = localStorage.getItem("qs_guest_name"); } catch (e) { /* 隐私模式下忽略 */ }
   if (!name) {
-    name = t("guest.prefix") + Math.floor(1000 + Math.random() * 9000);
+    // 隐私模式 setItem 会失败, 名字留在模块变量里复用——否则每次调用生成新昵称,
+    // 同一局的预回测/提交会顶着两个身份 (身份碎片化)
+    name = guestNameCache || t("guest.prefix") + Math.floor(1000 + Math.random() * 9000);
+    guestNameCache = name;
     try { localStorage.setItem("qs_guest_name", name); } catch (e) { /* ignore */ }
   }
   return name;

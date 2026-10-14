@@ -39,7 +39,8 @@ public class DailyController {
 
     @GetMapping("/leaderboard")
     public List<DailyBoardEntry> leaderboard(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return dailyService.leaderboard(date);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            HttpServletRequest http) {
+        return dailyService.leaderboard(date, CurrentUser.idOrNull(http));
     }
 }

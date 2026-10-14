@@ -28,6 +28,8 @@
   // 综合评分统一走 app.js 的 qsCompositeScores (首页预览同口径), 不再本地复制一份
 
   const pctText = qsSignedPct; // 共享实现在 app.js
+  // 回撤展示: 旧记录 maxDrawdown 可为 null (见 qsCompositeScores 注释), 显示 -- 而非 +0.0%
+  const ddText = (v) => (v == null ? "--" : pctText(-Math.abs(Number(v))));
 
   async function loadBoard() {
     const list = $("duel-list");
@@ -79,7 +81,7 @@
       };
       stats.append(
         mk(t("duel.annual"), pctText(e.annualReturn != null ? e.annualReturn : e.totalReturn), Number(e.totalReturn) >= 0 ? "pos" : "neg"),
-        mk(t("duel.dd"), pctText(-Math.abs(Number(e.maxDrawdown))), "neg"),
+        mk(t("duel.dd"), ddText(e.maxDrawdown), "neg"),
       );
       const score = document.createElement("div");
       score.className = "duel-score";
@@ -301,7 +303,7 @@
         mk(e.username + " · " + t("strat." + e.strategy)),
         mk(String(e.score)),
         mk(pctText(e.totalReturn), Number(e.totalReturn) >= 0 ? "pos" : "neg"),
-        mk(pctText(-Math.abs(Number(e.maxDrawdown))), "neg"),
+        mk(ddText(e.maxDrawdown), "neg"),
       );
       tr.addEventListener("click", () => {
         finalSel = i;

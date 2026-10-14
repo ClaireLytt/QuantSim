@@ -46,4 +46,7 @@
   document.addEventListener("qs:view", (e) => {
     if (e.detail === "event") load();
   });
+
+  // 刷新直达本视图时 qs:view 不会触发, 启动时兜底加载 (同 daily/relics 的惯例)
+  if (!$("view-event").hidden) load();
 })();

@@ -24,12 +24,15 @@ public interface UserPointsRepository extends JpaRepository<UserPoints, Long> {
     @Query(value = "INSERT IGNORE INTO user_points (user_id) VALUES (:userId)", nativeQuery = true)
     void insertIgnore(@Param("userId") Long userId);
 
-    /** 积分榜: [username, balance] */
+    /** 积分榜: [username, balance]。测试账号在查询里排除 (前缀与 PublicNames.TEST_PREFIXES 同步)。 */
     @Query("""
             select u.username, p.balance
             from UserPoints p
             join User u on u.userId = p.userId
             where p.balance > 0
+              and u.username not like 'smoke\\_%' escape '\\'
+              and u.username not like 'btncheck\\_%' escape '\\'
+              and u.username not like 'shot\\_%' escape '\\'
             order by p.balance desc
             """)
     List<Object[]> findPointsBoard(Pageable pageable);

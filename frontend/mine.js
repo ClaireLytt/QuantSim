@@ -194,7 +194,18 @@
     $("mine-stat-exps").textContent = String(labDone.length);
     let gameCnt = 0;
     GAME_BEST_KEYS.forEach((k) => {
-      try { if (localStorage.getItem(k)) gameCnt++; } catch (e) { /* 忽略 */ }
+      try {
+        const raw = localStorage.getItem(k);
+        if (!raw) return;
+        // reborn/qdetect 的存档在"进行中"就会写入 (中断续玩/单案卡牌),
+        // 只有出现通关成绩字段 best 才算通关, 别把开过一局就计数 (统计虚高)
+        if (k === "qs_reborn" || k === "qs_qdetect") {
+          const v = JSON.parse(raw);
+          if (v && v.best) gameCnt++;
+        } else {
+          gameCnt++;
+        }
+      } catch (e) { /* 忽略 */ }
     });
     $("mine-stat-games").textContent = String(gameCnt);
   }

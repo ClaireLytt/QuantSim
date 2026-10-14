@@ -67,9 +67,8 @@ public class BacktestService {
     @Transactional(readOnly = true)
     public List<ArenaEntry> arenaLeaderboard(String season) {
         String filter = season == null || season.isBlank() ? null : season.trim();
-        // 公开榜: 过滤自动化测试账号 + 邮箱用户名脱敏 (见 PublicNames)
+        // 公开榜: 测试账号已在查询里排除 (分页前); 这里只做邮箱脱敏
         return backtestRepository.findArenaLeaderboard(filter, PageRequest.of(0, props.getLeaderboardSize())).stream()
-                .filter(row -> !PublicNames.isTestAccount((String) row[1]))
                 .map(row -> {
                     BacktestResult b = (BacktestResult) row[0];
                     return new ArenaEntry(b.getBacktestId(), PublicNames.mask((String) row[1]),
@@ -220,9 +219,7 @@ public class BacktestService {
     @Transactional(readOnly = true)
     public List<DuelFinalEntry> duelFinal(int limit) {
         String season = java.time.YearMonth.now(GameService.GAME_ZONE).toString();
-        List<Object[]> rows = backtestRepository.findArenaLeaderboard(season, PageRequest.of(0, 500)).stream()
-                .filter(row -> !PublicNames.isTestAccount((String) row[1])) // 测试账号不进终榜评分
-                .toList();
+        List<Object[]> rows = backtestRepository.findArenaLeaderboard(season, PageRequest.of(0, 500));
         double[] r = normalize(rows, b -> b.getTotalReturn(), false);
         double[] s = normalize(rows, b -> b.getSharpeRatio(), false);
         double[] d = normalize(rows, b -> b.getMaxDrawdown(), true);

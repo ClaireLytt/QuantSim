@@ -15,6 +15,9 @@ public final class TradeMath {
 
     /** 按整手规则全仓可买入的最大股数 (手数 × 每手股数), 买不起一手时为 0。 */
     public static int maxWholeShares(BigDecimal cash, BigDecimal price, int lotSize) {
+        if (price.signum() <= 0) {
+            return 0; // 坏行情 (价格为 0) 防御: 别让除零把整个请求炸成 500
+        }
         return cash.divideToIntegralValue(price.multiply(BigDecimal.valueOf(lotSize)))
                 .intValue() * lotSize;
     }

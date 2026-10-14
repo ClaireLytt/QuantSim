@@ -42,7 +42,8 @@ public class RateLimiter {
                 }
             });
         }
-        Deque<Long> q = hits.computeIfAbsent(bucket + '|' + key, k -> new ArrayDeque<>());
+        String fullKey = bucket + '|' + key;
+        Deque<Long> q = hits.computeIfAbsent(fullKey, k -> new ArrayDeque<>());
         long now = System.currentTimeMillis();
         synchronized (q) {
             while (!q.isEmpty() && now - q.peekFirst() > windowMs) {
@@ -53,5 +54,9 @@ public class RateLimiter {
             }
             q.addLast(now);
         }
+        // 清理竞态兜底: 上面的 removeIf 可能恰好把刚 computeIfAbsent 出来的空队列摘掉,
+        // 本次命中就记进了孤儿队列 (限流被旁路)。写完后把队列挂回去; 若已被其他线程
+        // 重建则放弃本次计数 (丢一跳好过整体旁路)。
+        hits.putIfAbsent(fullKey, q);
     }
 }

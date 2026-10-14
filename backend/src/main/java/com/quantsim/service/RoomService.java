@@ -253,7 +253,8 @@ public class RoomService {
                 GameSession s = m.getSessionId() == null ? null : sessions.get(m.getSessionId());
                 if (s != null && s.getStatus() == GameSession.Status.IN_PROGRESS) {
                     try {
-                        gameService.settle(s.getSessionId());
+                        // settleIsolated 走 REQUIRES_NEW: 失败只回滚该成员 (见 GameService 注释)
+                        gameService.settleIsolated(s.getSessionId());
                         sessions.put(s.getSessionId(),
                                 sessionRepository.findById(s.getSessionId()).orElse(s));
                     } catch (BusinessException e) {

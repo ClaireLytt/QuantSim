@@ -43,6 +43,9 @@ public class GameAiService {
         Market market = sd.stock().getMarket();
         int lotSize = market.getLotSize();
         BigDecimal close = bar.getClose();
+        if (close.signum() <= 0) {
+            return 0; // 坏行情防御: 零价会把下面的 divide 炸成 ArithmeticException
+        }
         double probUp = pred.getProbUp().doubleValue();
 
         // 真实规则下 AI 与玩家同受封板限制 (T+1 对一天一次操作的 AI 天然满足)

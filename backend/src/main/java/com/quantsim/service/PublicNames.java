@@ -13,7 +13,10 @@ public final class PublicNames {
 
     private PublicNames() {}
 
-    /** 邮箱形态只留局部前 2 字符: claire040217@163.com -> cl***@163.com; 非邮箱原样返回。 */
+    /**
+     * 邮箱形态脱敏: claire040217@163.com -> cl***@163.com; 非邮箱原样返回。
+     * local 不足 3 字符时全遮 (保留前 2 等于没脱: "ab@x.com" 的 local 就 2 字符)。
+     */
     public static String mask(String username) {
         if (username == null) {
             return null;
@@ -23,7 +26,8 @@ public final class PublicNames {
             return username;
         }
         String local = username.substring(0, at);
-        return local.substring(0, Math.min(2, local.length())) + "***" + username.substring(at);
+        String kept = local.length() >= 3 ? local.substring(0, 2) : "";
+        return kept + "***" + username.substring(at);
     }
 
     /** 冒烟/体检脚本注册的一次性账号, 公开榜单一律不展示。 */

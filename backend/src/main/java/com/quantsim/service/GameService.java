@@ -387,6 +387,20 @@ public class GameService {
         return buildStatus(session, account, marketData.load(session.getStockId()));
     }
 
+    /**
+     * 房间到期强制结算专用: REQUIRES_NEW 独立事务。某成员结算失败 (行情缺失/并发已结算)
+     * 只回滚该成员, 不把调用方 (RoomService.view) 的事务标记 rollback-only——
+     * 否则 catch 了异常也救不回来, 提交时 UnexpectedRollbackException, 房间页永久 500。
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public SettleResponse settleIsolated(Long sessionId) {
+        GameSession session = getSessionWithLock(sessionId);
+        requireInProgress(session); // 并发下已被结算: 在这里抛出并回滚本事务, 调用方忽略即可
+        SettleResponse result = doSettle(session);
+        sessionRepository.save(session);
+        return result;
+    }
+
     @Transactional
     public SettleResponse settle(Long sessionId) {
         GameSession session = getSessionWithLock(sessionId);
