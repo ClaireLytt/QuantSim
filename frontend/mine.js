@@ -167,7 +167,10 @@
   $("btn-mine-profile").addEventListener("click", () => switchView("profile"));
 
   // ---------- 右侧统计概览 ----------
-  const GAME_BEST_KEYS = ["qs_newsjudge", "qs_richman", "qs_buydip", "qs_stratbox", "qs_qdetect", "qs_reborn", "qs_bubble"];
+  // 各小游戏的最佳成绩键 (只做存在性判断, 不解析内容, 所以三种存档格式混用也没关系)。
+  // 新增小游戏记得在这里登记, 否则"小游戏通关数"统计必漏 (2026-10 审计 P6: 曾漏 opt/tape)
+  const GAME_BEST_KEYS = ["qs_newsjudge", "qs_richman", "qs_buydip", "qs_stratbox", "qs_qdetect",
+    "qs_reborn", "qs_bubble", "qs_opt_best", "qs_tape_best"];
 
   async function renderStats() {
     const games = await loadGames();

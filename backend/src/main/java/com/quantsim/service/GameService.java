@@ -704,18 +704,12 @@ public class GameService {
                     aiTotal, TradeMath.returnRate(aiTotal, session.getInitialCash()));
         }
 
-        // 真实规则 (单股) 下提示今日可卖数, 免得玩家靠报错试探 T+1
+        // 真实规则 (单股) 下提示今日可卖数, 免得玩家靠报错试探 T+1。
+        // 与卖出校验共用 TradeEngine.sellableShares (带标的归属过滤, 组合模式将来开放也不漂移)
         Integer sellableShares = null;
         if (session.isRealRules() && !"PORTFOLIO".equals(session.getMode())
                 && session.getStatus() == GameSession.Status.IN_PROGRESS) {
-            int boughtToday = 0;
-            for (TradeTransaction tx : transactionRepository
-                    .findBySessionIdAndTradeDate(session.getSessionId(), session.getCurrentTradeDate())) {
-                if (tx.getDirection() == TradeTransaction.Direction.BUY) {
-                    boughtToday += tx.getShares();
-                }
-            }
-            sellableShares = Math.max(0, account.getHoldingShares() - boughtToday);
+            sellableShares = tradeEngine.sellableShares(session, account, session.getStockId());
         }
 
         BigDecimal feesPaid = transactionRepository.sumFeesBySessionId(session.getSessionId());

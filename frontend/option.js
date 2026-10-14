@@ -8,6 +8,8 @@
   const MULTIPLIER = 100;        // 一张 = 100 股
   const BASE_VOL = 0.30;         // 定价年化波动率
   const DAILY_SD = 0.019;        // 日波动 (约对应 30% 年化)
+  // 存裸数字而非 qsSaveBest 的 {best} JSON——语义不同: 负收益也算最佳, 无记录时隐藏入口;
+  // mine.js 的通关统计只查键存在性, 兼容此格式 (已登记 GAME_BEST_KEYS)
   const BEST_KEY = "qs_opt_best";
 
   let g = null;        // 对局状态

@@ -215,18 +215,10 @@ public class GameBenchmarks {
         return TradeMath.returnRate(finalAssets, initial);
     }
 
-    /** 基准一: 开局收盘价全仓买入并持有到结算 (与玩家同口径扣费)。 */
+    /** 基准一: 开局收盘价全仓买入并持有到结算 ≡ holdEquityCurve 的末点收益, 不再重写一遍建仓。 */
     BigDecimal buyAndHoldReturn(StockData sd, int startIdx, int endIdx, BigDecimal initial) {
-        Market market = sd.stock().getMarket();
-        int lotSize = market.getLotSize();
-        BigDecimal startClose = sd.prices().get(startIdx).getClose();
-        BigDecimal endClose = sd.prices().get(endIdx).getClose();
-        int shares = feeCalculator.maxAffordableShares(initial, startClose, lotSize, market);
-        BigDecimal buyGross = startClose.multiply(BigDecimal.valueOf(shares));
-        BigDecimal buyFee = feeCalculator.fee(market, TradeTransaction.Direction.BUY, buyGross);
-        BigDecimal finalAssets = initial.subtract(buyGross).subtract(buyFee)
-                .add(endClose.multiply(BigDecimal.valueOf(shares)));
-        return TradeMath.returnRate(finalAssets, initial);
+        List<BigDecimal> curve = holdEquityCurve(sd, startIdx, endIdx, initial);
+        return TradeMath.returnRate(curve.get(curve.size() - 1), initial);
     }
 
     /** 基准二: MA5 上穿 MA20 全仓买入, 下穿清仓, 按当日收盘价成交 (含费用)。 */

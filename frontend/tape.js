@@ -7,6 +7,7 @@
   const TICK_MS = 250;
   const START_CASH = 100000;
   const FEE_RATE = 0.0005;      // 单边 0.05%
+  // 存裸数字而非 qsSaveBest 的 {best} JSON (负收益也算最佳, 无记录隐藏), 同 option.js
   const BEST_KEY = "qs_tape_best";
 
   let g = null;
