@@ -15,6 +15,9 @@ REQUIRES_NEW 占 2 连接(TB2)、daily 唯一键并发(TR1)、undo/settle 锁序
 确定性: 固定随机种子, 可复现。运行: python tools/sim/montecarlo_sim.py [seed]
 输出: 末尾 JSON 摘要 (被 docs/simulation-report 引用)。
 """
+import sys as _sys
+try: _sys.stdout.reconfigure(encoding="utf-8")
+except Exception: pass
 import heapq
 import json
 import random
@@ -206,6 +209,17 @@ class LockMgr:
 
 # ---------------- 业务模型 ----------------
 
+# ---- 沙盘不变量: 状态/点数/违规追踪 ----
+points = {}                      # uid -> 服务端点数 (模拟 awardSettle +50 底分)
+settle_count = {}                # uid -> 结算次数 (SEC-1 farming 侦测)
+transitions = []                 # 非法状态跳转记录
+violations = []                  # 不变量违规 [(inv, severity, detail, t)]
+
+def record_violation(inv, severity, detail):
+    violations.append({"inv": inv, "severity": severity, "detail": detail, "t_hour": round(sim.now/3600, 2)})
+
+LEGIT_SETTLE_PER_DAY = 30        # 正常玩家每日结算上限 (超出视为刷分)
+
 metrics = {
     "ops": 0, "pool_peak": 0, "connection_timeout": 0, "lock_wait": 0,
     "lock_wait_timeout": 0, "deadlock": 0,
@@ -351,6 +365,9 @@ def op_settle(sid):
             return
         yield Timeout(svc(20, 60))
         s["status"] = "SETTLED"
+        uid = s["uid"]
+        points[uid] = points.get(uid, 0) + 50            # awardSettle +50 底分 (无每日上限 = SEC-1)
+        settle_count[uid] = settle_count.get(uid, 0) + 1
         release_all(txid, rest)
         lm.lock("session:%d" % sid).release(txid)
     return with_conn(body)
@@ -445,6 +462,8 @@ def op_room_view(code, t):
                     continue
                 yield Timeout(svc(20, 60))
                 s["status"] = "SETTLED"
+                points[s["uid"]] = points.get(s["uid"], 0) + 50
+                settle_count[s["uid"]] = settle_count.get(s["uid"], 0) + 1
                 release_all(itx, locks)
                 pool.release()
             r["status"] = "SETTLED"
@@ -477,6 +496,23 @@ _weights = [w for _, w in OP_MIX]
 
 def pick_op():
     return random.choices(_names, weights=_weights)[0]
+
+N_FARMERS = 15   # 恶意刷分者: 紧密 start->settle 循环 (SEC-1 攻击链)
+
+def farmer_proc(uid):
+    """刷分攻击者: 登录后无限 start->settle, 每轮 +50 底分 (无每日上限)。"""
+    def proc():
+        while sim.now < SIM_SECONDS:
+            yield Timeout(random.uniform(1, 4))   # 脚本化高频
+            metrics["ops"] += 1
+            metrics["ops_by_hour"][int(sim.now // 3600)] += 1
+            # 直接开局 + 立即结算 (结算无需交易)
+            _sid[0] += 1
+            sid = _sid[0]
+            sessions[sid] = {"status": "IN_PROGRESS", "uid": uid}
+            yield Timeout(svc(5, 15))
+            sim.start(op_settle(sid))
+    return proc()
 
 def user_proc(uid):
     """单用户 72h 行为流: 按昼夜权重间歇发起操作。"""
@@ -575,11 +611,40 @@ def pruner():
 # ---------------- 运行 ----------------
 
 for uid in range(N_USERS):
-    g = user_proc(uid)
+    g = (farmer_proc(uid) if uid < N_FARMERS else user_proc(uid))
     sim.at(random.uniform(0, 300), lambda g=g: sim.start(g))
 sim.start(room_spawner())
 sim.start(pruner())
 sim.run(SIM_SECONDS + 600)   # 多跑 10min 收尾
+
+# ================= 不变量校验 (沙盘巡检核心) =================
+# INV-1 无 500: 除零/事务/幂等守卫全程不得崩
+if metrics["err_500"] > 0:
+    record_violation("INV-NO-500", "P0", "出现 %d 次 5xx (守卫失效)" % metrics["err_500"])
+# INV-2 结算不污染父事务: 房间强结全部收敛 (force_settle 次数 == settled 次数, 无状态不一致)
+if metrics["room_force_settle"] != metrics["room_settled"]:
+    record_violation("INV-ROOM-CONVERGE", "P0",
+        "房间强结 %d 次但只收敛 %d 次" % (metrics["room_force_settle"], metrics["room_settled"]))
+if metrics["state_inconsistent_room"] > 0:
+    record_violation("INV-ROOM-CONSISTENT", "P2",
+        "%d 个房间 SETTLED 但有成员未结算 (设计内可接受, 记录供人工确认)" % metrics["state_inconsistent_room"])
+# INV-3 死锁容忍度: 锁序设计应不成环
+if metrics["deadlock"] > 0:
+    record_violation("INV-NO-DEADLOCK", "P0", "出现 %d 次死锁 (锁序成环)" % metrics["deadlock"])
+# INV-4 奖励不可重复领: 每日挑战每人每天至多一局 (uk_user_daily)
+#   模型用 daily_played set 保证, 若有重复即违规 (这里断言并发双开全被 400 挡住)
+if metrics["daily_double_open_400"] == 0 and metrics["ops"] > 100000:
+    record_violation("INV-DAILY-IDEMPOTENT", "P1", "未观测到并发双开被拒 (幂等防护可能失效?)")
+# INV-5 SEC-1 经济不变量: 单用户结算次数不得远超正常上限 (无限刷分侦测)
+cap = LEGIT_SETTLE_PER_DAY * SIM_HOURS / 24
+farmers = sorted(((uid, c) for uid, c in settle_count.items() if c > cap), key=lambda x: -x[1])
+if farmers:
+    top = farmers[0]
+    record_violation("INV-ECON-SEC1", "P0",
+        "%d 个用户结算次数超正常上限(%.0f); 最高用户 u%d 结算 %d 次 = %d 积分 (无每日上限, 可无限刷)"
+        % (len(farmers), cap, top[0], top[1], points.get(top[0], 0)))
+# INV-6 榜单过滤: 测试账号不入榜 (模型中榜单读不含测试账号, 此处断言 metrics 无"测试账号上榜"事件)
+#   (当前模型不生成测试账号上榜, 占位恒成立)
 
 # 高冲突窗口: 连接超时 + 锁等待按小时聚合, 取 Top
 ct = metrics["ct_by_hour"]; lw = metrics["lw_by_hour"]
@@ -607,5 +672,9 @@ summary = {
     "cross_midnight_guess": metrics["cross_midnight_guess"],
     "top_conn_timeout_hours": top_ct,
     "top_lock_wait_hours": top_lw,
+    "max_settle_per_user": max(settle_count.values()) if settle_count else 0,
+    "max_points_per_user": max(points.values()) if points else 0,
+    "violations": violations,
+    "invariant_pass": len([v for v in violations if v["severity"] in ("P0", "P1")]) == 0,
 }
 print(json.dumps(summary, ensure_ascii=False, indent=2))
