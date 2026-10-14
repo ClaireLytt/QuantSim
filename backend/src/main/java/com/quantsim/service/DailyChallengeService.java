@@ -87,11 +87,13 @@ public class DailyChallengeService {
         LocalDate day = date == null ? LocalDate.now(GameService.GAME_ZONE) : date;
         // 当天的榜单隐藏标的 (未玩的人看到会剧透), 历史日期正常展示
         boolean maskStock = day.equals(LocalDate.now(GameService.GAME_ZONE));
+        // 公开榜: 过滤自动化测试账号 + 邮箱用户名脱敏 (见 PublicNames)
         return sessionRepository.findDailyBoard(day, GameSession.Status.SETTLED,
                         PageRequest.of(0, props.getLeaderboardSize())).stream()
+                .filter(row -> !PublicNames.isTestAccount((String) row[1]))
                 .map(row -> {
                     GameSession s = (GameSession) row[0];
-                    return new DailyBoardEntry((String) row[1],
+                    return new DailyBoardEntry(PublicNames.mask((String) row[1]),
                             maskStock ? BlindDates.MASK_NAME : (String) row[2],
                             maskStock ? BlindDates.MASK_CODE : (String) row[3],
                             s.getFinalReturnRate());

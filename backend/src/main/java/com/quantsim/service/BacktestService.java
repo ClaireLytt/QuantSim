@@ -67,10 +67,12 @@ public class BacktestService {
     @Transactional(readOnly = true)
     public List<ArenaEntry> arenaLeaderboard(String season) {
         String filter = season == null || season.isBlank() ? null : season.trim();
+        // 公开榜: 过滤自动化测试账号 + 邮箱用户名脱敏 (见 PublicNames)
         return backtestRepository.findArenaLeaderboard(filter, PageRequest.of(0, props.getLeaderboardSize())).stream()
+                .filter(row -> !PublicNames.isTestAccount((String) row[1]))
                 .map(row -> {
                     BacktestResult b = (BacktestResult) row[0];
-                    return new ArenaEntry(b.getBacktestId(), (String) row[1],
+                    return new ArenaEntry(b.getBacktestId(), PublicNames.mask((String) row[1]),
                             (String) row[3], (String) row[2],
                             b.getStrategy(), b.getParams(), b.getTotalReturn(),
                             b.getSharpeRatio(), b.getMaxDrawdown(), b.getTradeCount());
@@ -207,7 +209,9 @@ public class BacktestService {
     @Transactional(readOnly = true)
     public List<DuelFinalEntry> duelFinal(int limit) {
         String season = java.time.YearMonth.now(GameService.GAME_ZONE).toString();
-        List<Object[]> rows = backtestRepository.findArenaLeaderboard(season, PageRequest.of(0, 500));
+        List<Object[]> rows = backtestRepository.findArenaLeaderboard(season, PageRequest.of(0, 500)).stream()
+                .filter(row -> !PublicNames.isTestAccount((String) row[1])) // 测试账号不进终榜评分
+                .toList();
         double[] r = normalize(rows, b -> b.getTotalReturn(), false);
         double[] s = normalize(rows, b -> b.getSharpeRatio(), false);
         double[] d = normalize(rows, b -> b.getMaxDrawdown(), true);
@@ -222,7 +226,7 @@ public class BacktestService {
                 .limit(Math.min(Math.max(limit, 1), 10))
                 .map(sc -> {
                     BacktestResult b = (BacktestResult) sc.row[0];
-                    return new DuelFinalEntry(b.getBacktestId(), (String) sc.row[1], (String) sc.row[2],
+                    return new DuelFinalEntry(b.getBacktestId(), PublicNames.mask((String) sc.row[1]), (String) sc.row[2],
                             (String) sc.row[3], b.getStrategy(), b.getParams(),
                             b.getTotalReturn(), b.getSharpeRatio(), b.getMaxDrawdown(),
                             sc.score, b.getEquityCurve());

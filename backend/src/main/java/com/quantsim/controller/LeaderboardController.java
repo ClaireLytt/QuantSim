@@ -29,8 +29,11 @@ public class LeaderboardController {
     /** 积分榜 TOP20: [{username, balance}] */
     @GetMapping("/points")
     public java.util.List<java.util.Map<String, Object>> points() {
+        // 公开榜: 过滤测试账号 + 邮箱脱敏, 口径同收益榜 (PublicNames)
         return pointsService.board(20).stream()
-                .map(r -> java.util.Map.<String, Object>of("username", r[0], "balance", r[1]))
+                .filter(r -> !com.quantsim.service.PublicNames.isTestAccount((String) r[0]))
+                .map(r -> java.util.Map.<String, Object>of(
+                        "username", com.quantsim.service.PublicNames.mask((String) r[0]), "balance", r[1]))
                 .toList();
     }
 

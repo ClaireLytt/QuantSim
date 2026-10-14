@@ -28,11 +28,13 @@ public class LeaderboardService {
         List<Object[]> rows = "sharpe".equalsIgnoreCase(sort)
                 ? sessionRepository.findLeaderboardBySharpe(GameSession.Status.SETTLED, filter, page)
                 : sessionRepository.findLeaderboard(GameSession.Status.SETTLED, filter, page);
+        // 公开榜: 过滤自动化测试账号 + 邮箱用户名脱敏 (见 PublicNames)
         return rows.stream()
+                .filter(row -> !PublicNames.isTestAccount((String) row[1]))
                 .map(row -> {
                     GameSession s = (GameSession) row[0];
                     return new LeaderboardEntry(
-                            s.getSessionId(), (String) row[1], (String) row[2], (String) row[3],
+                            s.getSessionId(), PublicNames.mask((String) row[1]), (String) row[2], (String) row[3],
                             s.getStartDate(), s.getFinalReturnRate(), s.getFinalSharpe());
                 })
                 .toList();

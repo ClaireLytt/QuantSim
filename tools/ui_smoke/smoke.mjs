@@ -17,6 +17,14 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 // 行情无数据等业务 toast 不算 (那是后端状态, 不是 UI bug)
 attachRuntimeGuards(page, (kind, _severity, text) => record(kind, text));
 
+// 冒烟的回测一律改走预回测 (preview:true): 不入榜不落库不发奖励,
+// 否则每跑一次冒烟就往竞技场/擂台榜写一条 smoke_* 垃圾记录 (2026-10 审计 P1)
+await page.route("**/api/backtest/run", async (route) => {
+  const body = JSON.parse(route.request().postData() || "{}");
+  body.preview = true;
+  await route.continue({ postData: JSON.stringify(body) });
+});
+
 let passed = 0;
 async function step(name, fn) {
   try {
