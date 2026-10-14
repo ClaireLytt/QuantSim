@@ -130,6 +130,20 @@ function qsNormCdf(x) {
   const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
   return x > 0 ? 1 - p : p;
 }
+// 欧式期权 Black-Scholes 定价: academy 沙盒与 option 游戏共用同一公式
+// (之前各写一份, 公式体已漂移; r/T 假设由调用方给——沙盒 r=3%/自然日, 游戏 r=0/交易日)
+function qsBsPrice(spot, strike, T, vol, isCall, r = 0) {
+  if (T <= 0) {
+    return Math.max(0, isCall ? spot - strike : strike - spot); // 到期只剩内在价值
+  }
+  const sd = vol * Math.sqrt(T);
+  const d1 = (Math.log(spot / strike) + (r + vol * vol / 2) * T) / sd;
+  const d2 = d1 - sd;
+  if (isCall) {
+    return spot * qsNormCdf(d1) - strike * Math.exp(-r * T) * qsNormCdf(d2);
+  }
+  return strike * Math.exp(-r * T) * qsNormCdf(-d2) - spot * qsNormCdf(-d1);
+}
 // 轮回模式最佳身家 (relics/walker 共用, 读 localStorage qs_reborn)
 function qsRebornWorth() {
   try {
@@ -1894,22 +1908,25 @@ function condSelect(values, keyPrefix, value) {
   return sel;
 }
 
-// 语言切换时刷新已存在条件行的选项文案 (保留选中值)
+// 语言切换时刷新已存在条件行的选项文案 (保留选中值; 覆盖竞技场与擂台两种行样式)
 function refreshCondLabels() {
-  document.querySelectorAll(".cond-row select[data-key-prefix]").forEach((sel) => {
+  document.querySelectorAll(".cond-row select[data-key-prefix], .duel-cond-row select[data-key-prefix]").forEach((sel) => {
     [...sel.options].forEach((opt) => { opt.textContent = t(sel.dataset.keyPrefix + opt.value); });
   });
   document.querySelectorAll(".cond-del").forEach((btn) => { btn.title = t("arena.delCond"); });
 }
 
-function addCondRow(containerId, preset) {
+// 自定义策略条件行构建器: 竞技场与擂台共用一份 (之前 duel.js 复制了一套,
+// 校验口径漂移 + 算子 i18n 前缀写错成 cond.op.*, 2026-10 审计 P4 收敛到这里)
+function addCondRow(containerId, preset, opts = {}) {
+  const max = opts.max ?? MAX_CONDS;
   const container = $(containerId);
-  if (container.children.length >= MAX_CONDS) {
-    toast(t("cond.max", MAX_CONDS));
+  if (container.children.length >= max) {
+    toast(t(opts.maxMsgKey || "cond.max", max));
     return;
   }
   const row = document.createElement("div");
-  row.className = "cond-row";
+  row.className = opts.rowClass || "cond-row";
 
   const left = condSelect(COND_FIELDS, "cond.f.", preset.left);
   const op = condSelect(COND_OPS, "cond.o.", preset.op);
@@ -1923,7 +1940,7 @@ function addCondRow(containerId, preset) {
 
   const del = document.createElement("button");
   del.type = "button";
-  del.className = "cond-del";
+  del.className = opts.delClass || "cond-del";
   del.textContent = "✕";
   del.title = t("arena.delCond");
   del.addEventListener("click", () => row.remove());

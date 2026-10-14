@@ -2084,16 +2084,9 @@ $("btn-rich-reborn").addEventListener("click", richReborn);
   let optType = "call";
   let optChart = null;
 
-  const normCdf = qsNormCdf; // 共享实现在 app.js
 
-  function bsPremium(strike) {
-    const d1 = (Math.log(SPOT / strike) + (RATE + VOL * VOL / 2) * T) / (VOL * Math.sqrt(T));
-    const d2 = d1 - VOL * Math.sqrt(T);
-    if (optType === "call") {
-      return SPOT * normCdf(d1) - strike * Math.exp(-RATE * T) * normCdf(d2);
-    }
-    return strike * Math.exp(-RATE * T) * normCdf(-d2) - SPOT * normCdf(-d1);
-  }
+  // 定价共享 app.js 的 qsBsPrice (沙盒假设: 无风险利率 3%, 自然日年化)
+  const bsPremium = (strike) => qsBsPrice(SPOT, strike, T, VOL, optType === "call", RATE);
 
   function renderOption() {
     const strike = Number($("opt-strike").value);

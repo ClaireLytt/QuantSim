@@ -95,9 +95,7 @@
 
   // ---------- 策略搭建屏: 条件积木 + 预回测 + 提交上台 ----------
   // 统一数据集: 每周按周序轮换一只"擂台标的", 所有人在同一段历史上 PK
-  const DB_FIELDS = ["CLOSE", "MA5", "MA20", "PCT_CHANGE", "RSI", "MACD_HIST", "BOLL_UP", "BOLL_MID", "BOLL_LOW"];
-  const DB_OPS = ["GT", "LT", "CROSS_UP", "CROSS_DOWN"];
-  const DB_MAX_CONDS = 3;
+  const DB_MAX_CONDS = 3; // 字段/算子表随条件行构建器共享 app.js 的 COND_FIELDS/COND_OPS
   let ringStocks = [];
   let previewed = false;
   let buildChart = null;
@@ -108,52 +106,12 @@
     return ringStocks[qsWeekIndex() % ringStocks.length];
   }
 
-  function condSel(options, prefix, value) {
-    const sel = document.createElement("select");
-    options.forEach((o) => {
-      const opt = document.createElement("option");
-      opt.value = o;
-      opt.textContent = t(prefix + o);
-      sel.appendChild(opt);
-    });
-    sel.value = value;
-    return sel;
-  }
-
-  function addRow(wrapId, preset) {
-    const wrap = $(wrapId);
-    if (wrap.children.length >= DB_MAX_CONDS) {
-      toast(t("duel.build.maxConds", DB_MAX_CONDS));
-      return;
-    }
-    const row = document.createElement("div");
-    row.className = "duel-cond-row";
-    const left = condSel(DB_FIELDS, "cond.f.", preset.left);
-    const op = condSel(DB_OPS, "cond.op.", preset.op);
-    const right = condSel([...DB_FIELDS, "CONST"], "cond.f.", preset.rightField || "CONST");
-    const val = document.createElement("input");
-    val.type = "number";
-    val.step = "0.01";
-    val.value = preset.rightValue != null ? preset.rightValue : "0";
-    val.hidden = right.value !== "CONST";
-    right.addEventListener("change", () => { val.hidden = right.value !== "CONST"; });
-    const del = document.createElement("button");
-    del.className = "small ghost";
-    del.textContent = "✕";
-    del.addEventListener("click", () => row.remove());
-    row.append(left, op, right, val, del);
-    wrap.appendChild(row);
-  }
-
-  function collectRows(wrapId) {
-    return [...$(wrapId).children].map((row) => {
-      const [left, op, right, val] = row.children;
-      const cond = { left: left.value, op: op.value };
-      if (right.value === "CONST") cond.rightValue = parseFloat(val.value) || 0;
-      else cond.rightField = right.value;
-      return cond;
-    });
-  }
+  // 条件行构建/收集共享 app.js 的实现 (样式与上限按擂台口径传参);
+  // 收集继承竞技场的严格校验: 常数非法直接 throw, 由调用方 try/catch 提示。
+  // 顺带修复: 旧复制版算子前缀误写 cond.op.* (i18n 无此键, 下拉显示裸键名)
+  const addRow = (wrapId, preset) => addCondRow(wrapId, preset,
+      { max: DB_MAX_CONDS, maxMsgKey: "duel.build.maxConds", rowClass: "duel-cond-row", delClass: "small ghost" });
+  const collectRows = (wrapId) => collectConds(wrapId);
 
   async function buildBody(preview) {
     const st = await ringStock();
@@ -190,14 +148,15 @@
   }
 
   async function runPreview() {
-    const buy = collectRows("duel-buy-conds");
-    const sell = collectRows("duel-sell-conds");
-    if (!buy.length || !sell.length) {
-      toast(t("duel.build.needConds"));
-      return;
-    }
     $("btn-duel-preview").disabled = true;
     try {
+      // 收集放进 try: 共享校验对非法常数会 throw, 统一走下面的 toast
+      const buy = collectRows("duel-buy-conds");
+      const sell = collectRows("duel-sell-conds");
+      if (!buy.length || !sell.length) {
+        toast(t("duel.build.needConds"));
+        return;
+      }
       const res = await api("/backtest/run", { method: "POST", body: JSON.stringify(await buildBody(true)) });
       renderBuildChart(res);
       $("duel-build-stats").hidden = false;

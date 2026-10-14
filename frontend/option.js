@@ -14,21 +14,10 @@
   let ogChart = null;
   let tradeType = "call";
 
-  // ---------- Black-Scholes (r=0, 到期按交易日/252 折年) ----------
+  // ---------- Black-Scholes (r=0, 到期按交易日/252 折年; 公式共享 app.js qsBsPrice) ----------
 
-  const normCdf = qsNormCdf; // 共享实现在 app.js
-
-  function bsPrice(spot, strike, daysLeft, isCall, vol) {
-    if (daysLeft <= 0) {
-      return Math.max(0, isCall ? spot - strike : strike - spot);
-    }
-    const T = daysLeft / 252;
-    const sd = vol * Math.sqrt(T);
-    const d1 = (Math.log(spot / strike) + (vol * vol / 2) * T) / sd;
-    const d2 = d1 - sd;
-    const call = spot * normCdf(d1) - strike * normCdf(d2);
-    return isCall ? call : call - spot + strike; // put-call parity (r=0)
-  }
+  const bsPrice = (spot, strike, daysLeft, isCall, vol) =>
+      qsBsPrice(spot, strike, daysLeft / 252, vol, isCall, 0);
 
   // ---------- 行情路径: 分段漂移 + 一个提前预告的财报日 ----------
 
