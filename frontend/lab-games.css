@@ -664,7 +664,9 @@ button.small { width: auto; margin-top: 8px; padding: 4px 12px; font-size: 12px;
   border: 1px dashed color-mix(in srgb, var(--accent) 40%, var(--border));
 }
 .gz-card-soon strong { color: var(--text-muted); }
-.gz-footer { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.gz-footer { display: flex; align-items: stretch; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
+/* 返回按钮占满右侧剩余宽度: .big 默认 100% 宽会被挤换行, 让积分卡悬空 (2026-10 审计 P3) */
+.gz-footer .big { width: auto; flex: 1; min-width: 220px; }
 .gz-points-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 200px; }
 .gz-points-card .hint { margin: 0; }
 .gz-points-card b { font-size: 22px; color: var(--accent-soft); font-variant-numeric: tabular-nums; }
