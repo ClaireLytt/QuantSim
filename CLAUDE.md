@@ -63,6 +63,12 @@ pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端
 业务 400 视为预期拒绝放行；回测请求自动改 preview 不入榜；桌宠悬浮层/登出按钮不点。
 注意：**改完后端必须重启再爬**，旧 JVM 配新 target/classes 会报 NoClassDefFoundError 之类的假 500。
 
+**⑤ 历史踩坑扫描 `tools/pr_guard.py`（PR 评审）**：扫变更代码里 `docs/bug-knowledge-base.md` 的 7 类反面模式
+（分页后过滤 / username 身份比对 / 循环共用父事务结算 / 错误码依赖中文文案 / 状态结束才落库 /
+除零缺保护 / 空值无兜底渲染），命中给风险解释 + 修改示例。跑法：`python tools/pr_guard.py`
+（扫 git 变更，对比 origin/main）或 `--all` 全仓、`--strict` 让高置信规则卡 CI。启发式有误报，
+**默认只告警不阻断**，确认后按示例改或在扫描器里收窄。新增历史坑在 `pr_guard.py` 的 `RULES` 里登记。
+
 ## 工作流纪律（强制）
 
 1. **CLI 脚本出问题必须记录**：每次运行 CLI 脚本发生问题后，在根目录 `issue_recode/` 下找到当前
