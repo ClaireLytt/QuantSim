@@ -816,6 +816,7 @@ async function maybeAutoTrade() {
   if (!dir) return;
   const s = state.lastStatus;
   const price = Number(state.klines[state.klines.length - 1].close);
+  if (!(price > 0)) return; // 零价/异常行情防护: 否则 cash/price 得 Infinity -> shares NaN (后端已防, 前端同守)
   const lot = state.lotSize || 1;
   let shares = 0;
   if (dir === "BUY") {
