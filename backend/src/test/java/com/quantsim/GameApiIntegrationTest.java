@@ -223,7 +223,7 @@ class GameApiIntegrationTest {
                 new Case("{\"direction\":\"BUY\",\"price\":10.00,\"shares\":50}", "整数倍"),
                 new Case("{\"direction\":\"BUY\",\"price\":10.123,\"shares\":100}", "两位小数"),
                 new Case("{\"direction\":\"BUY\",\"price\":20.00,\"shares\":100}", "收盘价"),
-                new Case("{\"direction\":\"HOLD\",\"price\":10.00,\"shares\":100}", "BUY 或 SELL"),
+                new Case("{\"direction\":\"HOLD\",\"price\":10.00,\"shares\":100}", "BUY / SELL"),
                 new Case("{\"direction\":\"BUY\",\"price\":10.00,\"shares\":20000}", "现金"),
                 new Case("{\"direction\":\"SELL\",\"price\":10.00,\"shares\":100}", "持仓"),
         };

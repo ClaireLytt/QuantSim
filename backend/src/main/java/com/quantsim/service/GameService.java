@@ -413,13 +413,7 @@ public class GameService {
                             BlindDates.maskName(session, st.getName()));
                 })
                 .toList();
-        String levelName = AiLevel.NORMAL.name();
-        for (AiLevel level : AiLevel.values()) {
-            if (level.getModel().equals(session.getAiModel())) {
-                levelName = level.name();
-                break;
-            }
-        }
+        String levelName = AiLevel.fromModel(session.getAiModel()).name();
         return new StartGameResponse(session.getSessionId(),
                 BlindDates.maskCode(session, stock.getCode()),
                 BlindDates.maskName(session, stock.getName()),
@@ -583,12 +577,8 @@ public class GameService {
         GameSession session = getSessionWithLock(sessionId);
         requireInProgress(session);
 
-        TradeTransaction.Direction direction;
-        try {
-            direction = TradeTransaction.Direction.valueOf(request.direction().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException("direction 必须是 BUY 或 SELL");
-        }
+        TradeTransaction.Direction direction =
+                Enums.parse(request.direction(), TradeTransaction.Direction.class, "交易方向");
 
         BigDecimal price = request.price();
         if (price.stripTrailingZeros().scale() > 2) {
@@ -617,20 +607,9 @@ public class GameService {
             throw new BusinessException("数量必须为 " + lotSize + " 的整数倍（整手交易）");
         }
 
-        // 限制条件: 笔数上限与强制理由。预算口径与 placeOrder/tradesRemaining 一致:
-        // 已成交 + 在挂单一起占笔数, 否则这里报的"剩余"会把挂单预留的份额重复许诺出去
-        Long usedBefore = null; // 只查一次, 响应里的剩余笔数由它推出, 省掉第二次 COUNT
-        if (session.getMaxTrades() != null) {
-            usedBefore = transactionRepository.countBySessionId(sessionId)
-                    + orderService.countOpen(sessionId);
-            if (usedBefore >= session.getMaxTrades()) {
-                throw new BusinessException("本局交易笔数已达上限 " + session.getMaxTrades() + " 笔（在挂单也占用笔数）");
-            }
-        }
+        // 限制条件: 笔数上限与强制理由 (与 placeOrder 同走 requireBudgetAndReason, 保证口径一致)
         String reason = sanitizeReason(request.reason());
-        if (session.isRequireReason() && (reason == null || reason.isEmpty())) {
-            throw new BusinessException("本局开启了交易日志: 请写一句交易理由再下单");
-        }
+        Long usedBefore = requireBudgetAndReason(session, reason, "下单"); // 只查一次, 剩余笔数由它推出
 
         String error = tradeEngine.validate(session, account, stockId, direction, price, shares);
         if (error != null) {
@@ -654,14 +633,35 @@ public class GameService {
         return cleaned.length() > 100 ? cleaned.substring(0, 100) : cleaned;
     }
 
-    /** 剩余可交易笔数 (无上限返回 null)。已成交 + 在挂单同占预算, 与 trade/placeOrder 一个口径。 */
+    /** 已用笔数预算: 已成交 + 在挂单。挂单也占预算, 否则挂单就是绕过笔数上限的后门。 */
+    private long budgetUsed(Long sessionId) {
+        return transactionRepository.countBySessionId(sessionId) + orderService.countOpen(sessionId);
+    }
+
+    /**
+     * 笔数预算 + 强制理由校验, trade/placeOrder 共用 (同一口径, 不再各写一份)。
+     * 返回已用笔数 (无上限时 null), 调用方可据此推出剩余笔数, 省掉第二次 COUNT。
+     */
+    private Long requireBudgetAndReason(GameSession session, String sanitizedReason, String action) {
+        Long used = null;
+        if (session.getMaxTrades() != null) {
+            used = budgetUsed(session.getSessionId());
+            if (used >= session.getMaxTrades()) {
+                throw new BusinessException("本局交易笔数已达上限 " + session.getMaxTrades() + " 笔（在挂单也占用笔数）");
+            }
+        }
+        if (session.isRequireReason() && (sanitizedReason == null || sanitizedReason.isEmpty())) {
+            throw new BusinessException("本局开启了交易日志: 请写一句交易理由再" + action);
+        }
+        return used;
+    }
+
+    /** 剩余可交易笔数 (无上限返回 null)。 */
     private Integer tradesRemaining(GameSession session) {
         if (session.getMaxTrades() == null) {
             return null;
         }
-        long used = transactionRepository.countBySessionId(session.getSessionId())
-                + orderService.countOpen(session.getSessionId());
-        return (int) Math.max(0, session.getMaxTrades() - used);
+        return (int) Math.max(0, session.getMaxTrades() - budgetUsed(session.getSessionId()));
     }
 
     // ---------- 挂单 ----------
@@ -673,17 +673,8 @@ public class GameService {
         Long stockId = resolveStock(session, request.stockCode());
         // 限制模式对挂单同样生效, 否则挂单就是绕开笔数上限/交易日志的后门:
         // 已成交 + 在挂单一起占笔数预算; 强制理由随挂单落库, 成交时写进流水。
-        if (session.getMaxTrades() != null) {
-            long budgetUsed = transactionRepository.countBySessionId(sessionId)
-                    + orderService.countOpen(sessionId);
-            if (budgetUsed >= session.getMaxTrades()) {
-                throw new BusinessException("本局交易笔数已达上限 " + session.getMaxTrades() + " 笔（在挂单也占用笔数）");
-            }
-        }
         String reason = sanitizeReason(request.reason());
-        if (session.isRequireReason() && (reason == null || reason.isEmpty())) {
-            throw new BusinessException("本局开启了交易日志: 请写一句交易理由再挂单");
-        }
+        requireBudgetAndReason(session, reason, "挂单");
         return orderService.place(session, stockId, request.orderType(), request.price(), request.shares(),
                 request.trailPct(), reason);
     }
@@ -1056,7 +1047,7 @@ public class GameService {
         if (AiLevel.EASY.getModel().equals(session.getAiModel())) {
             // 简单 AI: 老式全进全出
             if (probUp >= props.getAiBuyThreshold() && !limitUp) {
-                int bought = maxAffordableShares(session.getAiCash(), close, lotSize, market);
+                int bought = feeCalculator.maxAffordableShares(session.getAiCash(), close, lotSize, market);
                 aiBuy(session, market, close, bought);
                 return bought;
             }
@@ -1091,7 +1082,7 @@ public class GameService {
             return 0;
         }
         if (delta > 0 && !limitUp) {
-            int bought = Math.min(delta, maxAffordableShares(session.getAiCash(), close, lotSize, market));
+            int bought = Math.min(delta, feeCalculator.maxAffordableShares(session.getAiCash(), close, lotSize, market));
             aiBuy(session, market, close, bought);
             return bought;
         }
@@ -1122,21 +1113,6 @@ public class GameService {
         session.setAiShares(session.getAiShares() - shares);
     }
 
-    /** 现金能买到的最大整手数, 含买入费用 (对齐真实约束, 各策略基准共用)。 */
-    private int maxAffordableShares(BigDecimal cash, BigDecimal price, int lotSize, Market market) {
-        int shares = TradeMath.maxWholeShares(cash, price, lotSize);
-        while (shares > 0) {
-            BigDecimal gross = price.multiply(BigDecimal.valueOf(shares));
-            BigDecimal fee = feeCalculator.fee(market, TradeTransaction.Direction.BUY, gross);
-            if (gross.add(fee).compareTo(cash) <= 0) {
-                break;
-            }
-            shares -= lotSize;
-        }
-        return Math.max(0, shares);
-    }
-
-    /** 基准一: 开局收盘价全仓买入并持有到结算 (与玩家同口径扣费)。 */
     /**
      * 逐日重放交易流水得到玩家资金曲线 (首点为初始资金)。
      * 流水只记成交价与费用, 重放结果与实际现金流严格一致;
@@ -1188,7 +1164,7 @@ public class GameService {
     private List<BigDecimal> holdEquityCurve(StockData sd, int startIdx, int endIdx, BigDecimal initial) {
         Market market = sd.stock().getMarket();
         BigDecimal startClose = sd.prices().get(startIdx).getClose();
-        int shares = maxAffordableShares(initial, startClose, market.getLotSize(), market);
+        int shares = feeCalculator.maxAffordableShares(initial, startClose, market.getLotSize(), market);
         BigDecimal gross = startClose.multiply(BigDecimal.valueOf(shares));
         BigDecimal cash = initial.subtract(gross)
                 .subtract(feeCalculator.fee(market, TradeTransaction.Direction.BUY, gross));
@@ -1221,7 +1197,7 @@ public class GameService {
         int shares = 0;
         for (int k = 0; k < buys; k++) {
             BigDecimal close = sd.prices().get(startIdx + k * interval).getClose();
-            int bought = maxAffordableShares(tranche.min(cash), close, lotSize, market);
+            int bought = feeCalculator.maxAffordableShares(tranche.min(cash), close, lotSize, market);
             if (bought <= 0) {
                 continue;
             }
@@ -1240,7 +1216,7 @@ public class GameService {
         int lotSize = market.getLotSize();
         BigDecimal startClose = sd.prices().get(startIdx).getClose();
         BigDecimal endClose = sd.prices().get(endIdx).getClose();
-        int shares = maxAffordableShares(initial, startClose, lotSize, market);
+        int shares = feeCalculator.maxAffordableShares(initial, startClose, lotSize, market);
         BigDecimal buyGross = startClose.multiply(BigDecimal.valueOf(shares));
         BigDecimal buyFee = feeCalculator.fee(market, TradeTransaction.Direction.BUY, buyGross);
         BigDecimal finalAssets = initial.subtract(buyGross).subtract(buyFee)
@@ -1263,7 +1239,7 @@ public class GameService {
             BigDecimal close = p.getClose();
             int cmp = ind.getMa5().compareTo(ind.getMa20());
             if (cmp > 0 && shares == 0) {
-                int bought = maxAffordableShares(cash, close, lotSize, market);
+                int bought = feeCalculator.maxAffordableShares(cash, close, lotSize, market);
                 if (bought > 0) {
                     shares = bought;
                     BigDecimal gross = close.multiply(BigDecimal.valueOf(shares));
@@ -1375,22 +1351,14 @@ public class GameService {
         if (raw == null || raw.isBlank()) {
             return AiLevel.NORMAL;
         }
-        try {
-            return AiLevel.valueOf(raw.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException("未知 AI 难度: " + raw + "（可选 EASY / NORMAL / HARD / HELL）");
-        }
+        return Enums.parse(raw, AiLevel.class, " AI 难度");
     }
 
     private Market parseMarket(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
-        try {
-            return Market.valueOf(raw.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException("未知市场: " + raw + "（可选 STOCK / US / CRYPTO）");
-        }
+        return Enums.parse(raw, Market.class, "市场");
     }
 
     private String parseMode(String raw) {

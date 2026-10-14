@@ -1,0 +1,512 @@
+/* 对局视图域: 三栏/结算/复盘/挂单/组合/房间/每日挑战。依赖 style.css 的 CSS 变量, 必须在其后加载。 */
+
+/* ---------- AI 操盘手卡片 ---------- */
+
+#ai-pred-box { margin-bottom: 14px; }
+#ai-pred-label { margin: 0 0 8px; }
+#ai-pred-dir { font-weight: 700; }
+
+.conf-bar {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+#ai-conf-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent-strong), var(--accent));
+  transition: width .35s ease, background .35s ease;
+}
+
+/* ---------- 结算对比 ---------- */
+
+.verdict { margin: 12px 0 4px; font-weight: 700; }
+.verdict.win { color: var(--up); }
+.verdict.lose { color: var(--down); }
+
+.compare-table { margin-top: 8px; font-size: 13px; box-shadow: none; }
+.compare-table th, .compare-table td { padding: 6px 10px; }
+.compare-table tr:first-child td { font-weight: 600; }
+
+/* ---------- 对局复盘报告 ---------- */
+
+.recap-modal { width: 860px; }
+
+#recap-chart {
+  width: 100%;
+  height: 320px;
+}
+
+.recap-stats {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  margin: 14px 0;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.recap-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.recap-stat strong { font-size: 15px; }
+
+.recap-verdicts {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 行为偏差诊断 (服务端判定): WARN 用 --warn 左条, 正常项用 --good */
+.recap-bias h3 { margin: 14px 0 8px; font-size: 14px; color: var(--accent); }
+.recap-bias ul { padding-left: 0; }
+.recap-bias li { list-style: none; padding: 6px 10px; border-radius: 4px; background: var(--surface-2); }
+.recap-bias li.bias-warn { border-left: 3px solid var(--warn); }
+.recap-bias li.bias-ok { border-left: 3px solid var(--good); }
+.recap-bias li strong { margin-right: 4px; }
+.recap-verdicts li { line-height: 1.7; }
+
+/* 结算总结弹窗: 大数字即时反馈, 不用翻页找结果 */
+.settle-pop { width: 420px; text-align: center; }
+.settle-pop-body { padding-bottom: 24px; }
+.settle-pop-return { margin: 10px 0 2px; font-size: 40px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.settle-pop-body .hint { margin: 0 0 10px; }
+.settle-pop-points { color: var(--warn); font-weight: 600; }
+.settle-pop-actions { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+.settle-pop-actions button { width: auto; min-width: 140px; margin: 0; }
+
+/* 交易日志复盘表 */
+.recap-journal h3 { margin: 14px 0 8px; font-size: 14px; color: var(--accent); }
+.recap-journal .journal-reason { max-width: 220px; word-break: break-all; }
+#trade-reason { width: 100%; }
+#trade-reason-wrap { display: block; margin-bottom: 8px; }
+
+/* 事件回放结算揭晓时间线 */
+.settle-event h3 { margin: 14px 0 4px; font-size: 14px; color: var(--accent); }
+.event-timeline { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.event-timeline .event-item { padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-2); border-left: 3px solid var(--accent); }
+.event-timeline .event-item.sev-high { border-left-color: var(--bad); }
+.event-timeline .event-item.sev-med { border-left-color: var(--warn); }
+.event-timeline .event-item p { margin: 2px 0 0; }
+
+/* 行为偏差档案 (成长档案页) */
+.profile-bias { display: flex; flex-direction: column; gap: 6px; }
+.bp-dots { display: inline-flex; gap: 3px; align-items: center; }
+.bp-trend.improving { color: var(--good); }
+.bp-trend.worsening { color: var(--bad); }
+.bp-trend.flat { color: var(--text-muted); }
+
+/* 闪电盘口 */
+#tp-chart { height: 240px; }
+.tp-actions { display: flex; gap: 10px; justify-content: center; }
+.tp-actions button { width: auto; min-width: 120px; font-size: 15px; font-weight: 600; }
+
+/* ---------- 对局三栏: 左账户/持仓 + 中图表/成交 + 右交易/日志 ---------- */
+
+.game-left { flex: 0 0 230px; min-width: 210px; display: flex; flex-direction: column; gap: 16px; }
+.ga-stats { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin: 0; }
+.ga-stats dt { color: var(--text-muted); font-size: 13px; }
+.ga-stats dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ga-pos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ga-pos li { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.ga-pos li .hint { margin: 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+.ga-pos li i { font-style: normal; font-size: 12px; font-variant-numeric: tabular-nums; }
+#ga-pos-empty { margin: 0; }
+/* 成交明细 / 交易日志 共用行样式 */
+.gs-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; }
+.gs-list li { display: flex; align-items: baseline; gap: 8px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.gs-list li i { font-style: normal; color: var(--text-muted); white-space: nowrap; }
+.gs-list li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#game-trades-card { margin-top: 14px; }
+/* 指标开关 chips */
+.ind-chips { display: inline-flex; gap: 4px; }
+.ind-chip { opacity: .5; }
+.ind-chip.active { opacity: 1; border-color: var(--accent); color: var(--accent); }
+/* 导入策略 */
+#btn-import-strat { width: 100%; margin-top: 8px; }
+#strat-active { margin: 6px 0 0; cursor: pointer; }
+.strat-opts { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+.strat-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+}
+.strat-opt:hover:not(:disabled) { border-color: var(--accent); }
+.strat-auto { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+/* 右下角悬浮复盘 */
+.recap-fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  z-index: 50;
+  box-shadow: var(--shadow-lg);
+}
+@media (max-width: 1100px) {
+  .game-left { flex: 1 1 100%; flex-direction: row; }
+  .game-left .ga-card { flex: 1; }
+}
+@media (max-width: 720px) {
+  .game-left { flex-direction: column; }
+}
+
+/* ---------- 账户 / 房间 双卡布局 ---------- */
+
+.room-actions { display: flex; gap: 16px; flex-wrap: wrap; }
+/* 聚焦型页面 (账户/每日挑战/好友房间): 内容窄栏居中, 不占满整屏 */
+.center-panel { max-width: 720px; margin: 0 auto; }
+
+/* 左上角折叠开关: 主题色胶囊, 折叠/展开状态醒目可见 */
+.fold-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  padding: 4px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  /* 工具按钮降权: 之前全页唯一的紫描边让它视觉权重盖过主导航 (评审 #7) */
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.fold-btn:hover:not(:disabled) { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); filter: none; }
+.fold-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  filter: none;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* 回测竞技场: 走聚焦居中布局 (图表/表格较宽, 放宽到 960px), 文案与控件沿中轴排布 */
+.arena-center { max-width: 960px; }
+.arena-center .arena-config { justify-content: center; }
+.arena-center .arena-config .hint { width: 100%; text-align: center; }
+.arena-center .arena-metrics dl { justify-content: center; }
+.arena-center .arena-metrics h2,
+.arena-center .arena-chart-card h2 { justify-content: center; text-align: center; }
+.arena-center #bt-verdict { text-align: center; }
+
+/* 对局专注模式: 进对局后折叠头部 (只留品牌+工具一行), K 线顶上去 */
+header.collapsed { padding: 6px 20px; }
+header.collapsed #main-nav { display: none; }
+header.collapsed h1 { font-size: 15px; }
+header.collapsed h1 .sub { display: none; }
+
+/* 对局侧栏排序: 交易面板/挂单置顶 (高频操作优先); 账户/AI 已移入弹窗 */
+.side-panel > #trade-card { order: 1; }
+.side-panel > #orders-card { order: 2; }
+.side-panel > .action-card { order: 3; }
+.side-panel > #settle-card { order: 4; }
+
+/* 账户/AI 弹窗: 卡片在 modal 内去掉卡片皮, 只留内容排版 */
+.modal-body > .card { background: transparent; border: none; box-shadow: none; padding: 0; }
+.ai-modal { width: 460px; }
+
+/* 登录门禁: 盖住应用 (z 高于头部 50, 低于弹窗 100, 登录弹窗浮在其上) */
+.login-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--surface);
+}
+.gate-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 340px;
+  max-width: 100%;
+  padding: 32px 28px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.gate-box h1 { margin: 0; }
+.gate-box button { width: 100%; }
+
+/* 连胜火焰: 对局会话栏里的战绩炫耀位 */
+.streak-flame { color: var(--warn); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* AI 实时垃圾话气泡: 浮在 K 线区顶部, 5 秒自动消失 */
+.chart-panel { position: relative; }
+.ai-bubble {
+  position: absolute;
+  top: 44px;
+  right: 8px;
+  z-index: 8;
+  max-width: 320px;
+  padding: 8px 14px;
+  font-size: 13px;
+  background: var(--panel-raised);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  animation: bubble-in .25s ease;
+}
+@keyframes bubble-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; } }
+
+/* 道具栏: 预知卡/后悔药/时间加速, 计数清零时按钮置灰 */
+.item-bar { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+.item-bar button { flex: 1; margin-top: 0; white-space: nowrap; }
+
+/* 幸运大转盘: conic-gradient 8 扇区转盘, JS 控制旋转角度 */
+.wheel-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 16px;
+}
+.wheel-pointer { color: var(--warn); font-size: 18px; line-height: 1; margin-bottom: -6px; z-index: 2; }
+.wheel {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 3px solid var(--border-strong);
+  transition: transform 3s cubic-bezier(.17, .67, .12, .99);
+  background: conic-gradient(
+    color-mix(in srgb, var(--accent) 22%, var(--panel)) 0 45deg,
+    var(--panel) 45deg 90deg,
+    color-mix(in srgb, var(--accent-2) 22%, var(--panel)) 90deg 135deg,
+    var(--panel) 135deg 180deg,
+    color-mix(in srgb, var(--accent) 22%, var(--panel)) 180deg 225deg,
+    var(--panel) 225deg 270deg,
+    color-mix(in srgb, var(--accent-2) 22%, var(--panel)) 270deg 315deg,
+    var(--panel) 315deg 360deg);
+}
+.wheel .seg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-size: 18px;
+  transform-origin: 0 0;
+}
+
+/* 市场情绪温度计 (首页) */
+.senti-card { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#senti-gauge { width: 100%; max-width: 420px; height: 220px; }
+
+/* 组合权重饼图 (账户状态弹窗) */
+#pf-pie { width: 100%; height: 180px; }
+
+/* 期权沙盒 */
+.opt-card { display: flex; flex-direction: column; gap: 10px; }
+.opt-controls label { display: flex; align-items: center; gap: 10px; }
+.opt-controls input[type="range"] { flex: 1; }
+#opt-chart { width: 100%; height: 260px; }
+
+/* 期权沙盒 30 日挑战 */
+#og-chart { height: 260px; }
+.og-trade { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+.og-trade .trade-buttons { flex: 0 0 auto; display: flex; gap: 6px; }
+.og-trade label { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 13px; }
+.og-trade input { width: 70px; }
+.og-trade button.primary { width: auto; min-width: 90px; margin-top: 0; }
+.og-trade .trade-buttons button { width: auto; min-width: 110px; flex: none; }
+#og-positions td, #og-positions th { padding: 7px 10px; }
+#og-positions .empty-row { text-align: center; }
+.og-trade button.active { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+.opt-card .trade-buttons button.active { outline: 2px solid var(--accent); }
+
+/* 上赛季颁奖台: 三席并排, 冠军居中微放大 */
+.podium { display: flex; gap: 14px; justify-content: center; margin: 14px 0 20px; flex-wrap: wrap; }
+.podium-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 140px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.podium-slot .medal { font-size: 28px; line-height: 1; }
+.podium-slot.rank1 { order: 2; border-color: color-mix(in srgb, var(--warn) 55%, transparent); transform: scale(1.06); }
+.podium-slot.rank2 { order: 1; }
+.podium-slot.rank3 { order: 3; }
+
+/* 今日任务清单: 完成项打勾置灰 */
+.task-list li.done { opacity: .55; }
+.task-list .task-state { margin-right: 4px; }
+
+/* 房间终局收益对比图 */
+#room-chart { width: 100%; height: 200px; margin-top: 10px; }
+
+/* 积分卡与兑换商城: emoji 瓷砖当奖品图, 档位对标市面积分商城 */
+.points-balance {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.points-balance-inline { color: var(--accent); font-variant-numeric: tabular-nums; }
+.points-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+.points-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+.points-item .pic {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  line-height: 1;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg,
+      color-mix(in srgb, var(--accent) 14%, transparent),
+      color-mix(in srgb, var(--accent-2) 14%, transparent));
+}
+.points-item .name { font-size: 13px; font-weight: 600; }
+.points-item .cost {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--warn);
+  font-variant-numeric: tabular-nums;
+}
+.points-item button { width: 100%; padding: 4px 12px; font-size: 12px; margin-top: 2px; }
+
+/* 好友房间: 创建/加入单卡切换后只剩一张卡, 收窄并居中 */
+#room-create-card,
+#room-join-card { flex: 0 1 400px; margin: 0 auto; }
+
+/* 账户页 (已登录资料卡 / 未登录提示卡): 居中窄卡, 不占满整屏 */
+#auth-me,
+#auth-guest {
+  max-width: 400px;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#auth-me h3 { margin: 0; font-size: 15px; color: var(--accent); overflow-wrap: anywhere; }
+#auth-me button, #auth-guest button { align-self: center; width: auto; min-width: 120px; }
+
+/* 登录/注册弹窗: 窄版 modal, 登录默认展示, 小字链接切到注册 (主流登录范式) */
+.auth-modal { width: 400px; }
+.auth-forms section { display: flex; flex-direction: column; gap: 10px; }
+.auth-forms h3 { margin: 0; }
+.auth-forms label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-muted); }
+.auth-forms input { width: 100%; }
+.auth-switch { text-align: center; margin: 2px 0 0; }
+.auth-switch a { color: var(--accent); cursor: pointer; text-decoration: none; }
+.auth-switch a:hover { text-decoration: underline; }
+.room-actions .card { flex: 1 1 280px; display: flex; flex-direction: column; gap: 10px; }
+.room-actions label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-muted); }
+.room-actions input, .room-actions select { width: 100%; }
+#auth-me { max-width: 480px; }
+.room-code { font-family: monospace; font-size: 20px; letter-spacing: 3px; color: var(--accent); }
+#room-panel { margin-top: 16px; }
+#btn-account.logged-in { color: var(--accent); border-color: var(--accent); }
+
+/* ---------- 每日挑战 ---------- */
+
+/* 每日挑战卡: 窄栏内整体居中, 文案与按钮都走中轴 */
+.daily-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 560px;
+  margin: 0 auto;
+  align-items: center;
+  text-align: center;
+}
+.daily-actions { display: flex; gap: 8px; justify-content: center; }
+.daily-actions button { width: auto; min-width: 150px; }
+
+/* ---------- 排行榜视图 ---------- */
+
+.rank-controls { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; justify-content: center; }
+.rank-controls label { display: flex; gap: 8px; align-items: center; color: var(--text-muted); font-size: 13px; }
+
+/* ---------- 挂单面板 ---------- */
+
+.order-form { display: flex; gap: 6px; flex-wrap: wrap; }
+.order-form select { flex: 1 1 100%; }
+.order-form input { flex: 1 1 40%; min-width: 0; }
+.order-form button { flex: 1 1 100%; margin-top: 4px; }
+.orders-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.orders-list li {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--text-muted);
+  background: var(--panel-raised); border-radius: 8px; padding: 6px 10px;
+}
+.orders-list .order-cancel { padding: 2px 8px; font-size: 12px; width: auto; margin: 0; }
+
+/* ---------- 组合模式 ---------- */
+
+.pf-tabs { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.pf-tab {
+  padding: 4px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-muted); font-size: 13px;
+}
+.pf-tab.active { color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.pf-positions { margin-top: 10px; font-size: 12.5px; }
+.pf-positions table { width: 100%; border-collapse: collapse; }
+.pf-positions td, .pf-positions th { padding: 3px 4px; text-align: right; color: var(--text-muted); }
+.pf-positions td:first-child, .pf-positions th:first-child { text-align: left; }
+.adv-wrap { display: flex; align-items: center; gap: 4px; color: var(--text-muted); font-size: 13px; white-space: nowrap; }
+
+/* ---------- 新闻快讯 ---------- */
+
+.news-banner {
+  display: flex; gap: 10px; align-items: baseline;
+  border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 8px 12px; margin-bottom: 8px;
+  font-size: 13px; color: var(--text);
+  background: var(--panel-raised);
+}
+.news-banner.sev-HIGH { border-left-color: var(--bad, #e05260); }
+.news-banner .news-tag { color: var(--accent); font-weight: 600; white-space: nowrap; }
+.news-banner .news-body { color: var(--text-muted); }
+
+/* ---------- 顾问对话 ---------- */
+
+.advisor-log { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; margin-top: 8px; }
+.advisor-log .msg { font-size: 12.5px; line-height: 1.55; border-radius: 8px; padding: 6px 10px; white-space: pre-wrap; }
+.advisor-log .msg.q { background: var(--panel-raised); color: var(--text); align-self: flex-end; max-width: 90%; }
+.advisor-log .msg.a { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+.advisor-input { display: flex; gap: 6px; margin-top: 8px; }
+.advisor-input input { flex: 1; min-width: 0; }
+.advisor-input button { width: auto; margin: 0; padding: 6px 12px; }
+
+/* ---------- 战绩历史 ---------- */
+
+#hist-games, #hist-bt { margin-bottom: 18px; }

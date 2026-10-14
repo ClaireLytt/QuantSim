@@ -5,6 +5,7 @@
 // 用法: cd tools/ui_smoke && npm install && npx playwright install chromium && npm run smoke
 // 退出码: 0 = 全过; 1 = 有失败项 (末尾统一列出)。
 import { chromium } from "playwright";
+import { enterApp, attachRuntimeGuards, dismissLabGuide } from "./enter_app.mjs";
 
 const BASE = process.env.QUANTSIM_URL || "http://localhost:8080";
 const findings = [];
@@ -12,26 +13,9 @@ const record = (kind, msg) => findings.push(`[${kind}] ${msg}`);
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-// 原生 confirm() (提前结算等) 一律接受, 否则无头浏览器默认 dismiss, 流程走不下去
-page.on("dialog", (d) => d.accept());
-
-// 全程监听三类运行时异常; 行情无数据等业务 toast 不算 (那是后端状态, 不是 UI bug)
-page.on("console", (m) => {
-  // 401 是未登录访问受保护视图 (每日/房间/我的) 的预期返回, 不算 UI bug
-  if (m.type() === "error" && !/status of 401/.test(m.text())) {
-    record("console", m.text().slice(0, 200));
-  }
-});
-page.on("pageerror", (e) => record("pageerror", String(e).slice(0, 200)));
-// 5xx 响应单独记 URL: console 的 "Failed to load resource" 不带地址, 没法定位
-page.on("response", (r) => {
-  if (r.status() >= 500) record("http5xx", `${r.status()} ${r.request().method()} ${r.url()}`);
-});
-page.on("requestfailed", (r) => {
-  if (!r.url().includes("favicon")) {
-    record("requestfailed", `${r.url()} -> ${r.failure()?.errorText}`);
-  }
-});
+// confirm 接受 + 四类运行时异常监听统一在 enter_app.mjs (与按钮体检共用一份);
+// 行情无数据等业务 toast 不算 (那是后端状态, 不是 UI bug)
+attachRuntimeGuards(page, (kind, _severity, text) => record(kind, text));
 
 let passed = 0;
 async function step(name, fn) {
@@ -47,7 +31,6 @@ async function step(name, fn) {
 
 await step("首页加载 (过登录门禁 + 首访弹层)", async () => {
   // 引导流程 (landing/引导/门禁注册) 抽到 enter_app.mjs, 与按钮体检共用一份
-  const { enterApp } = await import("./enter_app.mjs");
   await enterApp(page, BASE, "smoke_");
 });
 
@@ -65,27 +48,20 @@ await step("新手引导 10 步走完", async () => {
 });
 
 await step("遍历全部导航视图与子标签", async () => {
-  // 首次进研究所会弹 3 步引导 (lab-guide-modal 全屏遮罩), 不关掉会挡死后续一切点击
-  const dismissLabGuide = async () => {
-    if (await page.isVisible("#lab-guide-modal")) {
-      await page.click("#btn-lab-guide-skip");
-      await page.waitForTimeout(200);
-    }
-  };
   // 子标签每次切视图都整体重建 (innerHTML 重写), 不能复用 locator 句柄,
   // 用 data-view 值逐个重新定位
   const groupCount = await page.locator("#nav-groups .nav-group").count();
   for (let i = 0; i < groupCount; i++) {
     await page.locator("#nav-groups .nav-group").nth(i).click();
     await page.waitForTimeout(250);
-    await dismissLabGuide();
+    await dismissLabGuide(page);
     // 单视图组的子标签条整体 hidden (无需点击); 只遍历可见 tab
     const views = await page.$$eval("#nav-subtabs .nav-tab",
       (els) => els.filter((e) => e.offsetParent !== null).map((e) => e.dataset.view));
     for (const v of views) {
       await page.click(`#nav-subtabs .nav-tab[data-view="${v}"]`, { timeout: 5000 });
       await page.waitForTimeout(200);
-      await dismissLabGuide();
+      await dismissLabGuide(page);
     }
   }
   // 回到对局组, 为后续步骤定位

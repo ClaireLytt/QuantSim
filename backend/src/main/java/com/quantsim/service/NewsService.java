@@ -3,7 +3,6 @@ package com.quantsim.service;
 import java.time.LocalDate;
 import java.util.List;
 
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,15 +24,14 @@ public class NewsService {
 
     private final NewsEventRepository newsRepository;
 
-    @Cacheable(cacheNames = "newsByDate")
+    /**
+     * 匹配规则: 事件无 market/stockCode = 全市场; 有 market 需同市场; 有 stockCode 需同标的。
+     * 注: 查库曾挂 @Cacheable("newsByDate"), 但唯一调用方是本类自调用, Spring 代理被绕过,
+     * 缓存从未生效——事件表很小, 直接查库, 删掉失效缓存。
+     */
     @Transactional(readOnly = true)
-    public List<NewsEvent> byDate(LocalDate date) {
-        return newsRepository.findByEventDate(date);
-    }
-
-    /** 匹配规则: 事件无 market/stockCode = 全市场; 有 market 需同市场; 有 stockCode 需同标的。 */
     public List<NewsItem> eventsFor(Stock stock, LocalDate date) {
-        return byDate(date).stream()
+        return newsRepository.findByEventDate(date).stream()
                 .filter(e -> matches(e, stock))
                 .map(e -> new NewsItem(e.getSeverity(),
                         e.getTitleZh(), e.getTitleEn(), e.getBodyZh(), e.getBodyEn()))

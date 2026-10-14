@@ -14,7 +14,12 @@
     } catch (e) { /* no-op */ }
   </script>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=20261014k">
+  <!-- 样式按视图域拆分 (2026-10): style.css 是基础层 (变量/主题/框架), 必须第一个加载 -->
+  <link rel="stylesheet" href="style.css?v=20261014m">
+  <link rel="stylesheet" href="game.css?v=20261014">
+  <link rel="stylesheet" href="academy.css?v=20261014">
+  <link rel="stylesheet" href="lab-games.css?v=20261014">
+  <link rel="stylesheet" href="widgets.css?v=20261014">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -89,7 +94,7 @@
         <option value="5" data-i18n="start.constraints.five">限 5 笔</option>
         <option value="10" data-i18n="start.constraints.ten">限 10 笔</option>
       </select>
-      <label id="reason-wrap" class="adv-wrap" data-i18n-title="start.constraints.reasonTitle" title="每笔交易写一句理由, 结算后和实际结果对照">
+      <label class="adv-wrap" data-i18n-title="start.constraints.reasonTitle" title="每笔交易写一句理由, 结算后和实际结果对照">
         <input type="checkbox" id="reason-toggle"> <span data-i18n="start.constraints.reason">交易日志</span>
       </label>
     </div>
@@ -2522,16 +2527,16 @@
 
   <script src="i18n.js?v=20261014e"></script>
   <script src="glossary.js?v=20261002a"></script>
-  <script src="app.js?v=20261014"></script>
+  <script src="app.js?v=20261014a"></script>
   <script src="auth.js?v=20261005b"></script>
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
   <script src="data/levels.js?v=20261008a"></script>
   <script src="data/cases.js?v=20261008a"></script>
-  <script src="academy.js?v=20261014d"></script>
+  <script src="academy.js?v=20261014e"></script>
   <script src="lab.js?v=20261011a"></script>
   <script src="daily.js?v=20261014"></script>
   <script src="event.js?v=20261006a"></script>
-  <script src="option.js?v=20261014"></script>
+  <script src="option.js?v=20261014a"></script>
   <script src="biasprofile.js?v=20261014c"></script>
   <script src="tape.js?v=20261014"></script>
   <script src="rooms.js?v=20261006a"></script>
@@ -2541,21 +2546,21 @@
   <script src="heatmap.js?v=20260930a"></script>
   <script src="news.js?v=20260930a"></script>
   <script src="history.js?v=20261014"></script>
-  <script src="home.js?v=20261014b"></script>
+  <script src="home.js?v=20261014c"></script>
   <script src="points.js?v=20261004c"></script>
   <script src="reborn.js?v=20261009a"></script>
   <script src="bubble.js?v=20261008a"></script>
-  <script src="newsjudge.js?v=20261008b"></script>
-  <script src="richman.js?v=20261008b"></script>
-  <script src="buydip.js?v=20261008c"></script>
-  <script src="stratbox.js?v=20261008a"></script>
-  <script src="qdetect.js?v=20261008d"></script>
+  <script src="newsjudge.js?v=20261014a"></script>
+  <script src="richman.js?v=20261014a"></script>
+  <script src="buydip.js?v=20261014a"></script>
+  <script src="stratbox.js?v=20261014a"></script>
+  <script src="qdetect.js?v=20261014a"></script>
   <script src="tasks.js?v=20261008a"></script>
   <script src="pet.js?v=20261009j"></script>
   <script src="career.js?v=20261009a"></script>
-  <script src="relics.js?v=20261014g"></script>
-  <script src="walker.js?v=20261014c"></script>
-  <script src="duel.js?v=20261014b"></script>
+  <script src="relics.js?v=20261014h"></script>
+  <script src="walker.js?v=20261014d"></script>
+  <script src="duel.js?v=20261014c"></script>
   <script src="wiki.js?v=20261008a"></script>
   <script src="games.js?v=20261014"></script>
   <script src="mine.js?v=20261014b"></script>

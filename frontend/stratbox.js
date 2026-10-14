@@ -212,7 +212,7 @@
     const b = loadBest();
     const newBest = score > (b.best || 0);
     if (newBest && score > 0) {
-      try { localStorage.setItem(BEST_KEY, JSON.stringify({ best: score })); } catch (e) { /* 忽略 */ }
+      qsSaveBest(BEST_KEY, { best: score }); // 共享实现在 app.js
     }
     renderBox();
     renderChart(g.prices); // 揭晓: 把隐藏行情(虚线)叠上图

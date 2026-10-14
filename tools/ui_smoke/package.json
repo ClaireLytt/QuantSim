@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "smoke": "node smoke.mjs",
-    "buttons": "node button_check.mjs"
+    "buttons": "node button_check.mjs",
+    "shot": "node shot.js"
   },
   "dependencies": {
     "playwright": "^1.49.0"

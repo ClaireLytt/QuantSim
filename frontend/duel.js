@@ -27,10 +27,7 @@
 
   // 综合评分统一走 app.js 的 qsCompositeScores (首页预览同口径), 不再本地复制一份
 
-  const pctText = (v) => {
-    const n = Number(v);
-    return (n >= 0 ? "+" : "") + (n * 100).toFixed(1) + "%";
-  };
+  const pctText = qsSignedPct; // 共享实现在 app.js
 
   async function loadBoard() {
     const list = $("duel-list");
@@ -192,8 +189,6 @@
     buildChart.resize();
   }
 
-  const pct2 = (v) => (Number(v) >= 0 ? "+" : "") + (Number(v) * 100).toFixed(1) + "%";
-
   async function runPreview() {
     const buy = collectRows("duel-buy-conds");
     const sell = collectRows("duel-sell-conds");
@@ -206,9 +201,9 @@
       const res = await api("/backtest/run", { method: "POST", body: JSON.stringify(await buildBody(true)) });
       renderBuildChart(res);
       $("duel-build-stats").hidden = false;
-      $("db-ann").textContent = pct2(res.annualReturn);
+      $("db-ann").textContent = pctText(res.annualReturn);
       $("db-ann").className = Number(res.annualReturn) >= 0 ? "pos" : "neg";
-      $("db-dd").textContent = pct2(-Math.abs(Number(res.maxDrawdown)));
+      $("db-dd").textContent = pctText(-Math.abs(Number(res.maxDrawdown)));
       $("db-sharpe").textContent = res.sharpeRatio == null ? "--" : Number(res.sharpeRatio).toFixed(2);
       previewed = true;
       $("btn-duel-enter").disabled = false;

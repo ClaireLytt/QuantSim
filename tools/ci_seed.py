@@ -7,18 +7,16 @@
 """
 import os
 import random
+import sys
 from datetime import date, timedelta
 
 import pymysql
 
-DB = dict(
-    host=os.environ.get("QUANTSIM_DB_HOST", "127.0.0.1"),
-    port=int(os.environ.get("QUANTSIM_DB_PORT", "3306")),
-    user=os.environ.get("QUANTSIM_DB_USER", "root"),
-    password=os.environ.get("QUANTSIM_DB_PASSWORD", "root"),
-    database=os.environ.get("QUANTSIM_DB_NAME", "quantsim"),
-    charset="utf8mb4",
-)
+# DB 连接配置复用管道的 config.py (同一组 QUANTSIM_DB_* 环境变量), 不再复制一份
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data-pipeline"))
+from config import DB_CONFIG  # noqa: E402
+
+DB = dict(**DB_CONFIG, charset="utf8mb4")
 
 STOCKS = [
     ("600519", "贵州茅台", "白酒", "STOCK"),

@@ -17,4 +17,14 @@ public enum AiLevel {
     public String getModel() {
         return model;
     }
+
+    /** 按预测模型名反查难度档 (对局只存 aiModel 不存档位), 未知模型回退 NORMAL。 */
+    public static AiLevel fromModel(String model) {
+        for (AiLevel level : values()) {
+            if (level.model.equals(model)) {
+                return level;
+            }
+        }
+        return NORMAL;
+    }
 }

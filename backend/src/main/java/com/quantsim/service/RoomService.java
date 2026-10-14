@@ -99,13 +99,7 @@ public class RoomService {
         if ("PORTFOLIO".equals(session.getMode()) || BlindDates.blind(session)) {
             throw new BusinessException("该模式的对局不支持发起同题挑战");
         }
-        AiLevel level = AiLevel.NORMAL;
-        for (AiLevel l : AiLevel.values()) {
-            if (l.getModel().equals(session.getAiModel())) {
-                level = l;
-                break;
-            }
-        }
+        AiLevel level = AiLevel.fromModel(session.getAiModel());
         Room room = new Room();
         room.setCreatorUserId(userId);
         room.setStockId(session.getStockId());
@@ -290,18 +284,10 @@ public class RoomService {
     }
 
     private AiLevel parseAiLevel(String raw) {
-        try {
-            return AiLevel.valueOf(raw.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException("未知 AI 难度: " + raw);
-        }
+        return Enums.parse(raw, AiLevel.class, " AI 难度");
     }
 
     private Market parseMarket(String raw) {
-        try {
-            return Market.valueOf(raw.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException("未知市场: " + raw);
-        }
+        return Enums.parse(raw, Market.class, "市场");
     }
 }

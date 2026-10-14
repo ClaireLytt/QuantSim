@@ -114,6 +114,29 @@ function qsLoadBest(key) {
     return { best: 0 };
   }
 }
+// 迷你游戏最佳成绩写入 (与 qsLoadBest 对偶, patch 合并进已有记录; 隐私模式静默忽略)
+function qsSaveBest(key, patch) {
+  try { localStorage.setItem(key, JSON.stringify({ ...qsLoadBest(key), ...patch })); } catch (e) { /* 忽略 */ }
+}
+// 带符号百分比 (默认 1 位小数; duel/home 榜单共用, 2 位场景用 fmtPct)
+function qsSignedPct(v, digits = 1) {
+  const n = Number(v);
+  return (n >= 0 ? "+" : "") + (n * 100).toFixed(digits) + "%";
+}
+// 标准正态 CDF (Abramowitz-Stegun 近似, 教学精度足够; academy/option 的 BS 定价共用)
+function qsNormCdf(x) {
+  const t = 1 / (1 + 0.2316419 * Math.abs(x));
+  const d = 0.3989423 * Math.exp(-x * x / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  return x > 0 ? 1 - p : p;
+}
+// 轮回模式最佳身家 (relics/walker 共用, 读 localStorage qs_reborn)
+function qsRebornWorth() {
+  try {
+    const d = JSON.parse(localStorage.getItem("qs_reborn") || "null");
+    return d && d.best ? Number(d.best.worth) || 0 : 0;
+  } catch (e) { return 0; }
+}
 
 function marketTag(market) {
   if (market === "CRYPTO") return t("tag.crypto");

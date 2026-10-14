@@ -68,6 +68,9 @@ START_DATE = "20240101"
 # 结束日期取"今天": 定时增量刷新 (refresh.py) 才能一直拉到最新交易日, 不再写死过期日期
 END_DATE = date.today().strftime("%Y%m%d")
 
+# 波动率滚动窗口 (交易日): Spark 管道与场景回灌的 pandas 复算共用, 口径靠 import 对齐而非注释
+VOLATILITY_WINDOW = 20
+
 DB_CONFIG = {
     "host": os.environ.get("QUANTSIM_DB_HOST", "127.0.0.1"),
     "port": int(os.environ.get("QUANTSIM_DB_PORT", "3306")),

@@ -16,12 +16,7 @@
 
   // ---------- Black-Scholes (r=0, 到期按交易日/252 折年) ----------
 
-  function normCdf(x) {
-    const t = 1 / (1 + 0.2316419 * Math.abs(x));
-    const d = 0.3989423 * Math.exp(-x * x / 2);
-    let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
-    return x > 0 ? 1 - p : p;
-  }
+  const normCdf = qsNormCdf; // 共享实现在 app.js
 
   function bsPrice(spot, strike, daysLeft, isCall, vol) {
     if (daysLeft <= 0) {

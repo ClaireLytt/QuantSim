@@ -38,12 +38,7 @@
     : y <= 2000 ? "e2000" : y <= 2008 ? "e2008" : y <= 2016 ? "e2015" : y <= 2020 ? "e2020" : "e2021");
   const ERA_ORDER = ["e1929", "e8090", "e1997", "e2000", "e2008", "e2015", "e2020", "e2021", "reborn"];
 
-  function rebornWorth() {
-    try {
-      const d = JSON.parse(localStorage.getItem("qs_reborn") || "null");
-      return d && d.best ? Number(d.best.worth) || 0 : 0;
-    } catch (e) { return 0; }
-  }
+  const rebornWorth = qsRebornWorth; // 共享实现在 app.js
   const owned = (r) => (r.level != null ? prog.famous.includes(r.level) : rebornWorth() >= 10000000);
 
   // ---------- 声望: 名场面 40/关 + 生涯 50/章 + 重生里程碑 (100万 +30 / 1000万 +60) ----------

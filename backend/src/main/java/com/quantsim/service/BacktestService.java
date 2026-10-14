@@ -701,7 +701,7 @@ public class BacktestService {
             if (targetShares != null && targetShares != shares) {
                 if (targetShares > shares) {
                     int want = targetShares - shares;
-                    int affordable = maxAffordable(cash, close, lotSize, market);
+                    int affordable = feeCalculator.maxAffordableShares(cash, close, lotSize, market);
                     int bought = Math.min(want, affordable);
                     if (bought > 0) {
                         BigDecimal gross = close.multiply(BigDecimal.valueOf(bought));
@@ -746,20 +746,6 @@ public class BacktestService {
         }
         int shares = (int) (value / price);
         return shares / lotSize * lotSize;
-    }
-
-    /** 现金能买到的最大整手数 (含买入费用)。 */
-    private int maxAffordable(BigDecimal cash, BigDecimal price, int lotSize, Market market) {
-        int shares = TradeMath.maxWholeShares(cash, price, lotSize);
-        while (shares > 0) {
-            BigDecimal gross = price.multiply(BigDecimal.valueOf(shares));
-            BigDecimal fee = feeCalculator.fee(market, TradeTransaction.Direction.BUY, gross);
-            if (gross.add(fee).compareTo(cash) <= 0) {
-                break;
-            }
-            shares -= lotSize;
-        }
-        return Math.max(0, shares);
     }
 
     /** +1 建仓 / -1 清仓 / 0 保持。窗口数据不足时不动作。 */
@@ -886,7 +872,7 @@ public class BacktestService {
 
     private BigDecimal[] buyAndHoldCurve(List<DailyPrice> prices, BigDecimal initial, Market market) {
         BigDecimal startClose = prices.get(0).getClose();
-        int shares = maxAffordable(initial, startClose, market.getLotSize(), market);
+        int shares = feeCalculator.maxAffordableShares(initial, startClose, market.getLotSize(), market);
         BigDecimal gross = startClose.multiply(BigDecimal.valueOf(shares));
         BigDecimal fee = feeCalculator.fee(market, TradeTransaction.Direction.BUY, gross);
         BigDecimal cash = initial.subtract(gross).subtract(fee);
@@ -921,13 +907,7 @@ public class BacktestService {
     // ---------- 参数解析 ----------
 
     private Strategy parseStrategy(String raw) {
-        try {
-            return Strategy.valueOf(raw.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException("未知策略: " + raw
-                    + "（可选 MA_CROSS / MOMENTUM / MEAN_REVERSION / RSI / MACD / BOLL / GRID / TURTLE"
-                    + " / DCA / BUY_HOLD / CUSTOM）");
-        }
+        return Enums.parse(raw, Strategy.class, "策略");
     }
 
     private StrategyParams resolveParams(Strategy strategy, RunRequest r) {
@@ -1040,20 +1020,11 @@ public class BacktestService {
     }
 
     private CustomField parseField(String raw) {
-        try {
-            return CustomField.valueOf(raw.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException("未知字段: " + raw
-                    + "（可选 CLOSE / MA5 / MA20 / PCT_CHANGE / RSI / MACD_HIST / BOLL_UP / BOLL_MID / BOLL_LOW）");
-        }
+        return Enums.parse(raw, CustomField.class, "字段");
     }
 
     private CustomOp parseOp(String raw) {
-        try {
-            return CustomOp.valueOf(raw.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException("未知算子: " + raw + "（可选 GT / LT / CROSS_UP / CROSS_DOWN）");
-        }
+        return Enums.parse(raw, CustomOp.class, "算子");
     }
 
     private String rulesLabel(List<Rule> rules) {

@@ -1482,9 +1482,6 @@ function makeGuess(up) {
   guess.waiting = false;
 }
 
-// 测试钩子: 冒烟/统计校验用, 只读 (不要在业务代码里依赖)
-window.qsGuessState = { guess, mkt };
-
 $("btn-guess-start").addEventListener("click", startGuess);
 $("btn-guess-daily").addEventListener("click", startDaily);
 $("btn-guess-up").addEventListener("click", () => makeGuess(true));
@@ -2087,13 +2084,7 @@ $("btn-rich-reborn").addEventListener("click", richReborn);
   let optType = "call";
   let optChart = null;
 
-  // 标准正态 CDF (Abramowitz-Stegun 近似, 教学精度足够)
-  function normCdf(x) {
-    const t = 1 / (1 + 0.2316419 * Math.abs(x));
-    const d = 0.3989423 * Math.exp(-x * x / 2);
-    let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
-    return x > 0 ? 1 - p : p;
-  }
+  const normCdf = qsNormCdf; // 共享实现在 app.js
 
   function bsPremium(strike) {
     const d1 = (Math.log(SPOT / strike) + (RATE + VOL * VOL / 2) * T) / (VOL * Math.sqrt(T));

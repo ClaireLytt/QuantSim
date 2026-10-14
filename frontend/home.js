@@ -78,7 +78,7 @@
   $("home-reco-learn").addEventListener("click", () => switchView("academy"));
 
   // 排行榜预览: 资金榜 top3 + 策略综合分 top3 (与擂台同口径: 收益50/夏普30/回撤20)
-  const pctHome = (v) => ((Number(v) >= 0 ? "+" : "") + (Number(v) * 100).toFixed(1) + "%");
+  const pctHome = qsSignedPct; // 共享实现在 app.js
 
   function fillRankList(ulId, rows) {
     const ul = $(ulId);

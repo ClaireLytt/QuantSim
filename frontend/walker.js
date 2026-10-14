@@ -160,12 +160,7 @@
     document.dispatchEvent(new CustomEvent("qs:petSay", { detail: npcLine }));
   }
 
-  function rebornWorth() {
-    try {
-      const d = JSON.parse(localStorage.getItem("qs_reborn") || "null");
-      return d && d.best ? Number(d.best.worth) || 0 : 0;
-    } catch (e) { return 0; }
-  }
+  const rebornWorth = qsRebornWorth; // 共享实现在 app.js
   $("btn-walker-close").addEventListener("click", () => { selected = null; renderPanel(); });
 
   // ---------- 左上角一行档案入口 ----------

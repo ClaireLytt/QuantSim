@@ -7,6 +7,7 @@
 // 用法: cd tools/ui_smoke && npm run buttons
 // 退出码: 0 = 全过; 1 = 有 error 级问题。
 import { chromium } from "playwright";
+import { enterApp, attachRuntimeGuards, dismissLabGuide } from "./enter_app.mjs";
 
 const BASE = process.env.QUANTSIM_URL || "http://localhost:8080";
 const findings = []; // { view, type, severity, detail }
@@ -14,7 +15,6 @@ const add = (view, type, severity, detail) => findings.push({ view, type, severi
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-page.on("dialog", (d) => d.accept()); // 无头浏览器默认 dismiss confirm, 统一 accept
 
 // 在任何页面脚本之前注入: 给挂了 click 监听的元素打标记, 供"死按钮"检测用。
 // 事件委托 (监听挂在祖先上) 由检测端向上找标记解决。
@@ -35,20 +35,8 @@ await page.addInitScript(() => {
 });
 
 let currentView = "boot";
-page.on("console", (m) => {
-  if (m.type() === "error" && !/status of 401/.test(m.text())) {
-    add(currentView, "console", "error", m.text().slice(0, 200));
-  }
-});
-page.on("pageerror", (e) => add(currentView, "pageerror", "error", String(e).slice(0, 200)));
-page.on("response", (r) => {
-  if (r.status() >= 500) add(currentView, "http5xx", "error", `${r.status()} ${r.url().slice(0, 120)}`);
-});
-page.on("requestfailed", (r) => {
-  if (!r.url().includes("favicon")) {
-    add(currentView, "requestfailed", "warn", `${r.url().slice(0, 120)} -> ${r.failure()?.errorText}`);
-  }
-});
+// confirm 接受 + 四类运行时异常监听统一在 enter_app.mjs (与冒烟共用一份)
+attachRuntimeGuards(page, (kind, severity, text) => add(currentView, kind, severity, text));
 
 // 页面内执行: 对当前可见 DOM 做按钮级检查
 function domChecks() {
@@ -109,24 +97,17 @@ try {
   console.error(`后端不可达: ${BASE} — 先启动后端 (mvn spring-boot:run 或 start.ps1)`);
   process.exit(1);
 }
-const { enterApp } = await import("./enter_app.mjs");
 await enterApp(page, BASE, "btncheck_");
 
 // ── 遍历全部导航组与子标签, 每个视图跑一遍按钮检查 ──
 console.log(`▶ 按钮体检 ${BASE}\n`);
-const dismissLabGuide = async () => {
-  if (await page.isVisible("#lab-guide-modal")) {
-    await page.click("#btn-lab-guide-skip");
-    await page.waitForTimeout(200);
-  }
-};
 const groupCount = await page.locator("#nav-groups .nav-group").count();
 for (let i = 0; i < groupCount; i++) {
   const group = page.locator("#nav-groups .nav-group").nth(i);
   const gName = (await group.getAttribute("data-group")) || `group${i}`;
   await group.click();
   await page.waitForTimeout(120); // 视图 hidden 切换是同步的, 留一拍给异步渲染
-  await dismissLabGuide();
+  await dismissLabGuide(page);
   // 子标签每次切视图整体重建, 用 data-view 逐个重新定位
   const views = await page.$$eval("#nav-subtabs .nav-tab",
     (els) => els.filter((e) => e.offsetParent !== null).map((e) => e.dataset.view));
@@ -141,7 +122,7 @@ for (let i = 0; i < groupCount; i++) {
     // 条件等待代替固定 sleep: 视图容器可见即可做 DOM 检查 (本工具是高频强制步骤, 空等会天天乘几十次)
     await page.waitForSelector(`#view-${v}:not([hidden])`, { timeout: 5000 }).catch(() => {});
     await page.waitForTimeout(120);
-    await dismissLabGuide();
+    await dismissLabGuide(page);
     await checkCurrent(`${gName}/${v}`);
     const n = findings.filter((f) => f.view === `${gName}/${v}`).length;
     console.log(`  ${(gName + "/" + v).padEnd(14)}${n === 0 ? "ok" : `⚠ ${n} 条`}`);
