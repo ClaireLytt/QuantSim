@@ -8,8 +8,6 @@ import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
-import com.quantsim.dto.BacktestDtos.RunRequest;
-import com.quantsim.dto.BacktestDtos.TuneRequest;
 import com.quantsim.exception.BusinessException;
 import com.quantsim.service.BacktestEngine.Strategy;
 import com.quantsim.service.BacktestEngine.StrategyParams;
@@ -38,19 +36,9 @@ public class BacktestTuner {
     private static final int[] TUNE_MACD_FAST = {8, 10, 12, 16};
     private static final int[] TUNE_MACD_SLOW = {17, 22, 26, 35, 45};
 
-    interface Rebuild extends java.util.function.Function<TuneRequest, RunRequest> {}
-
-    record GridPoint(StrategyParams params, double x, double y,
-                     Map<String, BigDecimal> bestParams, Rebuild rebuild) {}
+    record GridPoint(StrategyParams params, double x, double y, Map<String, BigDecimal> bestParams) {}
 
     record Grid(List<String> paramKeys, List<GridPoint> points) {}
-
-    /** 空 RunRequest 模板: 只带 username/stockCode/strategy, 由各策略填充自己的参数。 */
-    private static RunRequest template(TuneRequest t, Strategy s) {
-        return new RunRequest(t.username(), t.stockCode(), s.name(),
-                null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null);
-    }
 
     Grid buildGrid(Strategy strategy) {
         List<GridPoint> points = new ArrayList<>();
@@ -65,8 +53,7 @@ public class BacktestTuner {
                         final int sl = slow;
                         points.add(new GridPoint(
                                 BacktestEngine.maCrossParams(f, sl, BacktestEngine.DEFAULT_POSITION_PCT), f, sl,
-                                params("fast", f, "slow", sl),
-                                t -> withMaCross(template(t, strategy), f, sl)));
+                                params("fast", f, "slow", sl)));
                     }
                 }
                 return new Grid(List.of("fast", "slow"), points);
@@ -76,8 +63,7 @@ public class BacktestTuner {
                     final int l = lb;
                     points.add(new GridPoint(
                             BacktestEngine.momentumParams(l, BacktestEngine.DEFAULT_POSITION_PCT), l, 0,
-                            params("lookback", l),
-                            t -> withMomentum(template(t, strategy), l)));
+                            params("lookback", l)));
                 }
                 return new Grid(List.of("lookback"), points);
             }
@@ -88,8 +74,7 @@ public class BacktestTuner {
                         final double v = th;
                         points.add(new GridPoint(
                                 BacktestEngine.meanRevParams(w, v, BacktestEngine.DEFAULT_POSITION_PCT), w, v,
-                                params("maWindow", w, "threshold", v),
-                                t -> withMeanRev(template(t, strategy), w, v)));
+                                params("maWindow", w, "threshold", v)));
                     }
                 }
                 return new Grid(List.of("maWindow", "threshold"), points);
@@ -102,8 +87,7 @@ public class BacktestTuner {
                         final int sell = 100 - buy;
                         points.add(new GridPoint(
                                 BacktestEngine.rsiParams(pd, b, sell, BacktestEngine.DEFAULT_POSITION_PCT), pd, b,
-                                params("rsiPeriod", pd, "rsiBuy", b, "rsiSell", sell),
-                                t -> withRsi(template(t, strategy), pd, b, sell)));
+                                params("rsiPeriod", pd, "rsiBuy", b, "rsiSell", sell)));
                     }
                 }
                 return new Grid(List.of("rsiPeriod", "rsiBuy"), points);
@@ -119,8 +103,7 @@ public class BacktestTuner {
                         points.add(new GridPoint(
                                 BacktestEngine.macdParams(f, sl, BacktestEngine.DEFAULT_MACD_SIGNAL,
                                         BacktestEngine.DEFAULT_POSITION_PCT), f, sl,
-                                params("macdFast", f, "macdSlow", sl, "macdSignal", BacktestEngine.DEFAULT_MACD_SIGNAL),
-                                t -> withMacd(template(t, strategy), f, sl, BacktestEngine.DEFAULT_MACD_SIGNAL)));
+                                params("macdFast", f, "macdSlow", sl, "macdSignal", BacktestEngine.DEFAULT_MACD_SIGNAL)));
                     }
                 }
                 return new Grid(List.of("macdFast", "macdSlow"), points);
@@ -132,8 +115,7 @@ public class BacktestTuner {
                         final double kv = k;
                         points.add(new GridPoint(
                                 BacktestEngine.bollParams(w, kv, BacktestEngine.DEFAULT_POSITION_PCT), w, kv,
-                                params("bollWindow", w, "bollK", kv),
-                                t -> withBoll(template(t, strategy), w, kv)));
+                                params("bollWindow", w, "bollK", kv)));
                     }
                 }
                 return new Grid(List.of("bollWindow", "bollK"), points);
@@ -145,8 +127,7 @@ public class BacktestTuner {
                         final int lv = levels;
                         points.add(new GridPoint(
                                 BacktestEngine.gridParams(pv, lv, BacktestEngine.DEFAULT_POSITION_PCT), pv * 100, lv,
-                                params("gridPct", pv * 100, "gridLevels", lv),
-                                t -> withGrid(template(t, strategy), pv, lv)));
+                                params("gridPct", pv * 100, "gridLevels", lv)));
                     }
                 }
                 return new Grid(List.of("gridPct", "gridLevels"), points);
@@ -158,8 +139,7 @@ public class BacktestTuner {
                         final int ex = exit;
                         points.add(new GridPoint(
                                 BacktestEngine.turtleParams(en, ex, BacktestEngine.DEFAULT_POSITION_PCT), en, ex,
-                                params("turtleEntry", en, "turtleExit", ex),
-                                t -> withTurtle(template(t, strategy), en, ex)));
+                                params("turtleEntry", en, "turtleExit", ex)));
                     }
                 }
                 return new Grid(List.of("turtleEntry", "turtleExit"), points);
@@ -174,49 +154,5 @@ public class BacktestTuner {
             map.put((String) kv[i], new BigDecimal(String.valueOf(kv[i + 1])));
         }
         return map;
-    }
-
-    // tune 重建 RunRequest 的辅助 (record 无法逐字段改, 集中在这里避免散落 23 参调用)
-    private static RunRequest withMaCross(RunRequest r, int fast, int slow) {
-        return new RunRequest(r.username(), r.stockCode(), r.strategy(), fast, slow, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
-    }
-
-    private static RunRequest withMomentum(RunRequest r, int lookback) {
-        return new RunRequest(r.username(), r.stockCode(), r.strategy(), null, null, lookback, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
-    }
-
-    private static RunRequest withMeanRev(RunRequest r, int win, double th) {
-        return new RunRequest(r.username(), r.stockCode(), r.strategy(), null, null, null, win,
-                BigDecimal.valueOf(th),
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
-    }
-
-    private static RunRequest withRsi(RunRequest r, int period, int buy, int sell) {
-        return new RunRequest(r.username(), r.stockCode(), r.strategy(), null, null, null, null, null,
-                null, null, period, buy, sell, null, null, null, null, null, null, null, null, null, null, null);
-    }
-
-    private static RunRequest withMacd(RunRequest r, int fast, int slow, int signal) {
-        return new RunRequest(r.username(), r.stockCode(), r.strategy(), null, null, null, null, null,
-                null, null, null, null, null, fast, slow, signal, null, null, null, null, null, null, null, null);
-    }
-
-    private static RunRequest withBoll(RunRequest r, int win, double k) {
-        return new RunRequest(r.username(), r.stockCode(), r.strategy(), null, null, null, null, null,
-                null, null, null, null, null, null, null, null, win, BigDecimal.valueOf(k),
-                null, null, null, null, null, null);
-    }
-
-    private static RunRequest withGrid(RunRequest r, double pct, int levels) {
-        return new RunRequest(r.username(), r.stockCode(), r.strategy(), null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null,
-                BigDecimal.valueOf(pct * 100), levels, null, null, null, null);
-    }
-
-    private static RunRequest withTurtle(RunRequest r, int entry, int exit) {
-        return new RunRequest(r.username(), r.stockCode(), r.strategy(), null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, entry, exit, null, null);
     }
 }

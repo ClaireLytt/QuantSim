@@ -83,12 +83,22 @@ public class BacktestService {
     @Transactional
     public RunResponse run(RunRequest request, Long authUserId) {
         Strategy strategy = Enums.parse(request.strategy(), Strategy.class, "策略");
-        Stock stock = loadVisibleStock(request.stockCode());
+        return runWith(strategy, engine.resolveParams(strategy, request),
+                request.username(), request.stockCode(), Boolean.TRUE.equals(request.preview()), authUserId);
+    }
+
+    /**
+     * 已解析参数的回测入口: tune 拿着最优 StrategyParams 直接调,
+     * 不再绕 "StrategyParams -> 全 null RunRequest -> resolveParams" 一圈 (2026-10 审计 P10)。
+     */
+    @Transactional
+    public RunResponse runWith(Strategy strategy, StrategyParams sp,
+                               String username, String stockCode, boolean preview, Long authUserId) {
+        Stock stock = loadVisibleStock(stockCode);
         List<DailyPrice> prices = loadPrices(stock);
         Market market = stock.getMarket();
 
         BigDecimal initial = props.getInitialCash();
-        StrategyParams sp = engine.resolveParams(strategy, request);
         Simulation sim = engine.simulate(strategy, sp, prices, market, initial);
 
         int n = prices.size();
@@ -123,9 +133,9 @@ public class BacktestService {
         // 预回测 (策略擂台搭建页的试跑): 只返回结果, 不入榜不落库不发任务奖励,
         // 否则调参过程会刷出一串垃圾榜单记录
         Long backtestId = null;
-        if (!Boolean.TRUE.equals(request.preview())) {
+        if (!preview) {
             // 已登录记会话身份; 游客昵称撞注册用户名会被拒 (防冒名入榜)
-            User user = userService.resolve(request.username(), authUserId);
+            User user = userService.resolve(username, authUserId);
             BacktestResult result = new BacktestResult();
             result.setSeason(java.time.YearMonth.now(GameService.GAME_ZONE).toString());
             result.setUserId(user.getUserId());
@@ -185,7 +195,8 @@ public class BacktestService {
             }
         }
 
-        RunResponse result = run(best.rebuild().apply(request), authUserId);
+        RunResponse result = runWith(strategy, best.params(),
+                request.username(), request.stockCode(), false, authUserId);
         StrategyParams bp = best.params();
         return new TuneResponse(strategy.name(), grid.points().size(),
                 strategy == Strategy.MA_CROSS ? bp.fast() : null,
