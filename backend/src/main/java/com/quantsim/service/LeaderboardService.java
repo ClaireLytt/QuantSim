@@ -35,7 +35,7 @@ public class LeaderboardService {
                     return new LeaderboardEntry(
                             s.getSessionId(), PublicNames.mask((String) row[1]), (String) row[2], (String) row[3],
                             s.getStartDate(), s.getFinalReturnRate(), s.getFinalSharpe(),
-                            s.getUserId() != null && s.getUserId().equals(authUserId));
+                            PublicNames.isSelf(s.getUserId(), authUserId));
                 })
                 .toList();
     }

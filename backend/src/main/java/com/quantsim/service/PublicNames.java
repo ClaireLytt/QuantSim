@@ -42,4 +42,9 @@ public final class PublicNames {
         }
         return false;
     }
+
+    /** 榜单行是否属于当前登录用户 (脱敏后前端认不出自己, 由后端标记)。单一来源, 各榜共用。 */
+    public static boolean isSelf(Long rowUserId, Long authUserId) {
+        return rowUserId != null && rowUserId.equals(authUserId);
+    }
 }

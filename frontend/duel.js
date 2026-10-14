@@ -164,7 +164,7 @@
       $("duel-build-stats").hidden = false;
       $("db-ann").textContent = pctText(res.annualReturn);
       $("db-ann").className = Number(res.annualReturn) >= 0 ? "pos" : "neg";
-      $("db-dd").textContent = pctText(-Math.abs(Number(res.maxDrawdown)));
+      $("db-dd").textContent = ddText(res.maxDrawdown); // 与榜单路径同口径, null 显示 --
       $("db-sharpe").textContent = res.sharpeRatio == null ? "--" : Number(res.sharpeRatio).toFixed(2);
       previewed = true;
       $("btn-duel-enter").disabled = false;

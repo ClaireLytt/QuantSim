@@ -96,7 +96,7 @@ public class DailyChallengeService {
                             maskStock ? BlindDates.MASK_NAME : (String) row[2],
                             maskStock ? BlindDates.MASK_CODE : (String) row[3],
                             s.getFinalReturnRate(),
-                            s.getUserId() != null && s.getUserId().equals(authUserId));
+                            PublicNames.isSelf(s.getUserId(), authUserId));
                 })
                 .toList();
     }
