@@ -27,6 +27,8 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+      - name: Wrapper self-test (包装脚本自身回归, 秒级前置)
+        run: bash tools/test_run_mvn_test.sh
       - name: Run backend tests
         # 包装脚本: PIPESTATUS 透传 mvn 原生退出码 + 失败时打印用例摘要 (见 tools/run_mvn_test.sh 头注)
         run: bash ../tools/run_mvn_test.sh target/mvn-test.log 60

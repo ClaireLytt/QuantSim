@@ -1,2 +1,6 @@
-# shell 脚本强制 LF: CRLF 检出的 bash 脚本在 Linux CI 直接报 $'': command not found
+# shell 脚本强制 LF 检出/入库:
+# Windows 开发者注意 —— 编辑器(含 VSCode 默认跟随系统)可能把 .sh 存成 CRLF,
+# CRLF 的 bash 脚本在 Linux CI 直接报 $'\r': command not found。
+# 本规则保证仓库与检出都为 LF; 若本地已被编辑器转成 CRLF, 跑:
+#   git add --renormalize <file>
 *.sh text eol=lf
