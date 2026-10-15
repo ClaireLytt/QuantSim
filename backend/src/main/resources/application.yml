@@ -1,5 +1,9 @@
 server:
   port: 8080
+  # 生产走 Caddy 反代 (deploy/Caddyfile), 不解析 X-Forwarded-* 时 getRemoteAddr 全是代理 IP,
+  # 所有按 IP 限流退化为全站共享单桶 (一个滥用者即可 DoS 登录/注册/游客开局)。
+  # framework 策略只信任直连上游一跳的转发头, 本地直连部署无副作用。
+  forward-headers-strategy: framework
   servlet:
     session:
       timeout: 7d            # 登录态保持一周
@@ -33,7 +37,9 @@ spring:
     cache-names: stockData
     caffeine:
       # 行情数据不可变, 缓存过期仅为管道重灌数据后能自动刷新
-      spec: maximumSize=64,expireAfterWrite=10m
+      # maximumSize 要大于 stocks 表行数 (事件回放的 hidden 标的 ticker@scenario 各占一行),
+      # 否则缓存驱逐-重载抖动; 条目是整股打包数据, 256 条在百 MB 级, 单机可承受
+      spec: maximumSize=256,expireAfterWrite=10m
   web:
     resources:
       # 默认取 backend/ 目录下启动时的相对路径; 从别处启动 jar 时用环境变量指定绝对路径

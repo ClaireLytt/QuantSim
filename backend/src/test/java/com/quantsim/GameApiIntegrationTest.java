@@ -183,6 +183,26 @@ class GameApiIntegrationTest extends IntegrationTestSupport {
         assertThat(lb.get(0).get("stockName").asText()).isEqualTo("测试股");
     }
 
+    /**
+     * 回归 (审计 P0-1): 只有打满全程 (或强平) 的局才发结算积分 ——
+     * 否则"秒开秒结"(开局无限流 + day-0 可结算) 每次白拿基础分, 积分经济可被脚本刷爆。
+     */
+    @Test
+    void settle_awardsPointsOnlyWhenCompleted() throws Exception {
+        // day-0 秒结: 允许结算但零积分
+        long early = startGame("it_farm");
+        JsonNode earlySettle = json(postJson("/api/game/" + early + "/settle", ""));
+        assertThat(earlySettle.get("pointsEarned").asInt()).isZero();
+
+        // 打满 total-ticks=3 自动结算: 正常计分 (基础 50 起)
+        long full = startGame("it_farm");
+        json(postJson("/api/game/" + full + "/tick", ""));
+        json(postJson("/api/game/" + full + "/tick", ""));
+        JsonNode last = json(postJson("/api/game/" + full + "/tick", ""));
+        assertThat(last.get("settled").asBoolean()).isTrue();
+        assertThat(last.get("settleResult").get("pointsEarned").asInt()).isGreaterThanOrEqualTo(50);
+    }
+
     // ---------- AI 对手与策略基准 ----------
 
     @Test

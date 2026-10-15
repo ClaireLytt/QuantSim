@@ -35,16 +35,20 @@ public class RateLimiter {
     }
 
     private void check(String bucket, String key, int max, long windowMs, String message) {
+        long now = System.currentTimeMillis();
         if (hits.size() > MAX_KEYS) {
+            // 只删空队列不够: 过期时间戳只在"同 key 下一次 check"里被 pollFirst, 海量一次性
+            // 伪造 IP 各留 1 条戳的非空队列永远删不掉, map 单调增长可被低速扫描撑爆内存。
+            // 最长窗口是 DAY_MS (daily 桶), 末条时间戳超过它的队列整体过期, 一并清掉。
             hits.entrySet().removeIf(e -> {
                 synchronized (e.getValue()) {
-                    return e.getValue().isEmpty();
+                    Long lastHit = e.getValue().peekLast();
+                    return lastHit == null || now - lastHit > DAY_MS;
                 }
             });
         }
         String fullKey = bucket + '|' + key;
         Deque<Long> q = hits.computeIfAbsent(fullKey, k -> new ArrayDeque<>());
-        long now = System.currentTimeMillis();
         synchronized (q) {
             while (!q.isEmpty() && now - q.peekFirst() > windowMs) {
                 q.pollFirst();

@@ -12,7 +12,7 @@ import lombok.Setter;
 public class RefreshProperties {
     // 注: cron 不在这里绑定——DataRefreshService 的 @Scheduled 直接读
     // ${quantsim.refresh.cron:...} 占位符, 字段放这只会造成默认值两处漂移。
-    private boolean enabled = false;
+    private boolean enabled = false; // 字段默认关, 但 application.yml 里 QUANTSIM_REFRESH_ENABLED 缺省为 true —— 实际默认开, 以 yml 为准
     private String command = "python refresh.py";
     private String workdir = "../data-pipeline";
     private int timeoutMinutes = 30;

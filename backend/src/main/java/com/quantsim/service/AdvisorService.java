@@ -177,8 +177,10 @@ public class AdvisorService {
                 emitter.complete();
             } catch (Exception e) {
                 try {
-                    // 不能叫 "error": 会和 EventSource 的原生 error 事件撞名
-                    emitter.send(SseEmitter.event().name("advisor-error").data(String.valueOf(e.getMessage())));
+                    // 不能叫 "error": 会和 EventSource 的原生 error 事件撞名。
+                    // 只透传业务异常文案; 其余异常 (IO/超时) 的 message 可能含内部细节, 发固定文案
+                    String msg = e instanceof BusinessException ? e.getMessage() : "AI 顾问暂时不可用, 请稍后再试";
+                    emitter.send(SseEmitter.event().name("advisor-error").data(String.valueOf(msg)));
                 } catch (IOException ignored) {
                     // 客户端已断开
                 }
@@ -230,7 +232,13 @@ public class AdvisorService {
         messages.add(Map.of("role", "assistant", "content", "收到, 我已了解当前局面。请问你想了解什么?"));
         Deque<String[]> history = chatHistory.get(sessionId);
         if (history != null) {
-            for (String[] turn : history) {
+            // 持锁复制快照再迭代: recordTurn 在另一请求线程 addLast/removeFirst,
+            // 直接迭代会 ConcurrentModificationException -> 500 (双开标签同时提问即可触发)
+            List<String[]> turns;
+            synchronized (history) {
+                turns = new ArrayList<>(history);
+            }
+            for (String[] turn : turns) {
                 messages.add(Map.of("role", "user", "content", turn[0]));
                 messages.add(Map.of("role", "assistant", "content", turn[1]));
             }

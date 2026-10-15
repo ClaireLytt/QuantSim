@@ -23,6 +23,7 @@ import com.quantsim.entity.Stock;
         "spring.datasource.url=jdbc:mysql://${QUANTSIM_DB_HOST:127.0.0.1}:${QUANTSIM_DB_PORT:3306}/quantsim_test"
                 + "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8&createDatabaseIfNotExist=true",
         "quantsim.auth.per-minute=10000",
+        "quantsim.game.guest-backtest-per-minute=10000", // 本类大量匿名回测, 放宽游客限频
         "quantsim.fees.stock.commission-rate=0",
         "quantsim.fees.stock.min-commission=0",
         "quantsim.fees.stock.stamp-tax-rate=0",

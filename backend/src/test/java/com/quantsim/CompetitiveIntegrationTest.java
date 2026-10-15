@@ -27,6 +27,8 @@ import com.quantsim.entity.Stock;
         "quantsim.game.min-history-days=5",
         // 断言无摩擦资金数学: 现金计息同样归零 (与费用归零同理)
         "quantsim.game.guest-start-per-minute=10000",
+        // 游客回测限频的回归测试用低阈值 (本类其余用例不碰 backtest, 不会互相污染窗口)
+        "quantsim.game.guest-backtest-per-minute=2",
         "quantsim.game.cash-rate-annual=0",
         "quantsim.game.borrow-rate-annual=0",
         "quantsim.auth.per-minute=10000",
@@ -234,6 +236,56 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         assertThat(json(view2).path("status").asText()).isEqualTo("SETTLED");
     }
 
+    /**
+     * 回归 (审计 P1-6): 到期强结中某成员抛出非 BusinessException (如账户行缺失的
+     * NotFoundException) 时, 异常不得逃出 view 事务 —— 否则房间永远迁不到 SETTLED,
+     * 每次访问 500 (bug-knowledge-base #3 的症状以另一异常类型复活)。
+     */
+    @Test
+    void expiredRoomSettlesDespiteMemberAccountMissing() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        String alice = register("缺账甲");
+        String bob = register("缺账乙");
+        String code = json(postJson("/api/rooms", "{}", alice)).path("code").asText();
+        json(postJson("/api/rooms/" + code + "/join", "{}", bob));
+        postJson("/api/rooms/" + code + "/play", "{}", alice);
+        long sidB = json(postJson("/api/rooms/" + code + "/play", "{}", bob)).path("sessionId").asLong();
+
+        // 删掉乙的账户行: 强结乙时 doSettle 抛 NotFoundException("账户不存在")
+        accountRepository.findBySessionId(sidB).ifPresent(accountRepository::delete);
+        Room room = roomRepository.findByCode(code).orElseThrow();
+        room.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+        roomRepository.save(room);
+
+        // 不抛 500, 房间迁 SETTLED; 重入幂等
+        ResponseEntity<String> view1 = get("/api/rooms/" + code, alice);
+        assertThat(view1.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(json(view1).path("status").asText()).isEqualTo("SETTLED");
+        ResponseEntity<String> view2 = get("/api/rooms/" + code, bob);
+        assertThat(view2.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(json(view2).path("status").asText()).isEqualTo("SETTLED");
+    }
+
+    /**
+     * 回归 (审计 P1-8): 游客正式回测会 findOrCreate users 行并写公开擂台榜,
+     * 必须与游客开局同款按 IP 限频 (教训 #10 修复时漏掉的入口); preview 不受限。
+     */
+    @Test
+    void guestBacktestRunIsRateLimited() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        String body = "{\"username\":\"游客刷库\",\"stockCode\":\"000001\",\"strategy\":\"BUY_HOLD\"}";
+        // 限频阈值 2 (见类头 properties): 第 3 次正式回测被拒
+        postJson("/api/backtest/run", body, null);
+        postJson("/api/backtest/run", body, null);
+        ResponseEntity<String> third = postJson("/api/backtest/run", body, null);
+        assertThat(third.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(json(third).path("message").asText()).contains("频繁");
+        // preview 只算不落库, 不占游客限频额度
+        String preview = "{\"username\":\"游客刷库\",\"stockCode\":\"000001\",\"strategy\":\"BUY_HOLD\",\"preview\":true}";
+        assertThat(json(postJson("/api/backtest/run", preview, null)).path("message").asText())
+                .doesNotContain("频繁");
+    }
+
     @Test
     void seasonFilterOnLeaderboard() {
         seedStock("000001", LocalDate.of(2024, 1, 1), 12);
@@ -395,5 +447,56 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
             assertThat(body).as("进行中竞技响应泄露真实代码: " + ep).doesNotContain("000001");
             assertThat(body).as("进行中竞技响应泄露真实名称: " + ep).doesNotContain("测试股");
         }
+    }
+
+    /**
+     * 回归 (审计 P0-3): 结算复盘 journal 的日期必须保持脱敏 —— 结算只揭晓标的不揭晓窗口,
+     * 否则"揭晓的 code + journal 真实日期"= 当日挑战完整答案, 可喂给未玩的同伙屠榜。
+     */
+    @Test
+    void settledJournalKeepsDatesMasked() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        String alice = register("日志脱敏");
+        long sid = json(postJson("/api/daily/start", "{}", alice)).path("sessionId").asLong();
+
+        // 带理由的交易才会生成 journal 行; 手动交易只按当日收盘价 10.00 成交
+        postJson("/api/game/" + sid + "/trade",
+                "{\"direction\":\"BUY\",\"price\":10.00,\"shares\":100,\"reason\":\"测试理由\"}", alice);
+        JsonNode settle = json(postJson("/api/game/" + sid + "/settle", "{}", alice));
+
+        JsonNode journal = settle.path("journal");
+        assertThat(journal.size()).isEqualTo(1);
+        // 日期落在虚拟纪元 (2000-01-xx), 绝不能是种子数据的真实 2024 年日历日
+        assertThat(journal.get(0).path("tradeDate").asText()).startsWith("2000-");
+    }
+
+    /**
+     * 回归 (审计 P0-2): 昨日榜对"该日对局仍未结算"的请求者保持脱敏 ——
+     * 跨零点没打完的人若从昨日榜拿到真实代码, 可去 lab 历史对齐窗口看"未来"再回来推进。
+     */
+    @Test
+    void yesterdayBoardStaysMaskedForPlayerStillInProgress() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        String alice = register("昨日已结");
+        String bob = register("昨日未结");
+        long settledSid = json(postJson("/api/daily/start", "{}", alice)).path("sessionId").asLong();
+        postJson("/api/game/" + settledSid + "/settle", "{}", alice);
+        long openSid = json(postJson("/api/daily/start", "{}", bob)).path("sessionId").asLong();
+
+        // 把两局的挑战日改写成昨天, 模拟跨零点场景 (开局接口只能开"今天"的挑战)
+        LocalDate yesterday = LocalDate.now(com.quantsim.service.GameService.GAME_ZONE).minusDays(1);
+        for (long sid : new long[] {settledSid, openSid}) {
+            var s = sessionRepository.findById(sid).orElseThrow();
+            s.setChallengeDate(yesterday);
+            sessionRepository.save(s);
+        }
+
+        // bob 的昨日局仍 IN_PROGRESS: 昨日榜对他必须继续隐藏标的
+        JsonNode bobView = json(get("/api/daily/leaderboard?date=" + yesterday, bob));
+        assertThat(bobView.size()).isEqualTo(1);
+        assertThat(bobView.get(0).path("stockCode").asText()).isEqualTo("???");
+        // alice 已结算: 昨日榜正常揭晓
+        JsonNode aliceView = json(get("/api/daily/leaderboard?date=" + yesterday, alice));
+        assertThat(aliceView.get(0).path("stockCode").asText()).isEqualTo("000001");
     }
 }

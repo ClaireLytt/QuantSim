@@ -39,6 +39,7 @@ import com.quantsim.entity.DailyIndicator;
 import com.quantsim.entity.DailyPrediction;
 import com.quantsim.entity.DailyPrice;
 import com.quantsim.entity.GameSession;
+import com.quantsim.entity.PendingOrder;
 import com.quantsim.entity.Position;
 import com.quantsim.entity.Stock;
 import com.quantsim.entity.TradeTransaction;
@@ -47,6 +48,7 @@ import com.quantsim.exception.BusinessException;
 import com.quantsim.exception.NotFoundException;
 import com.quantsim.repository.AccountRepository;
 import com.quantsim.repository.GameSessionRepository;
+import com.quantsim.repository.PendingOrderRepository;
 import com.quantsim.repository.PositionRepository;
 import com.quantsim.repository.TransactionRepository;
 import com.quantsim.repository.UserRepository;
@@ -67,6 +69,7 @@ public class GameService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final PositionRepository positionRepository;
+    private final PendingOrderRepository orderRepository;
     private final PointsService pointsService;
     private final TradeEngine tradeEngine;
     private final OrderService orderService;
@@ -464,12 +467,19 @@ public class GameService {
         session.setStatus(GameSession.Status.SETTLED);
         session.setFinalReturnRate(returnRate);
         session.setFinalSharpe(risk == null ? null : risk.sharpe());
+        orderService.cancelOpenOnSettle(session.getSessionId()); // 残留 OPEN 挂单随对局一并了结
 
-        // 积分入账 (服务端权威): 基础/胜AI/赢基准/连胜/每日任务, 前端只展示
+        // 积分入账 (服务端权威): 基础/胜AI/赢基准/连胜/每日任务, 前端只展示。
+        // 只有打满全程或被强平的局才计分: 否则登录用户"秒开秒结"(开局无限流 + day-0 可结算)
+        // 每次白拿基础分, 积分经济可被脚本刷爆; 提前弃局允许结算但不给奖励。
         boolean beatAi = aiReturn != null && returnRate.compareTo(aiReturn) > 0;
         boolean beatHold = holdReturn != null && returnRate.compareTo(holdReturn) > 0;
-        PointsService.SettleAward award = pointsService.awardSettle(
-                session.getUserId(), beatAi, beatHold, "DAILY".equals(session.getMode()));
+        boolean completed = session.isLiquidated()
+                || session.getDaysElapsed() >= props.getTotalTicks();
+        PointsService.SettleAward award = completed
+                ? pointsService.awardSettle(
+                        session.getUserId(), beatAi, beatHold, "DAILY".equals(session.getMode()))
+                : new PointsService.SettleAward(0, 0);
 
         // 已结算: 竞技模式在此揭晓真实标的 (进行中全程匿名)。
         // 事件场景复合代码的剥壳统一走 BlindDates.stripScenario, 别再各写一份
@@ -587,6 +597,17 @@ public class GameService {
         TradeTransaction last = todays.stream()
                 .max(java.util.Comparator.comparing(TradeTransaction::getTxId))
                 .orElseThrow();
+        if (last.getOrderId() != null) {
+            // 这笔成交来自挂单: 只删流水不回滚挂单会账实分叉 (挂单显示 FILLED 但资金里没有
+            // 这笔), 且该单从笔数预算两侧 (已成交数+在挂单数) 同时消失, 限笔模式可刷额度。
+            // 回滚为 OPEN: 挂单继续有效, 次日仍可再触发, 预算占用恢复。
+            orderRepository.findById(last.getOrderId()).ifPresent(order -> {
+                order.setStatus(PendingOrder.Status.OPEN);
+                order.setFilledDate(null);
+                order.setFilledPrice(null);
+                orderRepository.save(order);
+            });
+        }
         transactionRepository.delete(last);
         transactionRepository.flush();
         replayAccount(session, account);

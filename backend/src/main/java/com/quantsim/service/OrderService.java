@@ -118,6 +118,16 @@ public class OrderService {
         orderRepository.save(order);
     }
 
+    /** 结算时调用: 撤销全部 OPEN 挂单。不撤的话它们永远停在 OPEN (结算后 tick 被拒,
+     *  没有任何路径再碰它们), /orders 列表与复盘会一直显示"挂着", 纯脏数据。 */
+    public void cancelOpenOnSettle(Long sessionId) {
+        for (PendingOrder order : orderRepository.findBySessionIdAndStatusOrderByCreatedAtAsc(
+                sessionId, PendingOrder.Status.OPEN)) {
+            order.setStatus(PendingOrder.Status.CANCELLED);
+            orderRepository.save(order);
+        }
+    }
+
     /** tick 推进到新交易日后调用: 用当日 (新揭示的) OHLC 撮合全部 OPEN 挂单。 */
     public FillSummary fillOrders(GameSession session, Account account) {
         List<PendingOrder> open =
@@ -148,6 +158,21 @@ public class OrderService {
             }
             TradeTransaction.Direction dir = order.getOrderType() == PendingOrder.Type.LIMIT_BUY
                     ? TradeTransaction.Direction.BUY : TradeTransaction.Direction.SELL; // TRAIL_STOP 是卖单
+            // 止损/止盈/移动止损是平仓保护单 (reduce-only)。进阶模式的 validate 只做净值/杠杆
+            // 约束不查持仓, 挂单后手动清仓再触发会穿越零点开空 (保护单变开空单);
+            // 仓位已清自动撤单, 多头缩水只平剩余。普通模式 validate 本就拒绝超卖, 行为不变。
+            int fillShares = order.getShares();
+            if (session.isAdvanced() && dir == TradeTransaction.Direction.SELL
+                    && order.getOrderType() != PendingOrder.Type.LIMIT_SELL) {
+                int cur = tradeEngine.position(session, account, order.getStockId()).shares();
+                if (cur <= 0) {
+                    order.setStatus(PendingOrder.Status.CANCELLED);
+                    cancelled++;
+                    orderRepository.save(order);
+                    continue;
+                }
+                fillShares = Math.min(fillShares, cur);
+            }
             // 真实规则 (封板/T+1) 只是"今天不能成交", 继续挂到明天, 不作废单处理
             if (session.isRealRules() && tradeEngine.realRulesError(session, account,
                     order.getStockId(), dir, order.getShares()) != null) {
@@ -161,19 +186,19 @@ public class OrderService {
                 continue;
             }
             String error = tradeEngine.validate(session, account, order.getStockId(),
-                    dir, fillPrice, order.getShares());
+                    dir, fillPrice, fillShares);
             if (error != null) {
                 order.setStatus(PendingOrder.Status.CANCELLED);
                 cancelled++;
             } else {
-                tradeEngine.execute(session, account, order.getStockId(), dir, fillPrice, order.getShares(),
-                        order.getReason());
+                tradeEngine.execute(session, account, order.getStockId(), dir, fillPrice, fillShares,
+                        order.getReason(), order.getOrderId());
                 txCount++;
                 order.setStatus(PendingOrder.Status.FILLED);
                 order.setFilledDate(session.getCurrentTradeDate());
                 order.setFilledPrice(fillPrice);
                 filled.add(new FilledOrder(order.getOrderType().name(), fillPrice,
-                        order.getShares(), BlindDates.maskCode(session, sd.stock().getCode()),
+                        fillShares, BlindDates.maskCode(session, sd.stock().getCode()),
                         order.getReason())); // 带回下单理由, 前端成交日志才能还原交易日记
             }
             orderRepository.save(order);

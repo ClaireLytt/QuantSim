@@ -188,7 +188,9 @@ public class TradeEngine {
         BigDecimal eq = cashAfter;
         BigDecimal ex = BigDecimal.ZERO;
         for (Map.Entry<Long, Integer> e : byStock.entrySet()) {
-            BigDecimal close = closes.getOrDefault(e.getKey(), price);
+            // 缺失标的兜底用 ZERO 而不是本笔成交价: closes 覆盖全部 session 标的, 此分支
+            // 实际不可达, 但用别的标的的价格估值是口径错误, 将来改组合口径时会埋雷
+            BigDecimal close = closes.getOrDefault(e.getKey(), BigDecimal.ZERO);
             eq = eq.add(close.multiply(BigDecimal.valueOf(e.getValue())));
             ex = ex.add(close.multiply(BigDecimal.valueOf(Math.abs(e.getValue()))));
         }
@@ -277,6 +279,13 @@ public class TradeEngine {
     public BigDecimal execute(GameSession session, Account account, Long stockId,
                               TradeTransaction.Direction direction, BigDecimal price, int shares,
                               String reason) {
+        return execute(session, account, stockId, direction, price, shares, reason, null);
+    }
+
+    /** 挂单成交路径: 流水额外记来源挂单 ID, undo 撤销该流水时据此把挂单回滚为 OPEN。 */
+    public BigDecimal execute(GameSession session, Account account, Long stockId,
+                              TradeTransaction.Direction direction, BigDecimal price, int shares,
+                              String reason, Long orderId) {
         Market market = marketData.load(stockId).stock().getMarket();
         BigDecimal gross = price.multiply(BigDecimal.valueOf(shares));
         BigDecimal fee = feeCalculator.fee(market, direction, gross);
@@ -298,6 +307,7 @@ public class TradeEngine {
         tx.setShares(shares);
         tx.setFee(fee);
         tx.setReason(reason);
+        tx.setOrderId(orderId);
         transactionRepository.save(tx);
         return fee;
     }

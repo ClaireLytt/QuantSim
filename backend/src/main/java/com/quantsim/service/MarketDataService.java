@@ -85,7 +85,7 @@ public class MarketDataService {
         }
     }
 
-    @Cacheable("stockData")
+    @Cacheable(value = "stockData", sync = true) // sync: 同一标的缓存失效瞬间只放一个线程进来全量加载, 防击穿
     @Transactional(readOnly = true)
     public StockData load(Long stockId) {
         Stock stock = stockRepository.findById(stockId)

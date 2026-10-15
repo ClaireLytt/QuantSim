@@ -45,7 +45,11 @@ def main():
     result = (
         df
         .withColumn("prev_close", F.lag("close").over(w_order))
-        .withColumn("pct_change", F.round((F.col("close") - F.col("prev_close")) / F.col("prev_close"), 4))
+        # prev_close=0 时置 NULL: Spark double 除以 0.0 得 Infinity, round 后仍是 Infinity,
+        # 入库变垃圾值且下游 null 判断防不住它 (pr_guard 第 6 类反面模式)
+        .withColumn("pct_change", F.when(
+            F.col("prev_close") != 0,
+            F.round((F.col("close") - F.col("prev_close")) / F.col("prev_close"), 4)))
         .withColumn("ma5", F.when(
             F.count("close").over(w_ma5) >= 5,
             F.round(F.avg("close").over(w_ma5), 2)))

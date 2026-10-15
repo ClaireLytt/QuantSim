@@ -34,11 +34,19 @@ public class BacktestController {
 
     private final BacktestService backtestService;
     private final RateLimiter rateLimiter;
+    private final com.quantsim.config.GameProperties gameProps;
 
     @PostMapping("/run")
     public RunResponse run(@Valid @RequestBody RunRequest request, HttpServletRequest http) {
         // 已登录以会话身份入榜 (忽略 body 用户名), 游客昵称由 service 校验
-        return backtestService.run(request, CurrentUser.idOrNull(http));
+        Long userId = CurrentUser.idOrNull(http);
+        if (userId == null && !Boolean.TRUE.equals(request.preview())) {
+            // 游客正式回测会 findOrCreate users 行并写入公开擂台榜, 与游客开局同款按 IP 限频
+            // (教训 #10 修复时漏掉的入口); preview 只算不落库, 不限。
+            rateLimiter.check("guest-backtest", "ip:" + http.getRemoteAddr(),
+                    gameProps.getGuestBacktestPerMinute());
+        }
+        return backtestService.run(request, userId);
     }
 
     @PostMapping("/tune")

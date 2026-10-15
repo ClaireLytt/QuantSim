@@ -26,4 +26,5 @@ public class GameProperties {
     private double borrowRateAnnual = 0.05;  // 进阶模式透支的年化融资成本
     private int dcaIntervalDays = 5;         // 定投基准的投入间隔 (交易日)
     private int guestStartPerMinute = 6;     // 游客开局 IP 限频 (防 findOrCreate 刷库), 集成测试放宽
+    private int guestBacktestPerMinute = 6;  // 游客正式回测 IP 限频 (同样 findOrCreate + 写公开擂台榜)
 }

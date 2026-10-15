@@ -179,6 +179,11 @@ public class RoomService {
         if (room.getStatus() == Room.Status.SETTLED) {
             throw new BusinessException("房间已结算");
         }
+        if (LocalDateTime.now().isAfter(room.getExpiresAt())) {
+            // 与 join 同款校验: 过期但还没人 view (惰性迁移未触发) 的房间不能再开局,
+            // 否则刚开的 day-0 对局会在下一次 view 被立即强结成 0% 挂上战况表
+            throw new BusinessException("房间已过期");
+        }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
         StartGameResponse res = gameStart.startGameAt(user, room.getStockId(), room.getStartDate(),
@@ -257,12 +262,23 @@ public class RoomService {
                 if (s != null && s.getStatus() == GameSession.Status.IN_PROGRESS) {
                     try {
                         // settleIsolated 走 REQUIRES_NEW: 失败只回滚该成员 (见 GameService 注释)
-                        gameService.settleIsolated(s.getSessionId());
-                        sessions.put(s.getSessionId(),
-                                sessionRepository.findById(s.getSessionId()).orElse(s));
+                        var result = gameService.settleIsolated(s.getSessionId());
+                        // 不能 findById 回读: 该实体已在父事务一级缓存里, 读到的是结算前的
+                        // 旧托管实例 (REQUIRES_NEW 的更新对本事务不可见), 本次响应的战况表
+                        // 会把刚强结的成员显示成"未完成"。直接用结算结果回填托管实体
+                        // (与 DB 已提交值一致, 父事务 flush 只会写回相同值)。
+                        s.setStatus(GameSession.Status.SETTLED);
+                        s.setFinalReturnRate(result.returnRate());
+                        s.setFinalSharpe(result.risk() == null ? null : result.risk().sharpe());
                     } catch (BusinessException e) {
                         // 并发下已被结算属预期; 其余失败 (如行情缺失) 留日志供线上告警 (回归评估 M-2)
                         log.warn("[room] 成员对局 {} 强制结算失败: {}", s.getSessionId(), e.getMessage());
+                    } catch (RuntimeException e) {
+                        // 任何单成员失败 (如 NotFoundException/数据异常) 都不允许拖垮房间迁移:
+                        // 异常逃出去会回滚 view 事务, 房间永远迁不到 SETTLED, 每次访问 500
+                        // (bug-knowledge-base #3 的症状以另一异常类型复活)。REQUIRES_NEW 的
+                        // 隔离只对被 catch 住的异常生效。
+                        log.error("[room] 成员对局 {} 强制结算异常", s.getSessionId(), e);
                     }
                 }
             }

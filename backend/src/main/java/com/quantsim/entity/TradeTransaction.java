@@ -57,6 +57,10 @@ public class TradeTransaction {
     @Column(length = 100)
     private String reason;
 
+    /** 来源挂单 ID (挂单成交才有, 手动交易为 null): undo 撤销这笔流水时据此把挂单回滚为 OPEN */
+    @Column(name = "order_id")
+    private Long orderId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

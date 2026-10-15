@@ -58,6 +58,15 @@ public class GameController {
         rateLimiter.checkDaily("advisor-global", "all", advisorProps.getDailyLimit());
     }
 
+    /** 顾问问题长度上限: 配额按"次"计, 不设上限的话单次可塞超长文本放大 token 成本
+     *  (对照 pet-chat 的 @Size(max=200); SSE 走 GET 参数没有 bean 校验, 在这里拦)。 */
+    private static String capQuestion(String q) {
+        if (q != null && q.length() > 500) {
+            throw new com.quantsim.exception.BusinessException("问题太长了, 请精简到 500 字以内");
+        }
+        return q;
+    }
+
     /** 开局行业筛选候选项 (游客可用) */
     @GetMapping("/industries")
     public List<com.quantsim.dto.GameDtos.IndustryOption> industries() {
@@ -155,7 +164,7 @@ public class GameController {
                                    @RequestParam(required = false) String q,
                                    HttpServletRequest http) {
         checkAdvisorQuota(http);
-        return advisorService.advise(sessionId, lang, q);
+        return advisorService.advise(sessionId, lang, capQuestion(q));
     }
 
     /** 流式顾问: EventSource 只支持 GET, 增量事件为纯文本 delta, 结束事件名 done。 */
@@ -166,7 +175,7 @@ public class GameController {
             @RequestParam(required = false) String q,
             HttpServletRequest http) {
         checkAdvisorQuota(http);
-        return advisorService.adviseStream(sessionId, lang, q);
+        return advisorService.adviseStream(sessionId, lang, capQuestion(q));
     }
 
     @PostMapping("/{sessionId}/advisor/reset")

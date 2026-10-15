@@ -85,8 +85,12 @@ public class DailyChallengeService {
     @Transactional(readOnly = true)
     public List<DailyBoardEntry> leaderboard(LocalDate date, Long authUserId) {
         LocalDate day = date == null ? LocalDate.now(GameService.GAME_ZONE) : date;
-        // 当天的榜单隐藏标的 (未玩的人看到会剧透), 历史日期正常展示
-        boolean maskStock = day.equals(LocalDate.now(GameService.GAME_ZONE));
+        // 当天的榜单隐藏标的 (未玩的人看到会剧透), 历史日期正常展示。
+        // 但请求者在该日仍有未结算对局时同样脱敏: 跨零点未打完的人若从昨日榜拿到真实代码,
+        // 可去无鉴权的 lab 历史对齐窗口看"未来"再回来推进, 稳赚上昨日榜。
+        boolean maskStock = day.equals(LocalDate.now(GameService.GAME_ZONE))
+                || (authUserId != null && sessionRepository.existsByUserIdAndChallengeDateAndStatus(
+                        authUserId, day, GameSession.Status.IN_PROGRESS));
         // 公开榜: 测试账号已在查询里排除; 这里只做邮箱脱敏 + isSelf 标记
         return sessionRepository.findDailyBoard(day, GameSession.Status.SETTLED,
                         PageRequest.of(0, props.getLeaderboardSize())).stream()

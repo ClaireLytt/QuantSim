@@ -119,7 +119,9 @@ public class BiasAnalysisService {
     /**
      * 交易日志 (限制条件玩法): 每笔带理由的交易给出"事后结果"供对照。
      * 口径: 卖出(平仓) = 相对持仓均价的已实现收益率; 买入(开仓) = 成交价到结算收盘的涨跌
-     * (空头开仓取反)。日期脱敏由调用方决定 (竞技局结算后已揭晓, 原样即可)。
+     * (空头开仓取反)。日期统一走 BlindDates.mask: 结算只揭晓标的不揭晓窗口 (与
+     * listTransactions / LLM 复盘上下文同口径), 否则 journal 真实日期 + 揭晓的代码
+     * = 当日挑战完整答案, 可喂给未玩的同伙屠榜。
      */
     public List<com.quantsim.dto.GameDtos.JournalEntry> journal(GameSession session,
             List<TradeTransaction> txs, Function<Long, StockData> dataByStock) {
@@ -152,7 +154,8 @@ public class BiasAnalysisService {
                     }
                 }
                 out.add(new com.quantsim.dto.GameDtos.JournalEntry(
-                        tx.getTradeDate(), tx.getDirection().name(), tx.getReason(), outcome));
+                        BlindDates.mask(session, tx.getTradeDate()),
+                        tx.getDirection().name(), tx.getReason(), outcome));
             }
 
             // 与 analyze 共享 advancePosition (entryTicks 传 null: 日志复盘只需均价)

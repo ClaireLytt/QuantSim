@@ -83,7 +83,8 @@ public class DataRefreshService {
             log.error("[refresh] 管道执行被中断");
             return false;
         } catch (Exception e) {
-            log.error("[refresh] 管道执行失败: {}", e.getMessage());
+            // 必须带异常对象: 只打 getMessage() 的话 NPE 时日志只剩 "失败: null", 没法排查
+            log.error("[refresh] 管道执行失败", e);
             return false;
         }
     }

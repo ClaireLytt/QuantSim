@@ -32,10 +32,12 @@ def load_prices(cursor, code_to_id: dict):
     total = 0
     for path in glob.glob(os.path.join(RAW_DIR, "*.csv")):
         df = pd.read_csv(path, dtype={"code": str})
+        # 入库前最后一道质量门 (fetch 已清过一轮, 这里防手工 CSV / 旧快照): 非正价拒入
         rows = [
             (code_to_id[r.code], r.trade_date, r.open, r.high, r.low, r.close, int(r.volume))
             for r in df.itertuples()
             if r.code in code_to_id
+            and min(r.open, r.high, r.low, r.close) > 0
         ]
         cursor.executemany(
             "INSERT INTO daily_price (stock_id, trade_date, open, high, low, close, volume) "

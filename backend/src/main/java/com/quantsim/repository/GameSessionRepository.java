@@ -78,6 +78,10 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
             """)
     List<Object[]> findDailyBoard(java.time.LocalDate date, GameSession.Status status, Pageable pageable);
 
+    /** 请求者在该挑战日是否仍有未结算对局 (昨日榜防剧透: 跨零点未打完的人不能先看答案)。 */
+    boolean existsByUserIdAndChallengeDateAndStatus(Long userId, java.time.LocalDate challengeDate,
+            GameSession.Status status);
+
     @Query("select distinct s.season from GameSession s where s.season is not null order by s.season desc")
     List<String> findSeasons();
 

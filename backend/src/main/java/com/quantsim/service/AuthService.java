@@ -26,6 +26,7 @@ public class AuthService {
     @Transactional
     public User register(String username, String rawPassword) {
         String name = username.trim();
+        UserService.requireValidName(name); // 与游客昵称同一套白名单 (防同形字冒充/零宽字符)
         if (name.isEmpty()) {
             throw new BusinessException("用户名不能为空");
         }

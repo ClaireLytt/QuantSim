@@ -37,6 +37,27 @@ class RateLimiterTest {
         assertThatCode(() -> limiter.check("advisor-global", "all", 3)).doesNotThrowAnyException();
     }
 
+    /**
+     * 回归 (审计 P1-7): 海量一次性伪造 IP 各留 1 条时间戳的非空队列必须能被清理 ——
+     * 过期戳只在同 key 下次 check 才被 pollFirst, 只删空队列的话 map 单调增长可撑爆内存。
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void staleNonEmptyQueuesAreEvicted() throws Exception {
+        RateLimiter limiter = new RateLimiter();
+        var field = RateLimiter.class.getDeclaredField("hits");
+        field.setAccessible(true);
+        var hits = (java.util.concurrent.ConcurrentHashMap<String, java.util.Deque<Long>>) field.get(limiter);
+        long stale = System.currentTimeMillis() - 25L * 60 * 60_000; // 超过最长窗口 24h
+        for (int i = 0; i < 10_001; i++) {
+            var q = new java.util.ArrayDeque<Long>();
+            q.addLast(stale);
+            hits.put("b|ip:" + i, q);
+        }
+        limiter.check("b", "ip:fresh", 6); // 触发清理
+        org.assertj.core.api.Assertions.assertThat(hits.size()).isLessThan(100);
+    }
+
     @Test
     void bucketsAndKeysAreIsolated() {
         RateLimiter limiter = new RateLimiter();

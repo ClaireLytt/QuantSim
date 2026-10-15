@@ -65,6 +65,63 @@ class TradingDepthIntegrationTest extends IntegrationTestSupport {
 
     // ---------- 用例 ----------
 
+    /**
+     * 回归 (审计 P1-4): 止损/止盈/移动止损是平仓保护单 —— 进阶模式下挂单后手动清仓,
+     * 次日触发不得穿越零点开空 (保护单变开空单), 应自动撤单、持仓保持 0。
+     */
+    @Test
+    void protectiveSellOrderIsReduceOnlyInAdvancedMode() {
+        Stock stock = seedStock("TSLA", "特斯拉", Market.US);
+        seedBars(stock, "10", "10", "10", "10", "10", "10", "10", "10", "10");
+        long sid = startGame(",\"market\":\"US\",\"advanced\":true");
+
+        // 买入 100 股 -> 挂 100 股止损 (9.5, 次日 low=9 必触发) -> 手动全部卖掉
+        assertThat(postJson("/api/game/" + sid + "/trade",
+                "{\"direction\":\"BUY\",\"price\":10,\"shares\":100}").getStatusCode()).isEqualTo(HttpStatus.OK);
+        long orderId = json(postJson("/api/game/" + sid + "/orders",
+                "{\"orderType\":\"STOP_LOSS\",\"price\":9.5,\"shares\":100}")).path("orderId").asLong();
+        assertThat(postJson("/api/game/" + sid + "/trade",
+                "{\"direction\":\"SELL\",\"price\":10,\"shares\":100}").getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        JsonNode t = tick(sid);
+        // 修复前: 止损单照常成交, 持仓被打成 -100 (保护单开空)
+        assertThat(t.path("status").path("holdingShares").asInt()).isZero();
+        JsonNode orders = json(rest.getForEntity("/api/game/" + sid + "/orders", String.class));
+        assertThat(orders.get(0).path("orderId").asLong()).isEqualTo(orderId);
+        assertThat(orders.get(0).path("status").asText()).isEqualTo("CANCELLED");
+    }
+
+    /**
+     * 回归 (审计 P1-5): 「后悔药」撤销挂单成交的流水时, 挂单必须回滚为 OPEN ——
+     * 否则挂单显示 FILLED 但资金里没有这笔 (账实分叉), 且笔数预算两侧都不再计它。
+     */
+    @Test
+    void undoOrderFillRevertsOrderToOpen() {
+        Stock stock = seedStock("000001", "测试股", Market.STOCK);
+        seedBars(stock, "10", "10", "10", "10", "10", "10", "10", "10", "10");
+        long sid = startGame("");
+
+        // 挂限价买 9.5: 次日 low=9 触发, 成交价 min(open=10, 9.5)=9.5
+        long orderId = json(postJson("/api/game/" + sid + "/orders",
+                "{\"orderType\":\"LIMIT_BUY\",\"price\":9.5,\"shares\":100}")).path("orderId").asLong();
+        JsonNode t = tick(sid);
+        assertThat(t.path("filledOrders").size()).isEqualTo(1);
+
+        // 发一枚后悔药道具后撤销: 流水删除、挂单回滚 OPEN、现金复原 (零费零息)
+        Long userId = sessionRepository.findById(sid).orElseThrow().getUserId();
+        com.quantsim.entity.UserPoints p = new com.quantsim.entity.UserPoints();
+        p.setUserId(userId);
+        p.setItemUndo(1);
+        userPointsCleanup.save(p);
+        JsonNode undo = json(postJson("/api/game/" + sid + "/undo-trade", "{}"));
+        assertThat(undo.path("cashBalance").decimalValue()).isEqualByComparingTo("100000.00");
+        assertThat(transactionRepository.count()).isZero();
+        JsonNode orders = json(rest.getForEntity("/api/game/" + sid + "/orders", String.class));
+        assertThat(orders.get(0).path("orderId").asLong()).isEqualTo(orderId);
+        assertThat(orders.get(0).path("status").asText()).isEqualTo("OPEN");
+        assertThat(orders.get(0).path("filledPrice").isNull()).isTrue();
+    }
+
     @Test
     void limitBuyFillsNextDayAndStopLossTriggers() {
         seedStock("000001", "测试股", Market.STOCK);

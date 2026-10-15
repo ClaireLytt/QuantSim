@@ -25,6 +25,23 @@ COLUMN_MAP = {
 }
 
 
+def sanitize(df: pd.DataFrame, code: str) -> pd.DataFrame:
+    """行情质量门: AKShare qfq 前复权对长历史高分红股会产出负价/零价, 脏行直通入库会
+    穿透后端估值 (负收盘价把多头估成负贡献 -> 进阶模式误强平)。规则: OHLC 全为正、
+    high/low 包住 open/close、按 trade_date 去重 (保留后出现的, 与增量合并口径一致)。"""
+    before = len(df)
+    ok = (
+        (df[["open", "high", "low", "close"]] > 0).all(axis=1)
+        & (df["high"] >= df[["open", "close", "low"]].max(axis=1))
+        & (df["low"] <= df[["open", "close"]].min(axis=1))
+    )
+    df = df[ok].drop_duplicates(subset="trade_date", keep="last")
+    dropped = before - len(df)
+    if dropped:
+        print(f"[quality] {code}: 丢弃 {dropped} 行脏数据 (非正价/高低矛盾/重复日期)")
+    return df
+
+
 def fetch_one(code: str) -> pd.DataFrame:
     df = ak.stock_zh_a_hist(
         symbol=code,
@@ -40,7 +57,7 @@ def fetch_one(code: str) -> pd.DataFrame:
     # AKShare 成交量单位是"手"(100股), 统一转为股, 与 mock 数据口径一致
     df["volume"] = df["volume"] * 100
     df["code"] = code
-    return df
+    return sanitize(df, code)
 
 
 def fetch_us_one(code: str) -> pd.DataFrame:
@@ -53,7 +70,7 @@ def fetch_us_one(code: str) -> pd.DataFrame:
     df = df[OHLCV_COLUMNS].copy()
     df["volume"] = df["volume"].astype("int64")
     df["code"] = code
-    return df
+    return sanitize(df, code)
 
 
 def merge_incremental(out_path: str, fresh: pd.DataFrame) -> pd.DataFrame:

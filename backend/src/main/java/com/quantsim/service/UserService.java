@@ -27,11 +27,23 @@ public class UserService {
         if (name.isEmpty()) {
             throw new BusinessException("用户名不能为空");
         }
+        requireValidName(name);
         User user = findOrCreate(name);
         if (user.getPasswordHash() != null) {
             throw new BusinessException("该用户名已被注册, 请登录后再玩");
         }
         return user;
+    }
+
+    /** 昵称字符白名单: 字母(含中文)/数字/_ @ . - 与空格。大小写冒名已被数据库 ci 唯一键挡住,
+     *  这里挡的是零宽/控制字符和同形异义码点 (如西里尔 а) 在公开榜上视觉冒充他人。 */
+    private static final java.util.regex.Pattern NAME_OK =
+            java.util.regex.Pattern.compile("^[\\p{L}\\p{N}_@.\\- ]+$");
+
+    public static void requireValidName(String name) {
+        if (!NAME_OK.matcher(name).matches()) {
+            throw new BusinessException("昵称只能包含中英文、数字和 _ @ . - 字符");
+        }
     }
 
     /**
