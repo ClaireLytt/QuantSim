@@ -14,6 +14,10 @@ ignore = [
     "E702",
 ]
 
+[tool.ruff.lint.isort]
+# 管道模块互相平级 import (无包结构), 固定为一方库, 避免从不同目录跑 ruff 时分组漂移
+known-first-party = ["config", "mock_data", "load_to_db", "fetch_data", "compute_indicators", "train_predictor"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # PySpark 相关逻辑 (compute_indicators) 不进 CI: JVM 冷启动慢且脆, 本地手跑验证

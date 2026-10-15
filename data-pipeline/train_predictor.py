@@ -13,12 +13,13 @@ import shutil
 
 import numpy as np
 import pandas as pd
-from config import INDICATOR_DIR, PREDICTION_DIR, RAW_DIR
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+
+from config import INDICATOR_DIR, PREDICTION_DIR, RAW_DIR
 
 MIN_TRAIN_DAYS = 60
 BLOCK_DAYS = 20

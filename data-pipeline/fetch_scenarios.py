@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 
 import akshare as ak
 import pandas as pd
+
 from config import VOLATILITY_WINDOW
 from load_to_db import get_conn  # DB 连接复用常规管道, 不再各自 pymysql.connect
 

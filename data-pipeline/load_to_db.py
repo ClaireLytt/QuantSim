@@ -8,6 +8,7 @@ import os
 
 import pandas as pd
 import pymysql
+
 from config import DB_CONFIG, INDICATOR_DIR, PREDICTION_DIR, RAW_DIR, STOCK_POOL
 
 
