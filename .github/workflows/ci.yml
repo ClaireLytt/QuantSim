@@ -28,7 +28,8 @@ jobs:
           java-version: "21"
           cache: maven
       - name: Run backend tests
-        run: mvn -B test
+        # 包装脚本: PIPESTATUS 透传 mvn 原生退出码 + 失败时打印用例摘要 (见 tools/run_mvn_test.sh 头注)
+        run: bash ../tools/run_mvn_test.sh target/mvn-test.log 60
         working-directory: backend
       # 覆盖率只观测不卡口 (阈值待一个周期的数据再定)
       - name: Upload coverage report
@@ -37,6 +38,13 @@ jobs:
         with:
           name: jacoco-report
           path: backend/target/site/jacoco/
+          if-no-files-found: ignore
+      - name: Upload mvn full log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mvn-test-log
+          path: backend/target/mvn-test.log
           if-no-files-found: ignore
 
   # Python 质量: ruff + 纯逻辑 pytest (不起 Spark/MySQL, PySpark 本体逻辑本地手跑)
