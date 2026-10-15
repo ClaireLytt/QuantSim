@@ -1,0 +1,15 @@
+# 高危域强制加签 (quality-gates.md §5): 命中以下路径的 PR 需要 Code Owner 评审。
+# 注意: 强制生效需在 GitHub 分支保护里勾选 "Require review from Code Owners"。
+# 资金/费用/重放口径
+backend/src/main/java/com/quantsim/service/FeeCalculator.java      @ClaireLytt
+backend/src/main/java/com/quantsim/service/TradeEngine.java        @ClaireLytt
+backend/src/main/java/com/quantsim/service/GameBenchmarks.java     @ClaireLytt
+# 结算与积分发放
+backend/src/main/java/com/quantsim/service/PointsService.java      @ClaireLytt
+backend/src/main/java/com/quantsim/service/GameService.java        @ClaireLytt
+# 竞技脱敏
+backend/src/main/java/com/quantsim/service/BlindDates.java         @ClaireLytt
+# 定时任务
+backend/src/main/java/com/quantsim/service/DataRefreshService.java @ClaireLytt
+# 数据库迁移
+backend/src/main/resources/db/migration/                           @ClaireLytt
