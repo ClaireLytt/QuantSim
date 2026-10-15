@@ -6,7 +6,6 @@ import os
 
 import numpy as np
 import pandas as pd
-
 from config import RAW_DIR, STOCK_POOL
 
 TRADING_DAYS = 480

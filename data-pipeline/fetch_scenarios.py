@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """事件回放场景的历史行情回灌: 抓取场景窗口 (含前置预热段) 的真实日线,
 用 pandas 复算指标 (与 compute_indicators.py 的 Spark 口径一致), 直接 upsert 入库。
 
@@ -16,7 +15,6 @@ from datetime import datetime, timedelta
 
 import akshare as ak
 import pandas as pd
-
 from config import VOLATILITY_WINDOW
 from load_to_db import get_conn  # DB 连接复用常规管道, 不再各自 pymysql.connect
 

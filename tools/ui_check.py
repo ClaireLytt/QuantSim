@@ -182,25 +182,25 @@ def main():
     # ---------- W7 硬编码中文: 不带 data-i18n 且不在 data-lang-block 区内 ----------
     # data-lang-block="zh" 到下一个 data-lang-block="en" 之间是整块切换的双语区, 豁免
     html_lines = html.splitlines()
-    block_marks = [(i + 1, 'zh' if 'data-lang-block="zh"' in l else 'en')
-                   for i, l in enumerate(html_lines) if "data-lang-block=" in l]
+    block_marks = [(i + 1, 'zh' if 'data-lang-block="zh"' in ln else 'en')
+                   for i, ln in enumerate(html_lines) if "data-lang-block=" in ln]
     exempt = set()
-    for (start, kind), (end, _) in zip(block_marks, block_marks[1:] + [(len(html_lines) + 1, "")]):
+    for (start, kind), (end, _) in zip(block_marks, block_marks[1:] + [(len(html_lines) + 1, "")], strict=False):
         if kind == "zh":
             exempt.update(range(start, end))
     W7_SKIP = ("<!--", "<title>", "btn-lang")  # 注释/JS 设置的页题/双语按钮
-    for i, l in enumerate(html_lines, 1):
-        if i in exempt or "data-i18n" in l or any(skip in l for skip in W7_SKIP):
+    for i, ln in enumerate(html_lines, 1):
+        if i in exempt or "data-i18n" in ln or any(skip in ln for skip in W7_SKIP):
             continue
-        if not re.search(r"[一-鿿]", l):
+        if not re.search(r"[一-鿿]", ln):
             continue
         # 元素若被 JS 写 textContent/innerHTML, HTML 里的中文只是占位默认值, 不算硬编码
-        idm = re.search(r'\bid="([^"]+)"', l)
+        idm = re.search(r'\bid="([^"]+)"', ln)
         if idm and re.search(
                 r'\$\("' + re.escape(idm.group(1)) + r'"\)[^;\n]*\.(?:textContent|innerHTML)\s*=',
                 all_js):
             continue
-        warns.append(f"W7 硬编码中文 (英文界面不翻译) @ index.html:{i} -> {l.strip()[:50]}")
+        warns.append(f"W7 硬编码中文 (英文界面不翻译) @ index.html:{i} -> {ln.strip()[:50]}")
 
     # ---------- E7/W8 主题对比度审核 (WCAG) ----------
     def luminance(hexcolor):

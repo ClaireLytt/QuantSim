@@ -1,0 +1,19 @@
+# data-pipeline 与 tools/*.py 共用的 Python 质量配置 (ruff + pytest)。
+# 跑法: 仓库根目录 `ruff check data-pipeline tools` / `cd data-pipeline && python -m pytest`。
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+# E/W pycodestyle, F pyflakes, I import 排序, B bugbear 常见坑, UP 现代语法
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "E501",  # 行宽交给 line-length, 注释/SQL 偶尔超宽不卡
+    "UP031", # %-格式化是本仓库既有风格 (与 pymysql %s 占位一致), 不强转 f-string
+    "E701",  # 单行 if/分号是 tools 脚本既有紧凑风格, 存量多、改动无收益
+    "E702",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# PySpark 相关逻辑 (compute_indicators) 不进 CI: JVM 冷启动慢且脆, 本地手跑验证

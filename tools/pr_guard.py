@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """PR 历史踩坑扫描器: 变更代码一旦出现 docs/bug-knowledge-base.md 里的高危写法就告警。
 
 与 ui_check.py 互补 —— 那个查前端静态问题, 这个查"根因级反面模式"(事务/分页/并发/空值/
@@ -60,7 +59,6 @@ def _scan_paginate_then_filter(lines):
 def _scan_loop_settle(lines):
     """循环体内调用 *.settle( 但不是 settleIsolated: 子结算可能污染父事务。"""
     hits = []
-    in_loop_depth = None
     brace = 0
     loop_brace = None
     for i, ln in enumerate(lines):
@@ -247,6 +245,9 @@ def all_source_files():
 
 
 def main():
+    # Windows 控制台默认 GBK, 打印告警里的特殊字符会 UnicodeEncodeError (同 ui_check 的处理)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     args = sys.argv[1:]
     scan_all = "--all" in args
     strict = "--strict" in args
