@@ -78,3 +78,13 @@ jobs:
           npx playwright install --with-deps chromium
           npm run smoke
         working-directory: tools/ui_smoke
+      # 失败证据链: 冒烟失败时上传失败步骤截图 + 后端日志, 不用盲猜挂在哪
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-smoke-evidence
+          path: |
+            tools/ui_smoke/fail-*.png
+            backend/backend.log
+          if-no-files-found: ignore

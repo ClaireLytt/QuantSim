@@ -26,7 +26,9 @@ await page.route("**/api/backtest/run", async (route) => {
 });
 
 let passed = 0;
+let stepNo = 0;
 async function step(name, fn) {
+  stepNo++;
   try {
     await fn();
     passed++;
@@ -34,6 +36,11 @@ async function step(name, fn) {
   } catch (e) {
     record("step", `${name}: ${String(e).split("\n")[0].slice(0, 160)}`);
     console.log(`FAIL  ${name}`);
+    // 失败现场全页截图, CI 上传为 artifact 当证据; 截图自身失败不影响冒烟继续
+    try {
+      const safe = name.replace(/[^\w一-龥-]+/g, "_").slice(0, 40);
+      await page.screenshot({ path: `fail-${stepNo}-${safe}.png`, fullPage: true });
+    } catch { /* 页面可能已崩, 截不到就算了 */ }
   }
 }
 
