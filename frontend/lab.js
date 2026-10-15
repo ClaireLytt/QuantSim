@@ -75,8 +75,10 @@ let labStocks = [];
 const labHistCache = {};
 
 async function labHistory(code) {
+  // 缓存 Promise 而非结果: await 之后才落缓存会让并发点击重复请求同一标的 (缓存踩踏)
   if (!labHistCache[code]) {
-    labHistCache[code] = await api("/lab/history/" + encodeURIComponent(code));
+    labHistCache[code] = api("/lab/history/" + encodeURIComponent(code))
+      .catch((e) => { delete labHistCache[code]; throw e; }); // 失败不缓存, 允许重试
   }
   return labHistCache[code];
 }
@@ -188,6 +190,8 @@ async function runCompare() {
   document.dispatchEvent(new CustomEvent("qs:labRun", { detail: { tool: "compare" } })); // 生涯任务信号
   await loadIntoBox($("lab-corr"), async () => {
     const [ha, hb] = await Promise.all([labHistory(a), labHistory(b)]);
+    // 先发后至防护: 等待期间用户换了标的再点, 旧响应不得覆盖新选择
+    if ($("lab-stock-a").value !== a || $("lab-stock-b").value !== b) return;
     labCmp = { ha, hb };
     renderCompare();
   });
@@ -251,7 +255,9 @@ async function runModels() {
   const code = $("lab-stock-m").value;
   if (!code) return;
   await loadIntoBox($("lab-model-verdict"), async () => {
-    labModelHist = await labHistory(code);
+    const h = await labHistory(code);
+    if ($("lab-stock-m").value !== code) return; // 先发后至防护
+    labModelHist = h;
     renderModels();
   });
 }
@@ -323,6 +329,8 @@ async function runSignal() {
   if (!code || !sig) return;
   await loadIntoBox($("lab-signal-verdict"), async () => {
     const h = await labHistory(code);
+    // 先发后至防护: 标的或信号已被换掉时丢弃旧响应
+    if ($("lab-stock-s").value !== code || $("lab-signal").value !== sig.id) return;
     labSig = { h, sig };
     renderSignal();
   });
@@ -629,7 +637,9 @@ async function runTiming() {
   const code = $("lab-stock-t").value;
   if (!code) return;
   await loadIntoBox($("lab-timing-verdict"), async () => {
-    labTiming = await labHistory(code);
+    const h = await labHistory(code);
+    if ($("lab-stock-t").value !== code) return; // 先发后至防护
+    labTiming = h;
     renderTiming();
   });
 }

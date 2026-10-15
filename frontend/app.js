@@ -179,10 +179,18 @@ function toast(msg) {
 }
 
 async function api(path, options = {}) {
-  const resp = await fetch(API + path, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  let resp;
+  try {
+    resp = await fetch(API + path, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+  } catch (e) {
+    // fetch 网络层 reject 的是 "TypeError: Failed to fetch" 英文原文, 不能直漏给用户
+    const err = new Error(t("err.network"));
+    err.network = true;
+    throw err;
+  }
   // 非 JSON 响应 (502 HTML / 空体) 不能让解析错误盖过真实失败原因
   const data = await resp.json().catch(() => null);
   if (!resp.ok) {
@@ -914,6 +922,7 @@ async function askReview() {
 // ---------- AI 顾问: 流式多轮对话 (SSE), 失败时回退单发 POST ----------
 
 let advisorBusy = false;
+let advisorEs = null; // 当前对局的 SSE 句柄, 换局 (resetAdvisorChat) 时必须 close
 
 function advisorAppend(cls, text) {
   const log = $("advisor-log");
@@ -926,6 +935,13 @@ function advisorAppend(cls, text) {
 }
 
 function resetAdvisorChat() {
+  // 关掉上一局还挂着的 SSE 流: 不关的话服务端继续为旧 session 烧 LLM 配额,
+  // 且 advisorBusy 要等旧流结束才复位, 新局的顾问按钮会静默失灵
+  if (advisorEs) {
+    try { advisorEs.close(); } catch (e) { /* 已关闭则忽略 */ }
+    advisorEs = null;
+  }
+  advisorBusy = false;
   $("advisor-log").innerHTML = "";
   $("advisor-chat").hidden = true;
   if (state.sessionId) {
@@ -950,11 +966,13 @@ function streamAdvice(question) {
     fallbackAdvice(question, el).finally(finish);
     return;
   }
+  advisorEs = es;
   let settled = false; // 防止多个错误回调重复落地/重复回退请求
   const settle = (fn) => {
     if (settled) return;
     settled = true;
     es.close();
+    if (advisorEs === es) advisorEs = null; // 换局可能已挂了新流, 只清自己的句柄
     fn();
   };
   es.onmessage = (ev) => {
@@ -1190,14 +1208,18 @@ function renderPositions(positions) {
     return;
   }
   box.hidden = false;
+  // 名称类字符串一律 textContent 后赋 (全站 XSS 纪律), innerHTML 里只留数字/i18n 文案
   const rows = positions.map((p) => {
     const shares = Number(p.shares);
-    return `<tr><td>${stockName(p.stockName, p.stockCode)}</td>
+    return `<tr><td></td>
       <td class="${shares < 0 ? "neg" : ""}">${shares}</td>
       <td>${fmtMoney(p.avgCost)}</td><td>${fmtMoney(p.marketValue)}</td></tr>`;
   }).join("");
   box.innerHTML = `<table><thead><tr><th>${t("lb.stock")}</th><th>${t("status.shares")}</th>
     <th>${t("status.cost")}</th><th>${t("status.value")}</th></tr></thead><tbody>${rows}</tbody></table>`;
+  box.querySelectorAll("tbody tr").forEach((tr, i) => {
+    tr.children[0].textContent = stockName(positions[i].stockName, positions[i].stockCode);
+  });
   renderPfPie(positions);
   renderPfCorr(positions);
 }
@@ -1512,7 +1534,8 @@ function renderEventReveal(result) {
 
 async function startChallenge() {
   if (!window.Auth) return;
-  Auth.require(async () => {
+  // return 让 guarded 等到请求完成 (防双击并发建房)
+  return Auth.require(async () => {
     try {
       const view = await api("/rooms/challenge", {
         method: "POST", body: JSON.stringify({ sessionId: state.sessionId }),
@@ -2097,7 +2120,11 @@ async function runBacktest() {
     return;
   }
   const btn = $("btn-backtest");
+  const btnTune = $("btn-tune");
+  // 两个按钮互斥禁用 (runTune 已是双禁): 否则回测飞行中点调参, 两个请求并发,
+  // 结果面板谁后到谁覆盖, 面板可能描述两次不同的运行
   btn.disabled = true;
+  btnTune.disabled = true;
   try {
     const res = await api("/backtest/run", {
       method: "POST",
@@ -2111,6 +2138,7 @@ async function runBacktest() {
     toast(e.message);
   } finally {
     btn.disabled = false;
+    btnTune.disabled = false;
   }
 }
 
@@ -2648,6 +2676,7 @@ $("btn-settle").addEventListener("click", () => {
 $("btn-advisor").addEventListener("click", askAdvisor);
 $("btn-advisor-send").addEventListener("click", sendAdvisorQuestion);
 $("advisor-q").addEventListener("keydown", (e) => {
+  if (e.isComposing) return; // 中文输入法选字的 Enter 不当提交 (半截拼音会白烧一次 LLM 配额)
   if (e.key === "Enter") sendAdvisorQuestion();
 });
 $("btn-review").addEventListener("click", askReview);

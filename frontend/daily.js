@@ -62,7 +62,9 @@
 
   // 今日收益分布直方图 + 你的百分位 (样本太少不画, 没有统计意义)
   let distChart = null;
+  let distRows = null; // 最近一次榜单数据, 供切主题重绘 (图表色是 render 时从 cssVar 取的快照)
   function renderDist(rows) {
+    distRows = rows;
     const box = $("daily-dist-box");
     if (!rows || rows.length < 5) {
       box.hidden = true;
@@ -118,7 +120,8 @@
 
   async function start() {
     if (!window.Auth) return;
-    Auth.require(async () => {
+    // return 让 guarded 等到请求完成 (防双击并发开局)
+    return Auth.require(async () => {
       try {
         const res = await api("/daily/start", { method: "POST" });
         await window.qsEnterGame(res);
@@ -137,6 +140,8 @@
     if (e.detail === "daily") load();
   });
   document.addEventListener("qs:lang", renderInfo);
+  // 切主题重绘直方图: 不重绘的话浅色底上留着深色主题的轴线/文字色 (反之亦然)
+  document.addEventListener("qs:theme", () => { if (distRows) renderDist(distRows); });
   if (window.Auth) Auth.onChange(() => { today = null; renderInfo(); });
   // 启动兜底: app.js 首次 switchView 早于本脚本, 停在本视图刷新会错过 qs:view
   if (!$("view-daily").hidden) load();

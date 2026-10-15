@@ -309,6 +309,7 @@ const I18N = {
     "toast.sellOk": "卖出 {0} 股成功",
     "err.http": "请求失败 (HTTP {0})",
     "err.badResp": "响应格式异常",
+    "err.network": "网络连接失败, 请检查网络后重试",
 
     "chart.kline": "K线",
     "chart.volume": "成交量",
@@ -2141,6 +2142,7 @@ const I18N = {
     "toast.sellOk": "Sold {0} shares",
     "err.http": "Request failed (HTTP {0})",
     "err.badResp": "Unexpected response format",
+    "err.network": "Network error, please check your connection",
 
     "chart.kline": "Candles",
     "chart.volume": "Volume",
@@ -3673,7 +3675,8 @@ try {
 
 function t(key, ...args) {
   let s = (I18N[LANG] && I18N[LANG][key]) ?? I18N.zh[key] ?? key;
-  args.forEach((a, i) => { s = s.replaceAll(`{${i}}`, a); });
+  // 替换值用函数形式: 字符串第二参会解析 $&/$' 等替换模式, 用户名含 $ 时文案错乱
+  args.forEach((a, i) => { s = s.replaceAll(`{${i}}`, () => String(a)); });
   return s;
 }
 

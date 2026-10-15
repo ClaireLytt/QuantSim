@@ -6,9 +6,11 @@
   const Auth = {
     user: null,
     onChange(fn) { listeners.push(fn); },
-    /** 需要登录的入口统一走这里: 已登录执行回调, 未登录弹登录窗。 */
+    /** 需要登录的入口统一走这里: 已登录执行回调 (把回调返回值原样透传 ——
+     *  async 回调的 Promise 必须返回, 否则外层 guarded 的防重入旗瞬间释放,
+     *  双击"每日挑战/房间开局"会并发两发请求把对局 state 写花), 未登录弹登录窗。 */
     require(fn) {
-      if (Auth.user) { fn(); return true; }
+      if (Auth.user) { return fn(); }
       toast(t("auth.needLogin"));
       openAuthModal(false);
       return false;
@@ -162,8 +164,9 @@
   $("btn-login").addEventListener("click", doLogin);
   $("btn-register").addEventListener("click", doRegister);
   $("btn-logout").addEventListener("click", doLogout);
-  $("login-pass").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
-  $("reg-pass2").addEventListener("keydown", (e) => { if (e.key === "Enter") doRegister(); });
+  // e.isComposing: 中文输入法选字的 Enter 不当提交 (否则半截拼音被当作凭据发出去)
+  $("login-pass").addEventListener("keydown", (e) => { if (!e.isComposing && e.key === "Enter") doLogin(); });
+  $("reg-pass2").addEventListener("keydown", (e) => { if (!e.isComposing && e.key === "Enter") doRegister(); });
 
   document.addEventListener("qs:lang", () => { renderHeader(); renderAccountView(); });
 

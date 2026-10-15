@@ -106,7 +106,8 @@
 
   async function play() {
     if (!room) return;
-    Auth.require(async () => {
+    // return 让 guarded 等到请求完成 (防双击并发开局)
+    return Auth.require(async () => {
       try {
         const res = await api(`/rooms/${room.code}/play`, { method: "POST" });
         await window.qsEnterGame(res);
@@ -191,7 +192,12 @@
   $("btn-room-play").addEventListener("click", () => guarded(play));
   $("btn-room-refresh").addEventListener("click", () => refresh());
   $("btn-room-copy").addEventListener("click", copyCode);
-  $("room-code-input").addEventListener("keydown", (e) => { if (e.key === "Enter") join(); });
+  $("room-code-input").addEventListener("keydown", (e) => {
+    if (e.isComposing) return; // IME 选字的 Enter 不当提交
+    if (e.key === "Enter") join();
+  });
+  // 切主题重绘终局柱状图 (图表色是 render 时从 cssVar 取的快照, 不重绘会停留旧主题)
+  document.addEventListener("qs:theme", () => { if (room) renderRoom(); });
 
   document.addEventListener("qs:view", (e) => {
     if (e.detail === "rooms") {
