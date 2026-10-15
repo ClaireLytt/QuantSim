@@ -7,9 +7,15 @@
     "buttons": "node button_check.mjs",
     "crawl": "node click_crawler.mjs",
     "shot": "node shot.js",
-    "browse": "node browse.mjs"
+    "browse": "node browse.mjs",
+    "lint": "cd ../.. && eslint frontend tools/ui_smoke"
   },
   "dependencies": {
     "playwright": "^1.49.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0"
   }
 }

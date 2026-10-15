@@ -818,7 +818,7 @@ async function maybeAutoTrade() {
   const price = Number(state.klines[state.klines.length - 1].close);
   if (!(price > 0)) return; // 零价/异常行情防护: 否则 cash/price 得 Infinity -> shares NaN (后端已防, 前端同守)
   const lot = state.lotSize || 1;
-  let shares = 0;
+  let shares;
   if (dir === "BUY") {
     // 留 0.5% 现金做手续费余量, 否则满仓单会被后端"现金不足"拒掉
     shares = Math.floor(Number(s.cashBalance) * 0.995 / price / lot) * lot;

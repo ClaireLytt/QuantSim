@@ -435,8 +435,7 @@
     } else {
       const eff = effective(cur);
       $("career-step-goal").textContent = pick(eff.goal);
-      let curN = 0;
-      let needN = 1;
+      let curN, needN;
       if (eff.check) {
         [curN, needN] = eff.check(prog);
       } else {
