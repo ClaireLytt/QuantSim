@@ -25,6 +25,9 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
             where s.status = :status
               and s.mode in ('CLASSIC', 'PORTFOLIO')
               and (:season is null or s.season = :season)
+              and u.username not like 'smoke\\_%' escape '\\'
+              and u.username not like 'btncheck\\_%' escape '\\'
+              and u.username not like 'shot\\_%' escape '\\'
             order by s.finalReturnRate desc
             """)
     List<Object[]> findLeaderboard(GameSession.Status status, String season, Pageable pageable);
@@ -39,6 +42,9 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
               and s.mode in ('CLASSIC', 'PORTFOLIO')
               and s.finalSharpe is not null
               and (:season is null or s.season = :season)
+              and u.username not like 'smoke\\_%' escape '\\'
+              and u.username not like 'btncheck\\_%' escape '\\'
+              and u.username not like 'shot\\_%' escape '\\'
             order by s.finalSharpe desc
             """)
     List<Object[]> findLeaderboardBySharpe(GameSession.Status status, String season, Pageable pageable);
@@ -65,6 +71,9 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
             join User u on u.userId = s.userId
             join Stock st on st.stockId = s.stockId
             where s.challengeDate = :date and s.status = :status
+              and u.username not like 'smoke\\_%' escape '\\'
+              and u.username not like 'btncheck\\_%' escape '\\'
+              and u.username not like 'shot\\_%' escape '\\'
             order by s.finalReturnRate desc
             """)
     List<Object[]> findDailyBoard(java.time.LocalDate date, GameSession.Status status, Pageable pageable);

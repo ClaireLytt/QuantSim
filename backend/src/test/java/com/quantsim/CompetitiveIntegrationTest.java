@@ -272,6 +272,101 @@ class CompetitiveIntegrationTest {
         assertThat(sessionRepository.findById(sid).orElseThrow().getStatus().name()).isEqualTo("SETTLED");
     }
 
+    /** 回归 T-06: 同一账号并发双开每日挑战, 一成一败 (400 业务提示), 绝不 500。 */
+    @Test
+    void concurrentDailyStartYieldsBusinessErrorNot500() throws Exception {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        String me = register("并发甲");
+        int threads = 4;
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(threads);
+        var barrier = new java.util.concurrent.CyclicBarrier(threads);
+        var codes = java.util.Collections.synchronizedList(new java.util.ArrayList<Integer>());
+        var tasks = new java.util.ArrayList<java.util.concurrent.Future<?>>();
+        for (int i = 0; i < threads; i++) {
+            tasks.add(pool.submit(() -> {
+                try {
+                    barrier.await();
+                    codes.add(postJson("/api/daily/start", "{}", me).getStatusCode().value());
+                } catch (Exception e) {
+                    codes.add(-1);
+                }
+            }));
+        }
+        for (var f : tasks) f.get(20, java.util.concurrent.TimeUnit.SECONDS);
+        pool.shutdown();
+        // 恰好一个 200, 其余 400; 不允许任何 500/-1
+        assertThat(codes).filteredOn(c -> c == 200).hasSize(1);
+        assertThat(codes).allMatch(c -> c == 200 || c == 400);
+    }
+
+    /** 回归 T-02/T-14: 测试账号在分页前被 JPQL 排除, 不挤占真实玩家的 TOP N 名额。 */
+    @Test
+    void testAccountsDoNotOccupyBoardSlots() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        // 先结算一个 smoke_ 账号 (高分在前) 再结算一个真实玩家
+        long smokeSid = json(postJson("/api/game/start",
+                "{\"username\":\"smoke_99999999\",\"aiLevel\":\"EASY\"}", null)).path("sessionId").asLong();
+        postJson("/api/game/" + smokeSid + "/settle", "{}", null);
+        long realSid = json(postJson("/api/game/start",
+                "{\"username\":\"真实玩家甲\",\"aiLevel\":\"EASY\"}", null)).path("sessionId").asLong();
+        postJson("/api/game/" + realSid + "/settle", "{}", null);
+
+        JsonNode board = json(get("/api/leaderboard", null));
+        // smoke_ 账号既不占名额也不展示, 真实玩家一条不少
+        assertThat(board.findValuesAsText("username")).containsExactly("真实玩家甲");
+    }
+
+    /** 回归 T-04: 用户名脱敏后前端认不出自己, 后端用 isSelf 标记; 游客请求全 false。 */
+    @Test
+    void dailyBoardMarksSelfForMaskedUser() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        String me = register("ab@qq.com"); // 邮箱形态, 会被脱敏成 ***@qq.com
+        long sid = json(postJson("/api/daily/start", "{}", me)).path("sessionId").asLong();
+        postJson("/api/game/" + sid + "/settle", "{}", me);
+
+        JsonNode board = json(get("/api/daily/leaderboard", me));
+        assertThat(board).hasSize(1);
+        assertThat(board.get(0).path("username").asText()).isEqualTo("***@qq.com"); // 短 local 全遮
+        assertThat(board.get(0).path("isSelf").asBoolean()).isTrue();
+        // 第二个注册用户看同一榜: 认不出别人, isSelf=false (daily 榜受 AuthFilter 保护, 需登录)
+        String other = register("旁观乙");
+        JsonNode otherView = json(get("/api/daily/leaderboard", other));
+        assertThat(otherView.get(0).path("isSelf").asBoolean()).isFalse();
+    }
+
+    /**
+     * 回归 T-03/T-05: 房间到期强结时某成员结算失败 (行情缺失), 只回滚该成员,
+     * 房间仍迁 SETTLED, 不被 UnexpectedRollbackException 污染成 500; 重入幂等。
+     */
+    @Test
+    void expiredRoomSettlesDespiteOneMemberFailing() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        String alice = register("强结甲");
+        String bob = register("强结乙");
+        JsonNode roomJson = json(postJson("/api/rooms", "{}", alice));
+        String code = roomJson.path("code").asText();
+        json(postJson("/api/rooms/" + code + "/join", "{}", bob));
+        long sidA = json(postJson("/api/rooms/" + code + "/play", "{}", alice)).path("sessionId").asLong();
+        long sidB = json(postJson("/api/rooms/" + code + "/play", "{}", bob)).path("sessionId").asLong();
+
+        // 破坏乙所在当前交易日之后的行情, 让它推进/结算时行情缺失; 并回拨到期
+        // (简单做法: 直接删掉该股所有价格, 两人都会失败, 验证房间仍能收敛)
+        priceRepository.deleteAll();
+        cacheManager.getCache("stockData").clear();
+        Room room = roomRepository.findByCode(code).orElseThrow();
+        room.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+        roomRepository.save(room);
+
+        // 第一次 view: 不抛 500, 房间迁 SETTLED
+        ResponseEntity<String> view1 = get("/api/rooms/" + code, alice);
+        assertThat(view1.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(json(view1).path("status").asText()).isEqualTo("SETTLED");
+        // 第二次 view 幂等: 仍 200 SETTLED
+        ResponseEntity<String> view2 = get("/api/rooms/" + code, bob);
+        assertThat(view2.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(json(view2).path("status").asText()).isEqualTo("SETTLED");
+    }
+
     @Test
     void seasonFilterOnLeaderboard() {
         seedStock("000001", LocalDate.of(2024, 1, 1), 12);

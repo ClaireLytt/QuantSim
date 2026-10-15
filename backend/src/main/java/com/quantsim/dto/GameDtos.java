@@ -260,5 +260,7 @@ public final class GameDtos {
             String stockCode,
             LocalDate startDate,
             BigDecimal returnRate,
-            BigDecimal sharpe) {}
+            BigDecimal sharpe,
+            // 用户名经 PublicNames 脱敏后前端无法再用名字认出自己, 由后端标记 (百分位/颁奖台徽章用)
+            boolean isSelf) {}
 }

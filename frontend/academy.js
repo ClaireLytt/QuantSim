@@ -84,7 +84,7 @@ const BADGES = [
   { id: "guess_50", name: { zh: "盘感初成", en: "Chart Sense" }, desc: { zh: "累计猜对 50 次涨跌", en: "50 correct guesses in total" } },
   { id: "famous_1", name: { zh: "历史见证者", en: "History Witness" }, desc: { zh: "通过任意一个名场面挑战", en: "Clear any famous-moment challenge" } },
   { id: "famous_all", name: { zh: "传奇操盘手", en: "Living Legend" }, desc: { zh: "通过全部名场面挑战", en: "Clear all famous-moment challenges" } },
-  { id: "daily_first", name: { zh: "每日打卡", en: "Daily Debut" }, desc: { zh: "完成一次每日挑战", en: "Complete a daily challenge" } },
+  { id: "daily_first", name: { zh: "每日打卡", en: "Daily Debut" }, desc: { zh: "完成一次每日一猜", en: "Complete a daily guess" } },
   { id: "daily_streak3", name: { zh: "风雨无阻", en: "Rain or Shine" }, desc: { zh: "连续 3 天完成每日挑战", en: "Complete daily challenges 3 days in a row" } },
   { id: "survivor", name: { zh: "熊市幸存者", en: "Bear Survivor" }, desc: { zh: "熊市生存挑战中跑赢买入持有", en: "Beat buy & hold in a Bear Survival run" } },
   { id: "ai_streak3", name: { zh: "AI 克星", en: "AI Nemesis" }, desc: { zh: "连续 3 局战胜 AI 操盘手", en: "Beat the AI trader 3 games in a row" } },
@@ -94,7 +94,7 @@ const BADGES = [
   { id: "rich_reborn", name: { zh: "东山再起", en: "Back From Broke" }, desc: { zh: "破产后选择重生再战", en: "Go broke and come back for more" } },
   { id: "reborn_tycoon", name: { zh: "一代首富", en: "Tycoon of the Age" }, desc: { zh: "重生逆袭中以首富身家谢幕", en: "Finish a rebirth run as the Tycoon of the Age" } },
   { id: "reborn_boss", name: { zh: "白手起家", en: "Self-Made" }, desc: { zh: "重生逆袭中至少干成小老板", en: "Finish a rebirth run as at least a Boss" } },
-  { id: "daily_150", name: { zh: "手感火热", en: "On Fire" }, desc: { zh: "单次每日挑战得分 ≥ 150", en: "Score 150+ in one daily challenge" } },
+  { id: "daily_150", name: { zh: "手感火热", en: "On Fire" }, desc: { zh: "单次每日一猜得分 ≥ 150", en: "Score 150+ in one daily guess" } },
   { id: "settle_1", name: { zh: "实盘首秀", en: "Debut Settled" }, desc: { zh: "在模拟对局中完成一次结算", en: "Settle a full trading game" } },
   { id: "beat_ai", name: { zh: "人机对决", en: "AI Slayer" }, desc: { zh: "结算收益率跑赢 AI 操盘手", en: "Beat the AI trader at settlement" } },
   { id: "case_1", name: { zh: "初勘现场", en: "First on Scene" }, desc: { zh: "破解第一个市场悬案", en: "Solve your first market mystery" } },
@@ -1368,6 +1368,10 @@ function startDaily() {
   }
   const seed = Number(today.replace(/-/g, ""));
   newGuessRound(mulberry32(seed ^ 0x51ab1e)); // 日期定种子: 当天初始走势全服一致
+  // 开局即落"已玩"标记 (结束时再写得分): 结束才写日期会被两种方式绕过——
+  // 跨夜局把标记写到第二天吞掉名额, 或中途刷新无限重开当日局
+  prog.daily = { date: today, score: 0, best: prog.daily.best || 0 };
+  saveProg();
   guess.playing = true;
   guess.waiting = false;
   guess.mode = "daily";
@@ -1391,7 +1395,9 @@ function finishDaily(prefix) {
   guess.playing = false;
   guess.waiting = false;
   guess.mode = "free";
-  prog.daily = { date: todayStr(), score: guess.score, best: Math.max(prog.daily.best || 0, guess.score) };
+  // 日期在 startDaily 已落 (防跨夜/刷新重开), 这里只更新得分; 不用 todayStr():
+  // 跨夜结束时应记在开局那天名下
+  prog.daily = { date: prog.daily.date, score: guess.score, best: Math.max(prog.daily.best || 0, guess.score) };
   prog.dailyCount = (prog.dailyCount || 0) + 1;
   saveProg();
   awardBadge("daily_first");
@@ -1482,9 +1488,6 @@ function makeGuess(up) {
   guess.waiting = false;
 }
 
-// 测试钩子: 冒烟/统计校验用, 只读 (不要在业务代码里依赖)
-window.qsGuessState = { guess, mkt };
-
 $("btn-guess-start").addEventListener("click", startGuess);
 $("btn-guess-daily").addEventListener("click", startDaily);
 $("btn-guess-up").addEventListener("click", () => makeGuess(true));
@@ -1495,6 +1498,12 @@ $("btn-guess-down").addEventListener("click", () => makeGuess(false));
 function renderProfile() {
   const rank = rankOf(prog.xp);
   $("profile-level").textContent = pick(rank.name);
+  $("profile-lv").textContent = "Lv." + (RANKS.indexOf(rank) + 1); // 段位序号即等级
+  // 头像: 登录用首字母, 游客保留狐狸向导
+  const ava = $("profile-ava");
+  const uname = window.Auth && Auth.user && Auth.user.username;
+  ava.textContent = uname ? uname.slice(0, 1).toUpperCase() : "🐺"; // 行者本体是狼, 狐狸是主线向导
+  ava.classList.toggle("is-letter", !!uname);
   const titleEl = $("profile-title");
   if (prog.titles.length) {
     const names = FAMOUS_LEVELS.concat(CASES)
@@ -1511,6 +1520,11 @@ function renderProfile() {
   const span = next ? next.xp - base : 1;
   const fillPct = next ? Math.min(100, ((prog.xp - base) / span) * 100) : 100;
   $("xp-fill").style.width = fillPct + "%";
+  // 段位环形进度与直条同源: r=31, 周长 2πr≈194.8
+  const ring = $("xp-ring");
+  const circ = 2 * Math.PI * 31;
+  ring.style.strokeDasharray = circ.toFixed(1);
+  ring.style.strokeDashoffset = (circ * (1 - fillPct / 100)).toFixed(1);
   $("xp-text").textContent = next
     ? t("profile.xpNext", prog.xp, next.xp, pick(next.name))
     : t("profile.xpMax", prog.xp);
@@ -2076,22 +2090,9 @@ $("btn-rich-reborn").addEventListener("click", richReborn);
   let optType = "call";
   let optChart = null;
 
-  // 标准正态 CDF (Abramowitz-Stegun 近似, 教学精度足够)
-  function normCdf(x) {
-    const t = 1 / (1 + 0.2316419 * Math.abs(x));
-    const d = 0.3989423 * Math.exp(-x * x / 2);
-    let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
-    return x > 0 ? 1 - p : p;
-  }
 
-  function bsPremium(strike) {
-    const d1 = (Math.log(SPOT / strike) + (RATE + VOL * VOL / 2) * T) / (VOL * Math.sqrt(T));
-    const d2 = d1 - VOL * Math.sqrt(T);
-    if (optType === "call") {
-      return SPOT * normCdf(d1) - strike * Math.exp(-RATE * T) * normCdf(d2);
-    }
-    return strike * Math.exp(-RATE * T) * normCdf(-d2) - SPOT * normCdf(-d1);
-  }
+  // 定价共享 app.js 的 qsBsPrice (沙盒假设: 无风险利率 3%, 自然日年化)
+  const bsPremium = (strike) => qsBsPrice(SPOT, strike, T, VOL, optType === "call", RATE);
 
   function renderOption() {
     const strike = Number($("opt-strike").value);
@@ -2138,6 +2139,7 @@ $("btn-rich-reborn").addEventListener("click", richReborn);
   $("opt-strike").addEventListener("input", renderOption);
   document.addEventListener("qs:view", (e) => { if (e.detail === "option") renderOption(); });
   document.addEventListener("qs:lang", () => { if (!$("view-option").hidden) renderOption(); });
+  if (!$("view-option").hidden) renderOption(); // 启动兜底: 停在期权沙盒刷新会错过首次 qs:view
 })();
 
 // ---------- 事件联动 ----------

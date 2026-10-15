@@ -70,7 +70,7 @@
           <span class="${rate >= 0 ? "pos" : "neg"}">${fmtPct(rate)}</span>`;
         div.querySelector("strong").textContent = r.username;
         podium.appendChild(div);
-        if (window.Auth && Auth.user && Auth.user.username === r.username) {
+        if (r.isSelf) { // 用户名已脱敏, 按名字比对认不出自己, 用后端标记
           document.dispatchEvent(new CustomEvent("qs:seasonPodium", { detail: i + 1 }));
         }
       });
@@ -94,4 +94,6 @@
     loadSeasons();
     refreshBoards();
   });
+  // 启动兜底: 停在本视图刷新会错过首次 qs:view
+  if (!$("view-ranking").hidden) { loadSeasons(); refreshBoards(); }
 })();

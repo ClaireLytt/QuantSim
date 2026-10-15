@@ -14,6 +14,10 @@ spring:
     url: jdbc:mysql://${QUANTSIM_DB_HOST:127.0.0.1}:${QUANTSIM_DB_PORT:3306}/${QUANTSIM_DB_NAME:quantsim}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8&createDatabaseIfNotExist=true
     username: ${QUANTSIM_DB_USER:root}
     password: ${QUANTSIM_DB_PASSWORD:root}
+    hikari:
+      # 显式配池: 房间到期强结走 REQUIRES_NEW, 单请求峰值占 2 连接, 默认 10 在多房间
+      # 并发强结时 ~5 并发即饱和 (见 docs/perf-audit)。20 远低于 MySQL 默认 max_connections(151)。
+      maximum-pool-size: ${QUANTSIM_DB_POOL:20}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -26,7 +30,7 @@ spring:
       initialize-schema: always
   cache:
     type: caffeine
-    cache-names: stockData,newsByDate
+    cache-names: stockData
     caffeine:
       # 行情数据不可变, 缓存过期仅为管道重灌数据后能自动刷新
       spec: maximumSize=64,expireAfterWrite=10m

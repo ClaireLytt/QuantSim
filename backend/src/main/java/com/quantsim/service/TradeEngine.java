@@ -218,14 +218,7 @@ public class TradeEngine {
             return limitError;
         }
         if (direction == TradeTransaction.Direction.SELL) {
-            int boughtToday = 0;
-            for (TradeTransaction tx : transactionRepository
-                    .findBySessionIdAndTradeDate(session.getSessionId(), session.getCurrentTradeDate())) {
-                Long sid = tx.getStockId() != null ? tx.getStockId() : session.getStockId();
-                if (tx.getDirection() == TradeTransaction.Direction.BUY && sid.equals(stockId)) {
-                    boughtToday += tx.getShares();
-                }
-            }
+            int boughtToday = boughtToday(session, stockId);
             int sellable = position(session, account, stockId).shares() - boughtToday;
             if (shares > sellable) {
                 return "T+1 规则: 当日买入的 " + boughtToday + " 股今天不能卖, 可卖 "
@@ -233,6 +226,24 @@ public class TradeEngine {
             }
         }
         return null;
+    }
+
+    /** T+1 口径: 当日已买入股数, 按标的归属过滤 (旧流水 stockId 为空回退主标的)。 */
+    public int boughtToday(GameSession session, Long stockId) {
+        int bought = 0;
+        for (TradeTransaction tx : transactionRepository
+                .findBySessionIdAndTradeDate(session.getSessionId(), session.getCurrentTradeDate())) {
+            Long sid = tx.getStockId() != null ? tx.getStockId() : session.getStockId();
+            if (tx.getDirection() == TradeTransaction.Direction.BUY && sid.equals(stockId)) {
+                bought += tx.getShares();
+            }
+        }
+        return bought;
+    }
+
+    /** 今日可卖股数 (T+1): 当前持仓 - 当日买入。状态面板与卖出校验共用一个口径。 */
+    public int sellableShares(GameSession session, Account account, Long stockId) {
+        return Math.max(0, position(session, account, stockId).shares() - boughtToday(session, stockId));
     }
 
     /** 封板判定: 相对前收盘涨跌 ≥9.95% 视为涨/跌停。首日无前收盘则不限。 */

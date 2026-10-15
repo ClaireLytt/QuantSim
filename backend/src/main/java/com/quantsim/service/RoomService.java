@@ -30,12 +30,14 @@ import com.quantsim.repository.RoomRepository;
 import com.quantsim.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 好友房间 (异步对战): 建房时随机固化 (标的, 起始日), 成员各自开局同一隐藏行情。
  * 状态迁移惰性触发: 每次查看房间时评估「全员完成 -> SETTLED」与「到期 -> 强制结算」。
  * 防剧透: 房间未结算前不下发任何人的收益率。
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RoomService {
@@ -49,6 +51,7 @@ public class RoomService {
     private final GameSessionRepository sessionRepository;
     private final UserRepository userRepository;
     private final GameService gameService;
+    private final GameStartService gameStart;
     private final MarketDataService marketData;
     private final GameProperties props;
 
@@ -62,7 +65,7 @@ public class RoomService {
             throw new BusinessException("真实规则仅支持 A股市场, 请先选择 A股");
         }
 
-        long[] pick = gameService.pickDeterministic(m, ThreadLocalRandom.current());
+        long[] pick = gameStart.pickDeterministic(m, ThreadLocalRandom.current());
         LocalDate startDate = marketData.load(pick[0]).prices().get((int) pick[1]).getTradeDate();
 
         Room room = new Room();
@@ -99,13 +102,7 @@ public class RoomService {
         if ("PORTFOLIO".equals(session.getMode()) || BlindDates.blind(session)) {
             throw new BusinessException("该模式的对局不支持发起同题挑战");
         }
-        AiLevel level = AiLevel.NORMAL;
-        for (AiLevel l : AiLevel.values()) {
-            if (l.getModel().equals(session.getAiModel())) {
-                level = l;
-                break;
-            }
-        }
+        AiLevel level = AiLevel.fromModel(session.getAiModel());
         Room room = new Room();
         room.setCreatorUserId(userId);
         room.setStockId(session.getStockId());
@@ -184,7 +181,7 @@ public class RoomService {
         }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
-        StartGameResponse res = gameService.startGameAt(user, room.getStockId(), room.getStartDate(),
+        StartGameResponse res = gameStart.startGameAt(user, room.getStockId(), room.getStartDate(),
                 parseAiLevel(room.getAiLevel()), "ROOM", room.isRealRules(), null);
         member.setSessionId(res.sessionId());
         memberRepository.save(member);
@@ -258,11 +255,13 @@ public class RoomService {
                 GameSession s = m.getSessionId() == null ? null : sessions.get(m.getSessionId());
                 if (s != null && s.getStatus() == GameSession.Status.IN_PROGRESS) {
                     try {
-                        gameService.settle(s.getSessionId());
+                        // settleIsolated 走 REQUIRES_NEW: 失败只回滚该成员 (见 GameService 注释)
+                        gameService.settleIsolated(s.getSessionId());
                         sessions.put(s.getSessionId(),
                                 sessionRepository.findById(s.getSessionId()).orElse(s));
                     } catch (BusinessException e) {
-                        // 并发下已被结算, 忽略
+                        // 并发下已被结算属预期; 其余失败 (如行情缺失) 留日志供线上告警 (回归评估 M-2)
+                        log.warn("[room] 成员对局 {} 强制结算失败: {}", s.getSessionId(), e.getMessage());
                     }
                 }
             }
@@ -290,18 +289,10 @@ public class RoomService {
     }
 
     private AiLevel parseAiLevel(String raw) {
-        try {
-            return AiLevel.valueOf(raw.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException("未知 AI 难度: " + raw);
-        }
+        return Enums.parse(raw, AiLevel.class, " AI 难度");
     }
 
     private Market parseMarket(String raw) {
-        try {
-            return Market.valueOf(raw.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException("未知市场: " + raw);
-        }
+        return Enums.parse(raw, Market.class, "市场");
     }
 }

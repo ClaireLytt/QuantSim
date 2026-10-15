@@ -11,6 +11,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 await page.addInitScript(([v, th]) => {
   sessionStorage.setItem("qs_guest", "1");
+  localStorage.setItem("qs_seen", "1"); // 没它首访会被内联脚本跳去 landing, 截图截错页
   localStorage.setItem("qs_help_seen", "1");
   localStorage.setItem("qs_tour_done", "1");
   localStorage.setItem("qs_lab_guide", "1");

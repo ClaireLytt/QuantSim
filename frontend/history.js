@@ -90,5 +90,10 @@
     if (window.Auth && Auth.require(load)) { /* 已登录时 load 已被调用 */ }
   });
   document.addEventListener("qs:lang", () => { if (games || backtests) render(); });
-  if (window.Auth) Auth.onChange((u) => { if (!u) { games = null; backtests = null; render(); } });
+  // 登出清空; 会话异步恢复后若正停在本视图且还没拉过数据, 补一次 (覆盖"停在本页刷新"场景,
+  // 不在脚本加载时直接 Auth.require —— 那会在会话未恢复完时误弹登录框)
+  if (window.Auth) Auth.onChange((u) => {
+    if (!u) { games = null; backtests = null; render(); return; }
+    if (!$("view-history").hidden && !games && !backtests) load();
+  });
 })();

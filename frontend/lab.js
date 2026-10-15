@@ -1202,8 +1202,11 @@ document.addEventListener("qs:view", (e) => {
     if (!labStocks.length) loadLabStocks();
     if (labCmpChart) labCmpChart.resize();
     maybeShowLabGuide();
-  } else if (e.detail === "quiz") {
-    if (quizRadar) quizRadar.resize();
+  } else {
+    // 切走视图时收起首访引导 (不记已读: 用户没看完, 下次进研究所再弹)——
+    // 否则弹层会盖在新视图上 (2026-10 审计 P2)
+    $("lab-guide-modal").hidden = true;
+    if (e.detail === "quiz" && quizRadar) quizRadar.resize();
   }
 });
 

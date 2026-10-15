@@ -39,6 +39,7 @@ public class EventService {
     private final StockRepository stockRepository;
     private final MarketDataService marketData;
     private final GameService gameService;
+    private final GameStartService gameStart;
     private final GameSessionRepository sessionRepository;
     private final UserRepository userRepository;
     private final com.quantsim.config.GameProperties props;
@@ -93,7 +94,7 @@ public class EventService {
             if (start == null) {
                 continue;
             }
-            StartGameResponse res = gameService.startGameAt(user, stock.getStockId(), start,
+            StartGameResponse res = gameStart.startGameAt(user, stock.getStockId(), start,
                     AiLevel.NORMAL, "EVENT", scenario.isForceRealRules(), null);
             // 场景 id 落在 session 上, 结算时据此揭晓
             GameSession session = sessionRepository.findById(res.sessionId()).orElseThrow();

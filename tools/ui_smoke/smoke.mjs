@@ -5,6 +5,7 @@
 // 用法: cd tools/ui_smoke && npm install && npx playwright install chromium && npm run smoke
 // 退出码: 0 = 全过; 1 = 有失败项 (末尾统一列出)。
 import { chromium } from "playwright";
+import { enterApp, attachRuntimeGuards, dismissLabGuide } from "./enter_app.mjs";
 
 const BASE = process.env.QUANTSIM_URL || "http://localhost:8080";
 const findings = [];
@@ -12,25 +13,16 @@ const record = (kind, msg) => findings.push(`[${kind}] ${msg}`);
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-// 原生 confirm() (提前结算等) 一律接受, 否则无头浏览器默认 dismiss, 流程走不下去
-page.on("dialog", (d) => d.accept());
+// confirm 接受 + 四类运行时异常监听统一在 enter_app.mjs (与按钮体检共用一份);
+// 行情无数据等业务 toast 不算 (那是后端状态, 不是 UI bug)
+attachRuntimeGuards(page, (kind, _severity, text) => record(kind, text));
 
-// 全程监听三类运行时异常; 行情无数据等业务 toast 不算 (那是后端状态, 不是 UI bug)
-page.on("console", (m) => {
-  // 401 是未登录访问受保护视图 (每日/房间/我的) 的预期返回, 不算 UI bug
-  if (m.type() === "error" && !/status of 401/.test(m.text())) {
-    record("console", m.text().slice(0, 200));
-  }
-});
-page.on("pageerror", (e) => record("pageerror", String(e).slice(0, 200)));
-// 5xx 响应单独记 URL: console 的 "Failed to load resource" 不带地址, 没法定位
-page.on("response", (r) => {
-  if (r.status() >= 500) record("http5xx", `${r.status()} ${r.request().method()} ${r.url()}`);
-});
-page.on("requestfailed", (r) => {
-  if (!r.url().includes("favicon")) {
-    record("requestfailed", `${r.url()} -> ${r.failure()?.errorText}`);
-  }
+// 冒烟的回测一律改走预回测 (preview:true): 不入榜不落库不发奖励,
+// 否则每跑一次冒烟就往竞技场/擂台榜写一条 smoke_* 垃圾记录 (2026-10 审计 P1)
+await page.route("**/api/backtest/run", async (route) => {
+  const body = JSON.parse(route.request().postData() || "{}");
+  body.preview = true;
+  await route.continue({ postData: JSON.stringify(body) });
 });
 
 let passed = 0;
@@ -46,45 +38,8 @@ async function step(name, fn) {
 }
 
 await step("首页加载 (过登录门禁 + 首访弹层)", async () => {
-  await page.goto(BASE, { waitUntil: "domcontentloaded" });
-  // 首访会被 index.html 内联脚本 location.replace 到 landing.html (营销落地页),
-  // 点「进入游戏」CTA 回主应用 (此时 qs_seen 已写入, 不会再跳)
-  if (page.url().includes("landing")) {
-    await page.click('a.ld-cta[href^="index.html"]', { timeout: 5000 });
-    await page.waitForTimeout(300);
-  }
-  await page.waitForSelector("#nav-groups .nav-group", { timeout: 15000 });
-  await page.waitForTimeout(800);
-  // 首访自动弹新手引导 (tour-mask 盖全屏), 点「跳过引导」
-  if (await page.isVisible("#btn-tour-skip")) {
-    await page.click("#btn-tour-skip");
-    await page.waitForTimeout(300);
-  }
-  // 部分版本还会弹玩法说明
-  if (await page.isVisible("#help-modal")) {
-    await page.click("#btn-help-close");
-  }
-  // 登录门禁: 注册一次性账号过闸 (门禁上线后不登录看不到应用)
-  if (await page.isVisible("#login-gate")) {
-    if (!(await page.isVisible("#auth-modal"))) {
-      await page.click("#btn-gate-login");
-    }
-    await page.click("#link-register");
-    await page.fill("#reg-name", "smoke_" + Date.now().toString().slice(-8));
-    await page.fill("#reg-pass", "smoke123");
-    await page.fill("#reg-pass2", "smoke123");
-    await page.click("#btn-register");
-    await page.waitForSelector("#login-gate[hidden]", { state: "attached", timeout: 10000 });
-    // 首访引导在过闸后才弹 (登录前不打扰), 这里再跳一次
-    await page.waitForTimeout(800);
-    if (await page.isVisible("#btn-tour-skip")) {
-      await page.click("#btn-tour-skip");
-      await page.waitForTimeout(300);
-    }
-    if (await page.isVisible("#help-modal")) {
-      await page.click("#btn-help-close");
-    }
-  }
+  // 引导流程 (landing/引导/门禁注册) 抽到 enter_app.mjs, 与按钮体检共用一份
+  await enterApp(page, BASE, "smoke_");
 });
 
 await step("新手引导 10 步走完", async () => {
@@ -101,27 +56,20 @@ await step("新手引导 10 步走完", async () => {
 });
 
 await step("遍历全部导航视图与子标签", async () => {
-  // 首次进研究所会弹 3 步引导 (lab-guide-modal 全屏遮罩), 不关掉会挡死后续一切点击
-  const dismissLabGuide = async () => {
-    if (await page.isVisible("#lab-guide-modal")) {
-      await page.click("#btn-lab-guide-skip");
-      await page.waitForTimeout(200);
-    }
-  };
   // 子标签每次切视图都整体重建 (innerHTML 重写), 不能复用 locator 句柄,
   // 用 data-view 值逐个重新定位
   const groupCount = await page.locator("#nav-groups .nav-group").count();
   for (let i = 0; i < groupCount; i++) {
     await page.locator("#nav-groups .nav-group").nth(i).click();
     await page.waitForTimeout(250);
-    await dismissLabGuide();
+    await dismissLabGuide(page);
     // 单视图组的子标签条整体 hidden (无需点击); 只遍历可见 tab
     const views = await page.$$eval("#nav-subtabs .nav-tab",
       (els) => els.filter((e) => e.offsetParent !== null).map((e) => e.dataset.view));
     for (const v of views) {
       await page.click(`#nav-subtabs .nav-tab[data-view="${v}"]`, { timeout: 5000 });
       await page.waitForTimeout(200);
-      await dismissLabGuide();
+      await dismissLabGuide(page);
     }
   }
   // 回到对局组, 为后续步骤定位
@@ -160,7 +108,11 @@ await step("经典对局: 开局→买入→推进→结算", async () => {
   await page.click("#btn-start");
   await page.waitForSelector("#game-area:not([hidden])", { timeout: 15000 });
   await page.waitForTimeout(500); // 等历史 K 线与状态加载
-
+  // 开局首日也可能命中历史事件弹决策卡 (随机标的/日期), 不关掉会挡死买入 —— 曾偶发超时
+  if (await page.isVisible("#newsgate-modal")) {
+    await page.click("#btn-newsgate-go");
+    await page.waitForTimeout(400);
+  }
   await page.click("#btn-buy");
   await page.waitForTimeout(400);
 

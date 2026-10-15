@@ -16,11 +16,9 @@ from datetime import datetime, timedelta
 
 import akshare as ak
 import pandas as pd
-import pymysql
 
-from config import DB_CONFIG
-
-VOLATILITY_WINDOW = 20  # 与 compute_indicators.py 同值
+from config import VOLATILITY_WINDOW
+from load_to_db import get_conn  # DB 连接复用常规管道, 不再各自 pymysql.connect
 
 # 窗口前多抓的自然日天数: 保证至少 60 根预热 K 线 (节假日折损后仍有富余)
 PRE_FETCH_DAYS = 180
@@ -108,7 +106,7 @@ def upsert(cursor, scen_code: str, market: str, name: str, df: pd.DataFrame, ind
 
 def main():
     only = sys.argv[1] if len(sys.argv) > 1 else None
-    conn = pymysql.connect(**DB_CONFIG, charset="utf8mb4", autocommit=False)
+    conn = get_conn()
     failures = []
     try:
         with conn.cursor() as cursor:

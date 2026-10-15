@@ -114,6 +114,43 @@ function qsLoadBest(key) {
     return { best: 0 };
   }
 }
+// 迷你游戏最佳成绩写入 (与 qsLoadBest 对偶, patch 合并进已有记录; 隐私模式静默忽略)
+function qsSaveBest(key, patch) {
+  try { localStorage.setItem(key, JSON.stringify({ ...qsLoadBest(key), ...patch })); } catch (e) { /* 忽略 */ }
+}
+// 带符号百分比 (默认 1 位小数; duel/home 榜单共用, 2 位场景用 fmtPct)
+function qsSignedPct(v, digits = 1) {
+  const n = Number(v);
+  return (n >= 0 ? "+" : "") + (n * 100).toFixed(digits) + "%";
+}
+// 标准正态 CDF (Abramowitz-Stegun 近似, 教学精度足够; academy/option 的 BS 定价共用)
+function qsNormCdf(x) {
+  const t = 1 / (1 + 0.2316419 * Math.abs(x));
+  const d = 0.3989423 * Math.exp(-x * x / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  return x > 0 ? 1 - p : p;
+}
+// 欧式期权 Black-Scholes 定价: academy 沙盒与 option 游戏共用同一公式
+// (之前各写一份, 公式体已漂移; r/T 假设由调用方给——沙盒 r=3%/自然日, 游戏 r=0/交易日)
+function qsBsPrice(spot, strike, T, vol, isCall, r = 0) {
+  if (T <= 0) {
+    return Math.max(0, isCall ? spot - strike : strike - spot); // 到期只剩内在价值
+  }
+  const sd = vol * Math.sqrt(T);
+  const d1 = (Math.log(spot / strike) + (r + vol * vol / 2) * T) / sd;
+  const d2 = d1 - sd;
+  if (isCall) {
+    return spot * qsNormCdf(d1) - strike * Math.exp(-r * T) * qsNormCdf(d2);
+  }
+  return strike * Math.exp(-r * T) * qsNormCdf(-d2) - spot * qsNormCdf(-d1);
+}
+// 轮回模式最佳身家 (relics/walker 共用, 读 localStorage qs_reborn)
+function qsRebornWorth() {
+  try {
+    const d = JSON.parse(localStorage.getItem("qs_reborn") || "null");
+    return d && d.best ? Number(d.best.worth) || 0 : 0;
+  } catch (e) { return 0; }
+}
 
 function marketTag(market) {
   if (market === "CRYPTO") return t("tag.crypto");
@@ -138,7 +175,9 @@ async function api(path, options = {}) {
   // 非 JSON 响应 (502 HTML / 空体) 不能让解析错误盖过真实失败原因
   const data = await resp.json().catch(() => null);
   if (!resp.ok) {
-    throw new Error((data && data.message) || t("err.http", resp.status));
+    const err = new Error((data && data.message) || t("err.http", resp.status));
+    err.status = resp.status; // 调用方按状态码判断 (401 未登录等), 别依赖文案子串
+    throw err;
   }
   if (data === null) {
     throw new Error(t("err.badResp"));
@@ -416,12 +455,16 @@ function renderAiLevelLabel() {
 }
 
 // 头部不再放用户名输入框: 已登录用账户名, 游客自动生成持久昵称 (localStorage)
+let guestNameCache = null; // 隐私模式下 localStorage 不可用时的进程内游客名
 function currentUsername() {
   if (window.Auth && Auth.user) return Auth.user.username;
   let name = null;
   try { name = localStorage.getItem("qs_guest_name"); } catch (e) { /* 隐私模式下忽略 */ }
   if (!name) {
-    name = t("guest.prefix") + Math.floor(1000 + Math.random() * 9000);
+    // 隐私模式 setItem 会失败, 名字留在模块变量里复用——否则每次调用生成新昵称,
+    // 同一局的预回测/提交会顶着两个身份 (身份碎片化)
+    name = guestNameCache || t("guest.prefix") + Math.floor(1000 + Math.random() * 9000);
+    guestNameCache = name;
     try { localStorage.setItem("qs_guest_name", name); } catch (e) { /* ignore */ }
   }
   return name;
@@ -773,6 +816,7 @@ async function maybeAutoTrade() {
   if (!dir) return;
   const s = state.lastStatus;
   const price = Number(state.klines[state.klines.length - 1].close);
+  if (!(price > 0)) return; // 零价/异常行情防护: 否则 cash/price 得 Infinity -> shares NaN (后端已防, 前端同守)
   const lot = state.lotSize || 1;
   let shares = 0;
   if (dir === "BUY") {
@@ -1871,22 +1915,25 @@ function condSelect(values, keyPrefix, value) {
   return sel;
 }
 
-// 语言切换时刷新已存在条件行的选项文案 (保留选中值)
+// 语言切换时刷新已存在条件行的选项文案 (保留选中值; 覆盖竞技场与擂台两种行样式)
 function refreshCondLabels() {
-  document.querySelectorAll(".cond-row select[data-key-prefix]").forEach((sel) => {
+  document.querySelectorAll(".cond-row select[data-key-prefix], .duel-cond-row select[data-key-prefix]").forEach((sel) => {
     [...sel.options].forEach((opt) => { opt.textContent = t(sel.dataset.keyPrefix + opt.value); });
   });
   document.querySelectorAll(".cond-del").forEach((btn) => { btn.title = t("arena.delCond"); });
 }
 
-function addCondRow(containerId, preset) {
+// 自定义策略条件行构建器: 竞技场与擂台共用一份 (之前 duel.js 复制了一套,
+// 校验口径漂移 + 算子 i18n 前缀写错成 cond.op.*, 2026-10 审计 P4 收敛到这里)
+function addCondRow(containerId, preset, opts = {}) {
+  const max = opts.max ?? MAX_CONDS;
   const container = $(containerId);
-  if (container.children.length >= MAX_CONDS) {
-    toast(t("cond.max", MAX_CONDS));
+  if (container.children.length >= max) {
+    toast(t(opts.maxMsgKey || "cond.max", max));
     return;
   }
   const row = document.createElement("div");
-  row.className = "cond-row";
+  row.className = opts.rowClass || "cond-row";
 
   const left = condSelect(COND_FIELDS, "cond.f.", preset.left);
   const op = condSelect(COND_OPS, "cond.o.", preset.op);
@@ -1900,7 +1947,7 @@ function addCondRow(containerId, preset) {
 
   const del = document.createElement("button");
   del.type = "button";
-  del.className = "cond-del";
+  del.className = opts.delClass || "cond-del";
   del.textContent = "✕";
   del.title = t("arena.delCond");
   del.addEventListener("click", () => row.remove());
@@ -2138,6 +2185,10 @@ function renderBacktestResult(res) {
   setOptional($("bt-annual"), res.annualReturn, (v) => fmtPct(v), true);
   setOptional($("bt-sharpe"), res.sharpeRatio, (v) => v.toFixed(2), true);
   setDrawdown($("bt-drawdown"), Number(res.maxDrawdown));
+  // 顶部三大指标大卡与 dl 同源同步 (一眼结论区, 明细仍看 dl)
+  setOptional($("bt-stat-annual"), res.annualReturn, (v) => fmtPct(v), true);
+  setOptional($("bt-stat-sharpe"), res.sharpeRatio, (v) => v.toFixed(2), true);
+  setDrawdown($("bt-stat-dd"), Number(res.maxDrawdown));
   $("bt-trades").textContent = res.tradeCount;
   setOptional($("bt-winrate"), res.winRate, (v) => (v * 100).toFixed(1) + "%", false);
   setOptional($("bt-vol"), res.volatility, (v) => (v * 100).toFixed(1) + "%", false);

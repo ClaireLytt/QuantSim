@@ -148,15 +148,16 @@
     wrap.innerHTML = "";
     const got = (typeof prog !== "undefined" && prog.badges) ? prog.badges : [];
     $("mine-badges-empty").hidden = !!got.length;
+    // 未解锁也渲染灰态占位: desc 本身就是解锁条件, 收集墙要让人看见"还差什么"
     (typeof BADGES !== "undefined" ? BADGES : []).forEach((b) => {
-      if (!got.includes(b.id)) return;
+      const unlocked = got.includes(b.id);
       const card = document.createElement("div");
-      card.className = "mine-badge";
+      card.className = "mine-badge" + (unlocked ? "" : " locked");
       const name = document.createElement("b");
       name.textContent = pick(b.name);
       const desc = document.createElement("span");
       desc.className = "hint";
-      desc.textContent = pick(b.desc);
+      desc.textContent = (unlocked ? "" : t("mine.badgeLocked") + " · ") + pick(b.desc);
       card.append(name, desc);
       wrap.appendChild(card);
     });
@@ -166,7 +167,10 @@
   $("btn-mine-profile").addEventListener("click", () => switchView("profile"));
 
   // ---------- 右侧统计概览 ----------
-  const GAME_BEST_KEYS = ["qs_newsjudge", "qs_richman", "qs_buydip", "qs_stratbox", "qs_qdetect", "qs_reborn", "qs_bubble"];
+  // 各小游戏的最佳成绩键 (只做存在性判断, 不解析内容, 所以三种存档格式混用也没关系)。
+  // 新增小游戏记得在这里登记, 否则"小游戏通关数"统计必漏 (2026-10 审计 P6: 曾漏 opt/tape)
+  const GAME_BEST_KEYS = ["qs_newsjudge", "qs_richman", "qs_buydip", "qs_stratbox", "qs_qdetect",
+    "qs_reborn", "qs_bubble", "qs_opt_best", "qs_tape_best"];
 
   async function renderStats() {
     const games = await loadGames();
@@ -190,7 +194,18 @@
     $("mine-stat-exps").textContent = String(labDone.length);
     let gameCnt = 0;
     GAME_BEST_KEYS.forEach((k) => {
-      try { if (localStorage.getItem(k)) gameCnt++; } catch (e) { /* 忽略 */ }
+      try {
+        const raw = localStorage.getItem(k);
+        if (!raw) return;
+        // reborn/qdetect 的存档在"进行中"就会写入 (中断续玩/单案卡牌),
+        // 只有出现通关成绩字段 best 才算通关, 别把开过一局就计数 (统计虚高)
+        if (k === "qs_reborn" || k === "qs_qdetect") {
+          const v = JSON.parse(raw);
+          if (v && v.best) gameCnt++;
+        } else {
+          gameCnt++;
+        }
+      } catch (e) { /* 忽略 */ }
     });
     $("mine-stat-games").textContent = String(gameCnt);
   }
@@ -208,4 +223,6 @@
       renderStats();
     }
   });
+  // 启动兜底: 停在本视图刷新会错过首次 qs:view
+  if (!$("view-mine").hidden) { renderUserCard(); switchTab(curTab); renderStats(); }
 })();

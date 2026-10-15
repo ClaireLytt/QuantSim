@@ -27,9 +27,11 @@ python load_to_db.py        # 全部入库 (幂等 upsert)
 ## 架构速览
 
 - **backend/**：Spring Boot 3 + JPA + Flyway + Caffeine。分层 controller → service → repository；DTO 全部是 record（`dto/*Dtos.java` 聚合类）；业务错误抛 `BusinessException`（400）/`NotFoundException`（404），由 `GlobalExceptionHandler` 统一转 `{success:false, message}`。
-- 登录态 = 容器 `HttpSession`（`CurrentUser` 存取 userId），`AuthFilter` 只保护 `/api/me/`、`/api/rooms`、`/api/daily` 三组前缀，其余接口游客可用（设计如此）。
+- 大 service 已按域拆分（2026-10，单文件 >800 行即拆）：回测 = `BacktestService` 门面 + `BacktestEngine`（模拟内核）+ `BacktestTuner`（调参网格）；对局 = `GameService` 核心 + `GameStartService`（开局）+ `GameAiService`（AI 操盘）+ `GameBenchmarks`（结算复盘纯计算）。新逻辑放对应域，别往门面里堆回去；`@Transactional` 只放公共入口，拆出的组件是事务内被调方。
+- 登录态 = 容器 `HttpSession`（`CurrentUser` 存取 userId），`AuthFilter` 只保护 `/api/me/`、`/api/rooms`、`/api/daily`、`/api/event` 四组前缀，其余接口游客可用（设计如此：降低上手门槛，竞技入口才需要身份）。
 - 行情数据只读，整只股票打包缓存（`MarketDataService.StockData`，Caffeine 10 分钟过期）。
-- **frontend/**：无构建、无框架。每个视图一个 IIFE 文件，依赖 `app.js` 的全局 `$ / api / toast / switchView / state` 与 `i18n.js` 的 `t()`。`index.html` 引 script 带 `?v=日期` 手动 cache-busting，改了 JS/CSS 记得同步改版本号。
+- **frontend/**：无构建、无框架。每个视图一个 IIFE 文件，依赖 `app.js` 的全局 `$ / api / toast / switchView / state` 与 `i18n.js` 的 `t()`。`index.html` 引 script 带 `?v=日期` 手动 cache-busting，改了 JS/CSS 记得同步改版本号——没有构建器帮忙失效缓存，忘 bump 等于白改。
+- 样式按视图域拆 5 个文件（2026-10）：`style.css` 是基础层（变量/主题/框架，**必须第一个加载**），`game / academy / lab-games / widgets` 四个域各管各的视图。新样式写进对应域文件；同一选择器别跨文件重复定义——层叠顺序随加载顺序走，拆分时翻过一次车。
 - 金额一律 `BigDecimal` 且显式 scale + RoundingMode；费用统一走 `FeeCalculator`，玩家/AI/基准/回测同口径。
 - Python 管道 SQL 全部参数化（pymysql `%s`），保持这个习惯。
 
@@ -50,9 +52,60 @@ error / pageerror / requestfailed）。跑法：起后端（库里要有数据�
 `cd tools/ui_smoke && npm run smoke`；首次先 `npm install && npx playwright install chromium`。
 注意无头浏览器会 dismiss 原生 `confirm()`——脚本已统一 accept；新增 confirm 流程时记得冒烟会自动确认。
 
+**③ 按钮体检 `tools/ui_smoke/button_check.mjs`（强制）**：真浏览器遍历全部视图，专查死按钮
+（无 click 监听，含事件委托识别）/ 无可访问名称 / 重复 id / 零尺寸按钮，并监听 console error /
+pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端后
+`cd tools/ui_smoke && npm run buttons`，有 error 立即修复到退出码 0 为止。
+
+**④ 点击爬虫 `tools/ui_smoke/click_crawler.mjs`（手动巡检）**：真浏览器遍历全部视图、逐个点击可见按钮，
+观察 console error / pageerror / 5xx（=error）与"点了没反应"（=noop 警告）；与 ③ 互补——③ 查"有没有监听"，
+这里查"真点下去会不会炸"。跑法：起后端后 `cd tools/ui_smoke && npm run crawl`（可 `--view=lab` 单视图）。
+业务 400 视为预期拒绝放行；回测请求自动改 preview 不入榜；桌宠悬浮层/登出按钮不点。
+注意：**改完后端必须重启再爬**，旧 JVM 配新 target/classes 会报 NoClassDefFoundError 之类的假 500。
+
+**⑤ 历史踩坑扫描 `tools/pr_guard.py`（PR 评审）**：扫变更代码里 `docs/bug-knowledge-base.md` 的 7 类反面模式
+（分页后过滤 / username 身份比对 / 循环共用父事务结算 / 错误码依赖中文文案 / 状态结束才落库 /
+除零缺保护 / 空值无兜底渲染），命中给风险解释 + 修改示例。跑法：`python tools/pr_guard.py`
+（扫 git 变更，对比 origin/main）或 `--all` 全仓、`--strict` 让高置信规则卡 CI。启发式有误报，
+**默认只告警不阻断**，确认后按示例改或在扫描器里收窄。新增历史坑在 `pr_guard.py` 的 `RULES` 里登记。
+
+## 工作流纪律（强制）
+
+1. **CLI 脚本出问题必须记录**：每次运行 CLI 脚本发生问题后，在根目录 `issue_recode/` 下找到当前
+   任务对应 issue 号命名的 md 文件（如 QuantSim#1 → `1.md`）追加记录；文件不存在则创建。每条记录
+   开头必须写清日期（年月日，如 `## 2026-10-14`），写明问题现象、根因、处理结果。
+   ——为什么：同类环境坑（编码/缺依赖/库没起）反复出现，有记录下次秒查，不用重新踩一遍。
+2. **写代码后必须跑按钮体检**：任何代码写入/修改完成后，运行 `cd tools/ui_smoke && npm run buttons`
+   （见上「UI 自动体检 ③」），通过后才算完成。
+   ——为什么：无框架站没有类型/构建兜底，死按钮和运行时报错只有真浏览器点一遍才能暴露。
+3. **检查通过后必须 commit**：按钮体检（及相关检查）通过后，立即 `git commit` 本次改动，不要积攒
+   未提交的变更。
+   ——为什么：小步提交才有干净回退点；本仓库曾因批量脚本中途失败截坏过文件，靠最近提交才恢复。
+
+## Git 提交规范（强制）
+
+- 每次代码修改完成后，必须先跑 CLI 工具验证（见「UI 自动体检」与后端 `mvn test`），发现问题修到通过，
+  然后**立即** `git commit`。
+- 提交信息清晰，用 `feat: ...`、`fix: ...`、`refactor: ...`、`docs: ...` 前缀。
+- 不允许留下未提交的修改。
+- **不添加 AI 的署名或 Co-authored-by 信息**（commit message 与 PR 描述都不加）。
+
+## 工作方式（强制）
+
+- **先思考，再编码**：不要擅自假设需求；遇到歧义先说明假设、分析方案，必要时向用户确认。
+- **保持简单**：只实现用户要求的功能，不添加多余功能、抽象或复杂设计。
+- **精准修改**：只修改与需求直接相关的代码，不顺手重构其他模块；只清理自己此次修改产生的无用代码。
+- **以结果为导向**：先明确成功标准和执行计划，再通过测试、构建等方式验证结果，发现问题就继续修复。
+- **优先复用现有代码**；确实需要重复使用的逻辑抽象为可复用函数，避免重复造轮子（本仓库已为此清过
+  一轮债，见 `app.js` 共享工具区与 `service/Enums`/`FeeCalculator` 的注释）。
+
 ## 设计规范（强制）
 
 **每次新建或修改前端页面/组件/样式之前，必须先读根目录的 `design.md`，并严格按其中的色值、字号、间距、圆角、阴影规范实现，保证全站风格统一。** 颜色永远引用 `style.css` 的 CSS 变量（图表色用 `cssVar()` 取），不得硬编码色值；新增颜色先在 `:root` 和 `:root[data-theme="light"]` 两个主题里都定义。
+
+- **禁止使用紫色、蓝紫色及相关渐变**（2026-10-15 用户钦定）。注意：现存主题的 `--accent` 系恰是紫色——
+  这条规矩约束**新增** UI；存量主题是否整体换色是单独的大改动，动之前必须和用户确认方案。
+- 保持整体视觉风格一致。
 
 ## 安全与正确性守则（来自 2026-10 对 enhance 分支的审计，勿再犯）
 
@@ -70,7 +123,7 @@ error / pageerror / requestfailed）。跑法：起后端（库里要有数据�
 7. ~~登录/注册无速率限制~~ → `AuthController` 按 IP 限频（`quantsim.auth.per-minute`，集成测试里放宽到 10000）。"游客记录"提示仍可枚举用户名，新增认证接口注意模糊报错。
 8. ~~会话固定~~ → `CurrentUser.login` 已先 `invalidate()` 旧会话再新建；登录态经 Spring Session 落库（`SPRING_SESSION` 表），发版重启不掉线。
 9. ~~3306 暴露 + root/root~~ → compose 已去掉 mysql 端口映射，口令走 `QUANTSIM_DB_PASSWORD`（默认 root 仅限本地）。生产必须换强口令。
-10. `findOrCreate` 让匿名请求无限制创建 users 行（DB 垃圾数据）——**仍未修**，要修的话给游客开局加 IP 限频即可。
+10. ~~`findOrCreate` 让匿名请求无限制创建 users 行~~ → 已修：游客开局按 IP 限频（`quantsim.game.guest-start-per-minute`，`GameController.start`）；登录用户不受限。新的"游客可写库"入口照此加限频，否则又是刷库口子。
 
 ### 上线设施（2026-10 加入，改动时别破坏）
 
@@ -85,7 +138,7 @@ error / pageerror / requestfailed）。跑法：起后端（库里要有数据�
 - 前端渲染用户可控数据（用户名、params 等）一律 `textContent`，模板字符串 `innerHTML` 里只插数字/本地枚举/i18n 文案——目前全站无 XSS，新代码延续这个纪律（见 `app.js renderLeaderboard`、`rooms.js`、`history.js` 的写法）。
 - 秘密不入库：`.gitignore` 已排除 `.localdb/`、`start-local.bat`、`data-pipeline/data/`；提交前若新增含密钥/本机口令的文件，先加 ignore。
 - 并发写用 `findWithLockBy...` 悲观锁（session/account/room），别用先查后插。唯一约束冲突：若 catch 后还要在**同一事务**里继续读写，不能用 `saveAndFlush` + catch（flush 失败会把事务标记 rollback-only，提交时 500），改用 `INSERT IGNORE` native 语句（见 `UserPointsRepository.insertIgnore`）；只有 catch 后直接抛业务异常收场的场景才允许 catch `DataIntegrityViolationException`。
-- 回测/自定义策略全部经 enum 白名单解析（`BacktestService.parseField/parseOp`），没有任何 eval/拼接——扩展策略字段时沿用。
+- 回测/自定义策略全部经 enum 白名单解析（`BacktestEngine` 的 `CustomField/CustomOp` + `Enums.parse`），没有任何 eval/拼接——扩展策略字段时沿用，用户输入永远到不了可执行层。
 
 ## 布局冻结区（用户钦定，勿擅改）
 
@@ -95,6 +148,6 @@ error / pageerror / requestfailed）。跑法：起后端（库里要有数据�
 
 ## 代码风格
 
-- 注释用中文，写"为什么"而不是复述代码（现有代码是范例）；类/方法级用 `/** */`。
-- 枚举参数解析统一 `valueOf(trim().toUpperCase())` + 抛带可选值列表的 `BusinessException`。
-- 前端新视图 = 新 IIFE 文件 + `index.html` 挂载 + `i18n.js` 双语键（所有文案必须中英双份，走 `t()`）。
+- 注释用中文，写"为什么"而不是复述代码（现有代码是范例）；类/方法级用 `/** */`——这个项目大量口径约定（费用/利息/脱敏）只存在于注释里，复述式注释救不了下一个改口径的人。
+- 枚举参数解析统一走 `service/Enums.parse`（trim + 大写 + 带可选值列表的 `BusinessException`）——之前各 service 手写 7 份，错误文案互相漂移过，别再散开。
+- 前端新视图 = 新 IIFE 文件 + `index.html` 挂载 + `i18n.js` 双语键（所有文案必须中英双份，走 `t()`）——站点承诺中英切换，漏一个键 `ui_check.py` 会报错，硬编码中文则直接漏给英文用户。

@@ -22,15 +22,19 @@ public class LeaderboardController {
 
     @GetMapping
     public List<LeaderboardEntry> leaderboard(@RequestParam(required = false) String season,
-                                              @RequestParam(required = false) String sort) {
-        return leaderboardService.topSessions(season, sort);
+                                              @RequestParam(required = false) String sort,
+                                              jakarta.servlet.http.HttpServletRequest http) {
+        // isSelf 标记需要登录态; 游客拿到全 false, 不影响榜单本体
+        return leaderboardService.topSessions(season, sort, com.quantsim.config.CurrentUser.idOrNull(http));
     }
 
     /** 积分榜 TOP20: [{username, balance}] */
     @GetMapping("/points")
     public java.util.List<java.util.Map<String, Object>> points() {
+        // 公开榜: 测试账号已在查询里排除; 这里只做邮箱脱敏
         return pointsService.board(20).stream()
-                .map(r -> java.util.Map.<String, Object>of("username", r[0], "balance", r[1]))
+                .map(r -> java.util.Map.<String, Object>of(
+                        "username", com.quantsim.service.PublicNames.mask((String) r[0]), "balance", r[1]))
                 .toList();
     }
 

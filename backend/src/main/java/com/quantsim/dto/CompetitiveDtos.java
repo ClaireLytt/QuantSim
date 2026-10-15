@@ -29,7 +29,9 @@ public final class CompetitiveDtos {
             String username,
             String stockName,
             String stockCode,
-            BigDecimal returnRate) {}
+            BigDecimal returnRate,
+            // 同 LeaderboardEntry.isSelf: 脱敏后前端认不出自己, 后端标记
+            boolean isSelf) {}
 
     // ---------- 好友房间 ----------
 

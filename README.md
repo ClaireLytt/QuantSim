@@ -49,12 +49,15 @@ QuantSim/
 │   ├── compute_indicators.py # PySpark 计算 MA5/MA20/波动率/涨跌幅
 │   ├── train_predictor.py    # 滚动窗口训练"次日涨跌"预测模型（AI 操盘手的大脑）
 │   ├── load_to_db.py         # 原始行情 + 指标 + 预测入库
+│   ├── fetch_scenarios.py    # 事件回放场景的真实历史行情回灌（hidden 标的）
+│   ├── refresh.py            # 一键增量刷新编排（fetch → 指标 → 预测 → 入库）
 │   └── config.py             # 股票池 / 日期区间 / 数据库配置
 ├── backend/                  # Spring Boot 3 后端（建表由 Flyway 迁移管理）
-│   └── src/main/resources/db/migration/  # 数据库 schema（9 张表）
+│   └── src/main/resources/db/migration/  # 数据库 schema（Flyway 版本化迁移）
 ├── frontend/                 # 静态页面：ECharts K线 + 交易面板
+├── tools/                    # 质检工具：ui_check.py 静态体检 / ui_smoke 冒烟与按钮体检 / ci_seed.py CI 灌数据
 ├── docker-compose.yml        # 一键启动 MySQL + 后端（+ 可选数据管道）
-└── .github/workflows/ci.yml  # CI：后端集成测试
+└── .github/workflows/ci.yml  # CI：后端集成测试 + UI 冒烟
 ```
 
 ## 一键启动（Windows 本地）

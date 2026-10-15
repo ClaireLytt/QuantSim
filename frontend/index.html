@@ -14,7 +14,12 @@
     } catch (e) { /* no-op */ }
   </script>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=20261009v">
+  <!-- 样式按视图域拆分 (2026-10): style.css 是基础层 (变量/主题/框架), 必须第一个加载 -->
+  <link rel="stylesheet" href="style.css?v=20261014m">
+  <link rel="stylesheet" href="game.css?v=20261014">
+  <link rel="stylesheet" href="academy.css?v=20261014">
+  <link rel="stylesheet" href="lab-games.css?v=20261014a">
+  <link rel="stylesheet" href="widgets.css?v=20261014">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -89,24 +94,27 @@
         <option value="5" data-i18n="start.constraints.five">限 5 笔</option>
         <option value="10" data-i18n="start.constraints.ten">限 10 笔</option>
       </select>
-      <label id="reason-wrap" class="adv-wrap" data-i18n-title="start.constraints.reasonTitle" title="每笔交易写一句理由, 结算后和实际结果对照">
+      <label class="adv-wrap" data-i18n-title="start.constraints.reasonTitle" title="每笔交易写一句理由, 结算后和实际结果对照">
         <input type="checkbox" id="reason-toggle"> <span data-i18n="start.constraints.reason">交易日志</span>
       </label>
     </div>
-    <div class="start-cta">
-      <button id="btn-start" class="primary big" data-i18n="btn.start">开始新对局</button>
-      <button id="btn-help" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
-      <button id="btn-tour" data-i18n="tour.btn" data-i18n-title="tour.btn">新手引导</button>
+    <!-- 主按钮独行放大建立层级: 玩法说明/新手引导降为次级行 -->
+    <div class="start-cta start-cta-main">
+      <button id="btn-start" class="primary start-xl" data-i18n="btn.start">开始新对局</button>
     </div>
-    <!-- 两种特殊开局: 并列小选项卡各带一句描述 (替代一行逗号串联的脚注) -->
+    <div class="start-cta">
+      <button id="btn-help" class="ghost" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
+      <button id="btn-tour" class="ghost" data-i18n="tour.btn" data-i18n-title="tour.btn">新手引导</button>
+    </div>
+    <!-- 推荐挑战: 两张高亮玩法卡 (emoji 为视觉锚点不进 i18n, 文案 span 单独挂键) -->
     <div class="intro-modes">
       <button id="btn-survival" class="intro-mode">
-        <strong data-i18n="survival.btn">熊市生存挑战</strong>
-        <span class="hint" data-i18n="intro.mode.survival">穿越历史暴跌段，目标：亏得比「买入持有」少</span>
+        <strong>🐻 <span data-i18n="survival.btn">熊市生存挑战</span></strong>
+        <span class="hint" data-i18n="intro.mode.survival">穿越历史暴跌段，跑赢「买入持有」基准——风控大考，赢了冲榜</span>
       </button>
       <button id="btn-blindbox-start" class="intro-mode">
-        <strong data-i18n="blindstart.btn">盲盒开局</strong>
-        <span class="hint" data-i18n="intro.mode.blind">市场 / 行业 / AI 全随机，开出什么打什么</span>
+        <strong>🎲 <span data-i18n="blindstart.btn">盲盒开局</span></strong>
+        <span class="hint" data-i18n="intro.mode.blind">市场 / 行业 / AI 全随机的手气局，开出什么打什么</span>
       </button>
     </div>
   </section>
@@ -381,6 +389,12 @@
     </aside>
 
     <div id="bt-result" class="arena-result" hidden>
+      <!-- 三大核心指标大卡: 一眼读出这套策略强不强, 明细仍在下方 dl -->
+      <div class="arena-stat-row">
+        <div class="card arena-stat"><span class="hint" data-i18n="bt.annual">年化收益</span><b id="bt-stat-annual">--</b></div>
+        <div class="card arena-stat"><span class="hint" data-i18n="bt.drawdown">最大回撤</span><b id="bt-stat-dd">--</b></div>
+        <div class="card arena-stat"><span class="hint" data-i18n="bt.sharpe">夏普比率</span><b id="bt-stat-sharpe">--</b></div>
+      </div>
       <div class="card arena-metrics">
         <h2 id="bt-title">回测结果</h2>
         <dl>
@@ -400,6 +414,9 @@
           <dt><span class="term" data-term="buyhold" data-i18n="bt.hold">买入持有基准</span></dt><dd id="bt-hold">--</dd>
         </dl>
         <p id="bt-verdict" class="verdict"></p>
+        <!-- 结果态擂台 CTA: 回测跑完顺手把参数带去 PK, 闭环竞技动线 -->
+        <p class="hint arena-duel-hint" data-i18n="arena.toDuelHint">觉得这套参数能打？去擂台和全服策略碰一碰。</p>
+        <button id="btn-arena-to-duel" class="replay" data-i18n="arena.toDuel">带着这套参数去擂台 PK →</button>
       </div>
       <div class="card arena-chart-card">
         <h2><span class="term" data-term="equitycurve" data-i18n="bt.equity">资金曲线</span> <span class="sub" data-i18n="bt.equitySub">策略 vs 买入持有</span></h2>
@@ -421,6 +438,11 @@
 
     <!-- 左上角一行档案入口: 点击进完整行者档案 -->
     <button id="walker-line" class="walker-line"><b id="wm-name">--</b><span id="wm-rep-line"></span></button>
+    <!-- 向导角色: 🦊 头像 + 叙事气泡 (纯装饰, 台词按周轮换) -->
+    <div class="walker-fox" aria-hidden="true">
+      <span class="walker-fox-face">🦊</span>
+      <span id="walker-fox-bubble" class="walker-fox-bubble"></span>
+    </div>
     <div class="epoch-layout">
       <!-- 中栏: 时空时间线地图 -->
       <div id="epoch-center">
@@ -431,17 +453,24 @@
 
       <!-- 右栏: 全局进度面板 -->
       <aside id="epoch-right" class="epoch-side">
-        <p class="pet-sec-title no-top" data-i18n="ep.mainline">主线进度</p>
-        <div class="pet-xp-track"><i id="ep-main-bar"></i></div>
-        <p class="hint" id="ep-main-text"></p>
-        <button id="btn-walker-end" class="small primary" hidden data-i18n="walker.endBtn">查看结局</button>
-        <button id="btn-walker-ng2" class="small ghost" hidden data-i18n="ep.ngBtn">开启二周目轮回</button>
-        <p class="pet-sec-title" data-i18n="ep.relics">藏品收集</p>
-        <div id="epoch-relics" class="role-relics"></div>
-        <p class="hint" id="ep-relic-sets"></p>
-        <p class="pet-sec-title" data-i18n="ep.tasks">行者任务</p>
-        <ul id="epoch-tasks" class="pet-log"></ul>
-        <button id="btn-ep-train" class="small ghost" data-i18n="ep.toTrain">去训练场 →</button>
+        <!-- 三个独立圆角模块: 进度 / 收集 / 任务, 比平铺一列更像游戏侧栏 -->
+        <div class="card ep-mod">
+          <p class="pet-sec-title no-top" data-i18n="ep.mainline">主线进度</p>
+          <div class="pet-xp-track"><i id="ep-main-bar"></i></div>
+          <p class="hint" id="ep-main-text"></p>
+          <button id="btn-walker-end" class="small primary" hidden data-i18n="walker.endBtn">查看结局</button>
+          <button id="btn-walker-ng2" class="small ghost" hidden data-i18n="ep.ngBtn">开启二周目轮回</button>
+        </div>
+        <div class="card ep-mod">
+          <p class="pet-sec-title no-top" data-i18n="ep.relics">藏品收集</p>
+          <div id="epoch-relics" class="role-relics"></div>
+          <p class="hint" id="ep-relic-sets"></p>
+        </div>
+        <div class="card ep-mod">
+          <p class="pet-sec-title no-top" data-i18n="ep.tasks">行者任务</p>
+          <ul id="epoch-tasks" class="pet-log"></ul>
+          <button id="btn-ep-train" class="small ghost" data-i18n="ep.toTrain">去训练场 →</button>
+        </div>
       </aside>
     </div>
 
@@ -494,7 +523,8 @@
       <p class="hint" data-i18n="ep.drawerHint">本时代资产情报互通。</p>
     </aside>
 
-    <p class="hint tl-rail-hint" data-i18n="walker.hint">你的资产与情报，在同一个时代内互通。</p>
+    <!-- 底部叙事段: 把世界观规则讲成故事, 不再是一行小字脚注 -->
+    <p class="walker-lore" data-i18n="walker.hint">同一时代资产情报互通；全局声望、藏品、角色天赋永久保留。全部时代通关解锁二周目历史扰动轮回。</p>
 
 
 
@@ -506,31 +536,41 @@
   <section class="academy-panel">
     <h2><span data-i18n="profile.pageTitle">成长档案</span> <span class="sub" data-i18n="profile.pageSub">你的段位、经验、成就徽章、称号图鉴与装备</span></h2>
 
-    <section class="card profile-card">
-      <div class="profile-main">
+    <!-- 外层只做 2x2 栅格; 四个分区各自挂 .card 复用全站受光材质 -->
+    <section class="profile-card">
+      <div class="card profile-main">
         <div class="profile-rank">
+          <span class="profile-ava" id="profile-ava" aria-hidden="true">🐺</span>
           <span class="hint" data-i18n="profile.rank">当前段位</span>
-          <strong id="profile-level">--</strong>
+          <!-- 段位环形进度: RPG 角色面板的"等级环", Lv 数与进度同源 -->
+          <span class="xp-ring-box" aria-hidden="true">
+            <svg viewBox="0 0 72 72" class="xp-ring-svg">
+              <circle class="xp-ring-bg" cx="36" cy="36" r="31"/>
+              <circle id="xp-ring" class="xp-ring-fill" cx="36" cy="36" r="31"/>
+            </svg>
+            <span class="xp-ring-core"><b id="profile-lv">Lv.0</b><strong id="profile-level">--</strong></span>
+          </span>
           <span id="profile-title" class="profile-title" hidden></span>
+          <span class="hint profile-rank-desc" data-i18n="profile.rankDesc">穿越的周期越多，对市场波动的理解越深。</span>
         </div>
         <div class="profile-xp">
           <div class="xp-track"><div id="xp-fill" class="xp-fill"></div></div>
           <span id="xp-text" class="hint">--</span>
         </div>
       </div>
-      <div class="profile-badges">
+      <div class="card profile-badges">
         <span class="hint" data-i18n="profile.badges">成就徽章</span>
         <div id="badge-list" class="badge-list"></div>
       </div>
-      <div class="profile-badges">
+      <div class="card profile-titles">
         <span class="hint"><span data-i18n="collect.title">称号图鉴</span> <span id="collect-pct"></span></span>
         <div id="title-list" class="badge-list"></div>
       </div>
-      <div class="profile-bias">
+      <div class="card profile-bias">
         <span class="hint"><span data-i18n="bp.title">行为偏差档案</span> <span class="hint" data-i18n="bp.sub">（跨对局统计，结算越多越准）</span></span>
         <div id="bias-profile-box"></div>
       </div>
-      <div class="profile-gear">
+      <div class="card profile-gear">
         <span class="hint" data-i18n="gear.title">我的装备</span><span class="hint gear-hint" data-i18n="gear.hint">点击穿戴，最多同时装备 2 件</span>
         <div id="gear-list" class="gear-list"></div>
       </div>
@@ -815,6 +855,8 @@
       <button class="gz-card" data-goto="qdetect"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g4.t">量化侦探</strong><span class="sub" data-i18n="gz.g4.d">办案式回测，找出策略盈利背后的真相</span></button>
       <button class="gz-card" data-goto="qdetect" data-case="survivor"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M8 20v-9a4 4 0 0 1 8 0v9"/><path d="M10 13h4"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g5.t">幸存者陷阱</strong><span class="sub" data-i18n="gz.g5.d">揭露幸存者偏差带来的选股幻觉</span></button>
       <button class="gz-card" data-goto="duel"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4l6 6M19 4l-6 6M7 14l-3 3 3 3 3-3M17 14l3 3-3 3-3-3"/><path d="M12 12l-5 5M12 12l5 5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g6.t">策略擂台战</strong><span class="sub" data-i18n="gz.g6.d">提交自定义策略，同台回测 PK</span></button>
+      <!-- 预留位: 不可点的"即将开放"占位卡, 暗示训练场还在扩建 -->
+      <div class="gz-card gz-card-soon" aria-hidden="true"><strong data-i18n="gz.soon">即将开放</strong><span class="sub" data-i18n="gz.soonHint">新的训练项目正在打磨中</span></div>
     </div>
 
     <h3 class="section-title" data-i18n="gz.moreTitle">更多训练项目</h3>
@@ -1669,7 +1711,7 @@
       </div>
       <div class="guess-actions">
         <button id="btn-guess-start" class="primary" data-i18n="guess.start">开始</button>
-        <button id="btn-guess-daily" class="ghost" data-i18n="guess.daily">📅 每日挑战</button>
+        <button id="btn-guess-daily" class="ghost" data-i18n="guess.daily">📅 每日一猜</button>
         <button id="btn-guess-rich" class="ghost" data-i18n="rich.enter">💰 富豪场（高倍杠杆）</button>
         <button id="btn-rich-exit" class="ghost" hidden data-i18n="rich.exit">收手离场</button>
         <button id="btn-rich-reborn" class="primary" hidden data-i18n="rich.reborn">💸 破产重生</button>
@@ -2483,44 +2525,44 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261010d"></script>
+  <script src="i18n.js?v=20261014ex"></script>
   <script src="glossary.js?v=20261002a"></script>
-  <script src="app.js?v=20261009c"></script>
+  <script src="app.js?v=20261015a"></script>
   <script src="auth.js?v=20261005b"></script>
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
   <script src="data/levels.js?v=20261008a"></script>
   <script src="data/cases.js?v=20261008a"></script>
-  <script src="academy.js?v=20261009b"></script>
-  <script src="lab.js?v=20261011a"></script>
-  <script src="daily.js?v=20261002a"></script>
-  <script src="event.js?v=20261006a"></script>
-  <script src="option.js?v=20261008a"></script>
-  <script src="biasprofile.js?v=20261006a"></script>
-  <script src="tape.js?v=20261008a"></script>
+  <script src="academy.js?v=20261015"></script>
+  <script src="lab.js?v=20261014"></script>
+  <script src="daily.js?v=20261015"></script>
+  <script src="event.js?v=20261015a"></script>
+  <script src="option.js?v=20261014c"></script>
+  <script src="biasprofile.js?v=20261014c"></script>
+  <script src="tape.js?v=20261014z"></script>
   <script src="rooms.js?v=20261006a"></script>
-  <script src="ranking.js?v=20261004a"></script>
+  <script src="ranking.js?v=20261015"></script>
   <script src="sharecard.js?v=20261006a"></script>
   <script src="sharecode.js?v=20260930a"></script>
   <script src="heatmap.js?v=20260930a"></script>
   <script src="news.js?v=20260930a"></script>
-  <script src="history.js?v=20261002a"></script>
-  <script src="home.js?v=20261008q"></script>
+  <script src="history.js?v=20261014"></script>
+  <script src="home.js?v=20261014c"></script>
   <script src="points.js?v=20261004c"></script>
   <script src="reborn.js?v=20261009a"></script>
   <script src="bubble.js?v=20261008a"></script>
-  <script src="newsjudge.js?v=20261008b"></script>
-  <script src="richman.js?v=20261008b"></script>
-  <script src="buydip.js?v=20261008c"></script>
-  <script src="stratbox.js?v=20261008a"></script>
-  <script src="qdetect.js?v=20261008d"></script>
+  <script src="newsjudge.js?v=20261014a"></script>
+  <script src="richman.js?v=20261014a"></script>
+  <script src="buydip.js?v=20261014a"></script>
+  <script src="stratbox.js?v=20261014a"></script>
+  <script src="qdetect.js?v=20261014a"></script>
   <script src="tasks.js?v=20261008a"></script>
   <script src="pet.js?v=20261009j"></script>
   <script src="career.js?v=20261009a"></script>
-  <script src="relics.js?v=20261009c"></script>
-  <script src="walker.js?v=20261009h"></script>
-  <script src="duel.js?v=20261009a"></script>
+  <script src="relics.js?v=20261014h"></script>
+  <script src="walker.js?v=20261014d"></script>
+  <script src="duel.js?v=20261015a"></script>
   <script src="wiki.js?v=20261008a"></script>
-  <script src="games.js?v=20261009c"></script>
-  <script src="mine.js?v=20261008b"></script>
+  <script src="games.js?v=20261014"></script>
+  <script src="mine.js?v=20261015"></script>
 </body>
 </html>

@@ -38,4 +38,6 @@
   document.addEventListener("qs:lang", () => {
     if (!$("view-games").hidden) renderPoints();
   });
+  // 启动兜底: 停在训练场刷新会错过首次 qs:view
+  if (!$("view-games").hidden) renderPoints();
 })();

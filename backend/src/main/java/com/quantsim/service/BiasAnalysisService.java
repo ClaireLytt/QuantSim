@@ -102,23 +102,8 @@ public class BiasAnalysisService {
                     panicSells++; // 恐慌卖: 前日大跌 + 实亏离场
                 }
             }
-            // 更新仓位: 加仓摊薄, 平仓不动均价, 反手则以本笔为新入场
-            int next = cur + signed;
-            if (cur == 0 || Integer.signum(next) != Integer.signum(cur)) {
-                posCost.put(stockId, tx.getPrice());
-                posEntryTick.put(stockId, BigDecimal.valueOf(idx));
-            } else if (!closing) {
-                BigDecimal oldAbs = BigDecimal.valueOf(Math.abs(cur));
-                BigDecimal addAbs = BigDecimal.valueOf(Math.abs(signed));
-                BigDecimal total = oldAbs.add(addAbs);
-                posCost.put(stockId, posCost.getOrDefault(stockId, tx.getPrice()).multiply(oldAbs)
-                        .add(tx.getPrice().multiply(addAbs))
-                        .divide(total, 4, RoundingMode.HALF_UP));
-                posEntryTick.put(stockId, posEntryTick.getOrDefault(stockId, BigDecimal.valueOf(idx))
-                        .multiply(oldAbs).add(BigDecimal.valueOf(idx).multiply(addAbs))
-                        .divide(total, 2, RoundingMode.HALF_UP));
-            }
-            posShares.get(stockId)[0] = next;
+            // 更新仓位: 共享 advancePosition (加仓摊薄, 平仓不动均价, 反手以本笔为新入场)
+            advancePosition(posShares, posCost, posEntryTick, stockId, cur, signed, closing, tx.getPrice(), idx);
         }
 
         int totalTrades = allAmounts.size();
@@ -170,18 +155,8 @@ public class BiasAnalysisService {
                         tx.getTradeDate(), tx.getDirection().name(), tx.getReason(), outcome));
             }
 
-            // 与 analyze 同一套仓位推进 (只需均价, 不需入场 tick)
-            int next = cur + signed;
-            if (cur == 0 || Integer.signum(next) != Integer.signum(cur)) {
-                posCost.put(stockId, tx.getPrice());
-            } else if (!closing) {
-                BigDecimal oldAbs = BigDecimal.valueOf(Math.abs(cur));
-                BigDecimal addAbs = BigDecimal.valueOf(Math.abs(signed));
-                posCost.put(stockId, posCost.getOrDefault(stockId, tx.getPrice()).multiply(oldAbs)
-                        .add(tx.getPrice().multiply(addAbs))
-                        .divide(oldAbs.add(addAbs), 4, RoundingMode.HALF_UP));
-            }
-            posShares.get(stockId)[0] = next;
+            // 与 analyze 共享 advancePosition (entryTicks 传 null: 日志复盘只需均价)
+            advancePosition(posShares, posCost, null, stockId, cur, signed, closing, tx.getPrice(), 0);
         }
         return out;
     }
@@ -247,6 +222,36 @@ public class BiasAnalysisService {
     }
 
     /** 前一交易日涨跌幅 close[i-1]/close[i-2] - 1; 数据不足返回 null。 */
+    /**
+     * 带符号仓位推进 (analyze 与 journal 共用, 曾各写一份已现漂移苗头):
+     * 加仓按股数加权摊薄均价 (scale 4), 平仓不动均价, 反手以本笔为新入场;
+     * entryTicks 为 null 时跳过入场 tick 的加权维护 (scale 2)。
+     */
+    private void advancePosition(Map<Long, int[]> posShares, Map<Long, BigDecimal> posCost,
+                                 Map<Long, BigDecimal> entryTicks, long stockId,
+                                 int cur, int signed, boolean closing, BigDecimal price, int idx) {
+        int next = cur + signed;
+        if (cur == 0 || Integer.signum(next) != Integer.signum(cur)) {
+            posCost.put(stockId, price);
+            if (entryTicks != null) {
+                entryTicks.put(stockId, BigDecimal.valueOf(idx));
+            }
+        } else if (!closing) {
+            BigDecimal oldAbs = BigDecimal.valueOf(Math.abs(cur));
+            BigDecimal addAbs = BigDecimal.valueOf(Math.abs(signed));
+            BigDecimal total = oldAbs.add(addAbs);
+            posCost.put(stockId, posCost.getOrDefault(stockId, price).multiply(oldAbs)
+                    .add(price.multiply(addAbs))
+                    .divide(total, 4, RoundingMode.HALF_UP));
+            if (entryTicks != null) {
+                entryTicks.put(stockId, entryTicks.getOrDefault(stockId, BigDecimal.valueOf(idx))
+                        .multiply(oldAbs).add(BigDecimal.valueOf(idx).multiply(addAbs))
+                        .divide(total, 2, RoundingMode.HALF_UP));
+            }
+        }
+        posShares.get(stockId)[0] = next;
+    }
+
     private BigDecimal prevDayReturn(StockData sd, int idx) {
         if (idx < 2) {
             return null;

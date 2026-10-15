@@ -53,13 +53,7 @@ public class OrderService {
     @Transactional
     public OrderInfo place(GameSession session, Long stockId, String type, BigDecimal price, int shares,
                            BigDecimal trailPct, String reason) {
-        PendingOrder.Type orderType;
-        try {
-            orderType = PendingOrder.Type.valueOf(type.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException(
-                    "未知挂单类型: " + type + "（可选 LIMIT_BUY / LIMIT_SELL / STOP_LOSS / TAKE_PROFIT / TRAIL_STOP）");
-        }
+        PendingOrder.Type orderType = Enums.parse(type, PendingOrder.Type.class, "挂单类型");
         StockData sd = marketData.load(stockId);
         if (orderType == PendingOrder.Type.TRAIL_STOP) {
             // 移动止损按跟踪距离下单, 初始触发价从当日收盘推出, 忽略传入 price
@@ -70,9 +64,7 @@ public class OrderService {
             if (bar == null) {
                 throw new BusinessException("当前交易日行情缺失");
             }
-            price = bar.getClose()
-                    .multiply(BigDecimal.ONE.subtract(trailPct.movePointLeft(2)))
-                    .setScale(2, RoundingMode.HALF_UP);
+            price = trailTrigger(bar.getClose(), trailPct);
         } else {
             trailPct = null;
             if (price == null || price.signum() <= 0) {
@@ -146,9 +138,7 @@ public class OrderService {
             if (fillPrice == null) {
                 // 未触发: 移动止损把触发价上移到 max(当前, 收盘*(1-trail%)), 只升不降
                 if (order.getOrderType() == PendingOrder.Type.TRAIL_STOP) {
-                    BigDecimal ratchet = bar.getClose()
-                            .multiply(BigDecimal.ONE.subtract(order.getTrailPct().movePointLeft(2)))
-                            .setScale(2, RoundingMode.HALF_UP);
+                    BigDecimal ratchet = trailTrigger(bar.getClose(), order.getTrailPct());
                     if (ratchet.compareTo(order.getTriggerPrice()) > 0) {
                         order.setTriggerPrice(ratchet);
                         orderRepository.save(order);
@@ -189,6 +179,12 @@ public class OrderService {
             orderRepository.save(order);
         }
         return new FillSummary(filled, cancelled);
+    }
+
+    /** 移动止损触发价: 收盘 × (1 - trail%), 两位 HALF_UP。下单初始化与逐日上移同用一个公式。 */
+    private BigDecimal trailTrigger(BigDecimal close, BigDecimal trailPct) {
+        return close.multiply(BigDecimal.ONE.subtract(trailPct.movePointLeft(2)))
+                .setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal fillPrice(PendingOrder order, DailyPrice bar) {

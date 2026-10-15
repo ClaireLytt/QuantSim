@@ -224,7 +224,7 @@
     const b = loadBest();
     const newBest = g.assets > (b.best || 0);
     if (newBest) {
-      try { localStorage.setItem(BEST_KEY, JSON.stringify({ best: g.assets })); } catch (e) { /* 忽略 */ }
+      qsSaveBest(BEST_KEY, { best: g.assets }); // 共享实现在 app.js
     }
     $("bd-play").hidden = true;
     $("bd-end").hidden = false;

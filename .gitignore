@@ -42,3 +42,5 @@ mvn-run.log
 .agents/
 .aider-desk/
 skills-lock.json
+
+tools/ui_smoke/*.png

@@ -291,7 +291,7 @@
     const b = loadBest();
     const newBest = g.cash > (b.best || 0);
     if (newBest) {
-      try { localStorage.setItem(BEST_KEY, JSON.stringify({ best: g.cash })); } catch (e) { /* 忽略 */ }
+      qsSaveBest(BEST_KEY, { best: g.cash }); // 共享实现在 app.js
     }
     $("rm-play").hidden = true;
     $("rm-end").hidden = false;

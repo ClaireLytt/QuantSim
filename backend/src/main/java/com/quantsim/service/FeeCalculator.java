@@ -35,6 +35,23 @@ public class FeeCalculator {
         return total.setScale(2, RoundingMode.HALF_UP);
     }
 
+    /**
+     * 现金能买到的最大整手数, 含买入费用 (对齐真实约束)。
+     * 对局 AI/基准与回测各策略共用, 保证"全仓买入"口径一致。
+     */
+    public int maxAffordableShares(BigDecimal cash, BigDecimal price, int lotSize, Market market) {
+        int shares = TradeMath.maxWholeShares(cash, price, lotSize);
+        while (shares > 0) {
+            BigDecimal gross = price.multiply(BigDecimal.valueOf(shares));
+            BigDecimal buyFee = fee(market, TradeTransaction.Direction.BUY, gross);
+            if (gross.add(buyFee).compareTo(cash) <= 0) {
+                break;
+            }
+            shares -= lotSize;
+        }
+        return Math.max(0, shares);
+    }
+
     private FeeProperties.MarketFee of(Market market) {
         return switch (market) {
             case STOCK -> props.getStock();

@@ -61,7 +61,8 @@ services:
       QUANTSIM_DB_PASSWORD: ${QUANTSIM_DB_PASSWORD:-root}
     depends_on:
       backend:
-        condition: service_started
+        # 必须等健康检查过: service_started 不保证 Flyway 建完表, 管道会撞上空库
+        condition: service_healthy
 
 volumes:
   mysql-data:

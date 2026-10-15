@@ -76,10 +76,6 @@ public class DataRefreshService {
             if (stockData != null) {
                 stockData.clear();
             }
-            var news = cacheManager.getCache("newsByDate");
-            if (news != null) {
-                news.clear();
-            }
             log.info("[refresh] 管道执行成功, 行情缓存已刷新");
             return true;
         } catch (InterruptedException e) {

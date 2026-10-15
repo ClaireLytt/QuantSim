@@ -8,32 +8,18 @@
   const MULTIPLIER = 100;        // 一张 = 100 股
   const BASE_VOL = 0.30;         // 定价年化波动率
   const DAILY_SD = 0.019;        // 日波动 (约对应 30% 年化)
+  // 存裸数字而非 qsSaveBest 的 {best} JSON——语义不同: 负收益也算最佳, 无记录时隐藏入口;
+  // mine.js 的通关统计只查键存在性, 兼容此格式 (已登记 GAME_BEST_KEYS)
   const BEST_KEY = "qs_opt_best";
 
   let g = null;        // 对局状态
   let ogChart = null;
   let tradeType = "call";
 
-  // ---------- Black-Scholes (r=0, 到期按交易日/252 折年) ----------
+  // ---------- Black-Scholes (r=0, 到期按交易日/252 折年; 公式共享 app.js qsBsPrice) ----------
 
-  function normCdf(x) {
-    const t = 1 / (1 + 0.2316419 * Math.abs(x));
-    const d = 0.3989423 * Math.exp(-x * x / 2);
-    let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
-    return x > 0 ? 1 - p : p;
-  }
-
-  function bsPrice(spot, strike, daysLeft, isCall, vol) {
-    if (daysLeft <= 0) {
-      return Math.max(0, isCall ? spot - strike : strike - spot);
-    }
-    const T = daysLeft / 252;
-    const sd = vol * Math.sqrt(T);
-    const d1 = (Math.log(spot / strike) + (vol * vol / 2) * T) / sd;
-    const d2 = d1 - sd;
-    const call = spot * normCdf(d1) - strike * normCdf(d2);
-    return isCall ? call : call - spot + strike; // put-call parity (r=0)
-  }
+  const bsPrice = (spot, strike, daysLeft, isCall, vol) =>
+      qsBsPrice(spot, strike, daysLeft / 252, vol, isCall, 0);
 
   // ---------- 行情路径: 分段漂移 + 一个提前预告的财报日 ----------
 
@@ -319,4 +305,5 @@
   document.addEventListener("qs:lang", () => {
     if (!$("view-option").hidden) { renderBest(); if (g && !g.over) render(); }
   });
+  renderBest(); // 启动兜底: 与其他小游戏的 renderIntroBest 口径一致
 })();

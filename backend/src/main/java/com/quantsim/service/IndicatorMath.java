@@ -65,7 +65,6 @@ public final class IndicatorMath {
         return out;
     }
 
-    /** MACD 柱 (DIF - DEA): ema(fast) - ema(slow) 再对 DIF 做 signal 期 EMA。 */
     /** MACD 完整输出: [0]=DIF (快慢 EMA 差) [1]=DEA (DIF 的 signal 期 EMA), 柱 = DIF-DEA。 */
     public static double[][] macd(double[] closes, int fast, int slow, int signal) {
         int n = closes.length;
@@ -95,32 +94,12 @@ public final class IndicatorMath {
         return new double[][] { dif, dea };
     }
 
+    /** MACD 柱 (DIF - DEA): 由 macd() 派生, 不再重复一份 EMA 递推。 */
     public static double[] macdHist(double[] closes, int fast, int slow, int signal) {
-        int n = closes.length;
-        double[] emaFast = ema(closes, fast);
-        double[] emaSlow = ema(closes, slow);
-        double[] dif = new double[n];
-        java.util.Arrays.fill(dif, Double.NaN);
-        int difStart = slow - 1;
-        for (int i = difStart; i < n; i++) {
-            dif[i] = emaFast[i] - emaSlow[i];
-        }
-        // 对 dif (从 difStart 起) 做 signal 期 EMA
-        double[] hist = new double[n];
-        java.util.Arrays.fill(hist, Double.NaN);
-        if (n - difStart < signal) {
-            return hist;
-        }
-        double sum = 0;
-        for (int i = difStart; i < difStart + signal; i++) {
-            sum += dif[i];
-        }
-        double dea = sum / signal;
-        hist[difStart + signal - 1] = dif[difStart + signal - 1] - dea;
-        double k = 2.0 / (signal + 1);
-        for (int i = difStart + signal; i < n; i++) {
-            dea = dif[i] * k + dea * (1 - k);
-            hist[i] = dif[i] - dea;
+        double[][] md = macd(closes, fast, slow, signal);
+        double[] hist = new double[closes.length];
+        for (int i = 0; i < hist.length; i++) {
+            hist[i] = md[0][i] - md[1][i]; // 任一为 NaN 时结果自然为 NaN, 与原实现一致
         }
         return hist;
     }

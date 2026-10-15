@@ -162,7 +162,7 @@
     const b = loadBest();
     const cards = Array.isArray(b.cards) ? b.cards : [];
     if (!cards.includes(caseId)) cards.push(caseId);
-    try { localStorage.setItem(BEST_KEY, JSON.stringify({ ...b, cards })); } catch (e) { /* 忽略 */ }
+    qsSaveBest(BEST_KEY, { cards }); // 共享实现在 app.js
   }
 
   const hasCard = (caseId) => (loadBest().cards || []).includes(caseId);
@@ -320,7 +320,7 @@
     if (g.solved.length >= CASES.length) {
       const b = loadBest();
       if (g.score > (b.best || 0)) {
-        try { localStorage.setItem(BEST_KEY, JSON.stringify({ ...b, best: g.score })); } catch (e) { /* 忽略 */ }
+        qsSaveBest(BEST_KEY, { best: g.score }); // 共享实现在 app.js
         toast(t("qd.newBest", g.score));
       }
       document.dispatchEvent(new CustomEvent("qs:qdetectEnd", { detail: { score: g.score } }));

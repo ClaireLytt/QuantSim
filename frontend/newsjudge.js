@@ -178,7 +178,7 @@
     const b = loadBest();
     const newBest = g.score > (b.best || 0);
     if (newBest) {
-      try { localStorage.setItem(BEST_KEY, JSON.stringify({ best: g.score })); } catch (e) { /* 忽略 */ }
+      qsSaveBest(BEST_KEY, { best: g.score }); // 共享实现在 app.js
     }
     $("nj-play").hidden = true;
     $("nj-end").hidden = false;

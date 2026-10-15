@@ -68,6 +68,14 @@
       name.className = "tl-name";
       name.textContent = t("walker.ch" + ch.id + ".t");
       node.append(dot, year, name);
+      // 已通关节点: 圆点右下角绿勾小徽 (悬停 title 给全文, 避免节点下方再挂胶囊)
+      if (done) {
+        const tag = document.createElement("i");
+        tag.className = "tl-done-tag";
+        tag.textContent = "✓";
+        tag.title = t("academy.passed"); // 复用"已通关"键, 全站状态词统一
+        dot.appendChild(tag);
+      }
       if (!locked) {
         const open = () => { selected = ch.id; renderRail(); renderPanel(); };
         node.addEventListener("click", open);
@@ -152,12 +160,7 @@
     document.dispatchEvent(new CustomEvent("qs:petSay", { detail: npcLine }));
   }
 
-  function rebornWorth() {
-    try {
-      const d = JSON.parse(localStorage.getItem("qs_reborn") || "null");
-      return d && d.best ? Number(d.best.worth) || 0 : 0;
-    } catch (e) { return 0; }
-  }
+  const rebornWorth = qsRebornWorth; // 共享实现在 app.js
   $("btn-walker-close").addEventListener("click", () => { selected = null; renderPanel(); });
 
   // ---------- 左上角一行档案入口 ----------
@@ -165,6 +168,8 @@
     $("wm-name").textContent = (window.Auth && Auth.user && Auth.user.username) || t("role.guest");
     $("wm-rep-line").textContent = t("role.rep", window.qsRep ? qsRep() : 0);
     $("walker-talent-sel").value = prog.talent || ""; // 选择器已移入完整档案弹窗
+    // 向导狐狸台词: 按周轮换 3 句叙事引导 (口径与首页本周推荐一致)
+    $("walker-fox-bubble").textContent = t("walker.fox." + (qsWeekIndex() % 3));
   }
   $("walker-line").addEventListener("click", () => window.qsOpenRole && qsOpenRole());
   document.addEventListener("qs:view", renderMini);

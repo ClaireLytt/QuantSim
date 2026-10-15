@@ -8,8 +8,8 @@
       catalog = await api("/event/catalog");
       renderMsg();
     } catch (e) {
-      // 未登录时 401 由入口按钮引导, 这里静默
-      if (!String(e.message).includes("登录")) toast(e.message);
+      // 未登录时 401 由入口按钮引导, 这里静默 (按状态码判断, 不依赖中文文案)
+      if (e.status !== 401) toast(e.message);
     }
   }
 
@@ -46,4 +46,7 @@
   document.addEventListener("qs:view", (e) => {
     if (e.detail === "event") load();
   });
+
+  // 刷新直达本视图时 qs:view 不会触发, 启动时兜底加载 (同 daily/relics 的惯例)
+  if (!$("view-event").hidden) load();
 })();
