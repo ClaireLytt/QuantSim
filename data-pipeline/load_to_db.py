@@ -9,7 +9,7 @@ import os
 import pandas as pd
 import pymysql
 
-from config import RAW_DIR, INDICATOR_DIR, PREDICTION_DIR, DB_CONFIG, STOCK_POOL
+from config import DB_CONFIG, INDICATOR_DIR, PREDICTION_DIR, RAW_DIR, STOCK_POOL
 
 
 def get_conn():

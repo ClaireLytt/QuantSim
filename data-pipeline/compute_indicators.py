@@ -10,7 +10,7 @@ import shutil
 from pyspark.sql import SparkSession, Window
 from pyspark.sql import functions as F
 
-from config import RAW_DIR, INDICATOR_DIR, VOLATILITY_WINDOW
+from config import INDICATOR_DIR, RAW_DIR, VOLATILITY_WINDOW
 
 
 def main():

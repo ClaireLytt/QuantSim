@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """事件回放场景的历史行情回灌: 抓取场景窗口 (含前置预热段) 的真实日线,
 用 pandas 复算指标 (与 compute_indicators.py 的 Spark 口径一致), 直接 upsert 入库。
 

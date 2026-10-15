@@ -19,7 +19,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from config import RAW_DIR, INDICATOR_DIR, PREDICTION_DIR
+from config import INDICATOR_DIR, PREDICTION_DIR, RAW_DIR
 
 MIN_TRAIN_DAYS = 60
 BLOCK_DAYS = 20

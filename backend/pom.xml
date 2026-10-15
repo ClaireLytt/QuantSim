@@ -95,6 +95,27 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <!-- 覆盖率报告 (mvn test 后看 target/site/jacoco/index.html, CI 上传 artifact)。
+                 先只观测不设阈值: 存量覆盖率未知, 盲设阈值要么形同虚设要么立刻红, 观测一个周期后再定 (P2)。 -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

@@ -593,7 +593,7 @@ const TERM_REGEX = new RegExp(
     .map((word) => {
       const esc = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       // 英文词加边界, 避免匹配到单词内部; 中文无词边界概念
-      return /^[\x00-\x7f]/.test(word) ? "\\b" + esc + "\\b" : esc;
+      return /^[\x20-\x7f]/.test(word) ? "\\b" + esc + "\\b" : esc; // 可打印 ASCII 开头 = 英文词
     })
     .join("|"),
   "gi"

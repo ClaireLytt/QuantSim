@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """QuantSim 离散事件蒙特卡洛仿真: 72h × 500 用户, 忠实复刻已核实的并发语义。
 
 目的: 用仿真验证 docs/fault-tree-analysis 的推演——连接池耗尽(X1)、房间强结读路径持锁(SPOF-2)、
@@ -16,6 +15,7 @@ REQUIRES_NEW 占 2 连接(TB2)、daily 唯一键并发(TR1)、undo/settle 锁序
 输出: 末尾 JSON 摘要 (被 docs/simulation-report 引用)。
 """
 import sys as _sys
+
 try: _sys.stdout.reconfigure(encoding="utf-8")
 except Exception: pass
 import heapq

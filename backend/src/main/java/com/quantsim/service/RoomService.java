@@ -217,7 +217,8 @@ public class RoomService {
                     usernames.getOrDefault(m.getUserId(), "?"),
                     true, s != null, done,
                     s == null ? 0 : s.getDaysElapsed(), props.getTotalTicks(),
-                    settledRoom && s != null ? s.getFinalReturnRate() : null));
+                    settledRoom && s != null ? s.getFinalReturnRate() : null,
+                    m.getUserId().equals(userId)));
             if (m.getUserId().equals(userId)) {
                 joined = true;
                 mySessionId = m.getSessionId();
