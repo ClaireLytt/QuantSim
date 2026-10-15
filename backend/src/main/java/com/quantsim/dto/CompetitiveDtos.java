@@ -47,7 +47,9 @@ public final class CompetitiveDtos {
             boolean done,
             int daysElapsed,
             int totalTicks,
-            BigDecimal returnRate) {}
+            BigDecimal returnRate,
+            // 同 DailyBoardEntry.isSelf: 身份判断由后端标记, 前端不要按 username 比对 (教训 #2/#4)
+            boolean isSelf) {}
 
     public record RoomView(
             String code,

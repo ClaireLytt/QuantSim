@@ -141,7 +141,6 @@
       roomChart = echarts.init(box);
       window.addEventListener("resize", () => roomChart.resize());
     }
-    const me = window.Auth && Auth.user && Auth.user.username;
     roomChart.setOption({
       backgroundColor: "transparent",
       animation: false,
@@ -155,9 +154,10 @@
       series: [{ type: "bar", barWidth: "55%",
         data: rows.map((m) => ({
           value: +(Number(m.returnRate) * 100).toFixed(2),
-          itemStyle: { color: m.username === me ? cssVar("--accent")
+          // 认自己用后端 isSelf 标记, 不按 username 比对 (脱敏会让名字永不相等, 见 CLAUDE.md 教训)
+          itemStyle: { color: m.isSelf ? cssVar("--accent")
             : Number(m.returnRate) >= 0 ? cssVar("--up") : cssVar("--down"),
-            opacity: m.username === me ? 1 : 0.7, borderRadius: [3, 3, 0, 0] },
+            opacity: m.isSelf ? 1 : 0.7, borderRadius: [3, 3, 0, 0] },
         })) }],
     }, true);
     roomChart.resize();

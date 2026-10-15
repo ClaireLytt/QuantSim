@@ -30,6 +30,30 @@ jobs:
       - name: Run backend tests
         run: mvn -B test
         working-directory: backend
+      # 覆盖率只观测不卡口 (阈值待一个周期的数据再定)
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: backend/target/site/jacoco/
+          if-no-files-found: ignore
+
+  # Python 质量: ruff + 纯逻辑 pytest (不起 Spark/MySQL, PySpark 本体逻辑本地手跑)
+  python-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install ruff pytest pandas numpy pymysql
+      - name: Ruff lint
+        run: ruff check --config data-pipeline/pyproject.toml data-pipeline tools
+      - name: Run pipeline tests
+        run: python -m pytest -q
+        working-directory: data-pipeline
 
   ui-smoke:
     runs-on: ubuntu-latest
@@ -72,6 +96,11 @@ jobs:
           python3 tools/ci_seed.py
       - name: Static UI audit
         run: python3 tools/ui_check.py
+      - name: Frontend lint (eslint)
+        run: |
+          npm ci || npm install
+          npm run lint
+        working-directory: tools/ui_smoke
       - name: Run UI smoke
         run: |
           npm ci || npm install
