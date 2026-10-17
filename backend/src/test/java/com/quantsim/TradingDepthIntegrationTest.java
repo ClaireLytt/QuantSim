@@ -112,7 +112,7 @@ class TradingDepthIntegrationTest extends IntegrationTestSupport {
         com.quantsim.entity.UserPoints p = new com.quantsim.entity.UserPoints();
         p.setUserId(userId);
         p.setItemUndo(1);
-        userPointsCleanup.save(p);
+        userPointsRepository.save(p);
         JsonNode undo = json(postJson("/api/game/" + sid + "/undo-trade", "{}"));
         assertThat(undo.path("cashBalance").decimalValue()).isEqualByComparingTo("100000.00");
         assertThat(transactionRepository.count()).isZero();
