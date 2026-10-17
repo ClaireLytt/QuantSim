@@ -385,6 +385,8 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
                 "/api/game/" + sid + "/transactions",
                 "/api/game/" + sid + "/orders",
                 "/api/game/" + sid + "/news/upcoming",
+                // 进行中调 bias 是 400 (未结算), 错误文案同样不得泄露
+                "/api/game/" + sid + "/bias",
                 "/api/daily/today",
         };
         for (String ep : endpoints) {
