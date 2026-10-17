@@ -10,7 +10,7 @@ import shutil
 from pyspark.sql import SparkSession, Window
 from pyspark.sql import functions as F
 
-from config import INDICATOR_DIR, RAW_DIR, VOLATILITY_WINDOW
+from config import INDICATOR_COLUMNS, INDICATOR_DIR, RAW_DIR, VOLATILITY_WINDOW
 
 
 def main():
@@ -55,7 +55,7 @@ def main():
         .withColumn("volatility", F.when(
             F.count("pct_change").over(w_vol) >= VOLATILITY_WINDOW,
             F.round(F.stddev("pct_change").over(w_vol), 4)))
-        .select("code", "trade_date", "ma5", "ma20", "volatility", "pct_change")
+        .select(*INDICATOR_COLUMNS)
     ).persist()  # write 和 count 各触发一次 action, 缓存避免整个 DAG 重算两遍
 
     if os.path.exists(INDICATOR_DIR):

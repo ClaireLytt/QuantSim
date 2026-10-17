@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 import akshare as ak
 import pandas as pd
 
-from config import VOLATILITY_WINDOW
+from config import OHLCV_COLUMNS, VOLATILITY_WINDOW
 from load_to_db import get_conn  # DB 连接复用常规管道, 不再各自 pymysql.connect
 
 # 窗口前多抓的自然日天数: 保证至少 60 根预热 K 线 (节假日折损后仍有富余)
@@ -56,7 +56,7 @@ def fetch_window(code: str, market: str, start: str, end: str) -> pd.DataFrame:
         df["trade_date"] = pd.to_datetime(df["trade_date"]).dt.strftime("%Y-%m-%d")
         df = df[(df["trade_date"] >= pre_d) & (df["trade_date"] <= post_d)]
     df["trade_date"] = pd.to_datetime(df["trade_date"]).dt.strftime("%Y-%m-%d")
-    df = df[["trade_date", "open", "high", "low", "close", "volume"]].copy()
+    df = df[OHLCV_COLUMNS].copy()
     df = df.sort_values("trade_date").reset_index(drop=True)
     df["volume"] = df["volume"].astype("int64")
     return df

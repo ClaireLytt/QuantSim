@@ -199,16 +199,7 @@
   }
 
   function renderPositions() {
-    const tbody = $("og-positions").querySelector("tbody");
-    tbody.innerHTML = "";
-    if (!g.positions.length) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td colspan="8" class="empty-row"></td>`;
-      tr.querySelector(".empty-row").textContent = t("og.noPos");
-      tbody.appendChild(tr);
-      return;
-    }
-    g.positions.forEach((p, i) => {
+    qsRenderRows($("og-positions").querySelector("tbody"), g.positions, 8, "og.noPos", (p, i) => {
       const value = posValue(p);
       const pnl = value - p.cost;
       const cls = pnl >= 0 ? "pos" : "neg";
@@ -222,7 +213,7 @@
       btn.textContent = t("og.close");
       btn.addEventListener("click", () => closePosition(i));
       tr.children[7].appendChild(btn);
-      tbody.appendChild(tr);
+      return tr;
     });
   }
 

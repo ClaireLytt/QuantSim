@@ -71,6 +71,11 @@ END_DATE = date.today().strftime("%Y%m%d")
 # 波动率滚动窗口 (交易日): Spark 管道与场景回灌的 pandas 复算共用, 口径靠 import 对齐而非注释
 VOLATILITY_WINDOW = 20
 
+# 行情/指标 CSV 列契约: fetch(产出) -> compute(消费/产出) -> load(入库) 三段共用,
+# 改列只改这里 —— 之前散落在 4 个脚本里, 加一列要同步改 4 处
+OHLCV_COLUMNS = ["trade_date", "open", "high", "low", "close", "volume"]
+INDICATOR_COLUMNS = ["code", "trade_date", "ma5", "ma20", "volatility", "pct_change"]
+
 DB_CONFIG = {
     "host": os.environ.get("QUANTSIM_DB_HOST", "127.0.0.1"),
     "port": int(os.environ.get("QUANTSIM_DB_PORT", "3306")),
