@@ -66,6 +66,16 @@
   - 测试：构造"部分成员结算失败"场景，断言请求 **200 且房间迁 SETTLED**、连续重入幂等、日志无 `UnexpectedRollbackException`。
   - 审查项：见到 `try { someService.txMethod() } catch` 在事务方法内部，先问"内层标记 rollback-only 了吗"。
 
+#### H-N1 房间强结后 bias_report 被父事务旧托管实体整行 UPDATE 抹回 NULL（2026-10-17 发现并修复）
+
+- **根因分类**：事务传播 × 一级缓存。`settleIsolated`（REQUIRES_NEW）在独立事务里给 `game_sessions.bias_report` 落库 JSON；但外层 `view()` 父事务早已 `findById` 把同一行载入一级缓存（biasReport 快照 = null）。父循环为修正战况表手工回填 `status/finalReturnRate/finalSharpe` 使托管实体变脏，Hibernate 默认非 dynamic-update，提交时按内存值**写回整行** → 内层刚提交的 bias_report 被旧快照覆盖为 NULL，诊断报告静默丢失不可恢复。
+- **触发条件**：房间到期强结任一 IN_PROGRESS 成员（任何人访问 `GET /api/rooms/{code}` 触发），该成员此后 `GET /api/game/{sid}/bias` 永远空报告。
+- **修复**：内层事务改过的列**全部**用结算结果回填托管实体（补回填 `biasReport`，与内层同一序列化口径）。注意 MySQL REPEATABLE READ 下 `entityManager.refresh` 重查读到的仍是本事务快照，**refresh 不是解法**。
+- **预防手段**：
+  - 规范：**父事务持有某实体托管实例时，REQUIRES_NEW 内层对同一行的每个列改动，父事务都必须等量回填**（或实体加 @DynamicUpdate，但那影响全部 UPDATE 语句，需单独评估）。
+  - 审查项：见到 "REQUIRES_NEW + 父事务回填部分字段"，逐列核对内层 UPDATE 清单，漏一列抹一列。
+  - 测试：`CompetitiveIntegrationTest.expiredRoomForceSettleKeepsBiasReport`（断言 DB 列值而非接口表象）。
+
 ### 【中危】
 
 #### #4 短 local 邮箱脱敏不全
