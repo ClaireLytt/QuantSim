@@ -31,17 +31,16 @@ import com.quantsim.exception.NotFoundException;
 import com.quantsim.repository.BacktestResultRepository;
 import com.quantsim.repository.StockRepository;
 import com.quantsim.service.BacktestEngine.Simulation;
-import com.quantsim.service.BacktestEngine.Strategy;
-import com.quantsim.service.BacktestEngine.StrategyParams;
-import com.quantsim.service.BacktestTuner.Grid;
-import com.quantsim.service.BacktestTuner.GridPoint;
+import com.quantsim.service.BacktestStrategy.Grid;
+import com.quantsim.service.BacktestStrategy.GridPoint;
+import com.quantsim.service.BacktestStrategy.StrategyParams;
 
 import lombok.RequiredArgsConstructor;
 
 /**
  * 策略回测竞技场门面: 玩家配置经典/自定义策略在整段历史数据上回测。
- * 模拟内核在 BacktestEngine, 调参网格在 BacktestTuner; 本类负责行情加载、
- * 入榜落库、积分任务与榜单查询 (职责拆分见 2026-10 拆分记录)。
+ * 模拟内核在 BacktestEngine, 策略逻辑 (参数/信号/网格) 在 BacktestStrategy 常量体;
+ * 本类负责行情加载、入榜落库、积分任务与榜单查询 (职责拆分见 2026-10 拆分记录)。
  */
 @Service
 @RequiredArgsConstructor
@@ -54,7 +53,6 @@ public class BacktestService {
     private final GameProperties props;
     private final PointsService pointsService;
     private final BacktestEngine engine;
-    private final BacktestTuner tuner;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -81,8 +79,8 @@ public class BacktestService {
 
     @Transactional
     public RunResponse run(RunRequest request, Long authUserId) {
-        Strategy strategy = Enums.parse(request.strategy(), Strategy.class, "策略");
-        return runWith(strategy, engine.resolveParams(strategy, request),
+        BacktestStrategy strategy = Enums.parse(request.strategy(), BacktestStrategy.class, "策略");
+        return runWith(strategy, strategy.parse(request),
                 request.username(), request.stockCode(), Boolean.TRUE.equals(request.preview()), authUserId);
     }
 
@@ -91,7 +89,7 @@ public class BacktestService {
      * 不再绕 "StrategyParams -> 全 null RunRequest -> resolveParams" 一圈 (2026-10 审计 P10)。
      */
     @Transactional
-    public RunResponse runWith(Strategy strategy, StrategyParams sp,
+    public RunResponse runWith(BacktestStrategy strategy, StrategyParams sp,
                                String username, String stockCode, boolean preview, Long authUserId) {
         Stock stock = loadVisibleStock(stockCode);
         List<DailyPrice> prices = loadPrices(stock);
@@ -171,12 +169,12 @@ public class BacktestService {
     /** 网格搜索最优参数 (先看总收益, 平手比夏普), 返回全网格供热力图, 再用最优参数正式回测入榜。 */
     @Transactional
     public TuneResponse tune(TuneRequest request, Long authUserId) {
-        Strategy strategy = Enums.parse(request.strategy(), Strategy.class, "策略");
+        BacktestStrategy strategy = Enums.parse(request.strategy(), BacktestStrategy.class, "策略");
         Stock stock = loadVisibleStock(request.stockCode());
         List<DailyPrice> prices = loadPrices(stock);
         Market market = stock.getMarket();
 
-        Grid grid = tuner.buildGrid(strategy);
+        Grid grid = strategy.grid();
         BigDecimal initial = props.getInitialCash();
         GridPoint best = null;
         BigDecimal bestReturn = null;
@@ -196,13 +194,7 @@ public class BacktestService {
 
         RunResponse result = runWith(strategy, best.params(),
                 request.username(), request.stockCode(), false, authUserId);
-        StrategyParams bp = best.params();
         return new TuneResponse(strategy.name(), grid.points().size(),
-                strategy == Strategy.MA_CROSS ? bp.fast() : null,
-                strategy == Strategy.MA_CROSS ? bp.slow() : null,
-                strategy == Strategy.MOMENTUM ? bp.lookback() : null,
-                strategy == Strategy.MEAN_REVERSION ? bp.maWindow() : null,
-                strategy == Strategy.MEAN_REVERSION ? BigDecimal.valueOf(bp.threshold()) : null,
                 best.bestParams(),
                 grid.paramKeys(),
                 points,
