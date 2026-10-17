@@ -149,6 +149,32 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         assertThat(resp.getStatusCode().value()).isEqualTo(400);
     }
 
+    /**
+     * 回归: 房间到期强结后, settleIsolated (REQUIRES_NEW) 落库的 bias_report 不能被
+     * view 父事务里的旧托管实体 (biasReport 快照=null) 在提交时整行 UPDATE 抹回 NULL。
+     * 症状是诊断报告静默丢失且不可恢复 —— 必须直接断言 DB 列值。
+     */
+    @Test
+    void expiredRoomForceSettleKeepsBiasReport() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        String alice = register("强结诊断");
+        JsonNode roomJson = json(postJson("/api/rooms", "{}", alice));
+        String code = roomJson.path("code").asText();
+        long sid = json(postJson("/api/rooms/" + code + "/play", "{}", alice)).path("sessionId").asLong();
+        // 产生一笔成交, 让偏差诊断有内容可落库 (空交易也会落 JSON, 但有内容更接近真实)
+        postJson("/api/game/" + sid + "/trade",
+                "{\"direction\":\"BUY\",\"price\":10.00,\"shares\":100}", alice);
+
+        Room room = roomRepository.findByCode(code).orElseThrow();
+        room.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+        roomRepository.save(room);
+
+        json(get("/api/rooms/" + code, alice)); // 触发到期强结
+        assertThat(sessionRepository.findById(sid).orElseThrow().getBiasReport())
+                .as("强结成员的 bias_report 必须在父事务提交后仍存活")
+                .isNotNull();
+    }
+
     /** 回归 T-06: 同一账号并发双开每日挑战, 一成一败 (400 业务提示), 绝不 500。 */
     @Test
     void concurrentDailyStartYieldsBusinessErrorNot500() throws Exception {
