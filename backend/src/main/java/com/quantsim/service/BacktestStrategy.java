@@ -411,8 +411,12 @@ public enum BacktestStrategy {
 
     // ---------- 策略挂钩 (每个常量体按需覆写) ----------
 
-    /** 参数解析 + 校验; 默认 (BUY_HOLD) 无参数。 */
+    /**
+     * 参数解析 + 校验; 默认 (BUY_HOLD) 无策略参数, 但 positionPct 仍过合法性校验后忽略
+     * —— 与旧实现等价 (旧版在 switch 前统一校验), 非法入参照旧抛 400 而不是静默放行。
+     */
     StrategyParams parse(RunRequest r) {
+        positionPct(r);
         return new StrategyParams(0, 0, 0, 0, 0, 0, 0, 0, 100, null, null, "");
     }
 
