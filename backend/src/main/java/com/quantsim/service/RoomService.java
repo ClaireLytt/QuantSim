@@ -54,6 +54,7 @@ public class RoomService {
     private final GameStartService gameStart;
     private final MarketDataService marketData;
     private final GameProperties props;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Transactional
     public RoomView create(Long userId, String market, String aiLevel, boolean realRules) {
@@ -251,6 +252,18 @@ public class RoomService {
     }
 
     /** 惰性状态迁移: 全员完成 -> SETTLED; 到期 -> 强制结算未完成对局后 SETTLED。 */
+    /** 与 GameService.computeAndStoreBias 同一序列化口径; 诊断是增值信息, 序列化失败回填 null 不拖垮强结。 */
+    private String toJsonOrNull(Object report) {
+        if (report == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(report);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private void evaluateTransitions(Room room, List<RoomMember> members, Map<Long, GameSession> sessions) {
         if (room.getStatus() == Room.Status.SETTLED) {
             return;
@@ -264,12 +277,15 @@ public class RoomService {
                         // settleIsolated 走 REQUIRES_NEW: 失败只回滚该成员 (见 GameService 注释)
                         var result = gameService.settleIsolated(s.getSessionId());
                         // 不能 findById 回读: 该实体已在父事务一级缓存里, 读到的是结算前的
-                        // 旧托管实例 (REQUIRES_NEW 的更新对本事务不可见), 本次响应的战况表
-                        // 会把刚强结的成员显示成"未完成"。直接用结算结果回填托管实体
-                        // (与 DB 已提交值一致, 父事务 flush 只会写回相同值)。
+                        // 旧托管实例 (REQUIRES_NEW 的更新对本事务不可见; MySQL REPEATABLE READ
+                        // 下连 refresh 重查也只能看到本事务快照)。因此内层事务改过的列必须
+                        // **全部**用结算结果回填托管实体: Hibernate 默认非 dynamic-update,
+                        // 父事务提交会按内存值写回整行, 漏回填哪列哪列就被旧快照抹掉
+                        // (曾漏 biasReport 导致强结成员的诊断报告被静默清成 NULL)。
                         s.setStatus(GameSession.Status.SETTLED);
                         s.setFinalReturnRate(result.returnRate());
                         s.setFinalSharpe(result.risk() == null ? null : result.risk().sharpe());
+                        s.setBiasReport(toJsonOrNull(result.biasReport()));
                     } catch (BusinessException e) {
                         // 并发下已被结算属预期; 其余失败 (如行情缺失) 留日志供线上告警 (回归评估 M-2)
                         log.warn("[room] 成员对局 {} 强制结算失败: {}", s.getSessionId(), e.getMessage());
