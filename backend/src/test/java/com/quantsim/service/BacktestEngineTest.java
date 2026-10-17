@@ -45,9 +45,9 @@ class BacktestEngineTest {
         return arr;
     }
 
-    /** BUY_HOLD 默认参数: 不走 parse(RunRequest), 直构等价的空参数体。 */
+    /** BUY_HOLD 默认参数: 不走 parse(RunRequest), 用工厂直构空参数体。 */
     private static BacktestStrategy.StrategyParams noParams() {
-        return new BacktestStrategy.StrategyParams(0, 0, 0, 0, 0, 0, 0, 0, 100, null, null, "");
+        return BacktestStrategy.emptyParams();
     }
 
     @Test
@@ -84,10 +84,9 @@ class BacktestEngineTest {
     @Test
     void 定投只买不卖() {
         // DCA 的纪律就是永不卖出: tradeCount 累计而 roundTrips 恒为 0
-        BacktestStrategy.StrategyParams sp = new BacktestStrategy.StrategyParams(
-                0, 0, 5, 0, 0, 0, 0, 0, 100, null, null, "every 5d");
         BacktestEngine.Simulation sim = engine.simulate(
-                BacktestStrategy.DCA, sp, prices(flat(30, 10)), Market.STOCK, INITIAL);
+                BacktestStrategy.DCA, BacktestStrategy.dcaParams(5, 100),
+                prices(flat(30, 10)), Market.STOCK, INITIAL);
 
         assertThat(sim.tradeCount).isGreaterThan(1);
         assertThat(sim.roundTrips).isZero();
@@ -100,7 +99,7 @@ class BacktestEngineTest {
         for (BacktestStrategy s : new BacktestStrategy[] {
                 BacktestStrategy.BUY_HOLD, BacktestStrategy.DCA }) {
             BacktestStrategy.StrategyParams sp = s == BacktestStrategy.DCA
-                    ? new BacktestStrategy.StrategyParams(0, 0, 5, 0, 0, 0, 0, 0, 100, null, null, "")
+                    ? BacktestStrategy.dcaParams(5, 100)
                     : noParams();
             BacktestEngine.Simulation sim = engine.simulate(s, sp, flat, Market.STOCK, INITIAL);
             for (BigDecimal eq : sim.equity) {

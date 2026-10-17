@@ -139,7 +139,7 @@ public enum BacktestStrategy {
 
         @Override
         void prepare(StrategyParams sp, Ctx ctx) {
-            ctx.rsi = IndicatorMath.rsi(ctx.closes, sp.maWindow());
+            ctx.rsi = IndicatorMath.rsi(ctx.closes, sp.rsiPeriod());
         }
 
         @Override
@@ -148,11 +148,10 @@ public enum BacktestStrategy {
             if (Double.isNaN(v)) {
                 return 0;
             }
-            // fast=买入阈值 slow=卖出阈值 (见 rsiParams)
-            if (v < sp.fast()) {
+            if (v < sp.rsiBuy()) {
                 return 1;
             }
-            if (v > sp.slow()) {
+            if (v > sp.rsiSell()) {
                 return -1;
             }
             return 0;
@@ -278,7 +277,7 @@ public enum BacktestStrategy {
         @Override
         Integer targetShares(StrategyParams sp, Ctx ctx, DayState st) {
             double gridBase = ctx.closes[0];
-            double steps = (gridBase - ctx.closes[st.i()]) / (gridBase * sp.threshold());
+            double steps = (gridBase - ctx.closes[st.i()]) / (gridBase * sp.gridStepPct());
             double frac = Math.max(0, Math.min(1, steps / sp.levels()));
             return wholeShares(st.equityNow().doubleValue() * frac * sp.positionPct() / 100.0,
                     ctx.closes[st.i()], st.lotSize());
@@ -310,8 +309,8 @@ public enum BacktestStrategy {
 
         @Override
         void prepare(StrategyParams sp, Ctx ctx) {
-            ctx.donchianHigh = IndicatorMath.donchianHigh(ctx.closes, sp.fast());
-            ctx.donchianLow = IndicatorMath.donchianLow(ctx.closes, sp.slow());
+            ctx.donchianHigh = IndicatorMath.donchianHigh(ctx.closes, sp.turtleEntry());
+            ctx.donchianLow = IndicatorMath.donchianLow(ctx.closes, sp.turtleExit());
         }
 
         @Override
@@ -344,20 +343,18 @@ public enum BacktestStrategy {
         @Override
         StrategyParams parse(RunRequest r) {
             int pos = positionPct(r);
-            // 定投: lookbackDays 复用为投入间隔 (交易日)
-            int interval = intParam(r.lookbackDays(), 5, 2, 60, "定投间隔");
-            return new StrategyParams(0, 0, interval, 0, 0, 0, 0, 0, pos, null, null,
-                    "every " + interval + "d" + posLabel(pos));
+            // 请求字段 lookbackDays 复用为定投间隔 (交易日), 参数内部有自己的名字
+            return dcaParams(intParam(r.lookbackDays(), 5, 2, 60, "定投间隔"), pos);
         }
 
         /** 定投: 每 lookback 天投一期 (预算 = 初始资金均分), 只买不卖, 纪律代替择时。 */
         @Override
         Integer targetShares(StrategyParams sp, Ctx ctx, DayState st) {
-            if (st.i() % sp.lookback() != 0) {
+            if (st.i() % sp.dcaInterval() != 0) {
                 return null;
             }
             double tranche = st.initial().doubleValue() * sp.positionPct() / 100.0
-                    / (st.n() / sp.lookback() + 1);
+                    / (st.n() / sp.dcaInterval() + 1);
             int add = wholeShares(Math.min(tranche, st.cash().doubleValue()),
                     ctx.closes[st.i()], st.lotSize());
             return add > 0 ? st.shares() + add : null;
@@ -375,10 +372,11 @@ public enum BacktestStrategy {
         @Override
         StrategyParams parse(RunRequest r) {
             int pos = positionPct(r);
-            List<Rule> buy = compileRules(r.buyConditions(), "买入");
-            List<Rule> sell = compileRules(r.sellConditions(), "卖出");
-            return new StrategyParams(0, 0, 0, 0, 0, 0, 0, 0, pos, buy, sell,
-                    "买[" + rulesLabel(buy) + "] 卖[" + rulesLabel(sell) + "]" + posLabel(pos));
+            P p = new P();
+            p.buyRules = compileRules(r.buyConditions(), "买入");
+            p.sellRules = compileRules(r.sellConditions(), "卖出");
+            return p.build(pos, "买[" + rulesLabel(p.buyRules) + "] 卖[" + rulesLabel(p.sellRules) + "]"
+                    + posLabel(pos));
         }
 
         /** 自定义规则引用到的指标按默认参数准备 (规则字段没有参数位)。 */
@@ -417,7 +415,7 @@ public enum BacktestStrategy {
      */
     StrategyParams parse(RunRequest r) {
         positionPct(r);
-        return new StrategyParams(0, 0, 0, 0, 0, 0, 0, 0, 100, null, null, "");
+        return emptyParams();
     }
 
     /** 本策略需要的指标在模拟前算好放进 Ctx; 默认不需要额外指标。 */
@@ -485,9 +483,48 @@ public enum BacktestStrategy {
     /** 自定义条件编译结果: rightField 为 null 时右侧取常数 rightValue。 */
     record Rule(CustomField left, CustomOp op, CustomField rightField, double rightValue) {}
 
+    /**
+     * 策略参数: 每个字段只有一个含义, 各策略只读自己的字段 (其余为 0/null)。
+     * 曾经 12 字段被借用装别义 (RSI 阈值塞 fast/slow、GRID 间距塞 threshold),
+     * 靠注释自救——宁可字段多, 不要名字说谎。
+     */
     record StrategyParams(int fast, int slow, int lookback, int maWindow, double threshold,
-            int signalWin, double k, int levels, int positionPct,
+            int signalWin, double k, int levels,
+            int rsiPeriod, int rsiBuy, int rsiSell,
+            int turtleEntry, int turtleExit,
+            double gridStepPct, int dcaInterval,
+            int positionPct,
             List<Rule> buyRules, List<Rule> sellRules, String label) {}
+
+    /**
+     * 参数组装台: 19 个同型定位参数的构造调用极易静默错位,
+     * 各工厂按名字填自己策略的字段再 build, 编译器管不了的交给可读性管。
+     */
+    private static final class P {
+        int fast;
+        int slow;
+        int lookback;
+        int maWindow;
+        double threshold;
+        int signalWin;
+        double k;
+        int levels;
+        int rsiPeriod;
+        int rsiBuy;
+        int rsiSell;
+        int turtleEntry;
+        int turtleExit;
+        double gridStepPct;
+        int dcaInterval;
+        List<Rule> buyRules;
+        List<Rule> sellRules;
+
+        StrategyParams build(int pos, String label) {
+            return new StrategyParams(fast, slow, lookback, maWindow, threshold, signalWin, k, levels,
+                    rsiPeriod, rsiBuy, rsiSell, turtleEntry, turtleExit, gridStepPct, dcaInterval,
+                    pos, buyRules, sellRules, label);
+        }
+    }
 
     /** simulate 单日可见的账面状态 (targetShares 钩子的输入)。 */
     record DayState(int i, int n, BigDecimal equityNow, BigDecimal cash,
@@ -549,44 +586,74 @@ public enum BacktestStrategy {
     // ---------- 参数工厂 (label 是入榜展示的参数摘要) ----------
 
     static StrategyParams maCrossParams(int fast, int slow, int pos) {
-        return new StrategyParams(fast, slow, 0, 0, 0, 0, 0, 0, pos, null, null,
-                "fast=" + fast + ",slow=" + slow + posLabel(pos));
+        P p = new P();
+        p.fast = fast;
+        p.slow = slow;
+        return p.build(pos, "fast=" + fast + ",slow=" + slow + posLabel(pos));
     }
 
     static StrategyParams momentumParams(int lookback, int pos) {
-        return new StrategyParams(0, 0, lookback, 0, 0, 0, 0, 0, pos, null, null,
-                "lookback=" + lookback + posLabel(pos));
+        P p = new P();
+        p.lookback = lookback;
+        return p.build(pos, "lookback=" + lookback + posLabel(pos));
     }
 
     static StrategyParams meanRevParams(int win, double th, int pos) {
-        return new StrategyParams(0, 0, 0, win, th, 0, 0, 0, pos, null, null,
-                "ma=" + win + ",th=" + BigDecimal.valueOf(th).stripTrailingZeros().toPlainString() + posLabel(pos));
+        P p = new P();
+        p.maWindow = win;
+        p.threshold = th;
+        return p.build(pos, "ma=" + win + ",th="
+                + BigDecimal.valueOf(th).stripTrailingZeros().toPlainString() + posLabel(pos));
     }
 
     static StrategyParams rsiParams(int period, int buy, int sell, int pos) {
-        return new StrategyParams(buy, sell, 0, period, 0, 0, 0, 0, pos, null, null,
-                "rsi=" + period + ",buy<" + buy + ",sell>" + sell + posLabel(pos));
+        P p = new P();
+        p.rsiPeriod = period;
+        p.rsiBuy = buy;
+        p.rsiSell = sell;
+        return p.build(pos, "rsi=" + period + ",buy<" + buy + ",sell>" + sell + posLabel(pos));
     }
 
     static StrategyParams macdParams(int fast, int slow, int signal, int pos) {
-        return new StrategyParams(fast, slow, 0, 0, 0, signal, 0, 0, pos, null, null,
-                "macd=" + fast + "/" + slow + "/" + signal + posLabel(pos));
+        P p = new P();
+        p.fast = fast;
+        p.slow = slow;
+        p.signalWin = signal;
+        return p.build(pos, "macd=" + fast + "/" + slow + "/" + signal + posLabel(pos));
     }
 
     static StrategyParams bollParams(int win, double k, int pos) {
-        return new StrategyParams(0, 0, 0, win, 0, 0, k, 0, pos, null, null,
-                "boll=" + win + ",k=" + BigDecimal.valueOf(k).stripTrailingZeros().toPlainString() + posLabel(pos));
+        P p = new P();
+        p.maWindow = win;
+        p.k = k;
+        return p.build(pos, "boll=" + win + ",k="
+                + BigDecimal.valueOf(k).stripTrailingZeros().toPlainString() + posLabel(pos));
     }
 
     static StrategyParams gridParams(double pct, int levels, int pos) {
-        return new StrategyParams(0, 0, 0, 0, pct, 0, 0, levels, pos, null, null,
-                "grid=" + BigDecimal.valueOf(pct * 100).stripTrailingZeros().toPlainString()
-                        + "%,levels=" + levels + posLabel(pos));
+        P p = new P();
+        p.gridStepPct = pct;
+        p.levels = levels;
+        return p.build(pos, "grid=" + BigDecimal.valueOf(pct * 100).stripTrailingZeros().toPlainString()
+                + "%,levels=" + levels + posLabel(pos));
+    }
+
+    static StrategyParams dcaParams(int interval, int pos) {
+        P p = new P();
+        p.dcaInterval = interval;
+        return p.build(pos, "every " + interval + "d" + posLabel(pos));
+    }
+
+    /** 无参数策略 (BUY_HOLD) 的参数体, 测试也用它直构。 */
+    static StrategyParams emptyParams() {
+        return new P().build(100, "");
     }
 
     static StrategyParams turtleParams(int entry, int exit, int pos) {
-        return new StrategyParams(entry, exit, 0, 0, 0, 0, 0, 0, pos, null, null,
-                "turtle=" + entry + "/" + exit + posLabel(pos));
+        P p = new P();
+        p.turtleEntry = entry;
+        p.turtleExit = exit;
+        return p.build(pos, "turtle=" + entry + "/" + exit + posLabel(pos));
     }
 
     private static String posLabel(int pos) {
