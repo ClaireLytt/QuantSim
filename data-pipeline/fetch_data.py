@@ -12,7 +12,7 @@ import time
 import akshare as ak
 import pandas as pd
 
-from config import END_DATE, RAW_DIR, START_DATE, STOCK_POOL
+from config import END_DATE, OHLCV_COLUMNS, RAW_DIR, START_DATE, STOCK_POOL
 from mock_data import SEED, generate_one
 
 COLUMN_MAP = {
@@ -36,7 +36,7 @@ def fetch_one(code: str) -> pd.DataFrame:
     df = df.rename(columns=COLUMN_MAP)
     # AKShare 返回的日期可能是 date 对象, 统一成字符串, 否则增量合并时无法去重
     df["trade_date"] = pd.to_datetime(df["trade_date"]).dt.strftime("%Y-%m-%d")
-    df = df[["trade_date", "open", "high", "low", "close", "volume"]]
+    df = df[OHLCV_COLUMNS]
     # AKShare 成交量单位是"手"(100股), 统一转为股, 与 mock 数据口径一致
     df["volume"] = df["volume"] * 100
     df["code"] = code
@@ -50,7 +50,7 @@ def fetch_us_one(code: str) -> pd.DataFrame:
     start = f"{START_DATE[:4]}-{START_DATE[4:6]}-{START_DATE[6:]}"
     end = f"{END_DATE[:4]}-{END_DATE[4:6]}-{END_DATE[6:]}"
     df = df[(df["trade_date"] >= start) & (df["trade_date"] <= end)]
-    df = df[["trade_date", "open", "high", "low", "close", "volume"]].copy()
+    df = df[OHLCV_COLUMNS].copy()
     df["volume"] = df["volume"].astype("int64")
     df["code"] = code
     return df

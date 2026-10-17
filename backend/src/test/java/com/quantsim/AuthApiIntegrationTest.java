@@ -2,25 +2,13 @@ package com.quantsim;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
-
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quantsim.entity.User;
-import com.quantsim.repository.UserProgressRepository;
-import com.quantsim.repository.UserRepository;
 
 /**
  * 账户体系集成测试: 注册 / 登录 / 游客名认领 / 会话 Cookie / 进度同步 / 受保护路径 401。
@@ -31,59 +19,7 @@ import com.quantsim.repository.UserRepository;
                 + "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8&createDatabaseIfNotExist=true",
         "quantsim.auth.per-minute=10000",
 })
-class AuthApiIntegrationTest {
-
-    @Autowired TestRestTemplate rest;
-    @Autowired ObjectMapper objectMapper;
-    @Autowired UserRepository userRepository;
-    @Autowired UserProgressRepository progressRepository;
-
-    @BeforeEach
-    void clean() {
-        progressRepository.deleteAll();
-        userRepository.findByUsername("认领我").ifPresent(u -> deleteUserCascade(u));
-        userRepository.findByUsername("auth用户").ifPresent(u -> deleteUserCascade(u));
-    }
-
-    private void deleteUserCascade(User u) {
-        // 本测试的用户没有对局/回测数据, 直接删行即可
-        userRepository.delete(u);
-    }
-
-    // ---------- helpers ----------
-
-    private ResponseEntity<String> postJson(String path, String body, String cookie) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (cookie != null) {
-            headers.add(HttpHeaders.COOKIE, cookie);
-        }
-        return rest.postForEntity(path, new HttpEntity<>(body, headers), String.class);
-    }
-
-    private ResponseEntity<String> get(String path, String cookie) {
-        HttpHeaders headers = new HttpHeaders();
-        if (cookie != null) {
-            headers.add(HttpHeaders.COOKIE, cookie);
-        }
-        return rest.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), String.class);
-    }
-
-    private JsonNode json(ResponseEntity<String> resp) {
-        try {
-            return objectMapper.readTree(resp.getBody());
-        } catch (Exception e) {
-            throw new IllegalStateException("响应不是 JSON: " + resp.getBody(), e);
-        }
-    }
-
-    private String sessionCookie(ResponseEntity<String> resp) {
-        List<String> cookies = resp.getHeaders().get(HttpHeaders.SET_COOKIE);
-        assertThat(cookies).isNotNull();
-        return cookies.stream().filter(c -> c.startsWith("JSESSIONID"))
-                .map(c -> c.split(";", 2)[0])
-                .findFirst().orElseThrow();
-    }
+class AuthApiIntegrationTest extends IntegrationTestSupport {
 
     // ---------- 用例 ----------
 

@@ -33,18 +33,11 @@
   async function loadPointsBoard() {
     try {
       const rows = await api("/leaderboard/points");
-      const tbody = $("points-board").querySelector("tbody");
-      tbody.innerHTML = "";
-      if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="3" class="empty-row"></td></tr>`;
-        tbody.querySelector(".empty-row").textContent = t("lb.empty");
-        return;
-      }
-      rows.forEach((r, i) => {
+      qsRenderRows($("points-board").querySelector("tbody"), rows, 3, "lb.empty", (r, i) => {
         const tr = document.createElement("tr");
         tr.innerHTML = `<td>${i + 1}</td><td></td><td>${Number(r.balance).toLocaleString()}</td>`;
         tr.children[1].textContent = r.username;
-        tbody.appendChild(tr);
+        return tr;
       });
     } catch (e) { /* 积分榜加载失败不打断页面 */ }
   }

@@ -90,17 +90,12 @@ public final class BacktestDtos {
     public record TunePoint(double x, double y, BigDecimal totalReturn, BigDecimal sharpeRatio) {}
 
     /**
-     * 最优参数按策略只填对应字段, 其余为 null; result 为用最优参数正式回测并入榜的结果;
-     * bestParams 为通用参数名 -> 值 (新策略用它回填表单); paramKeys + grid 供热力图。
+     * result 为用最优参数正式回测并入榜的结果;
+     * bestParams 为通用参数名 -> 值 (前端据此回填表单); paramKeys + grid 供热力图。
      */
     public record TuneResponse(
             String strategy,
             int triedCount,
-            Integer fastWindow,
-            Integer slowWindow,
-            Integer lookbackDays,
-            Integer maWindow,
-            BigDecimal threshold,
             java.util.Map<String, BigDecimal> bestParams,
             List<String> paramKeys,
             List<TunePoint> grid,

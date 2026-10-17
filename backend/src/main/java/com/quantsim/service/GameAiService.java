@@ -18,8 +18,8 @@ import com.quantsim.service.MarketDataService.StockData;
 import lombok.RequiredArgsConstructor;
 
 /**
- * AI 对手操盘: 按当日预测决策、按当日收盘价成交 (整手、扣费, 与玩家同规则)。
- * 从 GameService 拆出的无状态组件 —— 只改 session 上的 aiCash/aiShares 字段,
+ * AI 对手操盘的决策层: 按当日预测决定目标仓位, 按当日收盘价下单 (整手, 与玩家同规则)。
+ * 账务 (现金/持仓/费用) 全部走 AiOpponent, 本类不直接碰 aiCash/aiShares;
  * 由调用方 (tick 的事务) 负责落库。
  */
 @Service
@@ -29,6 +29,7 @@ public class GameAiService {
     private final TradeEngine tradeEngine;
     private final FeeCalculator feeCalculator;
     private final GameProperties props;
+    private final AiOpponent opponent;
 
     /**
      * AI 用当日预测决策, 按当日收盘价成交 (整手、扣费, 与玩家同规则)。
@@ -58,12 +59,12 @@ public class GameAiService {
             // 简单 AI: 老式全进全出
             if (probUp >= props.getAiBuyThreshold() && !limitUp) {
                 int bought = feeCalculator.maxAffordableShares(session.getAiCash(), close, lotSize, market);
-                aiBuy(session, market, close, bought);
+                opponent.buy(session, market, close, bought);
                 return bought;
             }
             if (probUp <= props.getAiSellThreshold() && session.getAiShares() > 0 && !limitDown) {
                 int sold = session.getAiShares();
-                aiSell(session, market, close, sold);
+                opponent.sell(session, market, close, sold);
                 return -sold;
             }
             return 0;
@@ -79,8 +80,7 @@ public class GameAiService {
             }
         }
         double targetFraction = Math.max(0, Math.min(1, (adjProb - 0.5) / 0.15));
-        BigDecimal aiEquity = session.getAiCash()
-                .add(close.multiply(BigDecimal.valueOf(session.getAiShares())));
+        BigDecimal aiEquity = opponent.valueAt(session, close);
         BigDecimal targetValue = aiEquity.multiply(BigDecimal.valueOf(targetFraction));
         int targetShares = targetValue.divide(close, 0, RoundingMode.DOWN).intValue() / lotSize * lotSize;
         int delta = targetShares - session.getAiShares();
@@ -93,33 +93,13 @@ public class GameAiService {
         }
         if (delta > 0 && !limitUp) {
             int bought = Math.min(delta, feeCalculator.maxAffordableShares(session.getAiCash(), close, lotSize, market));
-            aiBuy(session, market, close, bought);
+            opponent.buy(session, market, close, bought);
             return bought;
         }
         if (delta < 0 && !limitDown) {
-            aiSell(session, market, close, -delta);
+            opponent.sell(session, market, close, -delta);
             return delta;
         }
         return 0;
-    }
-
-    private void aiBuy(GameSession session, Market market, BigDecimal close, int shares) {
-        if (shares <= 0) {
-            return;
-        }
-        BigDecimal gross = close.multiply(BigDecimal.valueOf(shares));
-        BigDecimal fee = feeCalculator.fee(market, TradeTransaction.Direction.BUY, gross);
-        session.setAiCash(session.getAiCash().subtract(gross).subtract(fee));
-        session.setAiShares(session.getAiShares() + shares);
-    }
-
-    private void aiSell(GameSession session, Market market, BigDecimal close, int shares) {
-        if (shares <= 0) {
-            return;
-        }
-        BigDecimal gross = close.multiply(BigDecimal.valueOf(shares));
-        BigDecimal fee = feeCalculator.fee(market, TradeTransaction.Direction.SELL, gross);
-        session.setAiCash(session.getAiCash().add(gross).subtract(fee));
-        session.setAiShares(session.getAiShares() - shares);
     }
 }

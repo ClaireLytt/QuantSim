@@ -96,6 +96,17 @@ function qsCompositeScores(rows) {
   const d = norm(nums((x) => x.maxDrawdown), true);
   return rows.map((x, i) => ({ ...x, score: Math.round(100 * (0.5 * r[i] + 0.3 * s[i] + 0.2 * d[i])) }));
 }
+// 表格体渲染收口 (榜单/持仓/流水通用): 清空 -> 空态行 (i18n 文案) -> 逐行 build(r, i) 返回 <tr>。
+// 用户可控文本仍由各调用方的 build 用 textContent 填充 (XSS 纪律不变), 这里只收敛空态与循环骨架
+function qsRenderRows(tbody, rows, colspan, emptyKey, build) {
+  tbody.innerHTML = "";
+  if (!rows || !rows.length) {
+    tbody.innerHTML = `<tr><td colspan="${colspan}" class="empty-row"></td></tr>`;
+    tbody.querySelector(".empty-row").textContent = t(emptyKey);
+    return;
+  }
+  rows.forEach((r, i) => tbody.appendChild(build(r, i)));
+}
 // 无偏洗牌 (Fisher-Yates, 返回新数组); sort(() => random - .5) 分布有偏, 别再用
 function qsShuffle(arr) {
   const a = [...arr];
@@ -1820,14 +1831,7 @@ async function loadLeaderboard() {
 function renderLeaderboard() {
   const rows = state.lbRows;
   if (!rows) return;
-  const tbody = $("leaderboard").querySelector("tbody");
-  tbody.innerHTML = "";
-  if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-row"></td></tr>`;
-    tbody.querySelector(".empty-row").textContent = t("lb.empty");
-    return;
-  }
-  rows.forEach((r, i) => {
+  qsRenderRows($("leaderboard").querySelector("tbody"), rows, 6, "lb.empty", (r, i) => {
     const tr = document.createElement("tr");
     const rate = Number(r.returnRate);
     tr.innerHTML = `
@@ -1839,7 +1843,7 @@ function renderLeaderboard() {
       <td>${r.sharpe == null ? "--" : Number(r.sharpe).toFixed(2)}</td>`;
     tr.children[1].textContent = r.username;
     tr.children[2].textContent = stockName(r.stockName, r.stockCode);
-    tbody.appendChild(tr);
+    return tr;
   });
 }
 
@@ -2321,14 +2325,7 @@ async function loadArenaBoard() {
 function renderArenaBoard() {
   const rows = state.arenaRows;
   if (!rows) return;
-  const tbody = $("arena-board").querySelector("tbody");
-  tbody.innerHTML = "";
-  if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="empty-row"></td></tr>`;
-    tbody.querySelector(".empty-row").textContent = t("arena.empty");
-    return;
-  }
-  rows.forEach((r, i) => {
+  qsRenderRows($("arena-board").querySelector("tbody"), rows, 8, "arena.empty", (r, i) => {
     const tr = document.createElement("tr");
     const rate = Number(r.totalReturn);
     tr.innerHTML = `
@@ -2344,7 +2341,7 @@ function renderArenaBoard() {
     tr.children[2].textContent = `${stockName(r.stockName, r.stockCode)} (${r.stockCode})`;
     tr.children[4].textContent = r.params || "--";
     setDrawdown(tr.children[6], Number(r.maxDrawdown));
-    tbody.appendChild(tr);
+    return tr;
   });
 }
 

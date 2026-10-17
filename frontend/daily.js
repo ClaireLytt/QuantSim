@@ -47,21 +47,14 @@
   async function loadBoard() {
     try {
       const rows = await api("/daily/leaderboard");
-      const tbody = $("daily-board").querySelector("tbody");
-      tbody.innerHTML = "";
-      if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="4" class="empty-row"></td></tr>`;
-        tbody.querySelector(".empty-row").textContent = t("daily.empty");
-        return;
-      }
-      rows.forEach((r, i) => {
+      qsRenderRows($("daily-board").querySelector("tbody"), rows, 4, "daily.empty", (r, i) => {
         const tr = document.createElement("tr");
         const rate = Number(r.returnRate);
         tr.innerHTML = `<td>${i + 1}</td><td></td><td></td>
           <td class="${rate >= 0 ? "pos" : "neg"}">${fmtPct(rate)}</td>`;
         tr.children[1].textContent = r.username;
         tr.children[2].textContent = stockName(r.stockName, r.stockCode);
-        tbody.appendChild(tr);
+        return tr;
       });
       renderDist(rows);
     } catch (e) { /* 未登录/网络异常时榜单留空 */ }

@@ -34,8 +34,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 对局接口。所有 /{sessionId}/ 路径先过 requireAccess:
- * 注册用户的对局只有本人可操作 (防 IDOR 遍历 sessionId 操控他人对局)。
+ * 对局接口。所有带 {sessionId} 的路径由 GameAccessInterceptor 统一先过 requireAccess
+ * (注册用户的对局只有本人可操作, 防 IDOR 遍历 sessionId 操控他人对局), 端点内不再手写。
  */
 @RestController
 @RequestMapping("/api/game")
@@ -78,94 +78,74 @@ public class GameController {
 
     @GetMapping("/{sessionId}/history")
     public HistoryResponse history(@PathVariable Long sessionId,
-                                   @RequestParam(required = false) String stockCode,
-                                   HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+                                   @RequestParam(required = false) String stockCode) {
         return gameService.getHistory(sessionId, stockCode);
     }
 
     @PostMapping("/{sessionId}/tick")
-    public TickResponse tick(@PathVariable Long sessionId, HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+    public TickResponse tick(@PathVariable Long sessionId) {
         return gameService.tick(sessionId);
     }
 
     /** 明日快讯预告: 推进前询问, 给玩家"先调仓还是直接推进"的决策时刻。 */
     @GetMapping("/{sessionId}/news/upcoming")
-    public List<com.quantsim.dto.GameDtos.NewsItem> upcomingNews(@PathVariable Long sessionId,
-                                                                 HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+    public List<com.quantsim.dto.GameDtos.NewsItem> upcomingNews(@PathVariable Long sessionId) {
         return gameService.upcomingNews(sessionId);
     }
 
     /** 道具「预知卡」: 偷看明日方向 (竞技对局 service 层拒绝) */
     @PostMapping("/{sessionId}/peek")
-    public java.util.Map<String, String> peek(@PathVariable Long sessionId, HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+    public java.util.Map<String, String> peek(@PathVariable Long sessionId) {
         return java.util.Map.of("direction", gameService.peekTomorrow(sessionId));
     }
 
     /** 道具「后悔药」: 撤销今天最后一笔成交 */
     @PostMapping("/{sessionId}/undo-trade")
-    public TradeResponse undoTrade(@PathVariable Long sessionId, HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+    public TradeResponse undoTrade(@PathVariable Long sessionId) {
         return gameService.undoLastTradeToday(sessionId);
     }
 
     @PostMapping("/{sessionId}/trade")
     public TradeResponse trade(@PathVariable Long sessionId,
-                               @Valid @RequestBody TradeRequest request,
-                               HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+                               @Valid @RequestBody TradeRequest request) {
         return gameService.trade(sessionId, request);
     }
 
     @GetMapping("/{sessionId}/status")
-    public StatusResponse status(@PathVariable Long sessionId, HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+    public StatusResponse status(@PathVariable Long sessionId) {
         return gameService.getStatus(sessionId);
     }
 
     @PostMapping("/{sessionId}/settle")
-    public SettleResponse settle(@PathVariable Long sessionId, HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+    public SettleResponse settle(@PathVariable Long sessionId) {
         return gameService.settle(sessionId);
     }
 
     /** 行为偏差诊断报告 (已结算对局; 结算时已落库, 这里只读) */
     @GetMapping("/{sessionId}/bias")
-    public com.quantsim.dto.GameDtos.BiasReport bias(@PathVariable Long sessionId,
-                                                     HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+    public com.quantsim.dto.GameDtos.BiasReport bias(@PathVariable Long sessionId) {
         return gameService.getBiasReport(sessionId);
     }
 
     /** 交易流水 (复盘用, 竞技对局进行中日期脱敏/标的匿名) */
     @GetMapping("/{sessionId}/transactions")
-    public List<com.quantsim.dto.GameDtos.TransactionInfo> transactions(@PathVariable Long sessionId,
-                                                                        HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+    public List<com.quantsim.dto.GameDtos.TransactionInfo> transactions(@PathVariable Long sessionId) {
         return gameService.listTransactions(sessionId);
     }
 
     @PostMapping("/{sessionId}/orders")
     public OrderInfo placeOrder(@PathVariable Long sessionId,
-                                @Valid @RequestBody PlaceOrderRequest request,
-                                HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+                                @Valid @RequestBody PlaceOrderRequest request) {
         return gameService.placeOrder(sessionId, request);
     }
 
     @GetMapping("/{sessionId}/orders")
-    public List<OrderInfo> listOrders(@PathVariable Long sessionId, HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+    public List<OrderInfo> listOrders(@PathVariable Long sessionId) {
         return gameService.listOrders(sessionId);
     }
 
     @PostMapping("/{sessionId}/orders/{orderId}/cancel")
-    public List<OrderInfo> cancelOrder(@PathVariable Long sessionId, @PathVariable Long orderId,
-                                       HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+    public List<OrderInfo> cancelOrder(@PathVariable Long sessionId, @PathVariable Long orderId) {
         return gameService.cancelOrder(sessionId, orderId);
     }
 
@@ -174,7 +154,6 @@ public class GameController {
                                    @RequestParam(required = false) String lang,
                                    @RequestParam(required = false) String q,
                                    HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
         checkAdvisorQuota(http);
         return advisorService.advise(sessionId, lang, q);
     }
@@ -186,14 +165,12 @@ public class GameController {
             @RequestParam(required = false) String lang,
             @RequestParam(required = false) String q,
             HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
         checkAdvisorQuota(http);
         return advisorService.adviseStream(sessionId, lang, q);
     }
 
     @PostMapping("/{sessionId}/advisor/reset")
-    public void advisorReset(@PathVariable Long sessionId, HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
+    public void advisorReset(@PathVariable Long sessionId) {
         advisorService.resetChat(sessionId);
     }
 
@@ -201,7 +178,6 @@ public class GameController {
     public AdvisorResponse review(@PathVariable Long sessionId,
                                   @RequestParam(required = false) String lang,
                                   HttpServletRequest http) {
-        gameService.requireAccess(sessionId, CurrentUser.idOrNull(http));
         checkAdvisorQuota(http);
         return advisorService.review(sessionId, lang);
     }

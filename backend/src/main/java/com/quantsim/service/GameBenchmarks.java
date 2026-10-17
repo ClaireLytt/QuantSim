@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -28,7 +27,8 @@ import lombok.RequiredArgsConstructor;
 /**
  * 结算复盘的纯计算域: 玩家资金曲线重放、买入持有/MA 交叉/定投三条基准、
  * 风险指标、AI 预测逐日复盘与玩家风格画像。
- * 从 GameService 拆出 —— 只读数据不写库, 口径必须与对局交易严格一致 (FeeCalculator/利息公式)。
+ * 从 GameService 拆出 —— 只读数据不写库, 口径必须与对局交易严格一致
+ * (费用走 FeeCalculator, 计息与重放走 LedgerReplay)。
  */
 @Service
 @RequiredArgsConstructor
@@ -53,19 +53,7 @@ public class GameBenchmarks {
     private final TradeEngine tradeEngine;
     private final FeeCalculator feeCalculator;
     private final GameProperties props;
-
-    /**
-     * 单日利息: 现金 × 年化利率 / 252, 两位小数。利率配置为 0 时即关闭。
-     * tick 的隔夜计息与结算/undo 的资金曲线重放必须复现同一公式与舍入。
-     */
-    BigDecimal dailyInterest(BigDecimal cash) {
-        double rate = cash.signum() >= 0 ? props.getCashRateAnnual() : props.getBorrowRateAnnual();
-        if (rate == 0) {
-            return BigDecimal.ZERO;
-        }
-        return cash.multiply(BigDecimal.valueOf(rate / RiskMath.TRADING_DAYS_PER_YEAR))
-                .setScale(2, RoundingMode.HALF_UP);
-    }
+    private final LedgerReplay ledger;
 
     /** 逐日复盘 AI 预测: 每天的"次日涨跌"预测 vs 实际走势 (最后一天没有次日, 不计入)。 */
     List<PredictionDay> predictionDays(GameSession session, StockData sd, int startIdx, int endIdx) {
@@ -118,9 +106,8 @@ public class GameBenchmarks {
     }
 
     /**
-     * 逐日重放交易流水得到玩家资金曲线 (首点为初始资金)。
-     * 流水只记成交价与费用, 重放结果与实际现金流严格一致;
-     * 组合模式的旧流水缺 stock_id 无法归属标的, 此时放弃 (返回 null, 前端不展示)。
+     * 玩家资金曲线 (首点为初始资金): 重放循环在 LedgerReplay (与 tick 计息/undo 重建同一内核),
+     * 这里只做逐日估值。组合模式的旧流水缺 stock_id 无法归属标的, 此时放弃 (返回 null, 前端不展示)。
      */
     List<BigDecimal> equityCurve(GameSession session, StockData sd, int startIdx, int endIdx) {
         List<TradeTransaction> txs =
@@ -129,35 +116,23 @@ public class GameBenchmarks {
         if (portfolio && txs.stream().anyMatch(tx -> tx.getStockId() == null)) {
             return null;
         }
-        Map<LocalDate, List<TradeTransaction>> byDate =
-                txs.stream().collect(Collectors.groupingBy(TradeTransaction::getTradeDate));
+        List<LocalDate> days = sd.prices().subList(startIdx, endIdx + 1).stream()
+                .map(DailyPrice::getTradeDate).toList();
         Map<Long, StockData> datas = new HashMap<>();
-        for (Long sid : tradeEngine.stockIds(session)) {
-            datas.put(sid, marketData.load(sid));
-        }
-        Map<Long, Integer> shares = new HashMap<>();
-        BigDecimal cash = session.getInitialCash();
-        List<BigDecimal> curve = new ArrayList<>(endIdx - startIdx + 2);
-        curve.add(cash);
-        for (int i = startIdx; i <= endIdx; i++) {
-            LocalDate day = sd.prices().get(i).getTradeDate();
-            if (i > startIdx) {
-                // 与 tick 同序: 新交易日先计隔夜利息, 再发生当日交易
-                cash = cash.add(dailyInterest(cash));
-            }
-            for (TradeTransaction tx : byDate.getOrDefault(day, List.of())) {
-                BigDecimal gross = tx.getPrice().multiply(BigDecimal.valueOf(tx.getShares()));
-                boolean buy = tx.getDirection() == TradeTransaction.Direction.BUY;
-                cash = cash.add(buy ? gross.negate() : gross).subtract(tx.getFee());
-                Long sid = tx.getStockId() != null ? tx.getStockId() : session.getStockId();
-                shares.merge(sid, buy ? tx.getShares() : -tx.getShares(), Integer::sum);
-            }
+        List<BigDecimal> curve = new ArrayList<>(days.size() + 1);
+        curve.add(session.getInitialCash());
+        for (LedgerReplay.Snapshot snap
+                : ledger.replay(session.getInitialCash(), days, txs, session.getStockId())) {
             // 副标的当日可能停牌, 与 TradeEngine 同口径: 回退最近收盘估值
-            BigDecimal eq = cash;
-            for (Map.Entry<Long, Integer> e : shares.entrySet()) {
+            BigDecimal eq = snap.cash();
+            for (Map.Entry<Long, PositionMath.Fill> e : snap.fills().entrySet()) {
+                int shares = e.getValue().shares();
+                if (shares == 0) {
+                    continue;
+                }
                 StockData sdd = datas.computeIfAbsent(e.getKey(), marketData::load);
-                eq = eq.add(tradeEngine.lastCloseOnOrBefore(sdd, day)
-                        .multiply(BigDecimal.valueOf(e.getValue())));
+                eq = eq.add(tradeEngine.lastCloseOnOrBefore(sdd, snap.day())
+                        .multiply(BigDecimal.valueOf(shares)));
             }
             curve.add(eq);
         }

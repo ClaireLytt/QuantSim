@@ -7,37 +7,13 @@ import java.time.LocalDate;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.cache.CacheManager;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.quantsim.entity.DailyPrice;
 import com.quantsim.entity.Market;
 import com.quantsim.entity.Stock;
-import com.quantsim.repository.AccountRepository;
-import com.quantsim.repository.BacktestResultRepository;
-import com.quantsim.repository.DailyIndicatorRepository;
-import com.quantsim.repository.DailyPredictionRepository;
-import com.quantsim.repository.DailyPriceRepository;
-import com.quantsim.repository.GameSessionRepository;
-import com.quantsim.repository.StockRepository;
-import com.quantsim.repository.PendingOrderRepository;
-import com.quantsim.repository.PositionRepository;
-import com.quantsim.repository.SessionStockRepository;
-import com.quantsim.repository.RoomMemberRepository;
-import com.quantsim.repository.RoomRepository;
-import com.quantsim.repository.DailyChallengeRepository;
-import com.quantsim.repository.UserProgressRepository;
-import com.quantsim.repository.TransactionRepository;
-import com.quantsim.repository.UserRepository;
 
 /**
  * 竞技场新策略集成测试: RSI/MACD/BOLL/GRID/TURTLE 可跑且指标合理,
@@ -51,88 +27,17 @@ import com.quantsim.repository.UserRepository;
         "quantsim.fees.stock.min-commission=0",
         "quantsim.fees.stock.stamp-tax-rate=0",
 })
-class BacktestStrategyIntegrationTest {
-
-    @Autowired TestRestTemplate rest;
-    @Autowired ObjectMapper objectMapper;
-    @Autowired CacheManager cacheManager;
-
-    @Autowired BacktestResultRepository backtestRepository;
-    @Autowired PendingOrderRepository cleanupOrderRepository;
-    @Autowired PositionRepository cleanupPositionRepository;
-    @Autowired SessionStockRepository cleanupSessionStockRepository;
-    @Autowired RoomMemberRepository cleanupRoomMemberRepository;
-    @Autowired RoomRepository cleanupRoomRepository;
-    @Autowired DailyChallengeRepository cleanupDailyChallengeRepository;
-    @Autowired UserProgressRepository cleanupUserProgressRepository;
-    @Autowired TransactionRepository transactionRepository;
-    @Autowired AccountRepository accountRepository;
-    @Autowired GameSessionRepository sessionRepository;
-    @Autowired UserRepository userRepository;
-    @Autowired com.quantsim.repository.UserPointsRepository userPointsCleanup;
-    @Autowired DailyIndicatorRepository indicatorRepository;
-    @Autowired DailyPredictionRepository predictionRepository;
-    @Autowired DailyPriceRepository priceRepository;
-    @Autowired StockRepository stockRepository;
+class BacktestStrategyIntegrationTest extends IntegrationTestSupport {
 
     @BeforeEach
     void seed() {
-        // 全量清理所有引用 game_sessions/users 的子表 —— 测试套件共用一个库,
-        // 上一套件最后一个用例的残留 (如组合模式的 positions) 会卡住本套件的外键
-        backtestRepository.deleteAll();
-        cleanupOrderRepository.deleteAll();
-        cleanupPositionRepository.deleteAll();
-        cleanupSessionStockRepository.deleteAll();
-        cleanupRoomMemberRepository.deleteAll();
-        cleanupRoomRepository.deleteAll();
-        cleanupDailyChallengeRepository.deleteAll();
-        cleanupUserProgressRepository.deleteAll();
-        transactionRepository.deleteAll();
-        accountRepository.deleteAll();
-        sessionRepository.deleteAll();
-        userPointsCleanup.deleteAll();
-        userRepository.deleteAll();
-        indicatorRepository.deleteAll();
-        predictionRepository.deleteAll();
-        priceRepository.deleteAll();
-        stockRepository.deleteAll();
-        cacheManager.getCache("stockData").clear();
-
-        Stock stock = new Stock();
-        stock.setCode("000001");
-        stock.setName("波动股");
-        stock.setIndustry("测试");
-        stock.setMarket(Market.STOCK);
-        stock = stockRepository.save(stock);
-
+        Stock stock = seedStock("000001", "波动股", Market.STOCK);
         // 100 天正弦波: 均值 20, 振幅 5 —— 网格/均值回归/RSI 都有信号可触发
         LocalDate d = LocalDate.of(2024, 1, 1);
         for (int i = 0; i < 100; i++) {
             double close = 20 + 5 * Math.sin(i / 6.0);
-            BigDecimal c = BigDecimal.valueOf(Math.round(close * 100) / 100.0);
-            DailyPrice p = new DailyPrice();
-            p.setStockId(stock.getStockId());
-            p.setTradeDate(d.plusDays(i));
-            p.setOpen(c);
-            p.setHigh(c.add(BigDecimal.ONE));
-            p.setLow(c.subtract(BigDecimal.ONE));
-            p.setClose(c);
-            p.setVolume(10000L);
-            priceRepository.save(p);
-        }
-    }
-
-    private ResponseEntity<String> postJson(String path, String body) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        return rest.postForEntity(path, new HttpEntity<>(body, headers), String.class);
-    }
-
-    private JsonNode json(ResponseEntity<String> resp) {
-        try {
-            return objectMapper.readTree(resp.getBody());
-        } catch (Exception e) {
-            throw new IllegalStateException("响应不是 JSON: " + resp.getBody(), e);
+            savePrice(stock.getStockId(), d.plusDays(i),
+                    BigDecimal.valueOf(Math.round(close * 100) / 100.0));
         }
     }
 
