@@ -5,36 +5,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.cache.CacheManager;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quantsim.entity.DailyPrice;
 import com.quantsim.entity.EventScenario;
 import com.quantsim.entity.EventTimelineItem;
 import com.quantsim.entity.Market;
 import com.quantsim.entity.Stock;
-import com.quantsim.repository.AccountRepository;
-import com.quantsim.repository.DailyPriceRepository;
-import com.quantsim.repository.EventScenarioRepository;
-import com.quantsim.repository.EventTimelineRepository;
-import com.quantsim.repository.GameSessionRepository;
-import com.quantsim.repository.PendingOrderRepository;
-import com.quantsim.repository.StockRepository;
-import com.quantsim.repository.TransactionRepository;
-import com.quantsim.repository.UserPointsRepository;
-import com.quantsim.repository.UserRepository;
 
 /**
  * 事件回放模式集成测试: 防剧透全覆盖 (日期平移/标的匿名/无新闻/研究所不可见),
@@ -54,41 +35,7 @@ import com.quantsim.repository.UserRepository;
         "quantsim.fees.stock.min-commission=0",
         "quantsim.fees.stock.stamp-tax-rate=0",
 })
-class EventModeIntegrationTest {
-
-    @Autowired TestRestTemplate rest;
-    @Autowired ObjectMapper objectMapper;
-    @Autowired CacheManager cacheManager;
-
-    @Autowired PendingOrderRepository orderRepository;
-    @Autowired TransactionRepository transactionRepository;
-    @Autowired AccountRepository accountRepository;
-    @Autowired GameSessionRepository sessionRepository;
-    @Autowired UserPointsRepository userPointsRepository;
-    @Autowired UserRepository userRepository;
-    @Autowired DailyPriceRepository priceRepository;
-    @Autowired com.quantsim.repository.DailyIndicatorRepository indicatorRepository;
-    @Autowired com.quantsim.repository.DailyPredictionRepository predictionRepository;
-    @Autowired StockRepository stockRepository;
-    @Autowired EventScenarioRepository scenarioRepository;
-    @Autowired EventTimelineRepository timelineRepository;
-
-    @BeforeEach
-    void clean() {
-        orderRepository.deleteAll();
-        transactionRepository.deleteAll();
-        accountRepository.deleteAll();
-        sessionRepository.deleteAll();
-        userPointsRepository.deleteAll();
-        userRepository.deleteAll();
-        timelineRepository.deleteAll();
-        scenarioRepository.deleteAll();
-        indicatorRepository.deleteAll();
-        predictionRepository.deleteAll();
-        priceRepository.deleteAll();
-        stockRepository.deleteAll();
-        cacheManager.getCache("stockData").clear();
-    }
+class EventModeIntegrationTest extends IntegrationTestSupport {
 
     /** 伪造一个 2015 场景: hidden 标的 + 窗口行情 + 时间线。 */
     private EventScenario seedScenario() {
@@ -133,43 +80,6 @@ class EventModeIntegrationTest {
         ti.setBodyEn("Test body");
         timelineRepository.save(ti);
         return sc;
-    }
-
-    // ---------- http helpers ----------
-
-    private ResponseEntity<String> postJson(String path, String body, String cookie) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (cookie != null) {
-            headers.add(HttpHeaders.COOKIE, cookie);
-        }
-        return rest.postForEntity(path, new HttpEntity<>(body, headers), String.class);
-    }
-
-    private ResponseEntity<String> get(String path, String cookie) {
-        HttpHeaders headers = new HttpHeaders();
-        if (cookie != null) {
-            headers.add(HttpHeaders.COOKIE, cookie);
-        }
-        return rest.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), String.class);
-    }
-
-    private JsonNode json(ResponseEntity<String> resp) {
-        try {
-            return objectMapper.readTree(resp.getBody());
-        } catch (Exception e) {
-            throw new IllegalStateException("响应不是 JSON: " + resp.getBody(), e);
-        }
-    }
-
-    private String register(String username) {
-        ResponseEntity<String> resp = postJson("/api/auth/register",
-                "{\"username\":\"" + username + "\",\"password\":\"secret66\"}", null);
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
-        return resp.getHeaders().get(HttpHeaders.SET_COOKIE).stream()
-                .filter(c -> c.startsWith("JSESSIONID"))
-                .map(c -> c.split(";", 2)[0])
-                .findFirst().orElseThrow();
     }
 
     // ---------- 用例 ----------

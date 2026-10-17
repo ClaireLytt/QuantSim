@@ -4,42 +4,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.cache.CacheManager;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quantsim.entity.AiLevel;
-import com.quantsim.entity.DailyPrediction;
-import com.quantsim.entity.DailyPrice;
 import com.quantsim.entity.Market;
 import com.quantsim.entity.Stock;
-import com.quantsim.repository.AccountRepository;
-import com.quantsim.repository.DailyIndicatorRepository;
-import com.quantsim.repository.DailyPredictionRepository;
-import com.quantsim.repository.DailyPriceRepository;
-import com.quantsim.repository.GameSessionRepository;
-import com.quantsim.repository.PendingOrderRepository;
-import com.quantsim.repository.DailyChallengeRepository;
-import com.quantsim.repository.RoomMemberRepository;
-import com.quantsim.repository.RoomRepository;
-import com.quantsim.repository.UserProgressRepository;
-import com.quantsim.repository.PositionRepository;
-import com.quantsim.repository.SessionStockRepository;
-import com.quantsim.repository.StockRepository;
-import com.quantsim.repository.TransactionRepository;
-import com.quantsim.repository.UserRepository;
 
 /**
  * 交易深度集成测试: 挂单撮合 / 做空强平 / 三股组合。
@@ -63,99 +37,16 @@ import com.quantsim.repository.UserRepository;
         "quantsim.fees.us.min-commission=0",
         "quantsim.fees.us.stamp-tax-rate=0",
 })
-class TradingDepthIntegrationTest {
-
-    @Autowired TestRestTemplate rest;
-    @Autowired ObjectMapper objectMapper;
-    @Autowired CacheManager cacheManager;
-
-    @Autowired PendingOrderRepository orderRepository;
-    @Autowired RoomMemberRepository roomMemberRepository;
-    @Autowired RoomRepository roomRepository;
-    @Autowired DailyChallengeRepository dailyChallengeRepository;
-    @Autowired UserProgressRepository userProgressRepository;
-    @Autowired PositionRepository positionRepository;
-    @Autowired SessionStockRepository sessionStockRepository;
-    @Autowired TransactionRepository transactionRepository;
-    @Autowired AccountRepository accountRepository;
-    @Autowired GameSessionRepository sessionRepository;
-    @Autowired UserRepository userRepository;
-    @Autowired com.quantsim.repository.UserPointsRepository userPointsCleanup;
-    @Autowired DailyIndicatorRepository indicatorRepository;
-    @Autowired DailyPredictionRepository predictionRepository;
-    @Autowired DailyPriceRepository priceRepository;
-    @Autowired StockRepository stockRepository;
-
-    @BeforeEach
-    void clean() {
-        roomMemberRepository.deleteAll();
-        roomRepository.deleteAll();
-        dailyChallengeRepository.deleteAll();
-        userProgressRepository.deleteAll();
-        orderRepository.deleteAll();
-        positionRepository.deleteAll();
-        sessionStockRepository.deleteAll();
-        transactionRepository.deleteAll();
-        accountRepository.deleteAll();
-        sessionRepository.deleteAll();
-        userPointsCleanup.deleteAll();
-        userRepository.deleteAll();
-        indicatorRepository.deleteAll();
-        predictionRepository.deleteAll();
-        priceRepository.deleteAll();
-        stockRepository.deleteAll();
-        cacheManager.getCache("stockData").clear();
-    }
+class TradingDepthIntegrationTest extends IntegrationTestSupport {
 
     // ---------- seed helpers ----------
-
-    private Stock seedStock(String code, String name, Market market) {
-        Stock stock = new Stock();
-        stock.setCode(code);
-        stock.setName(name);
-        stock.setIndustry("测试");
-        stock.setMarket(market);
-        return stockRepository.save(stock);
-    }
 
     /** closes[i] 同时作为 open/close, high=close+1, low=close-1; 每天配 probUp=0.5 (AI 观望)。 */
     private void seedBars(Stock stock, String... closes) {
         LocalDate d = LocalDate.of(2024, 1, 1);
         for (int i = 0; i < closes.length; i++) {
-            BigDecimal close = new BigDecimal(closes[i]);
-            DailyPrice p = new DailyPrice();
-            p.setStockId(stock.getStockId());
-            p.setTradeDate(d.plusDays(i));
-            p.setOpen(close);
-            p.setHigh(close.add(BigDecimal.ONE));
-            p.setLow(close.subtract(BigDecimal.ONE));
-            p.setClose(close);
-            p.setVolume(10000L);
-            priceRepository.save(p);
-
-            DailyPrediction pred = new DailyPrediction();
-            pred.setStockId(stock.getStockId());
-            pred.setTradeDate(d.plusDays(i));
-            pred.setModel(AiLevel.EASY.getModel());
-            pred.setProbUp(new BigDecimal("0.5000"));
-            pred.setPredictedDirection("UP");
-            predictionRepository.save(pred);
-        }
-    }
-
-    // ---------- http helpers ----------
-
-    private ResponseEntity<String> postJson(String path, String body) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        return rest.postForEntity(path, new HttpEntity<>(body, headers), String.class);
-    }
-
-    private JsonNode json(ResponseEntity<String> resp) {
-        try {
-            return objectMapper.readTree(resp.getBody());
-        } catch (Exception e) {
-            throw new IllegalStateException("响应不是 JSON: " + resp.getBody(), e);
+            savePrice(stock.getStockId(), d.plusDays(i), new BigDecimal(closes[i]));
+            savePrediction(stock.getStockId(), d.plusDays(i), AiLevel.EASY, "0.5000");
         }
     }
 
