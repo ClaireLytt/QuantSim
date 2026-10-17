@@ -79,6 +79,7 @@ public class GameService {
     private final GameAiService gameAi;
     private final GameBenchmarks benchmarks;
     private final LedgerReplay ledger;
+    private final AiOpponent aiOpponent;
 
     public static final ZoneId GAME_ZONE = ZoneId.of("Asia/Shanghai");
 
@@ -226,7 +227,7 @@ public class GameService {
 
     /**
      * 隔夜资金计息: 公式/舍入收口在 LedgerReplay.dailyInterest (结算曲线与 undo 重放同一内核,
-     * 天然同口径)。玩家与 AI 一起计。
+     * 天然同口径)。玩家与 AI 一起计, AI 的账走 AiOpponent。
      */
     private void accrueInterest(GameSession session, Account account) {
         BigDecimal interest = ledger.dailyInterest(account.getCashBalance());
@@ -234,12 +235,7 @@ public class GameService {
             account.setCashBalance(account.getCashBalance().add(interest));
             account.setInterestTotal(account.getInterestTotal().add(interest));
         }
-        if (aiInitialized(session)) {
-            BigDecimal aiInterest = ledger.dailyInterest(session.getAiCash());
-            if (aiInterest.signum() != 0) {
-                session.setAiCash(session.getAiCash().add(aiInterest));
-            }
-        }
+        aiOpponent.accrue(session);
     }
 
     /** 净值归零强平: 全部持仓按现价了结 (含费用), 现金落定。 */
@@ -429,9 +425,8 @@ public class GameService {
 
         BigDecimal aiFinal = null;
         BigDecimal aiReturn = null;
-        if (aiInitialized(session)) {
-            aiFinal = session.getAiCash()
-                    .add(settleClose.multiply(BigDecimal.valueOf(session.getAiShares())));
+        if (aiOpponent.initialized(session)) {
+            aiFinal = aiOpponent.valueAt(session, settleClose);
             aiReturn = TradeMath.returnRate(aiFinal, initial);
         }
 
@@ -698,9 +693,8 @@ public class GameService {
                 : new PredictionInfo(pred.getPredictedDirection(), pred.getProbUp());
 
         AiStatus ai = null;
-        if (aiInitialized(session)) {
-            BigDecimal aiTotal = session.getAiCash()
-                    .add(currentPrice.multiply(BigDecimal.valueOf(session.getAiShares())));
+        if (aiOpponent.initialized(session)) {
+            BigDecimal aiTotal = aiOpponent.valueAt(session, currentPrice);
             ai = new AiStatus(session.getAiCash(), session.getAiShares(),
                     aiTotal, TradeMath.returnRate(aiTotal, session.getInitialCash()));
         }
@@ -753,11 +747,6 @@ public class GameService {
     private GameSession getSessionWithLock(Long sessionId) {
         return sessionRepository.findWithLockBySessionId(sessionId)
                 .orElseThrow(() -> new NotFoundException("对局不存在: " + sessionId));
-    }
-
-    /** V2 迁移前创建的旧对局 ai_cash/ai_shares 均为 0, 视为无 AI 对手, 避免显示 -100% 收益。 */
-    private boolean aiInitialized(GameSession session) {
-        return session.getAiCash().signum() > 0 || session.getAiShares() > 0;
     }
 
     private void requireInProgress(GameSession session) {
