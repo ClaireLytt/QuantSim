@@ -6,11 +6,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import lombok.RequiredArgsConstructor;
+
 @Configuration
+@RequiredArgsConstructor
 public class WebConfig implements WebMvcConfigurer {
+
+    private final GameAccessInterceptor gameAccessInterceptor;
 
     /** 缺省为空 = 不开 CORS (前后端同源); 跨域部署时用环境变量配显式白名单, 严禁 *。 */
     @Value("${app.cors.allowed-origins:}")
@@ -31,6 +37,12 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/**")
                 .addResourceLocations(staticLocations)
                 .setCacheControl(CacheControl.maxAge(1, TimeUnit.HOURS));
+    }
+
+    /** 对局归属校验收口: 带 {sessionId} 的端点统一在拦截器过 requireAccess。 */
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(gameAccessInterceptor).addPathPatterns("/api/game/**");
     }
 
     @Override

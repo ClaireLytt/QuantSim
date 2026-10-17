@@ -493,4 +493,38 @@ class CompetitiveIntegrationTest {
         JsonNode after = json(get("/api/daily/today", alice));
         assertThat(after.path("stockCode").asText()).isEqualTo("000001");
     }
+
+    /**
+     * 防剧透全端点扫描 (属性测试): 竞技对局进行中, 任何会话相关响应的原始 JSON
+     * 都不得出现真实日期 ("2024-") 或真实标的 (代码/名称)。
+     * 新增端点天然被纳入扫描名单的维护点只有一处; 比逐字段断言更能挡住
+     * "新字段忘脱敏" (CLAUDE.md 高危教训 #4 的回归通道)。
+     */
+    @Test
+    void competitiveEndpointsNeverLeakRealDatesOrIdentity() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        String alice = register("脱敏扫描");
+        long sid = json(postJson("/api/daily/start", "{}", alice)).path("sessionId").asLong();
+
+        // 制造一笔成交 + 一张挂单, 让流水/挂单响应有内容可泄
+        postJson("/api/game/" + sid + "/trade",
+                "{\"direction\":\"BUY\",\"price\":10.00,\"shares\":100}", alice);
+        postJson("/api/game/" + sid + "/orders",
+                "{\"orderType\":\"LIMIT_BUY\",\"price\":9.50,\"shares\":100}", alice);
+
+        String[] endpoints = {
+                "/api/game/" + sid + "/history",
+                "/api/game/" + sid + "/status",
+                "/api/game/" + sid + "/transactions",
+                "/api/game/" + sid + "/orders",
+                "/api/game/" + sid + "/news/upcoming",
+                "/api/daily/today",
+        };
+        for (String ep : endpoints) {
+            String body = get(ep, alice).getBody();
+            assertThat(body).as("进行中竞技响应泄露真实日期: " + ep).doesNotContain("2024-");
+            assertThat(body).as("进行中竞技响应泄露真实代码: " + ep).doesNotContain("000001");
+            assertThat(body).as("进行中竞技响应泄露真实名称: " + ep).doesNotContain("测试股");
+        }
+    }
 }
