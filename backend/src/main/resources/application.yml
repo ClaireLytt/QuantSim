@@ -1,9 +1,10 @@
 server:
   port: 8080
-  # 生产走 Caddy 反代 (deploy/Caddyfile), 不解析 X-Forwarded-* 时 getRemoteAddr 全是代理 IP,
-  # 所有按 IP 限流退化为全站共享单桶 (一个滥用者即可 DoS 登录/注册/游客开局)。
-  # framework 策略只信任直连上游一跳的转发头, 本地直连部署无副作用。
-  forward-headers-strategy: framework
+  # 缺省不解析 X-Forwarded-* —— framework 策略没有"可信代理"校验, 客户端自报的 XFF
+  # 会直接变成 getRemoteAddr, 全部按 IP 的限流 (登录爆破/游客刷库/LLM 配额) 可被逐请求伪造绕过。
+  # 走可信反代 (compose prod 的 Caddy 会覆写 XFF) 的部署用 QUANTSIM_FORWARD_HEADERS=framework
+  # 显式开启, 否则代理后所有按 IP 限流退化为全站共享单桶; 开启的前提是后端端口不可被绕过直连。
+  forward-headers-strategy: ${QUANTSIM_FORWARD_HEADERS:none}
   servlet:
     session:
       timeout: 7d            # 登录态保持一周

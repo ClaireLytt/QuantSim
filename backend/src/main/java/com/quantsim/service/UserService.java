@@ -35,10 +35,11 @@ public class UserService {
         return user;
     }
 
-    /** 昵称字符白名单: 字母(含中文)/数字/_ @ . - 与空格。大小写冒名已被数据库 ci 唯一键挡住,
-     *  这里挡的是零宽/控制字符和同形异义码点 (如西里尔 а) 在公开榜上视觉冒充他人。 */
+    /** 昵称字符白名单: 汉字/ASCII 字母数字/_ @ . - 与空格。大小写冒名已被数据库 ci 唯一键挡住,
+     *  这里挡零宽/控制字符和同形异义码点在公开榜上视觉冒充他人 —— 必须按"脚本"收窄:
+     *  \p{L} 会放行西里尔 а/希腊 ο 等同形字, 等于没防 (站点只有中英文, Han+ASCII 足够)。 */
     private static final java.util.regex.Pattern NAME_OK =
-            java.util.regex.Pattern.compile("^[\\p{L}\\p{N}_@.\\- ]+$");
+            java.util.regex.Pattern.compile("^[\\p{IsHan}A-Za-z0-9_@.\\- ]+$");
 
     public static void requireValidName(String name) {
         if (!NAME_OK.matcher(name).matches()) {

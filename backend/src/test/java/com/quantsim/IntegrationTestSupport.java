@@ -55,6 +55,18 @@ import com.quantsim.repository.UserRepository;
  */
 abstract class IntegrationTestSupport {
 
+    /**
+     * 统一压缩 Hikari 池: 每个 properties 组合各起一个 Spring context, 各自的连接池
+     * (默认 10 条) 存活到 JVM 结束并相互叠加 —— 测试类一多就压爆 MySQL max_connections
+     * (本地与 CI 先后中招 "Too many connections", 见 issue_recode/1.md 2026-10-17)。
+     * 集成测试串行执行, 每 context 4 条连接绰绰有余; 新增测试类不再逼近上限。
+     */
+    @org.springframework.test.context.DynamicPropertySource
+    static void capConnectionPool(org.springframework.test.context.DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.hikari.maximum-pool-size", () -> "4");
+        registry.add("spring.datasource.hikari.minimum-idle", () -> "0");
+    }
+
     @Autowired protected TestRestTemplate rest;
     @Autowired protected ObjectMapper objectMapper;
     @Autowired protected CacheManager cacheManager;
