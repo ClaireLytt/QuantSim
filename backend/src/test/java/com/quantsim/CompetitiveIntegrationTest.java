@@ -141,6 +141,14 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         assertThat(sessionRepository.findById(sid).orElseThrow().getStatus().name()).isEqualTo("SETTLED");
     }
 
+    /** 回归: challenge 缺 sessionId 是调用方的错, 必须 400 业务提示而非 findById(null) 炸 500。 */
+    @Test
+    void challengeWithoutSessionIdIs400Not500() {
+        String alice = register("缺参甲");
+        ResponseEntity<String> resp = postJson("/api/rooms/challenge", "{}", alice);
+        assertThat(resp.getStatusCode().value()).isEqualTo(400);
+    }
+
     /** 回归 T-06: 同一账号并发双开每日挑战, 一成一败 (400 业务提示), 绝不 500。 */
     @Test
     void concurrentDailyStartYieldsBusinessErrorNot500() throws Exception {

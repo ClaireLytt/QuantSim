@@ -55,6 +55,13 @@ public class RoomService {
     private final MarketDataService marketData;
     private final GameProperties props;
 
+    /** 战况表排序: 收益率降序, 未开局 (returnRate=null) 的成员垫底。包级可见供契约单测。
+     *  必须用 nullsLast 组合而非手写 if-return: 曾经双 null 时 compare(a,b)=compare(b,a)=1
+     *  违反反对称契约, 列表一旦走 TimSort (>=32 元素) 就会抛 IllegalArgumentException。 */
+    static final java.util.Comparator<RoomMemberView> STANDINGS_ORDER = java.util.Comparator.comparing(
+            RoomMemberView::returnRate,
+            java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder()));
+
     @Transactional
     public RoomView create(Long userId, String market, String aiLevel, boolean realRules) {
         AiLevel level = aiLevel == null || aiLevel.isBlank()
@@ -91,6 +98,10 @@ public class RoomService {
      */
     @Transactional
     public RoomView createChallenge(Long userId, Long sessionId) {
+        if (sessionId == null) {
+            // 调用方的错给 400 业务提示, 别让 findById(null) 炸成 500 刷 error 日志
+            throw new BusinessException("缺少 sessionId");
+        }
         GameSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new NotFoundException("对局不存在: " + sessionId));
         if (!java.util.Objects.equals(session.getUserId(), userId)) {
@@ -232,11 +243,7 @@ public class RoomService {
         }
         // 已结算按收益率排序展示
         if (settledRoom) {
-            standings.sort((a, b) -> {
-                if (a.returnRate() == null) return 1;
-                if (b.returnRate() == null) return -1;
-                return b.returnRate().compareTo(a.returnRate());
-            });
+            standings.sort(STANDINGS_ORDER);
         }
 
         // 标的匿名: 房间未结算前不暴露是哪只股票, 结算时揭晓

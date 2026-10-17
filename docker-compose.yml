@@ -24,8 +24,12 @@ services:
       QUANTSIM_DB_HOST: mysql
       QUANTSIM_DB_PASSWORD: ${QUANTSIM_DB_PASSWORD:-root}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # 生产经 Caddy 反代时置 framework (Caddy 会覆写 XFF); 缺省 none 防伪造 IP 绕限流
+      QUANTSIM_FORWARD_HEADERS: ${QUANTSIM_FORWARD_HEADERS:-none}
     ports:
-      - "8080:8080"
+      # 只绑回环: 本机调试照常 localhost:8080, 外网流量必须走 Caddy (直连绕过反代
+      # 曾使伪造 XFF 可逐请求换 IP, 刷穿登录/游客/LLM 的全部按 IP 限流)
+      - "${QUANTSIM_BACKEND_BIND:-127.0.0.1}:8080:8080"
     depends_on:
       mysql:
         condition: service_healthy

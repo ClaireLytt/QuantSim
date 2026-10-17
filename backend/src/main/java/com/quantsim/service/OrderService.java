@@ -173,9 +173,12 @@ public class OrderService {
                 }
                 fillShares = Math.min(fillShares, cur);
             }
-            // 真实规则 (封板/T+1) 只是"今天不能成交", 继续挂到明天, 不作废单处理
+            // 真实规则 (封板/T+1) 只是"今天不能成交", 继续挂到明天, 不作废单处理。
+            // 判定必须用 clamp 后的 fillShares (与下方 validate/execute 同一数量口径):
+            // 用原始挂单数会出现"可部分平仓却被 T+1 整单拒绝、保护单永远挂着"的分叉
+            // (advanced 与 realRules 现互斥故不可达, 属防未来放开组合的埋雷修复)
             if (session.isRealRules() && tradeEngine.realRulesError(session, account,
-                    order.getStockId(), dir, order.getShares()) != null) {
+                    order.getStockId(), dir, fillShares) != null) {
                 continue;
             }
             if (session.getMaxTrades() != null && txCount >= session.getMaxTrades()) {
