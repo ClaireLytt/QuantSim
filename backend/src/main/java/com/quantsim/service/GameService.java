@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -79,6 +78,7 @@ public class GameService {
     private final GameProperties props;
     private final GameAiService gameAi;
     private final GameBenchmarks benchmarks;
+    private final LedgerReplay ledger;
 
     public static final ZoneId GAME_ZONE = ZoneId.of("Asia/Shanghai");
 
@@ -225,17 +225,17 @@ public class GameService {
     }
 
     /**
-     * 隔夜资金计息: 正现金按货基利率生息 (教学: 钱不要躺着), 进阶模式透支现金按融资利率付息
-     * (杠杆不白借)。玩家与 AI 同口径; 结算重放资金曲线 (equityCurve) 必须复现同一公式与舍入。
+     * 隔夜资金计息: 公式/舍入收口在 LedgerReplay.dailyInterest (结算曲线与 undo 重放同一内核,
+     * 天然同口径)。玩家与 AI 一起计。
      */
     private void accrueInterest(GameSession session, Account account) {
-        BigDecimal interest = benchmarks.dailyInterest(account.getCashBalance());
+        BigDecimal interest = ledger.dailyInterest(account.getCashBalance());
         if (interest.signum() != 0) {
             account.setCashBalance(account.getCashBalance().add(interest));
             account.setInterestTotal(account.getInterestTotal().add(interest));
         }
         if (aiInitialized(session)) {
-            BigDecimal aiInterest = benchmarks.dailyInterest(session.getAiCash());
+            BigDecimal aiInterest = ledger.dailyInterest(session.getAiCash());
             if (aiInterest.signum() != 0) {
                 session.setAiCash(session.getAiCash().add(aiInterest));
             }
@@ -614,7 +614,10 @@ public class GameService {
         return curve == null ? null : benchmarks.riskMetrics(curve);
     }
 
-    /** 从初始资金重放全部流水, 重建账户现金/持仓/均价/累计利息 (undo 用)。 */
+    /**
+     * 从初始资金重放全部流水, 重建账户现金/持仓/均价/累计利息 (undo 用)。
+     * 重放循环在 LedgerReplay (与 tick 计息/结算曲线同一内核), 这里只取末日快照落账。
+     */
     private void replayAccount(GameSession session, Account account) {
         StockData sd = marketData.load(session.getStockId());
         Integer startIdx = sd.indexOf(session.getStartDate());
@@ -624,30 +627,14 @@ public class GameService {
         }
         List<TradeTransaction> txs =
                 transactionRepository.findBySessionIdOrderByCreatedAtAsc(session.getSessionId());
-        Map<LocalDate, List<TradeTransaction>> byDate =
-                txs.stream().collect(Collectors.groupingBy(TradeTransaction::getTradeDate));
-        BigDecimal cash = session.getInitialCash();
-        BigDecimal interestTotal = BigDecimal.ZERO;
-        Map<Long, PositionMath.Fill> fills = new HashMap<>();
-        for (int i = startIdx; i <= endIdx; i++) {
-            LocalDate day = sd.prices().get(i).getTradeDate();
-            if (i > startIdx) {
-                BigDecimal interest = benchmarks.dailyInterest(cash);
-                cash = cash.add(interest);
-                interestTotal = interestTotal.add(interest);
-            }
-            for (TradeTransaction tx : byDate.getOrDefault(day, List.of())) {
-                BigDecimal gross = tx.getPrice().multiply(BigDecimal.valueOf(tx.getShares()));
-                boolean buy = tx.getDirection() == TradeTransaction.Direction.BUY;
-                cash = cash.add(buy ? gross.negate() : gross).subtract(tx.getFee());
-                Long sid = tx.getStockId() != null ? tx.getStockId() : session.getStockId();
-                PositionMath.Fill cur = fills.getOrDefault(sid, new PositionMath.Fill(0, BigDecimal.ZERO));
-                fills.put(sid, PositionMath.apply(cur.shares(), cur.avgCost(),
-                        tx.getDirection(), tx.getPrice(), tx.getShares()));
-            }
-        }
-        account.setCashBalance(cash);
-        account.setInterestTotal(interestTotal);
+        List<LocalDate> days = sd.prices().subList(startIdx, endIdx + 1).stream()
+                .map(DailyPrice::getTradeDate).toList();
+        List<LedgerReplay.Snapshot> snaps =
+                ledger.replay(session.getInitialCash(), days, txs, session.getStockId());
+        LedgerReplay.Snapshot last = snaps.get(snaps.size() - 1);
+        Map<Long, PositionMath.Fill> fills = new HashMap<>(last.fills());
+        account.setCashBalance(last.cash());
+        account.setInterestTotal(last.interestTotal());
         if ("PORTFOLIO".equals(session.getMode())) {
             // 先把全部已有仓位行归入重放结果: 不在剩余流水里的标的必须清零,
             // 否则撤销某标的唯一一笔交易后旧仓位会凭空残留
