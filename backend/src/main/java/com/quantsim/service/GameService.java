@@ -195,7 +195,7 @@ public class GameService {
         SettleResponse settleResult = null;
         boolean settled = liquidatedNow || daysElapsed >= props.getTotalTicks();
         if (settled) {
-            settleResult = doSettle(session);
+            settleResult = doSettle(session).response();
         }
         sessionRepository.save(session);
 
@@ -392,24 +392,32 @@ public class GameService {
      * 否则 catch 了异常也救不回来, 提交时 UnexpectedRollbackException, 房间页永久 500。
      */
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
-    public SettleResponse settleIsolated(Long sessionId) {
+    public SettleResult settleIsolated(Long sessionId) {
         GameSession session = getSessionWithLock(sessionId);
         requireInProgress(session); // 并发下已被结算: 在这里抛出并回滚本事务, 调用方忽略即可
-        SettleResponse result = doSettle(session);
+        SettleResult result = doSettle(session);
         sessionRepository.save(session);
         return result;
+    }
+
+    /**
+     * 内部结算结果: 对外 JSON 仍只有 response; columns 专供 REQUIRES_NEW 调用方
+     * (RoomService 强结) 把内层事务写过的 game_session 列回填到父事务的旧托管实体
+     * (为什么必须回填见 SettledColumns 的 javadoc)。
+     */
+    public record SettleResult(SettleResponse response, SettledColumns columns) {
     }
 
     @Transactional
     public SettleResponse settle(Long sessionId) {
         GameSession session = getSessionWithLock(sessionId);
         requireInProgress(session);
-        SettleResponse result = doSettle(session);
+        SettleResponse result = doSettle(session).response();
         sessionRepository.save(session);
         return result;
     }
 
-    private SettleResponse doSettle(GameSession session) {
+    private SettleResult doSettle(GameSession session) {
         Account account = accountRepository.findWithLockBySessionId(session.getSessionId())
                 .orElseThrow(() -> new NotFoundException("账户不存在"));
 
@@ -466,9 +474,9 @@ public class GameService {
 
         // 结算写回 game_session 的列统一经 SettledColumns 收口 (含 bias JSON 序列化-或-null 政策),
         // 新增结算列只改 SettledColumns, 别在这里散写 setter
-        SettledColumns.of(GameSession.Status.SETTLED, returnRate,
-                risk == null ? null : risk.sharpe(), biasReport, objectMapper)
-                .applyTo(session);
+        SettledColumns columns = SettledColumns.of(GameSession.Status.SETTLED, returnRate,
+                risk == null ? null : risk.sharpe(), biasReport, objectMapper);
+        columns.applyTo(session);
         orderService.cancelOpenOnSettle(session.getSessionId()); // 残留 OPEN 挂单随对局一并了结
 
         // 积分入账 (服务端权威): 基础/胜AI/赢基准/连胜/每日任务, 前端只展示。
@@ -486,11 +494,11 @@ public class GameService {
         // 已结算: 竞技模式在此揭晓真实标的 (进行中全程匿名)。
         // 事件场景复合代码的剥壳统一走 BlindDates.stripScenario, 别再各写一份
         String revealCode = BlindDates.stripScenario(sd.stock().getCode());
-        return new SettleResponse(session.getSessionId(), initial,
+        return new SettleResult(new SettleResponse(session.getSessionId(), initial,
                 finalAssets, returnRate, aiFinal, aiReturn, holdReturn, maCrossReturn, dcaReturn,
                 risk, holdRisk, account.getInterestTotal(), curve, holdCurve,
                 predictionDays, styleTag, revealCode, sd.stock().getName(),
-                award.earned(), award.winStreak(), biasReport, journal, eventReveal);
+                award.earned(), award.winStreak(), biasReport, journal, eventReveal), columns);
     }
 
     /** 事件回放结算揭晓: 场景名 + 真实窗口 + 整段大事记 (给足上下文, 不只截对局窗口)。 */

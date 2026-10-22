@@ -12,9 +12,12 @@ import com.quantsim.entity.GameSession;
 /**
  * 一局结算后写回 game_session 的全部列, 收口成单一模块。
  *
- * 为什么: 结算内层事务 (REQUIRES_NEW) 写的列必须由调用方逐一回填到父事务的旧托管
- * 实体上, 漏任何一列 Hibernate 整行回写就会用旧快照把它静默抹掉 (bias_report 曾被
- * 这样清成 NULL)。把"结算写哪些列"定义在这一个 record 里: 新增结算列只改这里,
+ * 为什么: 结算内层事务 (REQUIRES_NEW) 写的列必须由调用方回填到父事务的旧托管实体上——
+ * 不能 findById 回读: 该实体已在父事务一级缓存里, 读到的是结算前的旧托管实例
+ * (REQUIRES_NEW 的更新对本事务不可见; MySQL REPEATABLE READ 下连 refresh 重查也只能
+ * 看到本事务快照)。Hibernate 默认非 dynamic-update, 父事务提交按内存值整行回写,
+ * 漏回填哪列哪列就被旧快照静默抹掉 (bias_report 曾被这样清成 NULL)。
+ * 把"结算写哪些列"定义在这一个 record 里: 新增结算列只改这里,
  * applyTo 的完整性由 SettledColumnsTest 反射对齐保证, 不再靠注释和集成测试守护。
  *
  * @param status          结算后状态 (恒为 SETTLED)

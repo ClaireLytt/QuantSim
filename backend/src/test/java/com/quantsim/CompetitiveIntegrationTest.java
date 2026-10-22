@@ -156,23 +156,42 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
      */
     @Test
     void expiredRoomForceSettleKeepsBiasReport() {
-        seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        // 波动行情 (而非均匀价): 持仓权益曲线才有非零波动, finalSharpe 才非空可断言
+        Stock stock = seedStock("000001", "测试股000001", Market.STOCK);
+        LocalDate firstDay = LocalDate.of(2024, 1, 1);
+        for (int i = 0; i < 12; i++) {
+            savePrice(stock.getStockId(), firstDay.plusDays(i),
+                    new java.math.BigDecimal("10.00").add(java.math.BigDecimal.valueOf(i % 3)));
+            savePrediction(stock.getStockId(), firstDay.plusDays(i), AiLevel.NORMAL, "0.5000");
+        }
         String alice = register("强结诊断");
         JsonNode roomJson = json(postJson("/api/rooms", "{}", alice));
         String code = roomJson.path("code").asText();
         long sid = json(postJson("/api/rooms/" + code + "/play", "{}", alice)).path("sessionId").asLong();
         // 产生一笔成交, 让偏差诊断有内容可落库 (空交易也会落 JSON, 但有内容更接近真实)
+        JsonNode st = json(get("/api/game/" + sid + "/status", alice));
         postJson("/api/game/" + sid + "/trade",
-                "{\"direction\":\"BUY\",\"price\":10.00,\"shares\":100}", alice);
+                "{\"direction\":\"BUY\",\"price\":" + st.path("currentPrice").asText()
+                        + ",\"shares\":100}", alice);
+        // 推进 2 天但不打满 (total-ticks=3): 权益曲线 ≥3 点, 夏普才可计算; 对局仍 IN_PROGRESS 等强结
+        postJson("/api/game/" + sid + "/tick", "{}", alice);
+        postJson("/api/game/" + sid + "/tick", "{}", alice);
 
         Room room = roomRepository.findByCode(code).orElseThrow();
         room.setExpiresAt(LocalDateTime.now().minusMinutes(1));
         roomRepository.save(room);
 
         json(get("/api/rooms/" + code, alice)); // 触发到期强结
-        assertThat(sessionRepository.findById(sid).orElseThrow().getBiasReport())
+        // 结算写回的四列 (SettledColumns) 都必须在父事务提交后存活, 漏回填任何一列都会被旧快照抹掉
+        var settledSession = sessionRepository.findById(sid).orElseThrow();
+        assertThat(settledSession.getBiasReport())
                 .as("强结成员的 bias_report 必须在父事务提交后仍存活")
                 .isNotNull();
+        assertThat(settledSession.getStatus()).isEqualTo(com.quantsim.entity.GameSession.Status.SETTLED);
+        assertThat(settledSession.getFinalReturnRate())
+                .as("强结成员的 final_return_rate 必须落库").isNotNull();
+        assertThat(settledSession.getFinalSharpe())
+                .as("强结成员的 final_sharpe 必须落库 (12 根 K 线足够算权益曲线)").isNotNull();
     }
 
     /** 回归 T-06: 同一账号并发双开每日挑战, 一成一败 (400 业务提示), 绝不 500。 */
