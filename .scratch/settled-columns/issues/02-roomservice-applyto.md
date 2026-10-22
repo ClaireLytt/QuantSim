@@ -4,9 +4,9 @@
 
 **Blocked by:** 01 (SettledColumns record)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] RoomService 不再出现 game_session 列名的 set 调用与 toJsonOrNull
-- [ ] 既有房间到期强结回归 (bias_report 非空, c8b37a2 配套) 保持绿
-- [ ] GLOSSARY.md 新词条
-- [ ] `cd backend && mvn -B test` 全绿; commit 英文、无 AI 署名
+- [x] RoomService 不再出现 game_session 列名的 set 调用与 toJsonOrNull
+- [x] 既有房间到期强结回归 (bias_report 非空, c8b37a2 配套) 保持绿
+- [x] GLOSSARY.md 新词条
+- [x] `cd backend && mvn -B test` 全绿; commit 英文、无 AI 署名

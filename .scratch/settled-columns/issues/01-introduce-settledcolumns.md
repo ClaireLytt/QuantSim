@@ -4,9 +4,9 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 新纯单元测试 (无 Spring 上下文): applyTo 写入 record 的每一个组件 (反射对齐, 防"加列忘回填"); 序列化失败降级 null; report 为 null 时 biasReportJson 为 null
-- [ ] GameService.doSettle 经由 SettledColumns 写 session, SettleResponse 对外 JSON 不变
-- [ ] `cd backend && mvn -B test` 全绿
-- [ ] 注释中文、写"为什么"; commit 英文、无 AI 署名
+- [x] 新纯单元测试 (无 Spring 上下文): applyTo 写入 record 的每一个组件 (反射对齐, 防"加列忘回填"); 序列化失败降级 null; report 为 null 时 biasReportJson 为 null
+- [x] GameService.doSettle 经由 SettledColumns 写 session, SettleResponse 对外 JSON 不变
+- [x] `cd backend && mvn -B test` 全绿
+- [x] 注释中文、写"为什么"; commit 英文、无 AI 署名
