@@ -458,15 +458,17 @@ public class GameService {
         String styleTag = benchmarks.styleTag(session, sd);
         List<TradeTransaction> allTxs =
                 transactionRepository.findBySessionIdOrderByCreatedAtAsc(session.getSessionId());
-        BiasReport biasReport = computeAndStoreBias(session, allTxs);
+        BiasReport biasReport = analyzeBiasOrNull(session, allTxs);
         // 交易日志: 理由 vs 结果 (只有写过理由的流水才有行)
         List<GameDtos.JournalEntry> journal = biasAnalysisService.journal(session, allTxs, marketData::load);
         // 事件回放: 结算揭晓场景与大事记 (进行中绝不下发, 文本会暴露真实时间)
         GameDtos.EventReveal eventReveal = eventReveal(session);
 
-        session.setStatus(GameSession.Status.SETTLED);
-        session.setFinalReturnRate(returnRate);
-        session.setFinalSharpe(risk == null ? null : risk.sharpe());
+        // 结算写回 game_session 的列统一经 SettledColumns 收口 (含 bias JSON 序列化-或-null 政策),
+        // 新增结算列只改 SettledColumns, 别在这里散写 setter
+        SettledColumns.of(GameSession.Status.SETTLED, returnRate,
+                risk == null ? null : risk.sharpe(), biasReport, objectMapper)
+                .applyTo(session);
         orderService.cancelOpenOnSettle(session.getSessionId()); // 残留 OPEN 挂单随对局一并了结
 
         // 积分入账 (服务端权威): 基础/胜AI/赢基准/连胜/每日任务, 前端只展示。
@@ -506,14 +508,15 @@ public class GameService {
                 .orElse(null);
     }
 
-    /** 行为偏差诊断: 结算时按流水算一次并 JSON 落库 (复读走存储, 不重算防口径漂移)。 */
-    private BiasReport computeAndStoreBias(GameSession session, List<TradeTransaction> txs) {
+    /**
+     * 行为偏差诊断: 结算时按流水算一次 (复读走存储, 不重算防口径漂移)。
+     * JSON 落库由 SettledColumns 统一收口; 这里只兜分析本身的失败——
+     * 诊断是增值信息, 失败不应拖垮结算主流程。
+     */
+    private BiasReport analyzeBiasOrNull(GameSession session, List<TradeTransaction> txs) {
         try {
-            BiasReport report = biasAnalysisService.analyze(session, txs, marketData::load);
-            session.setBiasReport(objectMapper.writeValueAsString(report));
-            return report;
+            return biasAnalysisService.analyze(session, txs, marketData::load);
         } catch (Exception e) {
-            // 诊断是增值信息, 失败不应拖垮结算主流程
             log.warn("偏差诊断失败 session={}", session.getSessionId(), e);
             return null;
         }
