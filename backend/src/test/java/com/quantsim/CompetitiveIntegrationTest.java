@@ -173,7 +173,7 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         postJson("/api/game/" + sid + "/trade",
                 "{\"direction\":\"BUY\",\"price\":" + st.path("currentPrice").asText()
                         + ",\"shares\":100}", alice);
-        // 推进 2 天但不打满 (total-ticks=3): 权益曲线 ≥3 点, 夏普才可计算; 对局仍 IN_PROGRESS 等强结
+        // 推进 2 天但不打满 (total-ticks=3): 曲线 ≥3 点且价格有波动, 夏普才非空; 对局仍 IN_PROGRESS 等强结
         postJson("/api/game/" + sid + "/tick", "{}", alice);
         postJson("/api/game/" + sid + "/tick", "{}", alice);
 
@@ -191,7 +191,8 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         assertThat(settledSession.getFinalReturnRate())
                 .as("强结成员的 final_return_rate 必须落库").isNotNull();
         assertThat(settledSession.getFinalSharpe())
-                .as("强结成员的 final_sharpe 必须落库 (12 根 K 线足够算权益曲线)").isNotNull();
+                .as("强结成员的 final_sharpe 必须落库 (波动价 + ≥2 次 tick 使夏普可计算; 均匀价会让它合法为 null)")
+                .isNotNull();
     }
 
     /** 回归 T-06: 同一账号并发双开每日挑战, 一成一败 (400 业务提示), 绝不 500。 */

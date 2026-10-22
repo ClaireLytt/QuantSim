@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.lang.reflect.RecordComponent;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -35,15 +36,23 @@ class SettledColumnsTest {
         throw new IllegalStateException("未知组件类型 " + type + ": 请在测试里补充哨兵值构造");
     }
 
+    /**
+     * 组件名 -> 实体 getter 的显式登记表: 新增结算列必须同时在 record、applyTo 和这里登记,
+     * 漏任何一处本测试直接红——比按命名约定猜 getter 可靠 (biasReportJson 落的实体字段无 Json 后缀)。
+     */
+    private static final Map<String, String> COMPONENT_GETTERS = Map.of(
+            "status", "getStatus",
+            "finalReturnRate", "getFinalReturnRate",
+            "finalSharpe", "getFinalSharpe",
+            "biasReportJson", "getBiasReport");
+
     @Test
     void applyToWritesEveryRecordComponent() throws Exception {
         RecordComponent[] components = SettledColumns.class.getRecordComponents();
         Object[] args = new Object[components.length];
-        for (int i = 0; i < components.length; i++) {
-            args[i] = sentinel(components[i].getType(), i);
-        }
         Class<?>[] types = new Class<?>[components.length];
         for (int i = 0; i < components.length; i++) {
+            args[i] = sentinel(components[i].getType(), i);
             types[i] = components[i].getType();
         }
         SettledColumns columns = (SettledColumns) SettledColumns.class
@@ -53,11 +62,11 @@ class SettledColumnsTest {
         columns.applyTo(session);
 
         for (int i = 0; i < components.length; i++) {
-            // 组件名 -> 实体 getter: finalReturnRate -> getFinalReturnRate;
-            // biasReportJson 落的是实体的 biasReport 列 (实体字段名无 Json 后缀)
             String name = components[i].getName();
-            String getterName = "get" + Character.toUpperCase(name.charAt(0))
-                    + (name.endsWith("Json") ? name.substring(1, name.length() - 4) : name.substring(1));
+            String getterName = COMPONENT_GETTERS.get(name);
+            assertThat(getterName)
+                    .as("新增结算列组件 %s 未在 COMPONENT_GETTERS 登记对应的实体 getter", name)
+                    .isNotNull();
             Object actual = GameSession.class.getMethod(getterName).invoke(session);
             assertThat(actual)
                     .as("applyTo 必须把组件 %s 写入 GameSession.%s", name, getterName)
@@ -67,7 +76,7 @@ class SettledColumnsTest {
 
     @Test
     void factorySerializationFailureDegradesToNullJson() {
-        // 自引用 Map 让 Jackson 序列化必炸 -> 政策要求降级 null, 不中断结算
+        // 覆写 writeValueAsString 直接抛异常模拟任意序列化失败 -> 政策要求降级 null, 不中断结算
         BiasReport report = new BiasReport(1, List.of());
         ObjectMapper broken = new ObjectMapper() {
             @Override
@@ -79,6 +88,8 @@ class SettledColumnsTest {
                 GameSession.Status.SETTLED, BigDecimal.ONE, null, report, broken);
         assertThat(columns.biasReportJson()).isNull();
         assertThat(columns.status()).isEqualTo(GameSession.Status.SETTLED);
+        // 响应侧口径必须与落库一致: JSON 为 null 时响应也不下发报告 (否则刷新后报告消失)
+        assertThat(columns.responseReport(report)).isNull();
     }
 
     @Test
@@ -94,5 +105,8 @@ class SettledColumnsTest {
                 GameSession.Status.SETTLED, BigDecimal.ONE, BigDecimal.TEN,
                 new BiasReport(3, List.of()), new ObjectMapper());
         assertThat(columns.biasReportJson()).contains("\"totalTrades\":3");
+        // 序列化成功时响应正常携带原报告对象
+        BiasReport report = new BiasReport(3, List.of());
+        assertThat(columns.responseReport(report)).isSameAs(report);
     }
 }

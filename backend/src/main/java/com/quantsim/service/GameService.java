@@ -498,7 +498,9 @@ public class GameService {
                 finalAssets, returnRate, aiFinal, aiReturn, holdReturn, maCrossReturn, dcaReturn,
                 risk, holdRisk, account.getInterestTotal(), curve, holdCurve,
                 predictionDays, styleTag, revealCode, sd.stock().getName(),
-                award.earned(), award.winStreak(), biasReport, journal, eventReveal), columns);
+                award.earned(), award.winStreak(),
+                // 响应与落库口径一致: 序列化失败 DB 存 null 时, 响应也不下发报告
+                columns.responseReport(biasReport), journal, eventReveal), columns);
     }
 
     /** 事件回放结算揭晓: 场景名 + 真实窗口 + 整段大事记 (给足上下文, 不只截对局窗口)。 */

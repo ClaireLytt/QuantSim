@@ -50,6 +50,14 @@ public record SettledColumns(
         return new SettledColumns(status, finalReturnRate, finalSharpe, json);
     }
 
+    /**
+     * 结算响应里应携带的 bias 报告: 与落库口径保持一致——
+     * 序列化失败时 DB 存 null, 响应也必须是 null (否则前端看到的报告刷新后消失, 口径漂移)。
+     */
+    public BiasReport responseReport(BiasReport report) {
+        return biasReportJson == null ? null : report;
+    }
+
     /** 把全部结算列写到实体上——调用方只调这一个方法, 回填知识不外泄。 */
     public void applyTo(GameSession session) {
         session.setStatus(status);
