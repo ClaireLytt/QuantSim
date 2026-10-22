@@ -34,10 +34,19 @@ public record SettledColumns(
     private static final Logger log = LoggerFactory.getLogger(SettledColumns.class);
 
     /**
+     * 工厂产物: 落库列 + 响应侧应携带的报告, 配套返回。
+     * 为什么不只返回 SettledColumns 再让调用方传回 report 换响应侧对象:
+     * 那样"响应与落库同生共死"只靠调用方自觉传同一份报告, 是约定不是构造——
+     * 配套返回后传错在物理上不可能 (序列化失败时两侧一起为 null, 刷新后报告不会凭空消失)。
+     */
+    public record Prepared(SettledColumns columns, BiasReport responseReport) {
+    }
+
+    /**
      * bias 报告"序列化为 JSON、失败降级 null、不拖垮结算主流程"的唯一政策实现:
      * 诊断是增值信息, JSON 转换抛异常只记 warn, 结算照常落库其余三列。
      */
-    public static SettledColumns of(GameSession.Status status, BigDecimal finalReturnRate,
+    public static Prepared of(GameSession.Status status, BigDecimal finalReturnRate,
             BigDecimal finalSharpe, BiasReport report, ObjectMapper objectMapper) {
         String json = null;
         if (report != null) {
@@ -47,15 +56,8 @@ public record SettledColumns(
                 log.warn("偏差诊断报告序列化失败, 降级为 null", e);
             }
         }
-        return new SettledColumns(status, finalReturnRate, finalSharpe, json);
-    }
-
-    /**
-     * 结算响应里应携带的 bias 报告: 与落库口径保持一致——
-     * 序列化失败时 DB 存 null, 响应也必须是 null (否则前端看到的报告刷新后消失, 口径漂移)。
-     */
-    public BiasReport responseReport(BiasReport report) {
-        return biasReportJson == null ? null : report;
+        return new Prepared(new SettledColumns(status, finalReturnRate, finalSharpe, json),
+                json == null ? null : report);
     }
 
     /** 把全部结算列写到实体上——调用方只调这一个方法, 回填知识不外泄。 */

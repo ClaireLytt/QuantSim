@@ -474,9 +474,9 @@ public class GameService {
 
         // 结算写回 game_session 的列统一经 SettledColumns 收口 (含 bias JSON 序列化-或-null 政策),
         // 新增结算列只改 SettledColumns, 别在这里散写 setter
-        SettledColumns columns = SettledColumns.of(GameSession.Status.SETTLED, returnRate,
+        SettledColumns.Prepared prepared = SettledColumns.of(GameSession.Status.SETTLED, returnRate,
                 risk == null ? null : risk.sharpe(), biasReport, objectMapper);
-        columns.applyTo(session);
+        prepared.columns().applyTo(session);
         orderService.cancelOpenOnSettle(session.getSessionId()); // 残留 OPEN 挂单随对局一并了结
 
         // 积分入账 (服务端权威): 基础/胜AI/赢基准/连胜/每日任务, 前端只展示。
@@ -499,8 +499,8 @@ public class GameService {
                 risk, holdRisk, account.getInterestTotal(), curve, holdCurve,
                 predictionDays, styleTag, revealCode, sd.stock().getName(),
                 award.earned(), award.winStreak(),
-                // 响应与落库口径一致: 序列化失败 DB 存 null 时, 响应也不下发报告
-                columns.responseReport(biasReport), journal, eventReveal), columns);
+                // 响应与落库口径一致由 Prepared 构造保证: 序列化失败时两侧一起为 null
+                prepared.responseReport(), journal, eventReveal), prepared.columns());
     }
 
     /** 事件回放结算揭晓: 场景名 + 真实窗口 + 整段大事记 (给足上下文, 不只截对局窗口)。 */

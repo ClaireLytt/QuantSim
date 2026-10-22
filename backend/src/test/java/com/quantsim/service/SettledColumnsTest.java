@@ -84,29 +84,30 @@ class SettledColumnsTest {
                 throw new RuntimeException("boom");
             }
         };
-        SettledColumns columns = SettledColumns.of(
+        SettledColumns.Prepared prepared = SettledColumns.of(
                 GameSession.Status.SETTLED, BigDecimal.ONE, null, report, broken);
-        assertThat(columns.biasReportJson()).isNull();
-        assertThat(columns.status()).isEqualTo(GameSession.Status.SETTLED);
-        // 响应侧口径必须与落库一致: JSON 为 null 时响应也不下发报告 (否则刷新后报告消失)
-        assertThat(columns.responseReport(report)).isNull();
+        assertThat(prepared.columns().biasReportJson()).isNull();
+        assertThat(prepared.columns().status()).isEqualTo(GameSession.Status.SETTLED);
+        // 响应侧口径与落库由构造绑定: JSON 为 null 时响应侧一起为 null (否则刷新后报告消失)
+        assertThat(prepared.responseReport()).isNull();
     }
 
     @Test
     void factoryNullReportYieldsNullJson() {
-        SettledColumns columns = SettledColumns.of(
+        SettledColumns.Prepared prepared = SettledColumns.of(
                 GameSession.Status.SETTLED, BigDecimal.ONE, null, null, new ObjectMapper());
-        assertThat(columns.biasReportJson()).isNull();
+        assertThat(prepared.columns().biasReportJson()).isNull();
+        assertThat(prepared.responseReport()).isNull();
     }
 
     @Test
     void factorySerializesReportToJson() {
-        SettledColumns columns = SettledColumns.of(
-                GameSession.Status.SETTLED, BigDecimal.ONE, BigDecimal.TEN,
-                new BiasReport(3, List.of()), new ObjectMapper());
-        assertThat(columns.biasReportJson()).contains("\"totalTrades\":3");
-        // 序列化成功时响应正常携带原报告对象
         BiasReport report = new BiasReport(3, List.of());
-        assertThat(columns.responseReport(report)).isSameAs(report);
+        SettledColumns.Prepared prepared = SettledColumns.of(
+                GameSession.Status.SETTLED, BigDecimal.ONE, BigDecimal.TEN,
+                report, new ObjectMapper());
+        assertThat(prepared.columns().biasReportJson()).contains("\"totalTrades\":3");
+        // 序列化成功时响应侧携带的就是被序列化的那份报告
+        assertThat(prepared.responseReport()).isSameAs(report);
     }
 }
