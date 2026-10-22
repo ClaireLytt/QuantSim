@@ -10,3 +10,4 @@
 | **对局归属 (Game Access)** | `config/GameAccessInterceptor` | /api/game/** 带 {sessionId} 的端点统一在拦截器过 requireAccess, 端点内不再手写。 |
 | **防剧透 (Blind Dates)** | `service/BlindDates` | 竞技对局进行中: 日期平移虚拟纪元 + 标的匿名; 结算揭晓。回归防线是 CompetitiveIntegrationTest 的全端点泄露扫描。 |
 | **费用口径 (Fee)** | `service/FeeCalculator` | 玩家 / AI / 基准 / 回测四方共用的费用计算锚点。 |
+| **结算落库 (Settled Columns)** | `service/SettledColumns` | 一局结算后写回 game_session 的全部列 (status / finalReturnRate / finalSharpe / biasReportJson) 的唯一定义, 含 bias JSON 序列化-或-null 政策; 正常结算与房间强结都只调 applyTo, 完整性由 SettledColumnsTest 反射对齐保证。 |
