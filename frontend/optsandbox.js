@@ -8,8 +8,7 @@
   const RATE = 0.03;      // 无风险利率 3%
   const T = 30 / 365;     // 30 天到期
   let optType = "call";
-  let optChart = null;
-
+  const optChartH = qsChart("opt-chart", () => buildOptOption());
 
   // 定价共享 app.js 的 qsBsPrice (沙盒假设: 无风险利率 3%, 自然日年化)
   const bsPremium = (strike) => qsBsPrice(SPOT, strike, T, VOL, optType === "call", RATE);
@@ -21,7 +20,14 @@
     $("opt-premium").textContent = premium.toFixed(2);
     $("btn-opt-call").classList.toggle("active", optType === "call");
     $("btn-opt-put").classList.toggle("active", optType === "put");
+    optChartH.refresh();
+    const breakeven = optType === "call" ? strike + premium : strike - premium;
+    $("opt-verdict").textContent = t("opt.verdict", premium.toFixed(2), breakeven.toFixed(1));
+  }
 
+  function buildOptOption() {
+    const strike = Number($("opt-strike").value);
+    const premium = bsPremium(strike);
     const xs = [];
     const ys = [];
     for (let s = 60; s <= 140; s += 1) {
@@ -30,11 +36,7 @@
       ys.push(+(intrinsic - premium).toFixed(2));
     }
     const breakeven = optType === "call" ? strike + premium : strike - premium;
-    if (!optChart) {
-      optChart = echarts.init($("opt-chart"));
-      window.addEventListener("resize", () => optChart.resize());
-    }
-    optChart.setOption({
+    return ({
       backgroundColor: "transparent",
       tooltip: { trigger: "axis", valueFormatter: (v) => (v >= 0 ? "+" : "") + v },
       grid: { left: 48, right: 16, top: 16, bottom: 28 },
@@ -49,9 +51,7 @@
         markLine: { symbol: "none", lineStyle: { color: cssVar("--text-muted"), type: "dashed" },
           label: { color: cssVar("--text-muted") },
           data: [{ yAxis: 0 }, { xAxis: String(Math.round(breakeven)) }] } }],
-    }, true);
-    optChart.resize();
-    $("opt-verdict").textContent = t("opt.verdict", premium.toFixed(2), breakeven.toFixed(1));
+    });
   }
 
   $("btn-opt-call").addEventListener("click", () => { optType = "call"; renderOption(); });

@@ -6,7 +6,7 @@
 
 const GUESS_WINDOW = 30;
 const DAILY_GUESSES = 10;
-let guessChart = null;
+const guessChartH = qsChart("guess-chart", () => buildGuessOption());
 const guess = { data: [], visible: 0, score: 0, streak: 0, lossStreak: 0, playing: false, waiting: false, mode: "free", dailyLeft: 0, shieldUsed: false };
 
 const todayStr = qsTodayStr; // 共享实现在 app.js
@@ -140,12 +140,13 @@ function newGuessRound(seedRnd) {
 }
 
 function refreshGuessChart() {
-  // 开局才显示图表 (空壳 300px 很难看); 容器刚解除 hidden 时必须 resize, 否则画布是 100px
-  const el = $("guess-chart");
-  const wasHidden = el.hidden;
-  el.hidden = false;
-  if (!guessChart) guessChart = echarts.init(el);
-  if (wasHidden) guessChart.resize();
+  // 开局才显示图表 (空壳 300px 很难看); 解除 hidden 后交给 qsChart 画 (refresh 自带 resize)
+  $("guess-chart").hidden = false;
+  guessChartH.refresh();
+}
+
+function buildGuessOption() {
+  if (!guess.data.length || !guess.visible) return null;
   const from = Math.max(0, guess.visible - GUESS_WINDOW);
   const windowData = guess.data.slice(from, guess.visible).map((c, i) => ({ ...c, day: i + 1 }));
   const opt = buildKlineOption(windowData, windowData.length, false, null);
@@ -170,7 +171,7 @@ function refreshGuessChart() {
       label: { position: "top", distance: 10, color: cssVar("--accent"), fontSize: 12, fontWeight: 600 },
     }],
   };
-  guessChart.setOption(opt, true);
+  return opt;
 }
 
 function refreshGuessStats() {
@@ -463,21 +464,8 @@ $("btn-guess-rich").addEventListener("click", startRich);
 $("btn-rich-exit").addEventListener("click", exitRich);
 $("btn-rich-reborn").addEventListener("click", richReborn);
 
-// ---------- 事件联动 (guess 域, 从 academy.js 事件联动节按符号归属迁入) ----------
-
-// 视图切换时图表重算尺寸 (隐藏容器中初始化尺寸为 0)
-document.addEventListener("qs:view", (e) => {
-  if ((e.detail === "academy" || e.detail === "guess") && guessChart) guessChart.resize();
-});
-
-window.addEventListener("resize", () => {
-  if (guessChart) guessChart.resize();
-});
-
-// 主题切换后图表配色需重读 CSS 变量并重绘 (app.js 派发)
-document.addEventListener("qs:theme", () => {
-  if (guessChart && guess.data.length) refreshGuessChart();
-});
+// ---------- 事件联动 (guess 域) ----------
+// 图表主题/视图/窗口尺寸全部由 qsChart 兜底
 
 document.addEventListener("qs:lang", () => {
   refreshGuessStats();

@@ -902,7 +902,8 @@ async function claimAcademyPoints(kind) {
 // ---------- 实战关卡引擎 (教学关 + 名场面共用) ----------
 
 const PLAY_INIT_CASH = 100000;
-let playChart = null;
+const playChartH = qsChart("play-chart", () =>
+    (play.def && play.data.length ? buildKlineOption(play.data, play.visible, play.def.showMa, play.trades) : null));
 
 const play = {
   kind: "teach", idx: 0, def: null, data: [],
@@ -995,8 +996,6 @@ function reallyOpenPlay(kind, idx, def) {
   $("btn-play-next").hidden = false;
   openModal("play-modal");
 
-  if (!playChart) playChart = echarts.init($("play-chart"));
-  playChart.resize();
   refreshPlay();
   showPlayHint();
 }
@@ -1006,7 +1005,7 @@ function closePlay() {
 }
 
 function refreshPlay() {
-  playChart.setOption(buildKlineOption(play.data, play.visible, play.def.showMa, play.trades), true);
+  playChartH.refresh();
   $("play-day").textContent = t("play.dayFmt", play.visible, play.data.length);
   $("play-cash").textContent = fmtMoney(play.cash);
   $("play-shares").textContent = String(play.shares);
@@ -1474,7 +1473,7 @@ const GUIDE_OPACITY = [
   { candle: 0.3, ma5: 0.2, ma20: 0.2, vol: 1 },
 ];
 
-let guideChart = null;
+const guideChartH = qsChart("guide-chart", () => (guideData ? guideOption(guideStep) : null));
 let guideStep = 0;
 let guideData = null;
 
@@ -1580,15 +1579,13 @@ function renderGuideStep() {
   $("btn-guide-prev").disabled = guideStep === 0;
   $("btn-guide-prev").textContent = t("guide.prev");
   $("btn-guide-next").textContent = guideStep === GUIDE_STEPS.length - 1 ? t("guide.done") : t("guide.next");
-  guideChart.setOption(guideOption(guideStep), true);
+  guideChartH.refresh();
 }
 
 function openGuide() {
   if (!guideData) guideData = buildGuideData();
   guideStep = 0;
   openModal("guide-modal");
-  if (!guideChart) guideChart = echarts.init($("guide-chart"));
-  guideChart.resize();
   renderGuideStep();
 }
 
@@ -1658,17 +1655,7 @@ document.addEventListener("qs:rebornTier", (e) => {
   addXp(tier === "tycoon" ? 80 : 40);
 });
 
-window.addEventListener("resize", () => {
-  if (playChart && !$("play-modal").hidden) playChart.resize();
-  if (guideChart && !$("guide-modal").hidden) guideChart.resize();
-});
-
-// 主题切换后图表配色需重读 CSS 变量并重绘 (app.js 派发)
-document.addEventListener("qs:theme", () => {
-  if (playChart && !$("play-modal").hidden) refreshPlay();
-  if (guideChart && !$("guide-modal").hidden) renderGuideStep();
-});
-
+// 图表主题/尺寸由 qsChart 兜底; 语言切换要重渲染文案, 保留整体重绘
 document.addEventListener("qs:lang", () => {
   renderProfile();
   renderTeach();
@@ -1683,7 +1670,7 @@ document.addEventListener("qs:lang", () => {
       showPlayHint();
     }
   }
-  if (guideChart && !$("guide-modal").hidden) renderGuideStep();
+  if (!$("guide-modal").hidden) renderGuideStep();
 });
 
 renderProfile();

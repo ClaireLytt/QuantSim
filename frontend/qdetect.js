@@ -154,7 +154,8 @@
   const REPORT_DAYS = 100;
 
   const g = { idx: -1, score: 0, solved: [], credits: 0, revealed: [], selectedTool: null, done: false };
-  let reportChart = null;
+  let lastReport = null; // 结案报告数据 (qsChart buildOption 数据源)
+  const reportChartH = qsChart("qdr-chart", () => buildReportOption());
 
   const loadBest = () => qsLoadBest(BEST_KEY); // 共享实现在 app.js (cards 字段存已解锁知识点卡)
 
@@ -358,9 +359,15 @@
   }
 
   function renderReportChart(rep) {
-    if (!reportChart) reportChart = echarts.init($("qdr-chart"));
+    lastReport = rep;
+    reportChartH.refresh();
+  }
+
+  function buildReportOption() {
+    const rep = lastReport;
+    if (!rep) return null;
     const data = Array.from({ length: REPORT_DAYS }, (_, i) => +rep.curve(i).toFixed(2));
-    reportChart.setOption({
+    return ({
       animation: false,
       grid: { left: 48, right: 14, top: 14, bottom: 24 },
       xAxis: {
@@ -383,8 +390,7 @@
           ],
         },
       }],
-    }, true);
-    reportChart.resize();
+    });
   }
 
   function nextCase() {
@@ -421,10 +427,6 @@
   $("btn-qd-conclude").addEventListener("click", conclude);
   $("btn-qdr-next").addEventListener("click", nextCase);
   $("btn-qdr-lab").addEventListener("click", () => switchView("lab")); // 结案报告直通研究所, 把疑点亲手再验一遍
-  window.addEventListener("resize", () => {
-    if (reportChart) reportChart.resize();
-  });
-
   document.addEventListener("qs:view", (e) => {
     if (e.detail === "qdetect") {
       renderIntroBest();
@@ -442,9 +444,7 @@
       if (g.idx >= 0 && !$("qd-report").hidden) showReport(g.lastRight, g.lastGain);
     }
   });
-  document.addEventListener("qs:theme", () => {
-    if (reportChart && !$("qd-report").hidden) renderReportChart(REPORTS[CASES[g.idx].id]);
-  });
+  // 图表主题/尺寸由 qsChart 兜底
   // 深链: 小游戏专区的「幸存者陷阱」等入口直达指定案件
   window.qsOpenCase = (id) => {
     const i = CASES.findIndex((c) => c.id === id);

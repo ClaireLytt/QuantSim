@@ -179,8 +179,8 @@ function labCard(title, big, rows) {
 
 // ---------- 研究所: 双股对比 ----------
 
-let labCmpChart = null;
 let labCmp = null;
+const labCmpH = qsChart("lab-compare-chart", () => (labCmp ? buildCompareOption() : null));
 
 async function runCompare() {
   const a = $("lab-stock-a").value;
@@ -215,15 +215,18 @@ function renderCompare() {
   box.hidden = false;
   box.textContent = t("lab.corr", n - 1, r.toFixed(2), label);
 
+  $("lab-compare-chart").hidden = false;
+  labCmpH.refresh();
+}
+
+function buildCompareOption() {
+  const { ha, hb } = labCmp;
+  const n = Math.min(ha.close.length, hb.close.length);
   const sa = ha.close.slice(0, n).map((c) => +(Number(c) / Number(ha.close[0]) * 100).toFixed(2));
   const sb = hb.close.slice(0, n).map((c) => +(Number(c) / Number(hb.close[0]) * 100).toFixed(2));
   const nameA = `${stockName(ha.name, ha.code)} (${ha.code})`;
   const nameB = `${stockName(hb.name, hb.code)} (${hb.code})`;
-
-  const el = $("lab-compare-chart");
-  el.hidden = false;
-  if (!labCmpChart) labCmpChart = echarts.init(el);
-  labCmpChart.setOption({
+  return ({
     tooltip: { trigger: "axis" },
     legend: { data: [nameA, nameB], textStyle: { color: COLORS.text } },
     grid: { left: 48, right: 16, top: 36, bottom: 28 },
@@ -243,8 +246,7 @@ function renderCompare() {
       { name: nameA, type: "line", data: sa, showSymbol: false, lineStyle: { width: 2, color: COLORS.ma5 }, itemStyle: { color: COLORS.ma5 } },
       { name: nameB, type: "line", data: sb, showSymbol: false, lineStyle: { width: 2, color: COLORS.ma20 }, itemStyle: { color: COLORS.ma20 } },
     ],
-  }, true);
-  labCmpChart.resize();
+  });
 }
 
 // ---------- 研究所: AI 模型分歧 ----------
@@ -530,7 +532,7 @@ QUIZ_DIMS.forEach((d) => {
 });
 
 let quiz = null;
-let quizRadar = null;
+const quizRadarH = qsChart("quiz-radar", () => buildQuizRadarOption());
 let quizResult = null;
 
 function renderQuizCollected() {
@@ -606,9 +608,13 @@ function renderQuizResult() {
   adviceEl.hidden = false;
   adviceEl.innerHTML = linkifyTerms(t("quiz.advice", pick(persona.advice)));
 
-  const el = $("quiz-radar");
-  if (!quizRadar) quizRadar = echarts.init(el);
-  quizRadar.setOption({
+  quizRadarH.refresh();
+}
+
+function buildQuizRadarOption() {
+  if (!quizResult) return null;
+  const { norm } = quizResult;
+  return ({
     radar: {
       indicator: QUIZ_DIMS.map((d) => ({ name: pick(d.name), max: 1 })),
       radius: "65%",
@@ -625,8 +631,7 @@ function renderQuizResult() {
       itemStyle: { color: COLORS.ma5 },
       areaStyle: { color: COLORS.ma5, opacity: 0.25 },
     }],
-  }, true);
-  quizRadar.resize();
+  });
 }
 
 // ---------- 研究所: 择时的代价 ----------
@@ -745,17 +750,27 @@ function renderOverview() {
 
 // ---------- 研究所: 预测置信度校准 ----------
 
-let labCalibChart = null;
+let labCalibRows = null;
+const labCalibH = qsChart("lab-calib-chart", () => (labCalibRows ? buildCalibOption() : null));
 
 // probUp 分桶 vs 实际上涨频率: 贴近对角线 = 校准好; 整体偏上/偏下 = 过度保守/自信
 async function runCalibration() {
   const btn = $("btn-lab-calib");
   btn.disabled = true;
   try {
-    const rows = await api("/lab/calibration");
-    const el = $("lab-calib-chart");
-    el.hidden = false;
-    if (!labCalibChart) labCalibChart = echarts.init(el);
+    labCalibRows = await api("/lab/calibration");
+    $("lab-calib-chart").hidden = false;
+    labCalibH.refresh();
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function buildCalibOption() {
+  const rows = labCalibRows;
+  {
     const palette = [COLORS.ma5, COLORS.ma20, cssVar("--accent-2")];
     const series = rows.map((row, i) => {
       const meta = MODEL_META.find((m) => m.key === row.model);
@@ -783,7 +798,7 @@ async function runCalibration() {
       itemStyle: { color: COLORS.muted },
       tooltip: { show: false },
     });
-    labCalibChart.setOption({
+    return ({
       tooltip: { trigger: "axis", valueFormatter: (v) => v + "%" },
       legend: { data: series.map((s) => s.name), textStyle: { color: COLORS.text } },
       grid: { left: 48, right: 16, top: 36, bottom: 40 },
@@ -801,12 +816,7 @@ async function runCalibration() {
         splitLine: { lineStyle: { color: COLORS.border, opacity: 0.3 } },
       },
       series,
-    }, true);
-    labCalibChart.resize();
-  } catch (e) {
-    toast(e.message);
-  } finally {
-    btn.disabled = false;
+    });
   }
 }
 
@@ -1210,20 +1220,15 @@ $("btn-quiz-retry").addEventListener("click", startQuiz);
 document.addEventListener("qs:view", (e) => {
   if (e.detail === "lab") {
     if (!labStocks.length) loadLabStocks();
-    if (labCmpChart) labCmpChart.resize();
     maybeShowLabGuide();
   } else {
     // 切走视图时收起首访引导 (不记已读: 用户没看完, 下次进研究所再弹)——
     // 否则弹层会盖在新视图上 (2026-10 审计 P2)
     $("lab-guide-modal").hidden = true;
-    if (e.detail === "quiz" && quizRadar) quizRadar.resize();
   }
 });
 
-document.addEventListener("qs:theme", () => {
-  if (labCmp) renderCompare();
-  if (quizResult && !$("quiz-result").hidden) renderQuizResult();
-});
+// 图表主题/尺寸由 qsChart 兜底
 
 document.addEventListener("qs:lang", () => {
   renderLabStockOptions();
@@ -1235,11 +1240,6 @@ document.addEventListener("qs:lang", () => {
   renderQuizCollected();
   if (quiz) renderQuizQuestion();
   if (quizResult && !$("quiz-result").hidden) renderQuizResult();
-});
-
-window.addEventListener("resize", () => {
-  if (labCmpChart) labCmpChart.resize();
-  if (quizRadar) quizRadar.resize();
 });
 
 loadLabStocks();

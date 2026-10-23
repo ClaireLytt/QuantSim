@@ -14,7 +14,7 @@
   let best = null; // {pct, title}
   try { best = JSON.parse(localStorage.getItem("qs_bubble") || "null"); } catch (e) { /* ignore */ }
 
-  let chart = null;
+  const chartH = qsChart("bb-chart", () => buildBbOption());
 
   // ---------- 渲染 ----------
 
@@ -46,8 +46,12 @@
   }
 
   function renderChart() {
-    if (!chart) return;
-    chart.setOption({
+    chartH.refresh();
+  }
+
+  function buildBbOption() {
+    if (!bb.hist.length) return null;
+    return ({
       grid: { left: 48, right: 12, top: 12, bottom: 24 },
       xAxis: { type: "category", data: bb.hist.map((_, i) => i + 1),
         axisLine: { lineStyle: { color: cssVar("--border") } },
@@ -305,9 +309,7 @@
     $("bb-intro").hidden = true;
     $("bb-game").hidden = false;
     $("btn-bb-restart").hidden = true;
-    // 图表在容器可见后再初始化, 否则 ECharts 量到 0 宽 (全站已知坑)
-    if (!chart) chart = echarts.init($("bb-chart"));
-    chart.resize();
+    // 可见性/懒初始化由 qsChart 兜底
     log(t("bb.started", bb.price.toFixed(2)));
     refresh();
   }
@@ -328,12 +330,8 @@
     if (e.detail === "bubble") {
       renderIntro();
       if (bb.on || bb.hist.length) refresh();
-      if (chart) chart.resize();
     }
   });
+  // 图表主题/尺寸由 qsChart 兜底; markLine/markPoint 文案含 t(), 语言切换仍整体重画
   document.addEventListener("qs:lang", () => { renderIntro(); if (bb.hist.length) refresh(); });
-  document.addEventListener("qs:theme", () => { if (bb.hist.length) refresh(); });
-  window.addEventListener("resize", () => {
-    if (chart && !$("view-bubble").hidden) chart.resize();
-  });
 })();
