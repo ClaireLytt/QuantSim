@@ -49,8 +49,45 @@ const state = {
 };
 
 const $ = (id) => document.getElementById(id);
-const chart = echarts.init($("chart"));
-window.addEventListener("resize", () => chart.resize());
+
+// ---- 图表生命周期管家: qsChart(elId, buildOption) ----
+// 深模块: init(懒加载, 避开隐藏容器零尺寸)/qs:theme 重绘/qs:view+窗口 resize 全部内化,
+// 视图只描述"怎么构造 option"。buildOption() 读当前状态返回完整 option, 返回 null = 未就绪跳过。
+// 返回 { refresh, instance }: 数据变化时调 refresh(); instance() 是逃生口, 仅供增量 merge
+// 更新 (updateChartData) 等确需直操实例的场景, 常规路径别用。新图表一律走这里, 别再手搓
+// init/theme/resize 三件套 (曾散落 19 个文件 25 处, 2026-10 收口)。
+const QS_CHARTS = [];
+function qsChart(elId, buildOption) {
+  const entry = { elId, buildOption, chart: null, pending: false };
+  QS_CHARTS.push(entry);
+  return {
+    refresh() { qsChartRefresh(entry); },
+    instance() { return entry.chart; },
+  };
+}
+function qsChartRefresh(entry) {
+  const opt = entry.buildOption();
+  if (opt == null) return;
+  if (!entry.chart) {
+    const el = $(entry.elId);
+    // 不可见容器 init 会退化成 100px 画布; 标记 pending, 等 qs:view 可见后再画
+    if (!el || el.clientWidth === 0) { entry.pending = true; return; }
+    entry.chart = echarts.init(el);
+  }
+  entry.pending = false;
+  entry.chart.setOption(opt, { notMerge: true });
+  entry.chart.resize(); // 容器尺寸可能在隐藏期间变过, 画完统一校正
+}
+// 主题切换: COLORS 已被 toggleTheme 重读, 重调 buildOption 即拿到新配色
+document.addEventListener("qs:theme", () => QS_CHARTS.forEach((e) => { if (e.chart) qsChartRefresh(e); }));
+// 视图切换: 补画 pending 的、校正已有的
+document.addEventListener("qs:view", () => QS_CHARTS.forEach((e) => {
+  if (e.pending) qsChartRefresh(e);
+  else if (e.chart) e.chart.resize();
+}));
+window.addEventListener("resize", () => QS_CHARTS.forEach((e) => { if (e.chart) e.chart.resize(); }));
+
+const mainChart = qsChart("chart", () => (state.klines.length ? buildChartOption() : null));
 
 const fmtMoney = (v) => Number(v).toLocaleString(LANG === "en" ? "en-US" : "zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (v) => (v >= 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
@@ -305,8 +342,10 @@ document.querySelectorAll(".ind-chip").forEach((chip) => {
 
 // tick 后只增量更新数据 (merge 模式), 不做整图重建
 function updateChartData() {
+  const c = mainChart.instance();
+  if (!c) { renderChart(); return; } // 懒 init 尚未发生 (隐藏容器): 回退全量渲染
   const { dates, candles, ma5, ma20, volumes, rsi, macdHist, macdDif, macdDea } = chartData();
-  chart.setOption({
+  c.setOption({
     xAxis: [{ data: dates }, { data: dates }, { data: dates }],
     series: [
       { data: candles, markPoint: { data: buildKlineMarks() } },
@@ -322,9 +361,14 @@ function updateChartData() {
 }
 
 function renderChart() {
+  mainChart.refresh();
+}
+
+// 主图完整 option (qsChart 的 buildOption; tick 增量路径见 updateChartData)
+function buildChartOption() {
   const { dates, candles, ma5, ma20, volumes, rsi, macdHist, macdDif, macdDea } = chartData();
 
-  chart.setOption({
+  return ({
     backgroundColor: "transparent",
     animation: false,
     textStyle: { color: COLORS.text },
@@ -450,7 +494,7 @@ function renderChart() {
           data: [{ yAxis: 30 }, { yAxis: 70 }],
         } },
     ],
-  }, { notMerge: true });
+  });
 }
 
 // ---------- 游戏流程 ----------
@@ -588,8 +632,8 @@ async function enterGame(res) {
     setHeaderFold(true); // 开局即进入专注模式 (switchView 时 sessionId 可能尚未就位)
     $("game-intro").hidden = true;
     $("game-area").hidden = false;
-    // 容器刚从 hidden 解除, 此前的 resize 都发生在隐藏态 (canvas 回退 100px), 必须再算一次
-    chart.resize();
+    // 容器刚从 hidden 解除: 重 refresh 让 qsChart 补画/校正 (懒 init 场景即首画)
+    renderChart();
     $("settle-card").hidden = true;
     renderStockLabel();
     updateDayLabel();
@@ -1130,20 +1174,13 @@ function renderPositions(positions) {
 }
 
 // 组合权重饼图: 看资金有没有押在一个篮子里 (含现金一片)
-let pfPieChart = null;
-function renderPfPie(positions) {
-  const el = $("pf-pie");
-  const held = positions.filter((p) => Number(p.marketValue) > 0);
-  if (!held.length) { el.hidden = true; return; }
-  el.hidden = false;
-  if (!pfPieChart) {
-    pfPieChart = echarts.init(el);
-    window.addEventListener("resize", () => pfPieChart.resize());
-  }
+let lastPfHeld = null; // buildOption 的数据源 (renderPfPie 过滤后的持仓)
+const pfPieH = qsChart("pf-pie", () => {
+  if (!lastPfHeld || !lastPfHeld.length) return null;
   const cash = state.lastStatus ? Math.max(0, Number(state.lastStatus.cashBalance)) : 0;
-  const data = held.map((p) => ({ name: stockName(p.stockName, p.stockCode), value: Number(p.marketValue) }));
+  const data = lastPfHeld.map((p) => ({ name: stockName(p.stockName, p.stockCode), value: Number(p.marketValue) }));
   if (cash > 0) data.push({ name: t("status.cash"), value: cash });
-  pfPieChart.setOption({
+  return {
     backgroundColor: "transparent",
     tooltip: { valueFormatter: (v) => fmtMoney(v) + t("unit.money") },
     series: [{ type: "pie", radius: ["38%", "68%"],
@@ -1151,8 +1188,15 @@ function renderPfPie(positions) {
       itemStyle: { borderColor: COLORS.panel, borderWidth: 2 },
       color: [COLORS.accent, COLORS.accent2, COLORS.ma5, COLORS.muted, COLORS.ma20],
       data }],
-  }, true);
-  pfPieChart.resize();
+  };
+});
+function renderPfPie(positions) {
+  const el = $("pf-pie");
+  const held = positions.filter((p) => Number(p.marketValue) > 0);
+  if (!held.length) { el.hidden = true; lastPfHeld = null; return; }
+  el.hidden = false;
+  lastPfHeld = held;
+  pfPieH.refresh();
 }
 
 // 两两相关性提示: 三只都涨跌同步 ≈ 只买了一只 (竞技模式组合不开放, 代码可直查 lab 历史)
@@ -1481,7 +1525,7 @@ function renderRiskPanel(result) {
 }
 
 // 结算资金曲线小图: 你 vs 买入持有, 横轴为对局内第 N 天 (后端已算好, 纯展示)
-let settleChart = null;
+const settleChartH = qsChart("settle-curve", () => buildSettleCurveOption());
 function renderSettleCurve(result) {
   const box = $("settle-curve-box");
   const curve = result.equityCurve;
@@ -1490,10 +1534,14 @@ function renderSettleCurve(result) {
     return;
   }
   box.hidden = false;
-  if (!settleChart) {
-    settleChart = echarts.init($("settle-curve"));
-    window.addEventListener("resize", () => settleChart.resize());
-  }
+  settleChartH.refresh();
+}
+
+// 结算资金曲线 option; 数据源 state.lastSettle (toggleTheme 前已缓存)
+function buildSettleCurveOption() {
+  const result = state.lastSettle;
+  const curve = result && result.equityCurve;
+  if (!curve || curve.length < 2) return null;
   const days = curve.map((_, i) => "D" + i);
   const series = [
     { name: t("cmp.you"), type: "line", data: curve.map(Number), showSymbol: false,
@@ -1505,7 +1553,7 @@ function renderSettleCurve(result) {
       showSymbol: false, lineStyle: { width: 1.5, color: COLORS.muted, type: "dashed" },
       itemStyle: { color: COLORS.muted } });
   }
-  settleChart.setOption({
+  return {
     backgroundColor: "transparent",
     animation: false,
     textStyle: { color: COLORS.text },
@@ -1523,8 +1571,7 @@ function renderSettleCurve(result) {
       splitLine: { lineStyle: { color: COLORS.border, opacity: 0.4 } },
       axisLabel: { color: COLORS.muted, fontSize: 10 } },
     series,
-  }, { notMerge: true });
-  settleChart.resize();
+  };
 }
 
 function renderComparison(result) {
@@ -1844,7 +1891,8 @@ function renderSubtabs(group, active) {
 function setHeaderFold(fold) {
   document.querySelector("header").classList.toggle("collapsed", fold);
   renderFoldBtn();
-  chart.resize();
+  const c = mainChart.instance();
+  if (c) c.resize(); // 头部折叠改变图表容器高度
 }
 
 function renderFoldBtn() {
@@ -1864,11 +1912,7 @@ function switchView(name) {
   // 进行中的对局自动进入专注模式, 离开或已结算则展开 (结算后还折叠会把导航藏死)
   setHeaderFold(name === "game" && !!state.sessionId && !state.settled);
   playSound("tap"); // 导航质感音: 极轻的"嗒", 给切页一点物理反馈
-  // 图表在隐藏容器中初始化时尺寸为 0, 切换到可见后需重算
-  if (name === "game") chart.resize();
-  // btChart 在 arena.js (app.js 之后加载): 启动时恢复 savedView=arena 的首次 switchView
-  // 发生在 arena.js 加载前, typeof 兜底; 该图表 init 时本就按可见尺寸计算, 跳过无害
-  else if (name === "arena" && typeof btChart !== "undefined") btChart.resize();
+  // 图表补画/尺寸校正由 qsChart 的 qs:view 监听统一处理, 这里只负责派发
   document.dispatchEvent(new CustomEvent("qs:view", { detail: name }));
 }
 $("btn-header-fold").addEventListener("click", () => {
@@ -1920,10 +1964,8 @@ function toggleTheme() {
     accent2: cssVar("--accent-2"),
   });
   renderThemeBtn();
-  if (state.klines.length) renderChart();
+  // 图表重绘全部由 qsChart 的 qs:theme 监听兜底; 这里只补非图表的 DOM 重渲染
   if (state.lastStatus) renderStatus(state.lastStatus);
-  if (state.lastBt) renderBacktestResult(state.lastBt);
-  if (state.lastSettle) renderSettleCurve(state.lastSettle);
   document.dispatchEvent(new CustomEvent("qs:theme"));
 }
 

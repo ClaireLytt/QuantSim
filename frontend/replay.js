@@ -2,7 +2,9 @@
 // app.js 的结算流程与悬浮复盘按钮调用这里的 openRecap。
 // ---------- 对局复盘报告 ----------
 
-let recapChart = null;
+// 复盘资金曲线走 qsChart 管家 (懒 init: 弹窗首开可见时才画)
+const recapChartH = qsChart("recap-chart", () =>
+    (state.klines.length && state.trades ? recapOption() : null));
 
 function recapStats() {
   let shares = 0, cost = 0, buys = 0, sells = 0, wins = 0;
@@ -162,9 +164,7 @@ function renderRecap() {
   renderBias(settle.biasReport);
   renderJournal(settle.journal);
 
-  if (!recapChart) recapChart = echarts.init($("recap-chart"));
-  recapChart.setOption(recapOption(), { notMerge: true });
-  recapChart.resize();
+  recapChartH.refresh();
 }
 
 /**
@@ -259,12 +259,7 @@ $("btn-recap-close").addEventListener("click", closeRecap);
 $("recap-modal").addEventListener("click", (e) => {
   if (e.target === $("recap-modal")) closeRecap();
 });
-document.addEventListener("qs:theme", () => {
-  if (!$("recap-modal").hidden) renderRecap();
-});
+// 图表主题/尺寸由 qsChart 兜底; 语言切换还要重渲染列表/画像/日记等 DOM, 保留整体重绘
 document.addEventListener("qs:lang", () => {
   if (!$("recap-modal").hidden) renderRecap();
-});
-window.addEventListener("resize", () => {
-  if (recapChart && !$("recap-modal").hidden) recapChart.resize();
 });

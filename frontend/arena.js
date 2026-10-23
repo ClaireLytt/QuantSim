@@ -3,8 +3,10 @@
 // ranking.js 调 loadArenaBoard —— 本文件必须在 app.js 之后、duel.js 之前加载。
 // ---------- 策略回测竞技场 ----------
 
-const btChart = echarts.init($("bt-chart"));
-window.addEventListener("resize", () => btChart.resize());
+// 回测资金曲线走 qsChart 管家; 数据源 = lastEquityArgs (renderEquityChart 缓存实参)
+let lastEquityArgs = null;
+const btChartH = qsChart("bt-chart", () =>
+    (lastEquityArgs ? buildEquityOption(lastEquityArgs.curve, lastEquityArgs.prev) : null));
 
 // 策略说明含可点击名词, 用 innerHTML 渲染 (内容为本地静态文案, 无注入风险)
 const STRATEGY_DESCS = {
@@ -423,10 +425,15 @@ function setOptional(el, value, fmt, signed) {
 }
 
 function renderEquityChart(curve, prev) {
+  lastEquityArgs = { curve, prev };
+  btChartH.refresh();
+}
+
+function buildEquityOption(curve, prev) {
   const overlay = prev && $("bt-compare").checked && prev.curve.length;
   const legendData = [t("bt.legendStrategy"), t("bt.legendHold")];
   if (overlay) legendData.push(t("bt.legendPrev", prev.label));
-  btChart.setOption({
+  return ({
     backgroundColor: "transparent",
     animation: false,
     textStyle: { color: COLORS.text },
@@ -468,8 +475,7 @@ function renderEquityChart(curve, prev) {
         showSymbol: false, lineStyle: { width: 1.5, color: COLORS.accent2, opacity: 0.8 },
         itemStyle: { color: COLORS.accent2 } }] : []),
     ],
-  }, { notMerge: true });
-  btChart.resize();
+  });
 }
 
 async function loadArenaBoard() {
