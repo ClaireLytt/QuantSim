@@ -83,6 +83,7 @@ public class GameService {
     private final GameBenchmarks benchmarks;
     private final LedgerReplay ledger;
     private final AiOpponent aiOpponent;
+    private final TradeBudget tradeBudget;
 
     public static final ZoneId GAME_ZONE = ZoneId.of("Asia/Shanghai");
 
@@ -296,7 +297,7 @@ public class GameService {
 
         // 限制条件: 笔数上限与强制理由 (与 placeOrder 同走 requireBudgetAndReason, 保证口径一致)
         String reason = sanitizeReason(request.reason());
-        Long usedBefore = requireBudgetAndReason(session, reason, "下单"); // 只查一次, 剩余笔数由它推出
+        TradeBudget.Snapshot budget = requireBudgetAndReason(session, reason, "下单"); // 只查一次, 剩余笔数由快照推出
 
         String error = tradeEngine.validate(session, account, stockId, direction, price, shares);
         if (error != null) {
@@ -307,8 +308,7 @@ public class GameService {
 
         return new TradeResponse(account.getCashBalance(),
                 account.getHoldingShares(), account.getHoldingCost(), fee,
-                usedBefore == null ? null
-                        : (int) Math.max(0, session.getMaxTrades() - usedBefore - 1));
+                budget.remainingAfterAdd());
     }
 
     /** 理由只留可见字符 (去控制符), 截 100 字; 渲染安全由前端 textContent 保证。 */
@@ -320,35 +320,22 @@ public class GameService {
         return cleaned.length() > 100 ? cleaned.substring(0, 100) : cleaned;
     }
 
-    /** 已用笔数预算: 已成交 + 在挂单。挂单也占预算, 否则挂单就是绕过笔数上限的后门。 */
-    private long budgetUsed(Long sessionId) {
-        return transactionRepository.countBySessionId(sessionId) + orderService.countOpen(sessionId);
-    }
-
     /**
-     * 笔数预算 + 强制理由校验, trade/placeOrder 共用 (同一口径, 不再各写一份)。
-     * 返回已用笔数 (无上限时 null), 调用方可据此推出剩余笔数, 省掉第二次 COUNT。
+     * 笔数预算 + 强制理由校验, trade/placeOrder 共用。预算口径收口在 {@link TradeBudget},
+     * 这里只串联"预算 + 理由"两道闸并把快照递回 (调用方推剩余笔数, 省第二次 COUNT)。
      */
-    private Long requireBudgetAndReason(GameSession session, String sanitizedReason, String action) {
-        Long used = null;
-        if (session.getMaxTrades() != null) {
-            used = budgetUsed(session.getSessionId());
-            if (used >= session.getMaxTrades()) {
-                throw new BusinessException("本局交易笔数已达上限 " + session.getMaxTrades() + " 笔（在挂单也占用笔数）");
-            }
-        }
+    private TradeBudget.Snapshot requireBudgetAndReason(GameSession session, String sanitizedReason, String action) {
+        TradeBudget.Snapshot budget = tradeBudget.snapshot(session);
+        budget.requireHeadroom();
         if (session.isRequireReason() && (sanitizedReason == null || sanitizedReason.isEmpty())) {
             throw new BusinessException("本局开启了交易日志: 请写一句交易理由再" + action);
         }
-        return used;
+        return budget;
     }
 
     /** 剩余可交易笔数 (无上限返回 null)。 */
     private Integer tradesRemaining(GameSession session) {
-        if (session.getMaxTrades() == null) {
-            return null;
-        }
-        return (int) Math.max(0, session.getMaxTrades() - budgetUsed(session.getSessionId()));
+        return tradeBudget.snapshot(session).remaining();
     }
 
     // ---------- 挂单 ----------

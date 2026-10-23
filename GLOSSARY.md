@@ -11,3 +11,4 @@
 | **防剧透 (Blind Dates)** | `service/BlindDates` | 竞技对局进行中: 日期平移虚拟纪元 + 标的匿名; 结算揭晓。回归防线是 CompetitiveIntegrationTest 的全端点泄露扫描。 |
 | **费用口径 (Fee)** | `service/FeeCalculator` | 玩家 / AI / 基准 / 回测四方共用的费用计算锚点。 |
 | **结算落库 (Settled Columns)** | `service/SettledColumns` | 一局结算后写回 game_session 的全部列 (status / finalReturnRate / finalSharpe / biasReportJson) 的唯一定义, 含 bias JSON 序列化-或-null 政策; 正常结算与房间强结都只调 applyTo, 完整性由 SettledColumnsTest 反射对齐保证。 |
+| **交易预算 (Trade Budget)** | `service/TradeBudget` | 「本局还能再交易几笔」的唯一定义, 含两个口径: 新增 (下单/手动交易) 数已成交+在挂单, 撮合只数已成交 (挂单自己的名额即预算)。纯核 Snapshot/FillConsumer 表驱动单测 (TradeBudgetTest), GameService/OrderService 只调不算。 |

@@ -38,17 +38,12 @@ import lombok.RequiredArgsConstructor;
 public class OrderService {
 
     private final PendingOrderRepository orderRepository;
-    private final com.quantsim.repository.TransactionRepository transactionRepository;
     private final MarketDataService marketData;
+    private final TradeBudget tradeBudget;
     private final TradeEngine tradeEngine;
     private final GameProperties props;
 
     public record FillSummary(List<FilledOrder> filled, int autoCancelled) {}
-
-    /** 在挂单数 (限制模式下与已成交一起占笔数预算)。 */
-    public long countOpen(Long sessionId) {
-        return orderRepository.countBySessionIdAndStatus(sessionId, PendingOrder.Status.OPEN);
-    }
 
     @Transactional
     public OrderInfo place(GameSession session, Long stockId, String type, BigDecimal price, int shares,
@@ -135,9 +130,9 @@ public class OrderService {
                         session.getSessionId(), PendingOrder.Status.OPEN);
         List<FilledOrder> filled = new ArrayList<>();
         int cancelled = 0;
-        // 限制模式: 撮合同样受笔数上限约束 (下单时校验过预算, 但手动交易可能已把额度用掉)
-        long txCount = session.getMaxTrades() == null ? 0
-                : transactionRepository.countBySessionId(session.getSessionId());
+        // 限制模式: 撮合同样受笔数上限约束 (下单时校验过预算, 但手动交易可能已把额度用掉)。
+        // 口径收口在 TradeBudget: 撮合只数已成交, 该单自己占的挂单名额就是它的预算。
+        TradeBudget.FillConsumer budget = tradeBudget.beginFill(session);
         for (PendingOrder order : open) {
             StockData sd = marketData.load(order.getStockId());
             DailyPrice bar = sd.bar(session.getCurrentTradeDate());
@@ -181,7 +176,7 @@ public class OrderService {
                     order.getStockId(), dir, fillShares) != null) {
                 continue;
             }
-            if (session.getMaxTrades() != null && txCount >= session.getMaxTrades()) {
+            if (budget.exhausted()) {
                 // 笔数预算已耗尽, 后续挂单作废而不是静默超限
                 order.setStatus(PendingOrder.Status.CANCELLED);
                 cancelled++;
@@ -196,7 +191,7 @@ public class OrderService {
             } else {
                 tradeEngine.execute(session, account, order.getStockId(), dir, fillPrice, fillShares,
                         order.getReason(), order.getOrderId());
-                txCount++;
+                budget.consume();
                 order.setStatus(PendingOrder.Status.FILLED);
                 order.setFilledDate(session.getCurrentTradeDate());
                 order.setFilledPrice(fillPrice);
