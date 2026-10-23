@@ -43,9 +43,7 @@
   $("link-register").addEventListener("click", (e) => { e.preventDefault(); showAuthPanel(true); });
   $("link-login").addEventListener("click", (e) => { e.preventDefault(); showAuthPanel(false); });
   $("btn-auth-close").addEventListener("click", closeAuthModal);
-  $("auth-modal").addEventListener("click", (e) => {
-    if (e.target === $("auth-modal")) closeAuthModal(); // 点遮罩关闭
-  });
+  qsModal("auth-modal", { onClose: closeAuthModal }); // 点遮罩关闭 (与原行为一致)
   $("btn-open-auth").addEventListener("click", () => openAuthModal(false));
 
   function renderAccountView() {

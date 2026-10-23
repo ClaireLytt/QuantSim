@@ -630,18 +630,13 @@
   $("btn-rb-biz0").addEventListener("click", () => runBiz(0));
   $("btn-rb-biz1").addEventListener("click", () => runBiz(1));
   $("btn-rb-biz2").addEventListener("click", () => runBiz(2));
-  $("btn-rb-biz-close").addEventListener("click", () => { $("rb-biz-modal").hidden = true; });
+  qsModal("rb-biz-modal", { closeBtnId: "btn-rb-biz-close" }); // 背板/关按钮: 反悔不耗行动点
   $("btn-rb-choice0").addEventListener("click", () => pickChoice(0));
   $("btn-rb-choice1").addEventListener("click", () => pickChoice(1));
 
   if (window.Auth) Auth.onChange(renderGifts); // 登录/登出即时刷新礼包提示与可用态
-  $("rb-auction-modal").addEventListener("click", (e) => {
-    if (e.target === $("rb-auction-modal")) closeAuction(false); // 点遮罩 = 放弃
-  });
-  $("rb-biz-modal").addEventListener("click", (e) => {
-    if (e.target === $("rb-biz-modal")) $("rb-biz-modal").hidden = true; // 反悔不耗行动点
-  });
-  // 抉择弹窗不做遮罩关闭: 人生没有跳过键
+  qsModal("rb-auction-modal", { onClose: () => closeAuction(false) }); // 点遮罩 = 放弃
+  // 抉择弹窗不做遮罩关闭: 人生没有跳过键 (qsModal 不登记)
 
   // 启动: 恢复存档; 有未完的一世则直接回到对局
   restore();

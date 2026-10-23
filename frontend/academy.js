@@ -881,9 +881,7 @@ function renderCases() {
 
 $("btn-story-finish").addEventListener("click", closeStory);
 $("btn-story-close").addEventListener("click", closeStory);
-$("story-modal").addEventListener("click", (e) => {
-  if (e.target === $("story-modal")) closeStory();
-});
+qsModal("story-modal", { onClose: closeStory }); // 背板关闭走既有 closeStory (剧情进度落存档)
 
 // ---------- 学堂积分奖励: 名场面首通/悬案首破 +40 (服务端任务位封顶每日各一次) ----------
 
@@ -1145,9 +1143,7 @@ $("btn-play-sell").addEventListener("click", playSell);
 $("btn-play-next").addEventListener("click", playNext);
 $("btn-play-finish").addEventListener("click", closePlay);
 $("btn-play-close").addEventListener("click", closePlay);
-$("play-modal").addEventListener("click", (e) => {
-  if (e.target === $("play-modal")) closePlay();
-});
+qsModal("play-modal", { onClose: closePlay }); // 背板关闭走既有 closePlay (关卡状态复位)
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   if (!$("cutscene").hidden) endCutscene();
@@ -1612,9 +1608,7 @@ $("btn-guide-next").addEventListener("click", () => {
   }
   closeGuide();
 });
-$("guide-modal").addEventListener("click", (e) => {
-  if (e.target === $("guide-modal")) closeGuide();
-});
+qsModal("guide-modal", { onClose: closeGuide }); // 背板关闭走既有 closeGuide
 
 
 // 每日挑战连续天数 (daily.js 派发): 连续 3 天发徽章

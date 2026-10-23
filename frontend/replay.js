@@ -256,9 +256,7 @@ function closeRecap() {
 
 $("btn-recap").addEventListener("click", openRecap);
 $("btn-recap-close").addEventListener("click", closeRecap);
-$("recap-modal").addEventListener("click", (e) => {
-  if (e.target === $("recap-modal")) closeRecap();
-});
+qsModal("recap-modal", { onClose: closeRecap }); // 背板关闭走既有 closeRecap (恢复 body 滚动)
 // 图表主题/尺寸由 qsChart 兜底; 语言切换还要重渲染列表/画像/日记等 DOM, 保留整体重绘
 document.addEventListener("qs:lang", () => {
   if (!$("recap-modal").hidden) renderRecap();

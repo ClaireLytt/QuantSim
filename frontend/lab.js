@@ -1112,10 +1112,7 @@ function openLabReports() {
   $("lab-reports-modal").hidden = false;
 }
 
-$("btn-lab-reports-close").addEventListener("click", () => { $("lab-reports-modal").hidden = true; });
-$("lab-reports-modal").addEventListener("click", (e) => {
-  if (e.target === $("lab-reports-modal")) $("lab-reports-modal").hidden = true;
-});
+qsModal("lab-reports-modal", { closeBtnId: "btn-lab-reports-close" });
 
 // ---------- 本周推荐实验: 按 ISO 周轮换, 一键开跑 ----------
 
@@ -1183,9 +1180,7 @@ $("btn-lab-guide-start").addEventListener("click", () => {
     runSignal();
   });
 });
-$("lab-guide-modal").addEventListener("click", (e) => {
-  if (e.target === $("lab-guide-modal")) dismissLabGuide();
-});
+qsModal("lab-guide-modal", { onClose: dismissLabGuide }); // 背板关闭走既有 dismiss (落已读标记)
 
 // 初始化放在全部 const 声明之后 (renderLabRecent 依赖报告存储的键)
 renderLabRecent();
