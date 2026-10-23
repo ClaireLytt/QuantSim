@@ -202,6 +202,19 @@ def main():
             continue
         warns.append(f"W7 硬编码中文 (英文界面不翻译) @ index.html:{i} -> {ln.strip()[:50]}")
 
+    # ---------- E8/E9 深模块回潮检查 (2026-10 收口后防复发) ----------
+    # 历史: echarts 三件套曾散落 19 文件 25 处, 弹窗三件套 9 文件 19 处; 架构已收口到
+    # app.js 的 qsChart/qsModal。坏代码仍能编译, 这里把"抄最近的样例"这条路堵死。
+    for name, src in sources.items():
+        if name == "app.js":
+            continue  # 模块本体 (qsChart 内的 init、qsModal 内的背板判定) 豁免
+        for m in re.finditer(r"echarts\.init\s*\(", src):
+            errors.append(f'E8 手搓 echarts.init (图表生命周期归 app.js 的 qsChart 管, '
+                          f'用 qsChart(elId, buildOption)) @ {name}:{line_of(src, m.start())}')
+        for m in re.finditer(r"e\.target\s*===\s*\$\(", src):
+            errors.append(f'E9 手搓弹窗背板三件套 (弹窗接线归 app.js 的 qsModal 管, '
+                          f'用 qsModal(modalId, opts)) @ {name}:{line_of(src, m.start())}')
+
     # ---------- E7/W8 主题对比度审核 (WCAG) ----------
     def luminance(hexcolor):
         rgb = [int(hexcolor[j:j + 2], 16) / 255 for j in (1, 3, 5)]
