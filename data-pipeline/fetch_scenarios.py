@@ -66,7 +66,9 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """与 compute_indicators.py 的 Spark 口径一致: 窗口不满输出 NULL。"""
     out = df[["trade_date"]].copy()
     close = df["close"].astype(float)
-    pct = (close - close.shift(1)) / close.shift(1)
+    prev = close.shift(1)
+    # prev_close=0 时置 NULL, 与 Spark 侧同款除零保护 (pr_guard 第 6 类): 否则 inf 入库
+    pct = ((close - prev) / prev).mask(prev == 0)
     out["pct_change"] = pct.round(4)
     out["ma5"] = close.rolling(5, min_periods=5).mean().round(2)
     out["ma20"] = close.rolling(20, min_periods=20).mean().round(2)
