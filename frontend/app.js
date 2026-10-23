@@ -97,6 +97,23 @@ window.addEventListener("resize", () => {
 
 const mainChart = qsChart("chart", () => (state.klines.length ? buildChartOption() : null));
 
+// ---- 弹窗接线管家: qsModal(modalId, opts) ----
+// 内化弹窗三件套: 背板点击关闭 (e.target === 自身)、关按钮代绑 (closeBtnId)、开时音效 (sound)。
+// onOpen/onClose 挂业务副作用 (如 body 滚动锁)。escape: true 可选 Esc 关闭 (默认关:
+// 登录/新手引导类流程弹窗不可被 Esc 中断; 既有集中式 Esc 分发保留)。
+// 特殊形态不强迁, 已登记: tour-mask (点击=下一步, 非关闭)。新弹窗别再手搓三件套 (2026-10 收口)。
+function qsModal(modalId, opts = {}) {
+  const el = $(modalId);
+  const close = () => { el.hidden = true; if (opts.onClose) opts.onClose(); };
+  const open = () => { el.hidden = false; if (opts.sound) playSound(opts.sound); if (opts.onOpen) opts.onOpen(); };
+  el.addEventListener("click", (e) => { if (e.target === el) close(); });
+  if (opts.closeBtnId) $(opts.closeBtnId).addEventListener("click", close);
+  if (opts.escape) {
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !el.hidden) close(); });
+  }
+  return { open, close, el };
+}
+
 const fmtMoney = (v) => Number(v).toLocaleString(LANG === "en" ? "en-US" : "zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (v) => (v >= 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
 
@@ -917,11 +934,8 @@ async function maybeAutoTrade() {
   }
 }
 
-$("btn-import-strat").addEventListener("click", () => { $("strat-modal").hidden = false; });
-$("btn-strat-close").addEventListener("click", () => { $("strat-modal").hidden = true; });
-$("strat-modal").addEventListener("click", (e) => {
-  if (e.target === $("strat-modal")) $("strat-modal").hidden = true;
-});
+const stratModal = qsModal("strat-modal", { closeBtnId: "btn-strat-close" });
+$("btn-import-strat").addEventListener("click", stratModal.open);
 document.querySelectorAll(".strat-opt").forEach((btn) => {
   btn.addEventListener("click", () => {
     state.autoStrat = { id: btn.dataset.strat, auto: $("strat-auto").checked };
@@ -1378,15 +1392,11 @@ function openSettlePop(result) {
   document.body.style.overflow = "hidden";
 }
 
-function closeSettlePop() {
-  $("settle-modal").hidden = true;
-  document.body.style.overflow = "";
-}
-
-$("btn-settle-pop-close").addEventListener("click", closeSettlePop);
-$("settle-modal").addEventListener("click", (e) => {
-  if (e.target === $("settle-modal")) closeSettlePop();
+const settleModal = qsModal("settle-modal", {
+  closeBtnId: "btn-settle-pop-close",
+  onClose: () => { document.body.style.overflow = ""; }, // 弹窗锁滚动, 关时恢复
 });
+function closeSettlePop() { settleModal.close(); } // Esc 分发与「查看详情」仍走此口
 $("btn-settle-pop-detail").addEventListener("click", () => {
   closeSettlePop();
   $("settle-card").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1832,23 +1842,18 @@ function renderLeaderboard() {
 
 // ---------- 玩法说明弹窗 ----------
 
-function openHelp() {
-  $("help-modal").hidden = false;
-  document.body.style.overflow = "hidden";
-}
-
-function closeHelp() {
-  $("help-modal").hidden = true;
-  document.body.style.overflow = "";
-  try { localStorage.setItem("qs_help_seen", "1"); } catch (e) { /* 隐私模式下忽略 */ }
-}
-
-$("btn-help").addEventListener("click", openHelp);
-$("btn-help-close").addEventListener("click", closeHelp);
-$("btn-help-ok").addEventListener("click", closeHelp);
-$("help-modal").addEventListener("click", (e) => {
-  if (e.target === $("help-modal")) closeHelp();
+const helpModal = qsModal("help-modal", {
+  closeBtnId: "btn-help-close",
+  onOpen: () => { document.body.style.overflow = "hidden"; },
+  onClose: () => {
+    document.body.style.overflow = "";
+    try { localStorage.setItem("qs_help_seen", "1"); } catch (e) { /* 隐私模式下忽略 */ }
+  },
 });
+function openHelp() { helpModal.open(); }
+function closeHelp() { helpModal.close(); }
+$("btn-help").addEventListener("click", openHelp);
+$("btn-help-ok").addEventListener("click", closeHelp);
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   if (!$("tour-pop").hidden) endTour();
@@ -1928,16 +1933,10 @@ $("btn-header-fold").addEventListener("click", () => {
 });
 
 // 账户状态 / AI 操盘手: 左上角胶囊按钮唤起弹窗 (侧栏只留高频交易操作)
-$("btn-status-pop").addEventListener("click", () => { $("status-modal").hidden = false; playSound("flip"); });
-$("btn-status-close").addEventListener("click", () => { $("status-modal").hidden = true; });
-$("status-modal").addEventListener("click", (e) => {
-  if (e.target === $("status-modal")) $("status-modal").hidden = true;
-});
-$("btn-ai-pop").addEventListener("click", () => { $("ai-modal").hidden = false; playSound("flip"); });
-$("btn-ai-close").addEventListener("click", () => { $("ai-modal").hidden = true; });
-$("ai-modal").addEventListener("click", (e) => {
-  if (e.target === $("ai-modal")) $("ai-modal").hidden = true;
-});
+const statusModal = qsModal("status-modal", { sound: "flip", closeBtnId: "btn-status-close" });
+$("btn-status-pop").addEventListener("click", statusModal.open);
+const aiModal = qsModal("ai-modal", { sound: "flip", closeBtnId: "btn-ai-close" });
+$("btn-ai-pop").addEventListener("click", aiModal.open);
 
 // 点分组标签 = 进入该组第一个子页
 groupTabs.forEach((b) => {
