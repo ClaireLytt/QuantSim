@@ -2,8 +2,8 @@
 // 依赖 $ / t / cssVar / echarts; app.js 在 runTune 成功后调用 window.qsRenderHeatmap(res)。
 
 (() => {
-  let hmChart = null;
   let lastRes = null;
+  const hmChartH = qsChart("tune-heatmap", () => buildHeatmapOption());
 
   function render(res) {
     lastRes = res;
@@ -14,8 +14,12 @@
       return;
     }
     card.hidden = false;
-    if (!hmChart) hmChart = echarts.init($("tune-heatmap"));
+    hmChartH.refresh();
+  }
 
+  function buildHeatmapOption() {
+    const res = lastRes;
+    if (!res || !res.grid || !res.grid.length || !res.paramKeys || res.paramKeys.length < 2) return null;
     const xs = [...new Set(res.grid.map((g) => g.x))].sort((a, b) => a - b);
     const ys = [...new Set(res.grid.map((g) => g.y))].sort((a, b) => a - b);
     const data = res.grid.map((g) => [
@@ -25,7 +29,7 @@
     const values = data.map((d) => d[2]);
     const maxAbs = Math.max(Math.abs(Math.min(...values)), Math.abs(Math.max(...values)), 1);
 
-    hmChart.setOption({
+    return ({
       grid: { left: 70, right: 90, top: 20, bottom: 50 },
       tooltip: {
         formatter: (p) => {
@@ -66,20 +70,13 @@
         label: { show: xs.length * ys.length <= 48, formatter: (p) => p.data[2] + "%", fontSize: 10 },
         emphasis: { itemStyle: { shadowBlur: 8 } },
       }],
-    }, { notMerge: true });
-    hmChart.resize();
+    });
   }
 
   window.qsRenderHeatmap = render;
 
-  document.addEventListener("qs:view", (e) => {
-    if (e.detail === "arena" && hmChart) hmChart.resize();
-  });
-  document.addEventListener("qs:theme", () => {
-    if (lastRes && !$("heatmap-card").hidden) render(lastRes);
-  });
+  // 主题/视图/窗口尺寸由 qsChart 兜底; tooltip 文案含 t(), 语言切换仍需重画
   document.addEventListener("qs:lang", () => {
     if (lastRes && !$("heatmap-card").hidden) render(lastRes);
   });
-  window.addEventListener("resize", () => { if (hmChart) hmChart.resize(); });
 })();

@@ -136,7 +136,6 @@
 
   // ---------- 市场情绪温度计: 全标的涨跌广度 + 近30日动量聚合成恐慌/贪婪读数 ----------
 
-  let sentiChart = null;
   let sentiScore = null;
 
   async function renderSentiment() {
@@ -162,17 +161,19 @@
       + "</svg>";
   }
 
+  const sentiH = qsChart("senti-gauge", () => buildSentiOption());
   function drawSentiment() {
     if (sentiScore == null) return;
-    if (!sentiChart) {
-      $("senti-gauge").innerHTML = ""; // 清掉占位仪表再交给 ECharts
-      sentiChart = echarts.init($("senti-gauge"));
-      window.addEventListener("resize", () => sentiChart.resize());
-    }
+    if (!sentiH.instance()) $("senti-gauge").innerHTML = ""; // 清掉占位仪表再交给 ECharts
     const zone = sentiScore < 25 ? "panic" : sentiScore < 45 ? "fear"
       : sentiScore <= 55 ? "neutral" : sentiScore <= 75 ? "optimism" : "greed";
     $("senti-text").textContent = t("senti.now", sentiScore, t("senti.zone." + zone));
-    sentiChart.setOption({
+    sentiH.refresh();
+  }
+
+  function buildSentiOption() {
+    if (sentiScore == null) return null;
+    return ({
       series: [{
         type: "gauge",
         min: 0, max: 100,
@@ -190,8 +191,7 @@
         detail: { fontSize: 20, fontWeight: 700, color: cssVar("--text"), offsetCenter: [0, "62%"] },
         data: [{ value: sentiScore }],
       }],
-    }, true);
-    sentiChart.resize();
+    });
   }
 
   document.addEventListener("qs:view", (e) => {
@@ -200,7 +200,7 @@
     else drawSentiment(); // 隐藏容器里尺寸为 0, 回到首页重算
     renderRankPreview();
   });
-  document.addEventListener("qs:theme", drawSentiment);
+  // 仪表主题重绘由 qsChart 兜底; 语言切换要同步 senti-text 文案, 仍整体重画
   document.addEventListener("qs:lang", () => { renderHome(); renderReco(); drawSentiment(); });
   renderHome();
   renderReco();

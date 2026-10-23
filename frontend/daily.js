@@ -61,16 +61,11 @@
   }
 
   // 今日收益分布直方图 + 你的百分位 (样本太少不画, 没有统计意义)
-  let distChart = null;
-  let distRows = null; // 最近一次榜单数据, 供切主题重绘 (图表色是 render 时从 cssVar 取的快照)
-  function renderDist(rows) {
-    distRows = rows;
-    const box = $("daily-dist-box");
-    if (!rows || rows.length < 5) {
-      box.hidden = true;
-      return;
-    }
-    box.hidden = false;
+  let distRows = null; // 最近一次榜单数据 (qsChart buildOption 的数据源)
+  const distH = qsChart("daily-dist", () => buildDistOption());
+  function buildDistOption() {
+    const rows = distRows;
+    if (!rows || rows.length < 5) return null;
     const rates = rows.map((r) => Number(r.returnRate));
     const min = Math.min(...rates);
     const max = Math.max(...rates);
@@ -81,14 +76,10 @@
       counts[Math.min(bins - 1, Math.floor((v - min) / width))]++;
     });
     const labels = counts.map((_, i) => fmtPct(min + width * (i + 0.5)));
-    if (!distChart) {
-      distChart = echarts.init($("daily-dist"));
-      window.addEventListener("resize", () => distChart.resize());
-    }
     const accent = cssVar("--accent");
     const muted = cssVar("--text-muted");
     const border = cssVar("--border");
-    distChart.setOption({
+    return ({
       backgroundColor: "transparent",
       animation: false,
       tooltip: { backgroundColor: cssVar("--panel-raised"), borderColor: border,
@@ -102,8 +93,19 @@
         axisLabel: { color: muted, fontSize: 10 } },
       series: [{ type: "bar", data: counts, barWidth: "70%",
         itemStyle: { color: accent, opacity: 0.8, borderRadius: [3, 3, 0, 0] } }],
-    }, { notMerge: true });
-    distChart.resize();
+    });
+  }
+
+  function renderDist(rows) {
+    distRows = rows;
+    const box = $("daily-dist-box");
+    if (!rows || rows.length < 5) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    distH.refresh();
+    const rates = rows.map((r) => Number(r.returnRate));
 
     // 我的百分位: 已登录且今日已入榜时展示
     const pctEl = $("daily-pct");
@@ -140,8 +142,7 @@
     if (e.detail === "daily") load();
   });
   document.addEventListener("qs:lang", renderInfo);
-  // 切主题重绘直方图: 不重绘的话浅色底上留着深色主题的轴线/文字色 (反之亦然)
-  document.addEventListener("qs:theme", () => { if (distRows) renderDist(distRows); });
+  // 主题重绘由 qsChart 统一兜底, 本视图不再自挂 qs:theme
   if (window.Auth) Auth.onChange(() => { today = null; renderInfo(); });
   // 启动兜底: app.js 首次 switchView 早于本脚本, 停在本视图刷新会错过 qs:view
   if (!$("view-daily").hidden) load();

@@ -100,7 +100,9 @@
   const DB_MAX_CONDS = 3; // 字段/算子表随条件行构建器共享 app.js 的 COND_FIELDS/COND_OPS
   let ringStocks = [];
   let previewed = false;
-  let buildChart = null;
+  let lastBuildRes = null; // 预回测结果 (qsChart buildOption 数据源)
+  const buildChartH = qsChart("duel-build-chart", () =>
+      (lastBuildRes ? buildBuildOption(lastBuildRes) : null));
 
   async function ringStock() {
     if (!ringStocks.length) ringStocks = await api("/backtest/stocks");
@@ -129,9 +131,13 @@
   }
 
   function renderBuildChart(res) {
-    if (!buildChart) buildChart = echarts.init($("duel-build-chart"));
+    lastBuildRes = res;
+    buildChartH.refresh();
+  }
+
+  function buildBuildOption(res) {
     const curve = res.equityCurve || [];
-    buildChart.setOption({
+    return ({
       animation: false,
       grid: { left: 58, right: 14, top: 14, bottom: 24 },
       xAxis: {
@@ -145,8 +151,7 @@
         { type: "line", data: curve.map((p) => Number(p.strategy)), showSymbol: false, lineStyle: { width: 2, color: cssVar("--lab-blue") }, areaStyle: { opacity: 0.1, color: cssVar("--lab-blue") } },
         { type: "line", data: curve.map((p) => Number(p.hold)), showSymbol: false, lineStyle: { width: 1.2, type: "dashed", color: cssVar("--text-muted") } },
       ],
-    }, true);
-    buildChart.resize();
+    });
   }
 
   async function runPreview() {
@@ -210,7 +215,6 @@
       const st = await ringStock();
       $("duel-build-stock").textContent = t("duel.build.dataset", stockName(st.name, st.code), st.code);
     } catch (e) { /* 后端未就绪时留空, 预回测时会再报错 */ }
-    if (buildChart) buildChart.resize();
   }
 
   function showBoard() {
@@ -220,7 +224,8 @@
 
   // ---------- 本轮结算屏: 多策略净值同图对比 + 终榜 ----------
   let finalEntries = null;
-  let finalChart = null;
+  const finalChartH = qsChart("duel-final-chart", () =>
+      (finalEntries && finalEntries.length ? buildFinalOption() : null));
   let finalSel = 0;
   const FINAL_COLORS = ["--warn", "--lab-blue", "--up", "--ma5", "--accent-soft"];
 
@@ -251,7 +256,10 @@
   }
 
   function renderFinalChart() {
-    if (!finalChart) finalChart = echarts.init($("duel-final-chart"));
+    finalChartH.refresh();
+  }
+
+  function buildFinalOption() {
     const series = [];
     let maxLen = 0;
     finalEntries.forEach((e, i) => {
@@ -267,7 +275,7 @@
         emphasis: { focus: "series" },
       });
     });
-    finalChart.setOption({
+    return ({
       animation: false,
       grid: { left: 48, right: 14, top: 26, bottom: 24 },
       legend: { top: 0, textStyle: { color: cssVar("--text-muted"), fontSize: 11 } },
@@ -279,8 +287,7 @@
       },
       yAxis: { scale: true, splitLine: { lineStyle: { color: cssVar("--border") } }, axisLabel: { color: cssVar("--text-muted"), fontSize: 10 } },
       series,
-    }, true);
-    finalChart.resize();
+    });
   }
 
   function renderFinal() {
@@ -343,13 +350,7 @@
   $("btn-duel-add-buy").addEventListener("click", () => addRow("duel-buy-conds", { left: "CLOSE", op: "GT", rightField: "MA20" }));
   $("btn-duel-add-sell").addEventListener("click", () => addRow("duel-sell-conds", { left: "CLOSE", op: "LT", rightField: "MA20" }));
   $("duel-pos").addEventListener("input", () => { $("duel-pos-v").textContent = $("duel-pos").value + "%"; });
-  window.addEventListener("resize", () => {
-    if (buildChart) buildChart.resize();
-    if (finalChart) finalChart.resize();
-  });
-  document.addEventListener("qs:theme", () => {
-    if (finalChart && !$("duel-final").hidden) renderFinalChart();
-  });
+  // 图表 resize/主题重绘由 qsChart 统一兜底
   $("btn-duel-history").addEventListener("click", () => switchView("ranking"));
 
   // ---------- 竞技场右侧迷你擂台榜: TOP3 策略名 + 综合分, 点击去擂台 ----------
