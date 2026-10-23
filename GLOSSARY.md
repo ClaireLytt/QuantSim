@@ -13,5 +13,6 @@
 | **结算落库 (Settled Columns)** | `service/SettledColumns` | 一局结算后写回 game_session 的全部列 (status / finalReturnRate / finalSharpe / biasReportJson) 的唯一定义, 含 bias JSON 序列化-或-null 政策; 正常结算与房间强结都只调 applyTo, 完整性由 SettledColumnsTest 反射对齐保证。 |
 | **弹窗接线 (Modal Wiring)** | `frontend/app.js qsModal` | 弹窗三件套 (开+音效 / 关按钮 / 背板点击) 的唯一定义; 业务副作用走 onOpen/onClose, Esc 关闭 opt-in (流程弹窗不可被 Esc 中断)。登记例外: tour-mask (点击=下一步)。曾散落 9 文件 19 处 (2026-10 收口)。 |
 | **图表生命周期 (Chart Lifecycle)** | `frontend/app.js qsChart` | 前端 echarts 的 init(懒)/主题重绘/qs:view+窗口 resize 的唯一属主。视图只写 buildOption (返 null=未就绪), 数据变化调 refresh(); instance() 是增量 merge 更新的逃生口 (app.js updateChartData、tape.js 高频 tick)。新图表禁止手搓 init/theme/resize 三件套 (2026-10 从 19 文件 25 处收口)。 |
+| **一日推进 (Game Day)** | `service/GameDay` | 「推进一天发生什么」编排的唯一定义: AI 旧价交易 → 推日 → 隔夜利息 → 挂单撮合 → 保证金强平, 顺序即口径 (GameDayTest 时序断言钉死)。事务留门面, 结算触发不在此 (候选③另一条缝)。 |
 | **挂单撮合 (Order Matching)** | `service/OrderMatching` | 「这张挂单今天怎么处理」决策矩阵的唯一定义: 触发/成交价、ratchet 只升不降、reduce-only 钳制、realRules 继续挂、预算作废、validate 作废, 闸门顺序即行为 (OrderMatchingTest 钉死)。外部裁决经 Gates 四问注入, OrderService 退为取数+落库适配器。按单张出决策 (顺序耦合是业务语义, 见模块头注释)。 |
 | **交易预算 (Trade Budget)** | `service/TradeBudget` | 「本局还能再交易几笔」的唯一定义, 含两个口径: 新增 (下单/手动交易) 数已成交+在挂单, 撮合只数已成交 (挂单自己的名额即预算)。纯核 Snapshot/FillConsumer 表驱动单测 (TradeBudgetTest), GameService/OrderService 只调不算。 |

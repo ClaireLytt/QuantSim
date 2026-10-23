@@ -79,11 +79,11 @@ public class GameService {
     private final com.quantsim.repository.EventTimelineRepository eventTimelineRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final GameProperties props;
-    private final GameAiService gameAi;
     private final GameBenchmarks benchmarks;
     private final LedgerReplay ledger;
     private final AiOpponent aiOpponent;
     private final TradeBudget tradeBudget;
+    private final GameDay gameDay;
 
     public static final ZoneId GAME_ZONE = ZoneId.of("Asia/Shanghai");
 
@@ -168,30 +168,16 @@ public class GameService {
         }
         DailyPrice next = sd.prices().get(curIdx + 1);
 
-        // AI 在推进前用今日预测决策, 按今日收盘价成交 (只用已揭晓的数据, 无未来泄漏)
-        int aiTradeShares = gameAi.applyAiTrade(session, sd);
-
-        session.setCurrentTradeDate(next.getTradeDate());
-        session.setDaysElapsed(session.getDaysElapsed() + 1);
-        int daysElapsed = session.getDaysElapsed();
-
-        KlinePoint bar = toKlinePoint(session, sd, next, sd.indicators().get(next.getTradeDate()));
-
-        // 新交易日揭晓后: 隔夜资金计息 -> 撮合挂单 -> 进阶模式保证金检查
+        // 推进编排收口在 GameDay (一日推进); 门面只管锁、事务、结算触发与 DTO 组装
         Account account = accountRepository.findWithLockBySessionId(sessionId)
                 .orElseThrow(() -> new NotFoundException("账户不存在"));
-        accrueInterest(session, account);
-        FillSummary fills = orderService.fillOrders(session, account);
-
-        boolean liquidatedNow = false;
-        if (session.isAdvanced() && !session.isLiquidated()) {
-            Map<Long, BigDecimal> closes = tradeEngine.currentCloses(session);
-            if (tradeEngine.equity(session, account, closes).signum() <= 0) {
-                forceLiquidate(session, account, closes);
-                liquidatedNow = true;
-            }
-        }
+        GameDay.DayResult day = gameDay.advance(session, account, sd, next);
+        int daysElapsed = day.daysElapsed();
+        FillSummary fills = day.fills();
+        boolean liquidatedNow = day.liquidatedNow();
         accountRepository.save(account);
+
+        KlinePoint bar = toKlinePoint(session, sd, next, sd.indicators().get(next.getTradeDate()));
 
         SettleResponse settleResult = null;
         boolean settled = liquidatedNow || daysElapsed >= props.getTotalTicks();
@@ -208,7 +194,7 @@ public class GameService {
 
         return new TickResponse(BlindDates.mask(session, next.getTradeDate()), daysElapsed, props.getTotalTicks(),
                 settled, bar, settleResult, status,
-                fills.filled(), fills.autoCancelled(), liquidatedNow, news, aiTradeShares);
+                fills.filled(), fills.autoCancelled(), liquidatedNow, news, day.aiTradeShares());
     }
 
     /**
@@ -227,37 +213,6 @@ public class GameService {
             return List.of();
         }
         return newsService.eventsFor(sd.stock(), sd.prices().get(curIdx + 1).getTradeDate());
-    }
-
-    /**
-     * 隔夜资金计息: 公式/舍入收口在 LedgerReplay.dailyInterest (结算曲线与 undo 重放同一内核,
-     * 天然同口径)。玩家与 AI 一起计, AI 的账走 AiOpponent。
-     */
-    private void accrueInterest(GameSession session, Account account) {
-        BigDecimal interest = ledger.dailyInterest(account.getCashBalance());
-        if (interest.signum() != 0) {
-            account.setCashBalance(account.getCashBalance().add(interest));
-            account.setInterestTotal(account.getInterestTotal().add(interest));
-        }
-        aiOpponent.accrue(session);
-    }
-
-    /** 净值归零强平: 全部持仓按现价了结 (含费用), 现金落定。 */
-    private void forceLiquidate(GameSession session, Account account, Map<Long, BigDecimal> closes) {
-        for (Map.Entry<Long, Integer> e : tradeEngine.sharesByStock(session, account).entrySet()) {
-            int shares = e.getValue();
-            if (shares == 0) {
-                continue;
-            }
-            BigDecimal price = closes.getOrDefault(e.getKey(), BigDecimal.ZERO);
-            if (price.signum() <= 0) {
-                continue; // 无有效价格时不能按 0 元"平仓"毁掉仓位
-            }
-            TradeTransaction.Direction dir = shares > 0
-                    ? TradeTransaction.Direction.SELL : TradeTransaction.Direction.BUY;
-            tradeEngine.execute(session, account, e.getKey(), dir, price, Math.abs(shares));
-        }
-        session.setLiquidated(true);
     }
 
     @Transactional
