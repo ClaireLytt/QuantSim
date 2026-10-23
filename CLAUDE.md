@@ -5,8 +5,10 @@ QuantSim 虚拟炒股游戏：AKShare/mock 数据采集 → PySpark 指标 → S
 ## 常用命令
 
 ```bash
-# 后端测试 (集成测试需要本机 3306 有 MySQL, root/root, CI 同配置)
+# 后端测试 (集成测试需要 MySQL root/root; 默认 3306, CI 同配置)
 cd backend && mvn -B test
+# 本机 3306 常被其他项目占用 (已踩 2 次, 见 issue_recode/1.md): 用自带测试库
+#   docker start quantsim-mysql-test && QUANTSIM_DB_PORT=3307 mvn -B test
 
 # 后端运行 (静态资源直接指向 ../frontend, 改前端刷新即生效)
 cd backend && mvn spring-boot:run     # 或仓库根目录 .\start.ps1 一键启动
@@ -182,6 +184,24 @@ pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端
 - **右上角工具簇 `.header-tools`（🎁积分 / 登录 / EN / 主题 / 音效）在桌面端必须保持单行横排**。
   2026-10 曾为修 390px 溢出给它加 `flex-wrap: wrap` 导致桌面端变竖排，被用户退回。
   窄屏适配只允许写在 `@media (max-width: 720px)` 里；除非用户明确要求，不要改这个区域的布局。
+
+## 规则 ↔ 机制对照表
+
+每条强规则配一个"谁来拦"。被纠正同类错误第二次时: 先修错, 再把规则在更高层级机械化, 然后更新本表。错误类已不可能发生时删行。
+
+| 规则 | 机制 | 层级 |
+|---|---|---|
+| 图表不手搓 init/theme/resize | `ui_check.py` E8 → 指路 qsChart | lint |
+| 弹窗不手搓背板三件套 | `ui_check.py` E9 → 指路 qsModal | lint |
+| 死按钮 / 重复 id / i18n 缺键漏键 / 版本号未 bump / 对比度 | `ui_check.py` E1–E7 + PostToolUse hook | lint+hook |
+| 笔数预算口径唯一 | `TradeBudget` 深模块 + `TradeBudgetTest` | 架构+测试 |
+| 撮合决策矩阵唯一且闸门顺序固定 | `OrderMatching` + `OrderMatchingTest` | 架构+测试 |
+| pandas/Spark 指标口径一致 | `tests/test_indicator_parity.py` 对拍 | 测试 |
+| 结算落库列完整 | `SettledColumnsTest` 反射对齐 | 测试 |
+| 历史反面模式 7 类 (分页后过滤等) | `tools/pr_guard.py` RULES | 扫描 |
+| Git Bash heredoc 禁非 ASCII / PS 禁文本替换改源文件 | 本机 PreToolUse hook (block_heredoc) | hook |
+| 枚举解析走 Enums.parse / 金额 BigDecimal 显式 scale / 竞技字段防剧透 | 无机械兜底——评审判断 | docs |
+| 跨脚本全局依赖需在文件头注释声明加载序 | 无机械兜底 (无构建架构的设计代价)——评审判断 | docs |
 
 ## 代码风格
 
