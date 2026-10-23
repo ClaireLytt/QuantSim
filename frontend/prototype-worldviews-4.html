@@ -1,0 +1,378 @@
+<!doctype html>
+<!--
+  PROTOTYPE — 可丢弃原型，勿当生产代码。
+  问题：QuantSim 重设计方向（第五轮）。流程：随机种子串 → 创意方向 → 实现。
+  种子：bbF2YAvfKJgUTR5JmPJ4AdsStUs4nNRa2af12MSqMD8kyA11KZKgHz6o
+  解读：数字和=40（对局天数）→ 主色相 40°琥珀；"4"×3 → 四格 Bento；bb/11/11 成对 → 对称双栏；
+       结尾大写簇 → 暗色收束；6→180° 青色辅色。组件风格参照 ui.aceternity.com
+      （spotlight / grid background / bento grid / aurora / meteors / glow border，纯 CSS 复刻）。
+  A Spotlight Bento · B Aurora 双生 · C Meteors 流星暗卡
+  ?variant=A|B|C 切换，底部悬浮条翻页（←/→ 键亦可），双击即开，纯 mock 数据。
+  约束：无紫色/蓝紫、无 emoji、背景须有渐变或噪点、动画不用 ease-in-out。
+-->
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuantSim 种子原型</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=IBM+Plex+Mono:wght@400;500;600&family=Archivo:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { -webkit-font-smoothing:antialiased; }
+  .variant { display:none; min-height:100vh; }
+  .variant.on { display:block; }
+  button { cursor:pointer; font:inherit; border:none; background:none; }
+  svg { display:block; }
+
+  /* ============ A · Spotlight Bento —— 聚光灯 + 点阵背景 + 四格便当 ============ */
+  .vA {
+    --bgA:hsl(220,10%,7%); --cardA:hsl(220,8%,10%); --lineA:hsl(220,8%,18%);
+    --amber:hsl(40,92%,58%); --teal:hsl(180,45%,52%); --txt:hsl(40,15%,90%); --dim:hsl(220,6%,55%);
+    background:
+      radial-gradient(ellipse 60% 45% at 50% -8%, hsla(40,90%,55%,.14), transparent 60%),
+      radial-gradient(hsla(220,8%,40%,.35) 1px, transparent 1.5px) 0 0/26px 26px,
+      linear-gradient(180deg, hsl(220,10%,9%), var(--bgA) 50%);
+    color:var(--txt); font-family:"Noto Sans SC",sans-serif;
+  }
+  .vA .stage { max-width:1060px; margin:0 auto; padding:52px 28px 160px; }
+  .vA .hero { text-align:center; padding:28px 0 40px; }
+  .vA .hero .pill { display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:12px;
+    letter-spacing:.2em; color:var(--teal); border:1px solid hsla(180,45%,52%,.35);
+    border-radius:999px; padding:7px 18px;
+    background:linear-gradient(180deg, hsla(180,45%,52%,.08), transparent); }
+  .vA .hero h1 { margin-top:22px; font-family:"Archivo","Noto Sans SC",sans-serif; font-weight:800;
+    font-size:clamp(34px,5.6vw,58px); letter-spacing:-.01em;
+    background:linear-gradient(180deg, hsl(40,30%,96%), hsl(40,20%,62%));
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .vA .hero h1 b { background:linear-gradient(120deg, var(--amber), hsl(28,90%,55%));
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .vA .hero p { margin-top:14px; color:var(--dim); font-size:14px; letter-spacing:.12em; }
+  .vA .bento { display:grid; grid-template-columns:repeat(4,1fr); grid-auto-rows:118px; gap:14px; margin-top:26px; }
+  .vA .cell { position:relative; border-radius:16px; border:1px solid var(--lineA); overflow:hidden;
+    background:linear-gradient(165deg, hsl(220,8%,12%), var(--cardA) 60%);
+    padding:18px 20px;
+    transition:border-color .25s cubic-bezier(.25,.8,.4,1), transform .25s cubic-bezier(.25,.8,.4,1); }
+  .vA .cell:hover { border-color:hsla(40,92%,58%,.45); transform:translateY(-3px); }
+  .vA .cell .k { font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.26em; color:var(--dim); }
+  .vA .cell .v { font-family:"IBM Plex Mono",monospace; font-size:26px; font-weight:500; margin-top:10px; }
+  .vA .cell .v.up { color:var(--amber); }
+  .vA .cell .s { font-size:12px; color:var(--dim); margin-top:6px; }
+  .vA .cell.wide { grid-column:span 2; grid-row:span 2; padding:20px 22px; }
+  .vA .cell.tall { grid-row:span 2; display:flex; flex-direction:column; }
+  .vA .cell .spark { position:absolute; right:-20px; bottom:-14px; opacity:.5; }
+  .vA .acts { display:flex; flex-direction:column; gap:10px; margin-top:auto; }
+  .vA .acts button { padding:13px 0; border-radius:10px; font-weight:700; letter-spacing:.26em; font-size:13px;
+    border:1px solid var(--lineA); color:var(--txt);
+    transition:border-color .2s cubic-bezier(.3,.7,.4,1), background .2s cubic-bezier(.3,.7,.4,1); }
+  .vA .acts button:hover { border-color:hsla(180,45%,52%,.5); background:hsla(180,45%,52%,.06); }
+  .vA .acts button.main { background:linear-gradient(120deg, var(--amber), hsl(28,90%,52%));
+    border-color:transparent; color:hsl(30,40%,10%); }
+  .vA .acts button.main:hover { filter:brightness(1.08); }
+
+  /* ============ B · Aurora 双生 —— 极光幕布 + 玻璃对称双栏 ============ */
+  .vB {
+    --bgB:hsl(195,30%,8%); --glass:hsla(190,25%,16%,.55); --lineB:hsla(180,35%,60%,.22);
+    --aur1:hsl(165,70%,45%); --aur2:hsl(40,92%,58%); --txtB:hsl(180,20%,92%); --dimB:hsl(190,12%,58%);
+    background:linear-gradient(185deg, hsl(200,32%,10%), var(--bgB) 55%);
+    color:var(--txtB); font-family:"Noto Sans SC",sans-serif; overflow-x:hidden; position:relative;
+  }
+  .vB .aurora { position:fixed; inset:-20% -10%; pointer-events:none; z-index:1; filter:blur(60px); opacity:.5;
+    background:
+      radial-gradient(ellipse 42% 30% at 28% 22%, var(--aur1), transparent 65%),
+      radial-gradient(ellipse 38% 26% at 72% 14%, var(--aur2), transparent 65%),
+      radial-gradient(ellipse 50% 30% at 55% 36%, hsl(185,60%,38%), transparent 70%);
+    animation:aur 14s cubic-bezier(.45,.05,.55,.95) infinite alternate; }
+  @keyframes aur { from{transform:translateX(-4%) scale(1)} to{transform:translateX(4%) scale(1.07)} }
+  .vB .stage { max-width:980px; margin:0 auto; padding:64px 28px 160px; position:relative; z-index:2; }
+  .vB header { text-align:center; }
+  .vB header .mono { font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.3em; color:var(--dimB); }
+  .vB h1 { font-weight:300; font-size:clamp(30px,4.6vw,44px); letter-spacing:.3em; margin-top:14px; }
+  .vB h1 b { font-weight:900; color:var(--aur2); }
+  .vB .twins { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:44px; }
+  .vB .glass { border-radius:20px; border:1px solid var(--lineB); background:var(--glass);
+    backdrop-filter:blur(14px); padding:26px 28px;
+    box-shadow:0 24px 60px -30px rgba(0,0,0,.8); }
+  .vB .glass .ttl { font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.3em; color:var(--dimB); }
+  .vB .glass .big { font-family:"IBM Plex Mono",monospace; font-size:44px; font-weight:500; margin-top:12px; }
+  .vB .glass .big small { font-size:15px; color:var(--aur2); margin-left:10px; }
+  .vB .kvs { margin-top:18px; }
+  .vB .kvs .kv { display:flex; justify-content:space-between; font-size:13px; padding:10px 0;
+    border-bottom:1px solid hsla(180,35%,60%,.12); }
+  .vB .kvs .kv .k { color:var(--dimB); letter-spacing:.14em; }
+  .vB .kvs .kv .v { font-family:"IBM Plex Mono",monospace; }
+  .vB .chart { margin-top:14px; }
+  .vB .acts { display:flex; gap:12px; margin-top:22px; }
+  .vB .acts button { flex:1; padding:13px 0; border-radius:12px; font-size:13px; letter-spacing:.26em; font-weight:500;
+    border:1px solid var(--lineB); color:var(--txtB);
+    transition:background .22s cubic-bezier(.3,.7,.4,1), border-color .22s cubic-bezier(.3,.7,.4,1); }
+  .vB .acts button:hover { background:hsla(165,70%,45%,.1); border-color:hsla(165,70%,45%,.4); }
+  .vB .acts button.main { background:linear-gradient(120deg, hsla(165,70%,45%,.9), hsla(175,60%,40%,.9));
+    border-color:transparent; color:hsl(195,30%,8%); font-weight:700; }
+
+  /* ============ C · Meteors 流星暗卡 —— 近黑 + 辉光描边 + 流星 ============ */
+  .vC {
+    --bgC:hsl(230,8%,5%); --cardC:hsl(230,6%,8%); --edgeC:hsl(40,92%,58%);
+    --txtC:hsl(40,10%,90%); --dimC:hsl(230,5%,50%);
+    background:
+      radial-gradient(ellipse 70% 40% at 50% 115%, hsla(40,80%,45%,.1), transparent 60%),
+      linear-gradient(180deg, hsl(230,8%,7%), var(--bgC) 40%);
+    color:var(--txtC); font-family:"Noto Sans SC",sans-serif; overflow:hidden;
+  }
+  .vC .meteors { position:fixed; inset:0; pointer-events:none; z-index:1; }
+  .vC .meteors i { position:absolute; width:2px; height:2px; border-radius:50%; background:hsl(40,90%,75%);
+    box-shadow:0 0 6px hsl(40,90%,70%); opacity:0;
+    animation:met var(--mt,5s) cubic-bezier(.5,.05,.8,.5) infinite; animation-delay:var(--md,0s); }
+  .vC .meteors i::after { content:""; position:absolute; top:50%; left:1px; width:110px; height:1px;
+    transform:translateY(-50%) rotate(0); transform-origin:left;
+    background:linear-gradient(90deg, hsla(40,90%,70%,.8), transparent); }
+  @keyframes met { 0%{opacity:0; transform:translate(0,0) rotate(215deg)} 6%{opacity:1}
+    60%{opacity:0; transform:translate(-44vw,30vw) rotate(215deg)} 100%{opacity:0; transform:translate(-44vw,30vw) rotate(215deg)} }
+  .vC .stage { position:relative; z-index:2; max-width:760px; margin:0 auto; padding:68px 24px 170px; }
+  .vC .crumb { display:flex; justify-content:space-between; font-family:"IBM Plex Mono",monospace;
+    font-size:12px; color:var(--dimC); letter-spacing:.18em; }
+  .vC .core { margin-top:40px; position:relative; border-radius:22px; padding:1px;
+    background:linear-gradient(140deg, hsla(40,92%,58%,.7), transparent 30% 70%, hsla(40,92%,58%,.4)); }
+  .vC .core .inner { border-radius:21px; background:linear-gradient(170deg, hsl(230,7%,10%), var(--cardC) 60%);
+    padding:34px 36px 30px; }
+  .vC .core .head { display:flex; justify-content:space-between; align-items:baseline; }
+  .vC .core h1 { font-weight:300; font-size:20px; letter-spacing:.42em; color:var(--txtC); }
+  .vC .core .tagc { font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--edgeC); letter-spacing:.2em; }
+  .vC .pline { display:flex; align-items:baseline; gap:16px; margin-top:26px; }
+  .vC .pline .p { font-family:"IBM Plex Mono",monospace; font-size:62px; font-weight:600;
+    color:hsl(40,60%,85%); text-shadow:0 0 40px hsla(40,90%,55%,.3); }
+  .vC .pline .d { font-family:"IBM Plex Mono",monospace; font-size:15px; color:var(--edgeC); }
+  .vC .chart { margin-top:22px; }
+  .vC .statbar { display:flex; gap:0; margin-top:24px; border-top:1px solid hsl(230,6%,15%); }
+  .vC .statbar .st { flex:1; padding:16px 6px 0; border-right:1px solid hsl(230,6%,15%); }
+  .vC .statbar .st:last-child { border-right:none; }
+  .vC .statbar .k { font-size:10px; letter-spacing:.3em; color:var(--dimC); font-family:"IBM Plex Mono",monospace; }
+  .vC .statbar .v { font-family:"IBM Plex Mono",monospace; font-size:17px; margin-top:8px; }
+  .vC .acts { display:flex; gap:12px; margin-top:30px; }
+  .vC .acts button { flex:1; padding:14px 0; border-radius:12px; font-size:13px; letter-spacing:.3em; font-weight:500;
+    border:1px solid hsl(230,6%,18%); color:var(--txtC); background:hsl(230,6%,9%);
+    transition:border-color .2s cubic-bezier(.3,.7,.4,1), box-shadow .2s cubic-bezier(.3,.7,.4,1); }
+  .vC .acts button:hover { border-color:hsla(40,92%,58%,.5); box-shadow:0 0 24px -8px hsla(40,92%,58%,.5); }
+  .vC .acts button.main { background:linear-gradient(120deg, hsl(40,92%,58%), hsl(30,88%,50%));
+    color:hsl(230,8%,8%); font-weight:700; border-color:transparent; }
+
+  /* ================= 悬浮切换条 ================= */
+  .switcher { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:99;
+    display:flex; align-items:center; gap:4px; background:hsl(0,0%,8%); color:hsl(0,0%,96%);
+    border-radius:999px; padding:6px 8px; box-shadow:0 12px 36px rgba(0,0,0,.5);
+    font:13px/1 "IBM Plex Mono",monospace; border:1px solid hsl(0,0%,20%); }
+  .switcher button { color:inherit; padding:8px 12px; border-radius:999px; font-size:15px; }
+  .switcher button:hover { background:hsl(0,0%,18%); }
+  .switcher .lbl { padding:0 10px; letter-spacing:.04em; white-space:nowrap; }
+
+  @media (max-width:820px) {
+    .vA .bento { grid-template-columns:1fr 1fr; }
+    .vB .twins { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ A · Spotlight Bento ============ -->
+<section class="variant vA" data-v="A" data-name="Spotlight Bento">
+  <div class="stage">
+    <div class="hero">
+      <span class="pill">DAY 17 / 40 · BLIND SESSION</span>
+      <h1>四十个交易日<br>与一只<b>神秘标的</b></h1>
+      <p>身份结算揭晓 · 当日收盘成交 · 同费率口径</p>
+    </div>
+    <div class="bento">
+      <div class="cell wide">
+        <div class="k">PRICE / 40D</div>
+        <svg data-chart="A" viewBox="0 0 520 190" style="width:100%;margin-top:8px"></svg>
+      </div>
+      <div class="cell">
+        <div class="k">最新收盘</div>
+        <div class="v up">39.08</div>
+        <div class="s">+1.58 · +4.2%</div>
+      </div>
+      <div class="cell tall">
+        <div class="k">操作</div>
+        <div class="acts">
+          <button class="main">买入</button>
+          <button>卖出</button>
+          <button>下一日</button>
+        </div>
+      </div>
+      <div class="cell">
+        <div class="k">可用资金</div>
+        <div class="v">72,418</div>
+        <div class="s">初始 100,000</div>
+      </div>
+      <div class="cell">
+        <div class="k">持仓</div>
+        <div class="v">800</div>
+        <div class="s">成本 37.52 · 市值 31,264</div>
+      </div>
+      <div class="cell">
+        <div class="k">总权益</div>
+        <div class="v up">103,682</div>
+        <div class="s">较初始 +3.7%</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ B · Aurora 双生 ============ -->
+<section class="variant vB" data-v="B" data-name="Aurora 双生">
+  <div class="aurora"></div>
+  <div class="stage">
+    <header>
+      <div class="mono">BLIND SESSION · DAY 17 / 40</div>
+      <h1>静水之下<b>暗流</b></h1>
+    </header>
+    <div class="twins">
+      <div class="glass">
+        <div class="ttl">行情 · 神秘标的</div>
+        <div class="big">39.08<small>+4.2%</small></div>
+        <svg class="chart" data-chart="B" viewBox="0 0 420 180" style="width:100%"></svg>
+      </div>
+      <div class="glass">
+        <div class="ttl">账户</div>
+        <div class="kvs">
+          <div class="kv"><span class="k">可用资金</span><span class="v">72,418.50</span></div>
+          <div class="kv"><span class="k">持仓</span><span class="v">800 股 @ 37.52</span></div>
+          <div class="kv"><span class="k">市值</span><span class="v">31,264.00</span></div>
+          <div class="kv"><span class="k">总权益</span><span class="v">103,682.50</span></div>
+          <div class="kv"><span class="k">较初始</span><span class="v">+3.7%</span></div>
+        </div>
+        <div class="acts">
+          <button class="main">买入</button>
+          <button>卖出</button>
+          <button>下一日</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ C · Meteors 流星暗卡 ============ -->
+<section class="variant vC" data-v="C" data-name="Meteors 流星暗卡">
+  <div class="meteors" id="meteors"></div>
+  <div class="stage">
+    <div class="crumb"><span>QUANTSIM</span><span>DAY 17 / 40 · BLIND</span></div>
+    <div class="core">
+      <div class="inner">
+        <div class="head">
+          <h1>神 秘 标 的</h1>
+          <span class="tagc">结算揭晓</span>
+        </div>
+        <div class="pline">
+          <span class="p">39.08</span>
+          <span class="d">+1.58 (+4.2%)</span>
+        </div>
+        <svg class="chart" data-chart="C" viewBox="0 0 640 200" style="width:100%"></svg>
+        <div class="statbar">
+          <div class="st"><div class="k">CASH</div><div class="v">72,418.50</div></div>
+          <div class="st"><div class="k">POSITION</div><div class="v">800 @ 37.52</div></div>
+          <div class="st"><div class="k">VALUE</div><div class="v">31,264.00</div></div>
+          <div class="st"><div class="k">EQUITY</div><div class="v">103,682.50</div></div>
+        </div>
+        <div class="acts">
+          <button class="main">买入</button>
+          <button>卖出</button>
+          <button>下一日</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="switcher">
+  <button id="sw-prev" aria-label="上一个">&larr;</button>
+  <span class="lbl" id="sw-lbl"></span>
+  <button id="sw-next" aria-label="下一个">&rarr;</button>
+</div>
+
+<script>
+// ---- mock OHLC（40 日，固定种子，三变体共用）----
+const DATA = (() => {
+  let s = 7, p = 36, out = [];
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 40; i++) {
+    const o = p, c = +(o * (1 + (rnd() - .48) * .05)).toFixed(2);
+    const h = +(Math.max(o, c) * (1 + rnd() * .018)).toFixed(2);
+    const l = +(Math.min(o, c) * (1 - rnd() * .018)).toFixed(2);
+    out.push({ o, h, l, c }); p = c;
+  }
+  return out;
+})();
+function scales(w, h, pad) {
+  const lo = Math.min(...DATA.map(d => d.l)), hi = Math.max(...DATA.map(d => d.h));
+  return { x: i => pad + i * (w - 2 * pad) / (DATA.length - 1),
+           y: v => h - pad - (v - lo) / (hi - lo) * (h - 2 * pad) };
+}
+// A：琥珀渐变面积线（bento 主格）
+function drawA(svg) {
+  const { x, y } = scales(520, 190, 10);
+  const pts = DATA.map((d, i) => `${x(i)},${y(d.c)}`).join(" ");
+  svg.innerHTML =
+    `<defs><linearGradient id="gA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="hsl(40,92%,58%)" stop-opacity=".3"/>
+      <stop offset="1" stop-color="hsl(40,92%,58%)" stop-opacity="0"/></linearGradient></defs>` +
+    `<polygon points="${x(0)},180 ${pts} ${x(39)},180" fill="url(#gA)"/>` +
+    `<polyline points="${pts}" fill="none" stroke="hsl(40,92%,58%)" stroke-width="2" stroke-linejoin="round"/>` +
+    `<circle cx="${x(39)}" cy="${y(DATA[39].c)}" r="4" fill="hsl(180,45%,52%)"/>`;
+}
+// B：双色蜡烛（极光青/琥珀）
+function drawB(svg) {
+  const { x, y } = scales(420, 180, 10);
+  svg.innerHTML = DATA.map((d, i) => {
+    const up = d.c >= d.o, cx = x(i);
+    const col = up ? "hsl(40,92%,58%)" : "hsl(165,50%,42%)";
+    return `<line x1="${cx}" y1="${y(d.h)}" x2="${cx}" y2="${y(d.l)}" stroke="${col}" stroke-width="1" opacity=".6"/>` +
+      `<rect x="${cx - 2.6}" y="${y(Math.max(d.o, d.c))}" width="5.2" height="${Math.max(2, Math.abs(y(d.o) - y(d.c)))}" rx="1" fill="${col}"/>`;
+  }).join("");
+}
+// C：辉光单线
+function drawC(svg) {
+  const { x, y } = scales(640, 200, 12);
+  const pts = DATA.map((d, i) => `${x(i)},${y(d.c)}`).join(" ");
+  svg.innerHTML =
+    `<defs><filter id="gC"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>` +
+    `<polyline points="${pts}" fill="none" stroke="hsl(40,85%,62%)" stroke-width="1.8" filter="url(#gC)"/>` +
+    `<circle cx="${x(39)}" cy="${y(DATA[39].c)}" r="4" fill="hsl(40,92%,70%)"/>`;
+}
+document.querySelectorAll("[data-chart]").forEach(svg =>
+  ({ A: drawA, B: drawB, C: drawC })[svg.dataset.chart](svg));
+
+// C 变体的流星（固定种子，克制数量）
+(() => {
+  const host = document.getElementById("meteors");
+  let s = 29; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  let html = "";
+  for (let i = 0; i < 9; i++) {
+    html += `<i style="left:${(20 + rnd() * 80).toFixed(1)}%;top:${(rnd() * 55).toFixed(1)}%;--mt:${(4.5 + rnd() * 5).toFixed(1)}s;--md:${(rnd() * 8).toFixed(1)}s"></i>`;
+  }
+  host.innerHTML = html;
+})();
+
+// ---- 切换器 ----
+const VARS = [...document.querySelectorAll(".variant")];
+const KEYS = VARS.map(v => v.dataset.v);
+function show(k) {
+  if (!KEYS.includes(k)) k = "A";
+  VARS.forEach(v => v.classList.toggle("on", v.dataset.v === k));
+  const el = VARS.find(v => v.dataset.v === k);
+  document.getElementById("sw-lbl").textContent = `${k} · ${el.dataset.name}`;
+  const u = new URL(location); u.searchParams.set("variant", k);
+  history.replaceState(null, "", u);
+}
+function step(d) {
+  const i = KEYS.indexOf(new URL(location).searchParams.get("variant") || "A");
+  show(KEYS[(i + d + KEYS.length) % KEYS.length]);
+}
+document.getElementById("sw-prev").onclick = () => step(-1);
+document.getElementById("sw-next").onclick = () => step(1);
+addEventListener("keydown", e => {
+  if (/INPUT|TEXTAREA/.test(document.activeElement.tagName) || document.activeElement.isContentEditable) return;
+  if (e.key === "ArrowLeft") step(-1); if (e.key === "ArrowRight") step(1);
+});
+show(new URL(location).searchParams.get("variant") || "A");
+</script>
+</body>
+</html>
