@@ -59,7 +59,7 @@ public class OrderService {
             if (bar == null) {
                 throw new BusinessException("当前交易日行情缺失");
             }
-            price = trailTrigger(bar.getClose(), trailPct);
+            price = OrderMatching.trailTrigger(bar.getClose(), trailPct);
         } else {
             trailPct = null;
             if (price == null || price.signum() <= 0) {
@@ -139,84 +139,54 @@ public class OrderService {
             if (bar == null) {
                 continue;
             }
-            BigDecimal fillPrice = fillPrice(order, bar);
-            if (fillPrice == null) {
-                // 未触发: 移动止损把触发价上移到 max(当前, 收盘*(1-trail%)), 只升不降
-                if (order.getOrderType() == PendingOrder.Type.TRAIL_STOP) {
-                    BigDecimal ratchet = trailTrigger(bar.getClose(), order.getTrailPct());
-                    if (ratchet.compareTo(order.getTriggerPrice()) > 0) {
-                        order.setTriggerPrice(ratchet);
-                        orderRepository.save(order);
-                    }
+            // 决策矩阵收口在 OrderMatching, 这里只供数 (Gates 闭包) 并按决策落库。
+            // 逐单问最新持仓: 先成交的单改变持仓, 后面的保护单按新仓钳制 (顺序耦合是业务语义)。
+            OrderMatching.Gates gates = new OrderMatching.Gates() {
+                @Override
+                public int currentPositionShares() {
+                    return tradeEngine.position(session, account, order.getStockId()).shares();
                 }
-                continue; // 未触发, 继续挂
-            }
-            TradeTransaction.Direction dir = order.getOrderType() == PendingOrder.Type.LIMIT_BUY
-                    ? TradeTransaction.Direction.BUY : TradeTransaction.Direction.SELL; // TRAIL_STOP 是卖单
-            // 止损/止盈/移动止损是平仓保护单 (reduce-only)。进阶模式的 validate 只做净值/杠杆
-            // 约束不查持仓, 挂单后手动清仓再触发会穿越零点开空 (保护单变开空单);
-            // 仓位已清自动撤单, 多头缩水只平剩余。普通模式 validate 本就拒绝超卖, 行为不变。
-            int fillShares = order.getShares();
-            if (session.isAdvanced() && dir == TradeTransaction.Direction.SELL
-                    && order.getOrderType() != PendingOrder.Type.LIMIT_SELL) {
-                int cur = tradeEngine.position(session, account, order.getStockId()).shares();
-                if (cur <= 0) {
-                    order.setStatus(PendingOrder.Status.CANCELLED);
-                    cancelled++;
-                    orderRepository.save(order);
-                    continue;
+
+                @Override
+                public boolean realRulesBlocked(TradeTransaction.Direction dir, int shares) {
+                    return tradeEngine.realRulesError(session, account,
+                            order.getStockId(), dir, shares) != null;
                 }
-                fillShares = Math.min(fillShares, cur);
-            }
-            // 真实规则 (封板/T+1) 只是"今天不能成交", 继续挂到明天, 不作废单处理。
-            // 判定必须用 clamp 后的 fillShares (与下方 validate/execute 同一数量口径):
-            // 用原始挂单数会出现"可部分平仓却被 T+1 整单拒绝、保护单永远挂着"的分叉
-            // (advanced 与 realRules 现互斥故不可达, 属防未来放开组合的埋雷修复)
-            if (session.isRealRules() && tradeEngine.realRulesError(session, account,
-                    order.getStockId(), dir, fillShares) != null) {
-                continue;
-            }
-            if (budget.exhausted()) {
-                // 笔数预算已耗尽, 后续挂单作废而不是静默超限
+
+                @Override
+                public boolean budgetExhausted() {
+                    return budget.exhausted();
+                }
+
+                @Override
+                public String validateError(TradeTransaction.Direction dir, BigDecimal price, int shares) {
+                    return tradeEngine.validate(session, account, order.getStockId(), dir, price, shares);
+                }
+            };
+            OrderMatching.Decision decision = OrderMatching.decide(
+                    OrderMatching.OrderView.of(order), bar,
+                    session.isAdvanced(), session.isRealRules(), gates);
+            if (decision instanceof OrderMatching.Decision.Ratchet r) {
+                order.setTriggerPrice(r.newTrigger());
+                orderRepository.save(order);
+            } else if (decision instanceof OrderMatching.Decision.Cancel) {
                 order.setStatus(PendingOrder.Status.CANCELLED);
                 cancelled++;
                 orderRepository.save(order);
-                continue;
-            }
-            String error = tradeEngine.validate(session, account, order.getStockId(),
-                    dir, fillPrice, fillShares);
-            if (error != null) {
-                order.setStatus(PendingOrder.Status.CANCELLED);
-                cancelled++;
-            } else {
-                tradeEngine.execute(session, account, order.getStockId(), dir, fillPrice, fillShares,
-                        order.getReason(), order.getOrderId());
+            } else if (decision instanceof OrderMatching.Decision.Fill f) {
+                tradeEngine.execute(session, account, order.getStockId(), f.dir(), f.price(),
+                        f.shares(), order.getReason(), order.getOrderId());
                 budget.consume();
                 order.setStatus(PendingOrder.Status.FILLED);
                 order.setFilledDate(session.getCurrentTradeDate());
-                order.setFilledPrice(fillPrice);
-                filled.add(new FilledOrder(order.getOrderType().name(), fillPrice,
-                        fillShares, BlindDates.maskCode(session, sd.stock().getCode()),
+                order.setFilledPrice(f.price());
+                filled.add(new FilledOrder(order.getOrderType().name(), f.price(),
+                        f.shares(), BlindDates.maskCode(session, sd.stock().getCode()),
                         order.getReason())); // 带回下单理由, 前端成交日志才能还原交易日记
-            }
-            orderRepository.save(order);
+                orderRepository.save(order);
+            } // Keep: 继续挂, 无落库动作
         }
         return new FillSummary(filled, cancelled);
-    }
-
-    /** 移动止损触发价: 收盘 × (1 - trail%), 两位 HALF_UP。下单初始化与逐日上移同用一个公式。 */
-    private BigDecimal trailTrigger(BigDecimal close, BigDecimal trailPct) {
-        return close.multiply(BigDecimal.ONE.subtract(trailPct.movePointLeft(2)))
-                .setScale(2, RoundingMode.HALF_UP);
-    }
-
-    private BigDecimal fillPrice(PendingOrder order, DailyPrice bar) {
-        BigDecimal p = order.getTriggerPrice();
-        return switch (order.getOrderType()) {
-            case LIMIT_BUY, STOP_LOSS, TRAIL_STOP ->
-                    bar.getLow().compareTo(p) <= 0 ? bar.getOpen().min(p) : null;
-            case LIMIT_SELL, TAKE_PROFIT -> bar.getHigh().compareTo(p) >= 0 ? bar.getOpen().max(p) : null;
-        };
     }
 
     /** 竞技模式挂单日期与标的代码同样脱敏, 与 K 线口径一致。 */
