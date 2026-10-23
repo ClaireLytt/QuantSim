@@ -770,54 +770,52 @@ async function runCalibration() {
 
 function buildCalibOption() {
   const rows = labCalibRows;
-  {
-    const palette = [COLORS.ma5, COLORS.ma20, cssVar("--accent-2")];
-    const series = rows.map((row, i) => {
-      const meta = MODEL_META.find((m) => m.key === row.model);
-      const name = meta ? pick(meta.name) : row.model;
-      return {
-        name,
-        type: "line",
-        data: row.buckets.map((b) => [
-          +(((b.probFrom + b.probTo) / 2) * 100).toFixed(0),
-          +(b.actualUpRate * 100).toFixed(1),
-        ]),
-        showSymbol: true,
-        symbolSize: 7,
-        lineStyle: { width: 2, color: palette[i % palette.length] },
-        itemStyle: { color: palette[i % palette.length] },
-      };
-    });
-    // 对角参考线: 完美校准 (说 70% 就真有 70% 在涨)
-    series.push({
-      name: t("lab.calibIdeal"),
+  const palette = [COLORS.ma5, COLORS.ma20, cssVar("--accent-2")];
+  const series = rows.map((row, i) => {
+    const meta = MODEL_META.find((m) => m.key === row.model);
+    const name = meta ? pick(meta.name) : row.model;
+    return {
+      name,
       type: "line",
-      data: [[0, 0], [100, 100]],
-      showSymbol: false,
-      lineStyle: { width: 1, color: COLORS.muted, type: "dashed" },
-      itemStyle: { color: COLORS.muted },
-      tooltip: { show: false },
-    });
-    return ({
-      tooltip: { trigger: "axis", valueFormatter: (v) => v + "%" },
-      legend: { data: series.map((s) => s.name), textStyle: { color: COLORS.text } },
-      grid: { left: 48, right: 16, top: 36, bottom: 40 },
-      xAxis: {
-        type: "value", min: 0, max: 100, name: t("lab.calibX"),
-        nameLocation: "middle", nameGap: 26, nameTextStyle: { color: COLORS.muted },
-        axisLabel: { color: COLORS.muted, formatter: "{value}%" },
-        axisLine: { lineStyle: { color: COLORS.border } },
-        splitLine: { lineStyle: { color: COLORS.border, opacity: 0.3 } },
-      },
-      yAxis: {
-        type: "value", min: 0, max: 100, name: t("lab.calibY"),
-        nameTextStyle: { color: COLORS.muted },
-        axisLabel: { color: COLORS.muted, formatter: "{value}%" },
-        splitLine: { lineStyle: { color: COLORS.border, opacity: 0.3 } },
-      },
-      series,
-    });
-  }
+      data: row.buckets.map((b) => [
+        +(((b.probFrom + b.probTo) / 2) * 100).toFixed(0),
+        +(b.actualUpRate * 100).toFixed(1),
+      ]),
+      showSymbol: true,
+      symbolSize: 7,
+      lineStyle: { width: 2, color: palette[i % palette.length] },
+      itemStyle: { color: palette[i % palette.length] },
+    };
+  });
+  // 对角参考线: 完美校准 (说 70% 就真有 70% 在涨)
+  series.push({
+    name: t("lab.calibIdeal"),
+    type: "line",
+    data: [[0, 0], [100, 100]],
+    showSymbol: false,
+    lineStyle: { width: 1, color: COLORS.muted, type: "dashed" },
+    itemStyle: { color: COLORS.muted },
+    tooltip: { show: false },
+  });
+  return ({
+    tooltip: { trigger: "axis", valueFormatter: (v) => v + "%" },
+    legend: { data: series.map((s) => s.name), textStyle: { color: COLORS.text } },
+    grid: { left: 48, right: 16, top: 36, bottom: 40 },
+    xAxis: {
+      type: "value", min: 0, max: 100, name: t("lab.calibX"),
+      nameLocation: "middle", nameGap: 26, nameTextStyle: { color: COLORS.muted },
+      axisLabel: { color: COLORS.muted, formatter: "{value}%" },
+      axisLine: { lineStyle: { color: COLORS.border } },
+      splitLine: { lineStyle: { color: COLORS.border, opacity: 0.3 } },
+    },
+    yAxis: {
+      type: "value", min: 0, max: 100, name: t("lab.calibY"),
+      nameTextStyle: { color: COLORS.muted },
+      axisLabel: { color: COLORS.muted, formatter: "{value}%" },
+      splitLine: { lineStyle: { color: COLORS.border, opacity: 0.3 } },
+    },
+    series,
+  });
 }
 
 // ---------- 研究所导航瓷砖: 单开手风琴, 点当前瓷砖收起 ----------

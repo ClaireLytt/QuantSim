@@ -54,8 +54,10 @@ const $ = (id) => document.getElementById(id);
 // 深模块: init(懒加载, 避开隐藏容器零尺寸)/qs:theme 重绘/qs:view+窗口 resize 全部内化,
 // 视图只描述"怎么构造 option"。buildOption() 读当前状态返回完整 option, 返回 null = 未就绪跳过。
 // 返回 { refresh, instance }: 数据变化时调 refresh(); instance() 是逃生口, 仅供增量 merge
-// 更新 (updateChartData) 等确需直操实例的场景, 常规路径别用。新图表一律走这里, 别再手搓
-// init/theme/resize 三件套 (曾散落 19 个文件 25 处, 2026-10 收口)。
+// 更新 (updateChartData、tape.js 高频 tick) 等确需直操实例的场景, 常规路径别用。新图表一律
+// 走这里, 别再手搓 init/theme/resize 三件套 (曾散落 19 个文件 25 处, 2026-10 收口)。
+// 命名约定: 句柄变量以 H 结尾 (= Handle), 如 btChartH / pfPieH。
+// 全站唯一例外: landing.html 是不加载 app.js 的独立落地页, 其图表保留自管 echarts.init。
 const QS_CHARTS = [];
 function qsChart(elId, buildOption) {
   const entry = { elId, buildOption, chart: null, pending: false };
@@ -85,7 +87,13 @@ document.addEventListener("qs:view", () => QS_CHARTS.forEach((e) => {
   if (e.pending) qsChartRefresh(e);
   else if (e.chart) e.chart.resize();
 }));
-window.addEventListener("resize", () => QS_CHARTS.forEach((e) => { if (e.chart) e.chart.resize(); }));
+// 窗口拖动期间每帧全量 resize 太费; 150ms 尾沿节流, 停止拖动后统一校正
+let qsResizeTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(qsResizeTimer);
+  qsResizeTimer = setTimeout(
+      () => QS_CHARTS.forEach((e) => { if (e.chart) e.chart.resize(); }), 150);
+});
 
 const mainChart = qsChart("chart", () => (state.klines.length ? buildChartOption() : null));
 
