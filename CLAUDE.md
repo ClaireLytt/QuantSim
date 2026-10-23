@@ -27,7 +27,7 @@ python load_to_db.py        # 全部入库 (幂等 upsert)
 ## 架构速览
 
 - **backend/**：Spring Boot 3 + JPA + Flyway + Caffeine。分层 controller → service → repository；DTO 全部是 record（`dto/*Dtos.java` 聚合类）；业务错误抛 `BusinessException`（400）/`NotFoundException`（404），由 `GlobalExceptionHandler` 统一转 `{success:false, message}`。
-- 大 service 已按域拆分（2026-10，单文件 >800 行即拆）：回测 = `BacktestService` 门面 + `BacktestEngine`（模拟内核）+ `BacktestTuner`（调参网格）；对局 = `GameService` 核心 + `GameStartService`（开局）+ `GameAiService`（AI 操盘）+ `GameBenchmarks`（结算复盘纯计算）。新逻辑放对应域，别往门面里堆回去；`@Transactional` 只放公共入口，拆出的组件是事务内被调方。
+- 大 service 已按域拆分（2026-10，单文件 >800 行即拆）：回测 = `BacktestService` 门面（含 tune 调参网格入口）+ `BacktestEngine`（模拟内核）+ `BacktestStrategy`（策略深模块，2026-10 已把原调参网格类的定义收拢进来）；对局 = `GameService` 核心 + `GameStartService`（开局）+ `GameAiService`（AI 操盘）+ `GameBenchmarks`（结算复盘纯计算）。新逻辑放对应域，别往门面里堆回去；`@Transactional` 只放公共入口，拆出的组件是事务内被调方。
 - 登录态 = 容器 `HttpSession`（`CurrentUser` 存取 userId），`AuthFilter` 只保护 `/api/me/`、`/api/rooms`、`/api/daily`、`/api/event` 四组前缀，其余接口游客可用（设计如此：降低上手门槛，竞技入口才需要身份）。
 - 行情数据只读，整只股票打包缓存（`MarketDataService.StockData`，Caffeine 10 分钟过期）。
 - **frontend/**：无构建、无框架。每个视图一个 IIFE 文件，依赖 `app.js` 的全局 `$ / api / toast / switchView / state` 与 `i18n.js` 的 `t()`。`index.html` 引 script 带 `?v=日期` 手动 cache-busting，改了 JS/CSS 记得同步改版本号——没有构建器帮忙失效缓存，忘 bump 等于白改。
@@ -174,7 +174,7 @@ pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端
 - 前端渲染用户可控数据（用户名、params 等）一律 `textContent`，模板字符串 `innerHTML` 里只插数字/本地枚举/i18n 文案——目前全站无 XSS，新代码延续这个纪律（见 `app.js renderLeaderboard`、`rooms.js`、`history.js` 的写法）。
 - 秘密不入库：`.gitignore` 已排除 `.localdb/`、`start-local.bat`、`data-pipeline/data/`；提交前若新增含密钥/本机口令的文件，先加 ignore。
 - 并发写用 `findWithLockBy...` 悲观锁（session/account/room），别用先查后插。唯一约束冲突：若 catch 后还要在**同一事务**里继续读写，不能用 `saveAndFlush` + catch（flush 失败会把事务标记 rollback-only，提交时 500），改用 `INSERT IGNORE` native 语句（见 `UserPointsRepository.insertIgnore`）；只有 catch 后直接抛业务异常收场的场景才允许 catch `DataIntegrityViolationException`。
-- 回测/自定义策略全部经 enum 白名单解析（`BacktestEngine` 的 `CustomField/CustomOp` + `Enums.parse`），没有任何 eval/拼接——扩展策略字段时沿用，用户输入永远到不了可执行层。
+- 回测/自定义策略全部经 enum 白名单解析（`BacktestStrategy` 的 `CustomField/CustomOp` + `Enums.parse`），没有任何 eval/拼接——扩展策略字段时沿用，用户输入永远到不了可执行层。
 
 ## 布局冻结区（用户钦定，勿擅改）
 
