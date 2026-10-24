@@ -22,11 +22,18 @@ const COLORS = {
   accent2: cssVar("--accent-2"),
 };
 
-// 茶室作用域取色: 对局视图的图表 (K线/结算曲线) 必须读 #view-game 上的作用域变量
+// 任意 CSS 色加透明度 (echarts 吃不了 color-mix): 支持本仓变量的 hsl()/#rrggbb 两种形态
+function hexA(color, a) {
+  if (color.startsWith("hsl(")) return color.replace("hsl(", "hsla(").replace(")", ", " + a + ")");
+  if (color.startsWith("#") && color.length === 7) return color + Math.round(a * 255).toString(16).padStart(2, "0");
+  return color;
+}
+
+// 茶室作用域取色: 已换装视图的图表必须读视图容器上的作用域变量
 // (茶红/苔绿等, 见 widgets.css 皮肤块), 读根元素会拿到未换装的全局色。
-// 每次 buildOption 现读即可自动跟随主题切换, 其他视图的图表不受影响。
-function gameColors() {
-  const el = document.getElementById("view-game");
+// 每次 buildOption 现读即可自动跟随主题切换, 未换装视图的图表不受影响。
+function viewColors(viewId) {
+  const el = document.getElementById(viewId);
   if (!el) return COLORS;
   const gv = (name) => getComputedStyle(el).getPropertyValue(name).trim();
   return {
@@ -38,6 +45,7 @@ function gameColors() {
     accent: gv("--accent"), accent2: gv("--accent-2"),
   };
 }
+const gameColors = () => viewColors("view-game");
 
 const state = {
   sessionId: null,
@@ -496,7 +504,15 @@ function buildChartOption() {
     dataZoom: [
       { type: "inside", xAxisIndex: [0, 1, 2], start: 0, end: 100 },
       { type: "slider", xAxisIndex: [0, 1, 2], bottom: 0, height: 18,
-        borderColor: COLORS.border, textStyle: { color: COLORS.muted } },
+        // 滑块不给默认蓝: 填充/选区/手柄全部跟随主题色 (茶室换装 ticket 01)
+        borderColor: COLORS.border, textStyle: { color: COLORS.muted },
+        backgroundColor: "transparent",
+        fillerColor: hexA(COLORS.accent, 0.14),
+        handleStyle: { color: COLORS.panel, borderColor: COLORS.border },
+        moveHandleStyle: { color: COLORS.border },
+        emphasis: { handleStyle: { borderColor: COLORS.accent }, moveHandleStyle: { color: COLORS.accent } },
+        dataBackground: { lineStyle: { color: COLORS.border }, areaStyle: { color: hexA(COLORS.muted, 0.1) } },
+        selectedDataBackground: { lineStyle: { color: COLORS.accent }, areaStyle: { color: hexA(COLORS.accent, 0.12) } } },
     ],
     series: [
       {
