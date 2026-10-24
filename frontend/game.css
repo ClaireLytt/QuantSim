@@ -432,8 +432,31 @@ header.collapsed h1 .sub { display: none; }
 .room-actions label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-muted); }
 .room-actions input, .room-actions select { width: 100%; }
 #auth-me { max-width: 480px; }
-.room-code { font-family: monospace; font-size: 20px; letter-spacing: 3px; color: var(--accent); }
-#room-panel { margin-top: 16px; }
+/* 房间面板 hero 化 (2026-10-25): 发码给朋友是此刻唯一任务, 房间码是全场主角 */
+.room-code {
+  display: block;
+  font-family: var(--tr-mono);
+  font-size: 40px;
+  letter-spacing: .22em;
+  color: var(--accent-strong);
+  margin: 6px 0 2px;
+}
+#room-panel {
+  margin-top: 20px;
+  padding: 34px 26px 28px;
+  text-align: center;
+}
+#room-panel > h3 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+}
+#room-panel #room-meta { margin: 4px 0 20px; }
+#room-panel #room-standings { text-align: left; margin-bottom: 8px; }
+#room-panel #room-standings th:last-child,
+#room-panel #room-standings td:last-child { text-align: right; }
 #btn-account.logged-in { color: var(--accent); border-color: var(--accent); }
 
 /* ---------- 每日挑战 ---------- */
@@ -550,8 +573,14 @@ header.collapsed h1 .sub { display: none; }
 }
 #view-event .event-prefs select,
 #view-rooms .event-prefs select { width: auto; }
-/* checkbox 不吃全局输入全宽, 否则被撑成长条 */
-#view-rooms .event-prefs input[type="checkbox"] { width: auto; }
+/* checkbox 不吃全局输入尺寸, 否则被撑成胶囊并与文字折行 */
+#view-rooms .event-prefs input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  flex: 0 0 auto;
+}
+#view-rooms .event-prefs .room-real-row { flex-direction: row; }
 
 /* 好友房间 (ticket 13): 双入口卡居中 hero; 房间码与战况数字列等宽 (刷新不跳宽) */
 #view-rooms #room-create-card,
