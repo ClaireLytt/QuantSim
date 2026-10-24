@@ -132,8 +132,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: npm
-          cache-dependency-path: tools/ui_smoke/package-lock.json
+          # 不配 npm 缓存: package-lock.json 被本仓有意 gitignore (前端零 npm 哲学),
+          # CI 上解析不到会直接报错 (踩过一次)
       - name: Start backend (Flyway builds the schema)
         run: |
           nohup mvn -B spring-boot:run > backend.log 2>&1 &

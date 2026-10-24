@@ -16,6 +16,9 @@ import pandas as pd
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# compute_indicators 顶层 import pyspark; CI 的 python-check 按设计不装 Spark,
+# 必须在收集期就跳过 (运行时 skip 挡不住 import 期 ImportError) —— 与下方 akshare 同款守门
+pytest.importorskip("pyspark", reason="缺 PySpark, 无法加载 Spark 侧实现 (本地手跑对拍)")
 import compute_indicators  # noqa: E402
 from config import VOLATILITY_WINDOW  # noqa: E402
 
