@@ -1040,3 +1040,144 @@ button.pet-avatar:hover .pav-face { stroke: var(--accent); }
 button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 #pet-profile-modal .pet-attrs { margin-top: 0; }
 #pet-profile-modal .pet-actions { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+
+/* ==================== 首页「雨声茶室」皮肤（样板，范围仅 #view-home） ====================
+   为什么作用域覆盖而不改全局：样板阶段只换首页，重定义全局变量名会外溢到其他视图；
+   在 #view-home 内重声明同名变量，让共享组件（按钮/卡片/hero SVG）原地换血，可整体回摘。
+   亮色 = 茶室（暖纸/墨/茶），暗色 = 深夜雨屋（墨绿暗房/灯晕/暖橙）。
+   动画一律显式 cubic-bezier（禁 ease-in-out）；雨丝尊重 prefers-reduced-motion。 */
+
+#view-home {
+  /* —— 深夜雨屋（暗色默认） —— */
+  --surface: hsl(169, 14%, 10%);
+  --text: hsl(140, 8%, 85%);
+  --text-muted: hsl(155, 7%, 62%);
+  --panel: hsl(168, 12%, 11%);
+  --panel-raised: hsl(166, 10%, 16%);
+  --surface-2: hsl(167, 11%, 13%);
+  --border: hsl(162, 10%, 26%);
+  --border-strong: hsl(160, 10%, 36%);
+  --accent: hsl(88, 24%, 70%);
+  --accent-strong: hsl(88, 20%, 58%);
+  --accent-2: hsl(88, 24%, 70%);
+  --on-accent: hsl(170, 16%, 10%);
+  --up: hsl(18, 62%, 64%);
+  --down: hsl(150, 28%, 62%);
+  --lab-blue: hsl(88, 24%, 70%);
+  --lab-card: hsl(168, 12%, 11%);
+  --lab-line: hsl(162, 10%, 26%);
+  --lab-glow: hsla(90, 30%, 60%, .13);
+  --glow-accent: hsla(90, 30%, 60%, .22);
+  --sheen: rgba(255, 255, 255, .03);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 14px 36px -18px rgba(0, 0, 0, .6);
+  --tr-serif: "Noto Serif SC", "Songti SC", "SimSun", serif;
+  --tr-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --tr-rain: hsla(160, 18%, 60%, .07);
+  position: relative;
+  color: var(--text);
+  background:
+    radial-gradient(ellipse 54% 38% at 78% 0%, hsla(80, 25%, 55%, .12), transparent 60%),
+    linear-gradient(170deg, hsl(168, 14%, 13%), hsl(170, 16%, 8%) 70%);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+:root[data-theme="light"] #view-home {
+  /* —— 雨声茶室（亮色） —— */
+  --surface: hsl(38, 14%, 91%);
+  --text: hsl(30, 10%, 26%);
+  --text-muted: hsl(33, 9%, 42%);
+  --panel: hsl(40, 20%, 94%);
+  --panel-raised: hsl(39, 16%, 89%);
+  --surface-2: hsl(40, 22%, 96%);
+  --border: hsl(36, 10%, 78%);
+  --border-strong: hsl(35, 10%, 62%);
+  --accent: hsl(22, 38%, 40%);
+  --accent-strong: hsl(22, 42%, 32%);
+  --accent-2: hsl(22, 38%, 40%);
+  --on-accent: hsl(40, 20%, 95%);
+  --up: hsl(14, 55%, 40%);
+  --down: hsl(150, 20%, 31%);
+  --lab-blue: hsl(22, 38%, 40%);
+  --lab-card: hsl(40, 20%, 94%);
+  --lab-line: hsl(37, 10%, 84%);
+  --lab-glow: hsla(22, 38%, 44%, .12);
+  --glow-accent: hsla(22, 38%, 44%, .2);
+  --sheen: rgba(255, 255, 255, .6);
+  --shadow: 0 1px 2px hsla(30, 12%, 40%, .1), 0 12px 32px -18px hsla(30, 12%, 30%, .4);
+  --tr-rain: hsla(40, 10%, 60%, .08);
+  background:
+    radial-gradient(ellipse 60% 48% at 22% 0%, hsl(40, 18%, 95%), transparent 65%),
+    linear-gradient(172deg, hsl(38, 14%, 91%), hsl(36, 10%, 85%) 70%);
+}
+/* 噪点与檐外细雨：absolute 跟内容走，只盖首页自身；雨丝 3s 慢速保持"冷静" */
+#view-home::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: .5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .03 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+#view-home::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: repeating-linear-gradient(94deg, transparent 0 11px, var(--tr-rain) 11px 12px, transparent 12px 31px);
+  animation: tr-drizzle 3s cubic-bezier(.45, .05, .55, .95) infinite;
+}
+@keyframes tr-drizzle {
+  from { background-position: 0 0; }
+  to { background-position: -20px 240px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #view-home::after { animation: none; background: none; }
+}
+/* 内容抬到氛围层之上 */
+#view-home > section { position: relative; z-index: 1; }
+
+/* 衬线标题 + 等宽数字：茶室气质的两根支柱 */
+#view-home .home-hero-title,
+#view-home .academy-panel h2,
+#view-home .home-core strong,
+#view-home .home-reco strong,
+#view-home .tasks-head b,
+#view-home .senti-head b {
+  font-family: var(--tr-serif);
+  font-weight: 600;
+  letter-spacing: .06em;
+}
+#view-home .home-hero-title { letter-spacing: .12em; }
+#view-home .home-rank-list li i,
+#view-home .home-rank-list li b,
+#view-home #tasks-streak {
+  font-family: var(--tr-mono);
+}
+
+/* 纸面卡与墨按钮：primary 按原型定为"墨底纸字"（暗色下为灯晕浅绿底墨字），
+   覆盖全局的紫色渐变与光晕 */
+#view-home button.primary {
+  background: hsl(30, 12%, 22%);
+  color: hsl(40, 20%, 94%);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
+}
+#view-home button.primary:hover:not(:disabled) {
+  filter: brightness(1.18);
+  box-shadow: 0 4px 16px var(--glow-accent);
+}
+:root:not([data-theme="light"]) #view-home button.primary {
+  background: hsl(88, 25%, 68%);
+  color: hsl(170, 16%, 10%);
+}
+/* hero 行情图外框在纸面上收敛为细线内衬 */
+#view-home .home-hero-art {
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+  border-color: var(--border);
+}
+/* 卡片落上双层柔影（原型决策：纸面 + 1px 柔边 + 近影/远影） */
+#view-home .home-core,
+#view-home .home-reco,
+#view-home .card {
+  box-shadow: var(--shadow);
+}
