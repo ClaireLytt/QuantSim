@@ -47,14 +47,14 @@ jobs:
       # 覆盖率只观测不卡口 (阈值待一个周期的数据再定)
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jacoco-report
           path: backend/target/site/jacoco/
           if-no-files-found: ignore
       - name: Upload mvn full log on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mvn-test-log
           path: backend/target/mvn-test.log
@@ -165,7 +165,7 @@ jobs:
       # 失败证据链: 冒烟失败时上传失败步骤截图 + 后端日志, 不用盲猜挂在哪
       - name: Upload failure evidence
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ui-smoke-evidence
           path: |
