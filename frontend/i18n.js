@@ -19,6 +19,7 @@ const PAIRS = {
   "nav.famous": ["名场面挑战", "Historic Moments"],
   "nav.relics": ["藏品档案馆", "Relic Archive"],
   "walker.sub": ["市场行者 · 穿越金融历史的叙事 RPG", "Market Walker - a narrative RPG through financial history"],
+  "walker.continue": ["继续当前时代", "Continue current era"],
   "walker.fox.0": ["准备好进入哪个时代？行者。", "Which era are you ready to enter, Walker?"],
   "walker.fox.1": ["每个时代都藏着一件藏品——集齐套装，声望自会点亮。", "Every era hides a relic - complete the set and reputation lights up."],
   "walker.fox.2": ["在历史里亏过的钱，都会变成你的天赋。去吧。", "Money lost inside history becomes your talent. Go."],

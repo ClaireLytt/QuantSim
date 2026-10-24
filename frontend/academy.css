@@ -1,4 +1,15 @@
-/* 量化学堂域: 关卡/剧情/悬案/生涯/行者/纪元/藏品。依赖 style.css 的 CSS 变量, 必须在其后加载。 */
+/* 量化学堂域: 关卡/剧情/悬案/生涯/行者/纪元/藏品。依赖 theme.css/style.css 的 CSS 变量, 必须在其后加载。 */
+
+/* hero 主路径 CTA (ticket 21, 对局 tab 同构): 独行居中大按钮 */
+.academy-hero-cta { display: flex; justify-content: center; margin: 2px 0 12px; }
+.academy-hero-cta button {
+  width: auto;
+  min-width: 260px;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 12px 30px;
+  box-shadow: 0 6px 22px var(--glow-accent);
+}
 
 /* ---------- 量化学堂 ---------- */
 
