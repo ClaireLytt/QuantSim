@@ -4,8 +4,8 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 两链并排一行、视觉重量低于推荐玩法卡
-- [ ] btn-help/btn-tour 仍有监听与可访问名称（buttons 0）
-- [ ] smoke 新手引导 10 步照常走完
+- [x] 两链并排一行、视觉重量低于推荐玩法卡
+- [x] btn-help/btn-tour 仍有监听与可访问名称（buttons 0）
+- [x] smoke 新手引导 10 步照常走完

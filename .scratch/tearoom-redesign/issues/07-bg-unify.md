@@ -4,8 +4,8 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 亮/暗全页截图肉眼无夹层
-- [ ] ui_check WCAG 双主题 0 error
-- [ ] buttons 0 error
+- [x] 亮/暗全页截图肉眼无夹层
+- [x] ui_check WCAG 双主题 0 error
+- [x] buttons 0 error

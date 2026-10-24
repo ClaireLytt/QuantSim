@@ -4,8 +4,8 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 长用户名显示省略号 + title 全名（截图特写）
-- [ ] 冻结区桌面端单行横排不变
-- [ ] ui_check + buttons 双 0
+- [x] 长用户名显示省略号 + title 全名（截图特写）
+- [x] 冻结区桌面端单行横排不变
+- [x] ui_check + buttons 双 0
