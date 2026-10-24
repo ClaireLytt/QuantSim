@@ -4,8 +4,9 @@ const API = "/api";
 const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 // 主题必须在读取 COLORS 前应用, 否则图表首帧取到错误配色
-let THEME = "dark";
-try { if (localStorage.getItem("qs_theme") === "light") THEME = "light"; } catch (e) { /* 隐私模式下忽略 */ }
+// 2026-10 茶室换装: 默认亮色 (首页样板以茶室为第一印象), 存过 dark 偏好的用户不受影响
+let THEME = "light";
+try { if (localStorage.getItem("qs_theme") === "dark") THEME = "dark"; } catch (e) { /* 隐私模式下忽略 */ }
 document.documentElement.dataset.theme = THEME;
 
 const COLORS = {
