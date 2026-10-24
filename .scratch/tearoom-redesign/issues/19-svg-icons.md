@@ -4,8 +4,8 @@
 
 **Blocked by:** 18（首页卡先定形）
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 首页/开局功能卡无 emoji 图标（截图双主题）
-- [ ] 图标 currentColor 随主题/hover 变化
-- [ ] ui_check 0（无 i18n 键破坏）+ buttons 0 + smoke 9/9
+- [x] 首页/开局功能卡无 emoji 图标（截图双主题）
+- [x] 图标 currentColor 随主题/hover 变化
+- [x] ui_check 0（无 i18n 键破坏）+ buttons 0 + smoke 9/9

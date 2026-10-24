@@ -4,8 +4,8 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 即时速玩区双列紧凑条目（截图对比前后）
-- [ ] 全部入口仍可点（buttons 0 + crawl 首页无 noop 回归）
-- [ ] 390px 单列不溢出；smoke 9/9
+- [x] 即时速玩区双列紧凑条目（截图对比前后）
+- [x] 全部入口仍可点（buttons 0 + crawl 首页无 noop 回归）
+- [x] 390px 单列不溢出；smoke 9/9
