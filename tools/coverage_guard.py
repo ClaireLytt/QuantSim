@@ -55,7 +55,7 @@ def jacoco_lines() -> dict[str, dict[int, bool]]:
     for pkg in ET.parse(JACOCO).getroot().iter("package"):
         for sf in pkg.iter("sourcefile"):
             path = f"{SRC_PREFIX}{pkg.get('name')}/{sf.get('name')}"
-            cov[path] = {int(l.get("nr")): int(l.get("ci")) > 0 for l in sf.iter("line")}
+            cov[path] = {int(ln.get("nr")): int(ln.get("ci")) > 0 for ln in sf.iter("line")}
     return cov
 
 
