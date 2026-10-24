@@ -1086,8 +1086,7 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
    亮色 = 茶室（暖纸/墨/茶），暗色 = 深夜雨屋（墨绿暗房/灯晕/暖橙）。
    动画一律显式 cubic-bezier（禁 ease-in-out）；雨丝尊重 prefers-reduced-motion。 */
 
-#view-home,
-#view-game {
+.tearoom {
   /* —— 深夜雨屋（暗色默认） —— */
   --surface: hsl(169, 14%, 10%);
   --text: hsl(140, 8%, 85%);
@@ -1135,8 +1134,7 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
     linear-gradient(170deg, hsl(168, 14%, 13%), hsl(170, 16%, 8%) 70%);
   border-radius: 0 0 var(--radius) var(--radius);
 }
-:root[data-theme="light"] #view-home,
-:root[data-theme="light"] #view-game {
+:root[data-theme="light"] .tearoom {
   /* —— 雨声茶室（亮色） —— */
   --surface: hsl(38, 14%, 91%);
   --text: hsl(30, 10%, 26%);
@@ -1187,12 +1185,10 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.6'/></svg>");
 }
 /* 暗角（craft 转正，亮色室内版压茶褐不压黑）：inset 阴影画在背景之上内容之下，零遮挡风险 */
-#view-home,
-#view-game {
+.tearoom {
   box-shadow: inset 0 0 140px -30px hsla(30, 25%, 25%, .22);
 }
-:root:not([data-theme="light"]) #view-home,
-:root:not([data-theme="light"]) #view-game {
+:root:not([data-theme="light"]) .tearoom {
   box-shadow: inset 0 0 160px -30px rgba(0, 0, 0, .5);
 }
 #view-home::after {
@@ -1214,6 +1210,20 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
 /* 内容抬到氛围层之上 */
 #view-home > section { position: relative; z-index: 1; }
 
+/* 原生控件跟色（换装域通用）：range/checkbox 的浏览器默认蓝在纸面上很刺眼 */
+.tearoom input[type="range"],
+.tearoom input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+/* 衬线标题（换装域通用）：.tearoom 内卡片标题一律衬线，数字支柱按域在各自文件指定 */
+.tearoom .card h2,
+.tearoom .card h3 {
+  font-family: var(--tr-serif);
+  font-weight: 600;
+  letter-spacing: .06em;
+}
+
 /* 衬线标题 + 等宽数字：茶室气质的两根支柱 */
 #view-home .home-hero-title,
 #view-home .academy-panel h2,
@@ -1234,19 +1244,16 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
 
 /* 纸面卡与墨按钮：primary 按原型定为"墨底纸字"（暗色下为灯晕浅绿底墨字），
    覆盖全局的紫色渐变与光晕 */
-#view-home button.primary,
-#view-game button.primary {
+.tearoom button.primary {
   background: hsl(30, 12%, 22%);
   color: hsl(40, 20%, 94%);
   box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
 }
-#view-home button.primary:hover:not(:disabled),
-#view-game button.primary:hover:not(:disabled) {
+.tearoom button.primary:hover:not(:disabled) {
   filter: brightness(1.18);
   box-shadow: 0 4px 16px var(--glow-accent);
 }
-:root:not([data-theme="light"]) #view-home button.primary,
-:root:not([data-theme="light"]) #view-game button.primary {
+:root:not([data-theme="light"]) .tearoom button.primary {
   background: hsl(88, 25%, 68%);
   color: hsl(170, 16%, 10%);
 }
@@ -1261,8 +1268,7 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
 #view-home .home-reco,
 #view-home .home-hero,
 #view-home .home-group-grid .home-card,
-#view-home .card,
-#view-game .card {
+.tearoom .card {
   background: var(--tr-fiber), var(--tr-paper-grad);
   background-blend-mode: var(--tr-blend), normal;
   box-shadow: var(--tr-paper-shadow);

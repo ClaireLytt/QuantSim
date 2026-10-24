@@ -76,14 +76,15 @@
       counts[Math.min(bins - 1, Math.floor((v - min) / width))]++;
     });
     const labels = counts.map((_, i) => fmtPct(min + width * (i + 0.5)));
-    const accent = cssVar("--accent");
-    const muted = cssVar("--text-muted");
-    const border = cssVar("--border");
+    const dv = (n) => cssVar(n, $("view-daily")); // 茶室作用域取色 (ticket 02)
+    const accent = dv("--accent");
+    const muted = dv("--text-muted");
+    const border = dv("--border");
     return ({
       backgroundColor: "transparent",
       animation: false,
-      tooltip: { backgroundColor: cssVar("--panel-raised"), borderColor: border,
-        textStyle: { color: cssVar("--text") } },
+      tooltip: { backgroundColor: dv("--panel-raised"), borderColor: border,
+        textStyle: { color: dv("--text") } },
       grid: { left: 40, right: 16, top: 16, bottom: 30 },
       xAxis: { type: "category", data: labels,
         axisLine: { lineStyle: { color: border } },

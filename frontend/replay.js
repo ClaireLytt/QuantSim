@@ -68,6 +68,7 @@ function recapVerdicts(stats) {
 }
 
 function recapOption() {
+  const COLORS = gameColors(); // 遮蔽全局: 复盘 K 线与对局同一套茶室色 (弹窗本体换装在 ticket 06)
   const dates = state.klines.map((k) => k.tradeDate);
   const candles = state.klines.map((k) => [k.open, k.close, k.low, k.high]);
   const buyPts = [], sellPts = [];

@@ -18,10 +18,10 @@
   <link rel="stylesheet" href="fonts.css?v=20261024">
   <!-- 样式按视图域拆分 (2026-10): style.css 是基础层 (变量/主题/框架), 必须第一个加载 -->
   <link rel="stylesheet" href="style.css?v=20261025">
-  <link rel="stylesheet" href="game.css?v=20261025">
+  <link rel="stylesheet" href="game.css?v=20261025a">
   <link rel="stylesheet" href="academy.css?v=20261014">
   <link rel="stylesheet" href="lab-games.css?v=20261014a">
-  <link rel="stylesheet" href="widgets.css?v=20261025q">
+  <link rel="stylesheet" href="widgets.css?v=20261025r">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -60,7 +60,7 @@
     </nav>
   </header>
 
-  <div id="view-game">
+  <div id="view-game" class="tearoom">
   <section id="game-intro" class="card game-intro">
     <h2 data-i18n="intro.title">开始你的第一局</h2>
     <p data-i18n="intro.text">选好市场、AI 难度和模式，点「开始新对局」穿越回历史行情。不确定怎么玩？点「玩法说明」或先去「量化学堂」闯关。</p>
@@ -277,7 +277,7 @@
 
   </div>
 
-  <div id="view-arena" hidden>
+  <div id="view-arena" class="tearoom" hidden>
   <section class="arena-panel center-panel arena-center">
     <h2><span data-i18n="arena.title">策略回测竞技场</span> <span class="sub" data-i18n="arena.sub">调参回测你的量化策略，提交擂台同台 PK</span></h2>
     <div class="arena-config card">
@@ -910,7 +910,7 @@
   </section>
   </div>
 
-  <div id="view-duel" hidden>
+  <div id="view-duel" class="tearoom" hidden>
   <section class="academy-panel center-panel">
     <h2><span data-i18n="duel.title">🥊 策略擂台战</span> <span class="sub" data-i18n="duel.sub">提交你的量化策略，同台回测 PK，综合评估收益与风险</span></h2>
 
@@ -1407,7 +1407,7 @@
   </section>
   </div>
 
-  <div id="view-home" hidden>
+  <div id="view-home" class="tearoom" hidden>
   <!-- 首屏横幅: 主张 + 双主按钮 -->
   <section class="home-hero">
     <div class="home-hero-text">
@@ -1534,7 +1534,7 @@
   </section>
   </div>
 
-  <div id="view-event" hidden>
+  <div id="view-event" class="tearoom" hidden>
   <section class="academy-panel center-panel">
     <h2><span data-i18n="event.title">事件回放</span> <span class="sub" data-i18n="event.sub">穿越回真实历史时刻盲测操盘——不知道年份、不知道标的，结算才揭晓你经历了什么</span></h2>
     <section class="card daily-card">
@@ -1561,7 +1561,7 @@
   </section>
   </div>
 
-  <div id="view-daily" hidden>
+  <div id="view-daily" class="tearoom" hidden>
   <section class="academy-panel center-panel">
     <h2><span data-i18n="daily.title">每日挑战</span> <span class="sub" data-i18n="daily.sub">全服每天同一标的、同一隐藏区间，公平竞技，每人每天一局</span></h2>
     <section class="card daily-card">
@@ -1584,7 +1584,7 @@
   </section>
   </div>
 
-  <div id="view-rooms" hidden>
+  <div id="view-rooms" class="tearoom" hidden>
   <section class="academy-panel center-panel">
     <h2><span data-i18n="room.title">好友房间</span> <span class="sub" data-i18n="room.sub">建房拿房间码发给朋友，同一隐藏行情各自操盘，结算后一起看排名</span></h2>
     <div class="room-actions">
@@ -1638,7 +1638,7 @@
   </section>
   </div>
 
-  <div id="view-ranking" hidden>
+  <div id="view-ranking" class="tearoom" hidden>
   <section class="academy-panel">
     <h2><span data-i18n="rank.title">排行榜</span> <span class="sub" data-i18n="rank.sub">对局与竞技场英雄榜，可按赛季筛选</span></h2>
     <div class="rank-controls">
@@ -2530,9 +2530,9 @@
 
   <script src="i18n.js?v=20261025"></script>
   <script src="glossary.js?v=20261016a"></script>
-  <script src="app.js?v=20261025e"></script>
+  <script src="app.js?v=20261025f"></script>
   <script src="advisor.js?v=20261024"></script>
-  <script src="arena.js?v=20261024b"></script>
+  <script src="arena.js?v=20261025"></script>
   <script src="replay.js?v=20261025"></script>
   <script src="auth.js?v=20261025"></script>
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
@@ -2542,12 +2542,12 @@
   <script src="guessgame.js?v=20261024b"></script>
   <script src="optsandbox.js?v=20261024b"></script>
   <script src="lab.js?v=20261025b"></script>
-  <script src="daily.js?v=20261024"></script>
+  <script src="daily.js?v=20261025"></script>
   <script src="event.js?v=20261015a"></script>
   <script src="option.js?v=20261024b"></script>
   <script src="biasprofile.js?v=20261014c"></script>
   <script src="tape.js?v=20261024"></script>
-  <script src="rooms.js?v=20261024"></script>
+  <script src="rooms.js?v=20261025"></script>
   <script src="ranking.js?v=20261017"></script>
   <script src="sharecard.js?v=20261006a"></script>
   <script src="sharecode.js?v=20260930a"></script>
@@ -2568,7 +2568,7 @@
   <script src="career.js?v=20261016a"></script>
   <script src="relics.js?v=20261025"></script>
   <script src="walker.js?v=20261014d"></script>
-  <script src="duel.js?v=20261024"></script>
+  <script src="duel.js?v=20261025"></script>
   <script src="wiki.js?v=20261024b"></script>
   <script src="games.js?v=20261014"></script>
   <script src="mine.js?v=20261015"></script>

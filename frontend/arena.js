@@ -430,6 +430,7 @@ function renderEquityChart(curve, prev) {
 }
 
 function buildEquityOption(curve, prev) {
+  const COLORS = viewColors("view-arena"); // 遮蔽全局: 回测曲线走茶室作用域色
   const overlay = prev && $("bt-compare").checked && prev.curve.length;
   const legendData = [t("bt.legendStrategy"), t("bt.legendHold")];
   if (overlay) legendData.push(t("bt.legendPrev", prev.label));

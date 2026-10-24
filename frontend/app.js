@@ -1,7 +1,8 @@
 const API = "/api";
 
 // 图表用色统一取自 style.css 的 CSS 变量, 避免两处维护
-const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+// 可选第二参: 从指定元素读 (已换装视图的图表要读 .tearoom 容器上的作用域变量)
+const cssVar = (name, el) => getComputedStyle(el || document.documentElement).getPropertyValue(name).trim();
 
 // 主题必须在读取 COLORS 前应用, 否则图表首帧取到错误配色
 // 2026-10 茶室换装: 默认亮色 (首页样板以茶室为第一印象), 存过 dark 偏好的用户不受影响

@@ -515,12 +515,7 @@ header.collapsed h1 .sub { display: none; }
    色板/纸面材质/暗角由 widgets.css 的作用域块（#view-home + #view-game）承载，
    这里只写对局独有的两根支柱：衬线标题 + 等宽数字。
    等宽数字在盯盘场景还消除数值跳动的宽度抖动。颗粒/雨丝不进对局（氛围分级决策）。 */
-#view-game .card h2,
-#view-game #game-intro h2 {
-  font-family: var(--tr-serif);
-  font-weight: 600;
-  letter-spacing: .06em;
-}
+/* 衬线标题由 widgets.css 的 .tearoom .card h2/h3 通用规则承担 (ticket 02 收敛) */
 #view-game .ga-stats dd,
 #view-game .ga-pos,
 #view-game .gs-list,
