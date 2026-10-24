@@ -24,8 +24,10 @@ REF = re.compile(r'((?:src|href)=")([-\w./]+\.(?:js|css))\?v=(\w+)(")')
 
 
 def fingerprint(path: str) -> str:
+    # 行尾归一化后再哈希: 本仓 autocrlf 会让同一内容在 LF/CRLF 间翻转,
+    # 不归一化指纹会无谓漂移 (五轴评审的变异实验抓出来的真 bug)
     with open(path, "rb") as f:
-        return hashlib.md5(f.read()).hexdigest()[:4]
+        return hashlib.md5(f.read().replace(b"\r\n", b"\n")).hexdigest()[:4]
 
 
 def main() -> int:
