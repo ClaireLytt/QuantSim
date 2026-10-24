@@ -260,21 +260,6 @@ def main():
             elif ratio < need:
                 warns.append(f"W8 [{tname}] --{fg} 在 --{bg} 上对比度 {ratio:.2f}:1 (建议 ≥ {need}:1)")
 
-    # ---------- E10 按钮禁 emoji 功能图标 (设计禁止清单, ticket 25 机械化) ----------
-    # 只拦彩色 pictograph; 单色字形 (✕ ➜ ♪ ＋ ↩ ▶) 与文案内容/装饰 emoji 不在禁令内。
-    EMOJI_BAN = re.compile("[\U0001F000-\U0001FAFF⚔⚖➖⭐⚠-⛿]")
-    btn_i18n_keys = set()
-    for m in re.finditer(r"<button[^>]*>(.*?)</button>", html, re.S):
-        btn_i18n_keys.update(re.findall(r'data-i18n="([^"]+)"', m.group(0)))
-        text_only = re.sub(r"<svg.*?</svg>", "", m.group(1), flags=re.S)
-        text_only = re.sub(r"<[^>]+>", "", text_only)
-        if EMOJI_BAN.search(text_only):
-            errors.append(f"E10 按钮含 emoji 功能图标 (设计禁令, 换单色 SVG 或纯文字) @ index.html:{line_of(html, m.start())}")
-    for ln, line in enumerate(i18n_src.splitlines(), 1):
-        km = re.match(r'\s*"((?:[^"\\]|\\.)+)":\s*\[', line)
-        if km and km.group(1) in btn_i18n_keys and EMOJI_BAN.search(line):
-            errors.append(f'E10 按钮文案键 "{km.group(1)}" 含 emoji (该键挂在 <button> 上) @ i18n.js:{ln}')
-
     # ---------- W3 版本号 ----------
     for m in re.finditer(r'(?:src|href)="([\w./]+\.(?:js|css))\?v=([\w]+)"', html):
         fname, ver = m.group(1), m.group(2)

@@ -489,13 +489,8 @@ $("btn-theme").addEventListener("click", toggleTheme);
 
 function renderSoundBtn() {
   const btn = $("btn-sound");
-  // 扬声器图标换单色 SVG (ticket 25, emoji 功能图标禁令); 开=带声波, 关=斜杠静音
-  const horn = 'M4 10v4h4l5 4V6l-5 4z';
-  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:14px;height:14px;vertical-align:-2px"><path d="' + horn + '"/>'
-    + (SOUND ? '<path d="M16.5 9a4.5 4.5 0 0 1 0 6M19 7a8 8 0 0 1 0 10"/>' : '<path d="M17 9l5 6M22 9l-5 6"/>')
-    + "</svg>";
+  btn.textContent = t(SOUND ? "sound.on" : "sound.off");
   btn.title = t("sound.title");
-  btn.setAttribute("aria-label", t("sound.title"));
 }
 $("btn-sound").addEventListener("click", () => {
   SOUND = !SOUND;

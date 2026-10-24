@@ -4,8 +4,8 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** done
+**Status:** ready-for-agent
 
-- [x] 复现结论有证据（代码行或截图）
-- [x] 真 bug 修复 / 假象在工具里注释说明
-- [x] ui_check 0 + buttons 0
+- [ ] 复现结论有证据（代码行或截图）
+- [ ] 真 bug 修复 / 假象在工具里注释说明
+- [ ] ui_check 0 + buttons 0
