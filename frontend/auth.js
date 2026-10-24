@@ -23,6 +23,8 @@
   function renderHeader() {
     const btn = $("btn-account");
     btn.textContent = Auth.user ? Auth.user.username : t("auth.navBtn");
+    // 长用户名由 CSS 省略 (ticket 09), title 保留全名可悬浮查看
+    btn.title = Auth.user ? Auth.user.username : "";
     btn.classList.toggle("logged-in", !!Auth.user);
     // 头部已无用户名输入框: 身份由 app.js currentUsername() 统一解析 (登录名 / 游客持久昵称)
   }
@@ -43,9 +45,7 @@
   $("link-register").addEventListener("click", (e) => { e.preventDefault(); showAuthPanel(true); });
   $("link-login").addEventListener("click", (e) => { e.preventDefault(); showAuthPanel(false); });
   $("btn-auth-close").addEventListener("click", closeAuthModal);
-  $("auth-modal").addEventListener("click", (e) => {
-    if (e.target === $("auth-modal")) closeAuthModal(); // 点遮罩关闭
-  });
+  qsModal("auth-modal", { onClose: closeAuthModal }); // 点遮罩关闭 (与原行为一致)
   $("btn-open-auth").addEventListener("click", () => openAuthModal(false));
 
   function renderAccountView() {

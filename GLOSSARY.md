@@ -11,3 +11,13 @@
 | **防剧透 (Blind Dates)** | `service/BlindDates` | 竞技对局进行中: 日期平移虚拟纪元 + 标的匿名; 结算揭晓。回归防线是 CompetitiveIntegrationTest 的全端点泄露扫描。 |
 | **费用口径 (Fee)** | `service/FeeCalculator` | 玩家 / AI / 基准 / 回测四方共用的费用计算锚点。 |
 | **结算落库 (Settled Columns)** | `service/SettledColumns` | 一局结算后写回 game_session 的全部列 (status / finalReturnRate / finalSharpe / biasReportJson) 的唯一定义, 含 bias JSON 序列化-或-null 政策; 正常结算与房间强结都只调 applyTo, 完整性由 SettledColumnsTest 反射对齐保证。 |
+| **弹窗接线 (Modal Wiring)** | `frontend/app.js qsModal` | 弹窗三件套 (开+音效 / 关按钮 / 背板点击) 的唯一定义; 业务副作用走 onOpen/onClose, Esc 关闭 opt-in (流程弹窗不可被 Esc 中断)。登记例外: tour-mask (点击=下一步)。曾散落 9 文件 19 处 (2026-10 收口)。 |
+| **图表生命周期 (Chart Lifecycle)** | `frontend/app.js qsChart` | 前端 echarts 的 init(懒)/主题重绘/qs:view+窗口 resize 的唯一属主。视图只写 buildOption (返 null=未就绪), 数据变化调 refresh(); instance() 是增量 merge 更新的逃生口 (app.js updateChartData、tape.js 高频 tick)。新图表禁止手搓 init/theme/resize 三件套 (2026-10 从 19 文件 25 处收口)。 |
+| **一日推进 (Game Day)** | `service/GameDay` | 「推进一天发生什么」编排的唯一定义: AI 旧价交易 → 推日 → 隔夜利息 → 挂单撮合 → 保证金强平, 顺序即口径 (GameDayTest 时序断言钉死)。事务留门面, 结算触发不在此 (候选③另一条缝)。 |
+| **挂单撮合 (Order Matching)** | `service/OrderMatching` | 「这张挂单今天怎么处理」决策矩阵的唯一定义: 触发/成交价、ratchet 只升不降、reduce-only 钳制、realRules 继续挂、预算作废、validate 作废, 闸门顺序即行为 (OrderMatchingTest 钉死)。外部裁决经 Gates 四问注入, OrderService 退为取数+落库适配器。按单张出决策 (顺序耦合是业务语义, 见模块头注释)。 |
+| **交易预算 (Trade Budget)** | `service/TradeBudget` | 「本局还能再交易几笔」的唯一定义, 含两个口径: 新增 (下单/手动交易) 数已成交+在挂单, 撮合只数已成交 (挂单自己的名额即预算)。纯核 Snapshot/FillConsumer 表驱动单测 (TradeBudgetTest), GameService/OrderService 只调不算。 |
+| **茶室皮肤 (Tearoom Skin)** | `frontend/theme.css` | 全站皮肤唯一事实源: 两主题变量 + --tr-* 材质 + .tearoom 结构层 + 字体支柱, 必须第一个加载。换色/调氛围只开它; 域文件只许 var() 引用 (2026-10-25 自 style/widgets 收口)。 |
+| **冒烟基座 (Smoke Harness)** | `tools/ui_smoke/enter_app.mjs` | 四个 runner 共用的 进应用/过门禁/运行时监听/真路径切主题 (setTheme)。直设 dataset.theme 是反面教材: 曾制造骗过设计评审的假 bug。 |
+| **资源指纹 (Asset Fingerprint)** | `tools/bump_assets.py` | ?v= 缓存失效的唯一机制: 内容 md5 指纹自动盖 (hook 内先跑), 人不手改 ?v=; ui_check W3 兜底。 |
+| **双语对 (i18n Pair)** | `frontend/i18n.js PAIRS` | 一键一行 [zh, en] 双语对齐, 运行时展开为 I18N。"EN 漏翻"结构上不可能; ui_check E4b 校验行内双语字面量完整。 |
+| **对局视图层 (Play View)** | `frontend/play.js` | 对局页的图表/交易/挂单/组合/结算/听盘逻辑, 紧随共享层 app.js 加载。app.js 退为 $ / api / state / qsChart / qsModal / 导航 / 主题 等基础设施。 |

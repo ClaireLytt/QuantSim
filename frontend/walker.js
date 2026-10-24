@@ -171,6 +171,17 @@
     // 向导狐狸台词: 按周轮换 3 句叙事引导 (口径与首页本周推荐一致)
     $("walker-fox-bubble").textContent = t("walker.fox." + (qsWeekIndex() % 3));
   }
+  // hero 主路径 (ticket 21): 一键选中最新可玩时代并打开面板; 全通关时落到最后一个可玩章
+  $("btn-walker-continue").addEventListener("click", () => {
+    const next = CHAPTERS.find((ch) => !chDone(ch) && chUnlocked(ch))
+      || [...CHAPTERS].reverse().find((ch) => chUnlocked(ch));
+    if (!next) return;
+    selected = next.id;
+    renderRail();
+    renderPanel();
+    const sel = document.querySelector("#walker-rail .tl-node.sel");
+    if (sel) sel.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  });
   $("walker-line").addEventListener("click", () => window.qsOpenRole && qsOpenRole());
   document.addEventListener("qs:view", renderMini);
 

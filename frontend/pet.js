@@ -277,12 +277,44 @@
 
   // ---------- 渲染 ----------
   let bubbleTimer;
+  // 气泡让路 (ticket 12): 点按立即收起 (移动端无 hover, 这是等价出口); hover 淡出走 CSS
+  $("pet-bubble").addEventListener("click", () => {
+    clearTimeout(bubbleTimer);
+    speakToken++; // 打断进行中的逐字打字, 否则收起后又被补字顶回来
+    $("pet-bubble").hidden = true;
+  });
+  // 逐字打字 (craft 原型转正): 标点多停一拍像落笔迟疑; token 防新话打断旧话时串字
+  let speakToken = 0;
+  const REDUCED_MOTION = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   function speak(text) {
     const b = $("pet-bubble");
-    b.textContent = text;
-    b.hidden = false;
+    const tok = ++speakToken;
     clearTimeout(bubbleTimer);
-    bubbleTimer = setTimeout(() => { b.hidden = true; }, 6000);
+    b.classList.remove("pet-thinking-caps");
+    b.hidden = false;
+    const armHide = () => { bubbleTimer = setTimeout(() => { b.hidden = true; }, 6000); };
+    if (REDUCED_MOTION) { b.textContent = text; armHide(); return; }
+    b.textContent = "";
+    b.classList.add("pet-typing");
+    (async () => {
+      for (const ch of text) {
+        if (tok !== speakToken) return; // 被新发言打断
+        b.textContent += ch;
+        await new Promise((r) => setTimeout(r, "，。？！…；,.?!".includes(ch) ? 160 : 28 + Math.random() * 40));
+      }
+      b.classList.remove("pet-typing");
+      armHide();
+    })();
+  }
+  // 等 LLM 回复的思考态: 真思考才显示 (本地台词不装思考), 不自动隐藏
+  function speakThinking() {
+    const b = $("pet-bubble");
+    ++speakToken;
+    clearTimeout(bubbleTimer);
+    b.classList.remove("pet-typing");
+    b.innerHTML = "<i>Q</i><i>S</i><i>?</i>"; // 纯静态字形, 非文案不进 i18n
+    b.classList.add("pet-thinking-caps");
+    b.hidden = false;
   }
 
   function render() {
@@ -397,13 +429,9 @@
     $("pet-sk-name").textContent = t(SKILLS[i].n);
     $("pet-sk-desc").textContent = t(SKILLS[i].d);
     $("pet-sk-cond").textContent = (ok ? t("pet.node.unlocked") : t("pet.sk.needs")) + " · " + condText(i);
-    $("pet-skill-modal").hidden = false;
-    playSound("flip");
+    petSkillModal.open();
   }
-  $("btn-pet-sk-close").addEventListener("click", () => { $("pet-skill-modal").hidden = true; });
-  $("pet-skill-modal").addEventListener("click", (e) => {
-    if (e.target === $("pet-skill-modal")) $("pet-skill-modal").hidden = true;
-  });
+  const petSkillModal = qsModal("pet-skill-modal", { sound: "flip", closeBtnId: "btn-pet-sk-close" });
 
   // 亲密度: 摸头/投喂/聊天积累; 关系档位 初识→研究伙伴→黄金搭档
   function bondTier() {
@@ -513,14 +541,10 @@
     $("pet-stats-line").textContent = t("pet.stats", st.games || 0, st.bt || 0, pet.bond || 0);
   }
   document.addEventListener("qs:duelSubmit", () => { bumpStat("ring"); pushLog("pet.log.ring"); });
+  const petGrowthModal = qsModal("pet-growth-modal", { sound: "flip", closeBtnId: "btn-pet-growth-close" });
   $("btn-pet-growth-all").addEventListener("click", () => {
     renderGrowthModal();
-    $("pet-growth-modal").hidden = false;
-    playSound("flip");
-  });
-  $("btn-pet-growth-close").addEventListener("click", () => { $("pet-growth-modal").hidden = true; });
-  $("pet-growth-modal").addEventListener("click", (e) => {
-    if (e.target === $("pet-growth-modal")) $("pet-growth-modal").hidden = true;
+    petGrowthModal.open();
   });
 
   function renderPanel() {
@@ -599,15 +623,11 @@
   window.addEventListener("resize", fitPop);
 
   // 头像档案弹窗: 属性 / 宝物袋 / 投喂 / 换形象 (主页只留头像入口)
+  const petProfileModal = qsModal("pet-profile-modal", { sound: "flip", closeBtnId: "btn-pet-profile-close" });
   $("pet-avatar").addEventListener("click", (e) => {
     e.stopPropagation(); // 别触发面板开合
     $("pet-profile-name").textContent = (pet.name || t("pet.name.default")) + " · " + t("pet.stageTitle." + stage());
-    $("pet-profile-modal").hidden = false;
-    playSound("flip");
-  });
-  $("btn-pet-profile-close").addEventListener("click", () => { $("pet-profile-modal").hidden = true; });
-  $("pet-profile-modal").addEventListener("click", (e) => {
-    if (e.target === $("pet-profile-modal")) $("pet-profile-modal").hidden = true;
+    petProfileModal.open();
   });
 
   function gainXp(n) {
@@ -767,7 +787,7 @@
     if (!q || asking) return;
     asking = true;
     $("btn-pet-ask").disabled = true;
-    speak(t("pet.thinking"));
+    speakThinking();
     try {
       const res = await api("/pet/chat", {
         method: "POST",

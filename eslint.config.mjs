@@ -13,6 +13,8 @@ const js = require("@eslint/js");
 const globals = require("globals");
 
 export default [
+  // vendor 第三方压缩库不进 lint (echarts.min.js, ticket 16 本地 vendor 后 CI 曾炸出 304 个压缩器风格报错)
+  { ignores: ["frontend/vendor/**"] },
   {
     files: ["frontend/**/*.js"],
     ...js.configs.recommended,

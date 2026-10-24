@@ -192,6 +192,27 @@
 
 /* 回测竞技场: 走聚焦居中布局 (图表/表格较宽, 放宽到 960px), 文案与控件沿中轴排布 */
 .arena-center { max-width: 960px; }
+/* 竞技场 CTA-first (2026-10-25 对局 tab 同构): 配置下沉后, 次级操作 (调参/策略码) 降为小字链 */
+#view-arena .arena-run-row { margin: 4px 0 2px; }
+#view-arena .arena-ops { justify-content: center; gap: 22px; }
+#view-arena .arena-ops button.ghost {
+  width: auto;
+  min-width: 0;
+  margin-top: 0;
+  padding: 4px 2px;
+  border: none;
+  background: none;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 0;
+}
+#view-arena .arena-ops button.ghost:hover:not(:disabled) {
+  color: var(--accent-strong);
+  border-bottom-color: var(--accent-strong);
+  filter: none;
+}
+#view-arena .arena-ops button.ghost svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; }
 .arena-center .arena-config { justify-content: center; }
 .arena-center .arena-config .hint { width: 100%; text-align: center; }
 .arena-center .arena-metrics dl { justify-content: center; }
@@ -409,12 +430,21 @@ header.collapsed h1 .sub { display: none; }
 /* 账户页 (已登录资料卡 / 未登录提示卡): 居中窄卡, 不占满整屏 */
 #auth-me,
 #auth-guest {
-  max-width: 400px;
+  max-width: 420px;
   margin: 0 auto;
+  /* hero 形制 (ticket 23): 与建房卡同构的居中纸面 + 突出 CTA */
+  padding: 36px 28px 30px;
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+}
+#auth-guest button.primary {
+  font-size: 16px;
+  font-weight: 700;
+  padding: 12px 30px;
+  min-width: 220px;
+  box-shadow: 0 6px 22px var(--glow-accent);
 }
 #auth-me h3 { margin: 0; font-size: 15px; color: var(--accent); overflow-wrap: anywhere; }
 #auth-me button, #auth-guest button { align-self: center; width: auto; min-width: 120px; }
@@ -432,8 +462,31 @@ header.collapsed h1 .sub { display: none; }
 .room-actions label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-muted); }
 .room-actions input, .room-actions select { width: 100%; }
 #auth-me { max-width: 480px; }
-.room-code { font-family: monospace; font-size: 20px; letter-spacing: 3px; color: var(--accent); }
-#room-panel { margin-top: 16px; }
+/* 房间面板 hero 化 (2026-10-25): 发码给朋友是此刻唯一任务, 房间码是全场主角 */
+.room-code {
+  display: block;
+  font-family: var(--tr-mono);
+  font-size: 40px;
+  letter-spacing: .22em;
+  color: var(--accent-strong);
+  margin: 6px 0 2px;
+}
+#room-panel {
+  margin-top: 20px;
+  padding: 34px 26px 28px;
+  text-align: center;
+}
+#room-panel > h3 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+}
+#room-panel #room-meta { margin: 4px 0 20px; }
+#room-panel #room-standings { text-align: left; margin-bottom: 8px; }
+#room-panel #room-standings th:last-child,
+#room-panel #room-standings td:last-child { text-align: right; }
 #btn-account.logged-in { color: var(--accent); border-color: var(--accent); }
 
 /* ---------- 每日挑战 ---------- */
@@ -510,3 +563,118 @@ header.collapsed h1 .sub { display: none; }
 /* ---------- 战绩历史 ---------- */
 
 #hist-games, #hist-bt { margin-bottom: 18px; }
+
+/* 茶室·每日挑战/事件回放 hero 化（2026-10-25）：入口卡居中纸面 hero，CTA 前置，分节呼吸 */
+#view-daily h2,
+#view-event h2,
+#view-daily .section-title {
+  font-family: var(--tr-serif);
+  letter-spacing: .06em;
+}
+#view-daily .section-title { margin-top: 34px; }
+#view-daily .daily-card,
+#view-event .daily-card {
+  text-align: center;
+  padding: 40px 30px 34px;
+}
+#view-daily #daily-info,
+#view-event .daily-card > .hint:first-child {
+  font-size: 15px;
+  line-height: 1.9;
+  max-width: 44ch;
+  margin: 0 auto;
+}
+/* 偏好选择: 次级区并排, 跟在 start-custom-label 分隔线之后 (事件回放/好友房间共用) */
+#view-event .event-prefs,
+#view-rooms .event-prefs {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+#view-event .event-prefs label,
+#view-rooms .event-prefs label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+#view-event .event-prefs select,
+#view-rooms .event-prefs select { width: auto; }
+/* checkbox 不吃全局输入尺寸, 否则被撑成胶囊并与文字折行 */
+#view-rooms .event-prefs input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  flex: 0 0 auto;
+}
+#view-rooms .event-prefs .room-real-row { flex-direction: row; }
+
+/* 好友房间 (ticket 13): 双入口卡居中 hero; 房间码与战况数字列等宽 (刷新不跳宽) */
+#view-rooms #room-create-card,
+#view-rooms #room-join-card {
+  text-align: center;
+  padding: 36px 28px 30px;
+}
+#view-rooms .room-code,
+#view-rooms #room-standings td:first-child,
+#view-rooms #room-standings td:nth-child(3),
+#view-rooms #room-standings td:last-child {
+  font-family: var(--tr-mono);
+}
+#view-daily .daily-actions,
+#view-event .daily-actions { margin-top: 20px; }
+#view-daily .daily-actions button,
+#view-event .daily-actions button,
+#view-rooms .daily-actions button.primary {
+  font-size: 16px;
+  font-weight: 700;
+  padding: 13px 30px;
+  min-width: 240px;
+  box-shadow: 0 6px 22px var(--glow-accent);
+}
+#view-daily #daily-board td:first-child,
+#view-daily #daily-board td:last-child {
+  font-family: var(--tr-mono);
+}
+
+/* 茶室·排行榜/竞技场数字支柱（ticket 15）：名次与数值列等宽，刷新/排序不跳宽 */
+#view-ranking #leaderboard td:first-child,
+#view-ranking #leaderboard td:nth-child(n+4),
+#view-ranking #points-board td:first-child,
+#view-ranking #points-board td:last-child,
+#view-ranking #arena-board td:first-child,
+#view-ranking #arena-board td:nth-child(n+5),
+#view-duel .duel-final-table td:first-child,
+#view-duel .duel-final-table td:nth-child(n+3),
+#view-arena #bt-result dd,
+#view-arena .arena-stat b {
+  font-family: var(--tr-mono);
+}
+
+/* 茶室·我的域（ticket 05）：战绩表格数字列等宽，对齐不抖 */
+#view-history table td,
+#view-career .career-stats,
+#view-mine .mine-stats {
+  font-family: var(--tr-mono);
+}
+
+/* ---------- 茶室皮肤·对局域（2026-10-24 推广自首页样板） ----------
+   色板/纸面材质/暗角由 widgets.css 的作用域块（#view-home + #view-game）承载，
+   这里只写对局独有的两根支柱：衬线标题 + 等宽数字。
+   等宽数字在盯盘场景还消除数值跳动的宽度抖动。颗粒/雨丝不进对局（氛围分级决策）。 */
+/* 衬线标题由 widgets.css 的 .tearoom .card h2/h3 通用规则承担 (ticket 02 收敛) */
+#view-game .ga-stats dd,
+#view-game .ga-pos,
+#view-game .gs-list,
+#view-game .orders-list,
+#view-game #stock-label,
+#view-game #settle-initial,
+#view-game #settle-final,
+#view-game #settle-return,
+#view-game #settle-interest-val,
+#view-game input[type="number"] {
+  font-family: var(--tr-mono);
+}

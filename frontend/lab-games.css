@@ -521,17 +521,23 @@ button.small { width: auto; margin-top: 8px; padding: 4px 12px; font-size: 12px;
 
 /* ---------- 策略擂台战: 倒计时面板 + 综合评分榜 (前三淡金微光) ---------- */
 
+/* 倒计时卡: 居中 hero 形制 (ticket 14, 与对局 tab 入口同构) */
 .duel-timer {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   flex-wrap: wrap;
   margin-top: 14px;
+  padding: 24px 20px 20px;
+  text-align: center;
   font-size: 13px;
   color: var(--text-muted);
 }
-.duel-timer b { font-size: 18px; color: var(--lab-blue); font-variant-numeric: tabular-nums; }
+.duel-timer b { font-size: 20px; color: var(--accent-strong); font-family: var(--tr-mono); }
 .duel-timer .hint { flex: 1 1 100%; margin: 0; font-size: 12px; }
+/* 数字支柱: 榜内收益/回撤与评分走等宽 */
+.duel-stats b, .duel-score i { font-family: var(--tr-mono); }
 .duel-list {
   list-style: none;
   margin: 14px 0;
@@ -554,13 +560,20 @@ button.small { width: auto; margin-top: 8px; padding: 4px 12px; font-size: 12px;
   border-color: color-mix(in srgb, var(--lab-blue) 60%, var(--lab-line));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--lab-blue) 25%, transparent), 0 4px 18px var(--lab-glow);
 }
-/* 前三名: 淡金色微光 (语义用 --warn 金) */
+/* 前三名: 茶褐细描边 (ticket 14: 原金色发光是游戏厅不是茶室, critic 复评 #5) */
 .duel-card.duel-top {
-  border-color: color-mix(in srgb, var(--warn) 45%, var(--lab-line));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--warn) 20%, transparent),
-              0 4px 18px color-mix(in srgb, var(--warn) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--lab-line));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent),
+              0 4px 18px color-mix(in srgb, var(--accent) 10%, transparent);
 }
-.duel-rank { flex: 0 0 36px; font-size: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+.duel-rank {
+  flex: 0 0 36px;
+  font-size: 14px;
+  text-align: center;
+  font-family: var(--tr-mono);
+  color: var(--accent-strong);
+  font-weight: 700;
+}
 .duel-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .duel-main strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .duel-main .hint { margin: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -568,7 +581,9 @@ button.small { width: auto; margin-top: 8px; padding: 4px 12px; font-size: 12px;
 .duel-stats i { font-style: normal; color: var(--text-muted); margin-right: 4px; }
 .duel-stats b { font-variant-numeric: tabular-nums; }
 .duel-score { flex: 0 0 64px; text-align: center; }
-.duel-score b { display: block; font-size: 20px; color: var(--warn); font-variant-numeric: tabular-nums; }
+/* 评分: 墨色衬线数字 (原亮金大字, 且 0 分与 100 分同金无区分) */
+.duel-score b { display: block; font-size: 20px; color: var(--text); font-family: var(--tr-serif); font-variant-numeric: tabular-nums; }
+.duel-card.duel-top .duel-score b { color: var(--accent-strong); }
 .duel-score i { font-style: normal; font-size: 11px; color: var(--text-muted); }
 @media (max-width: 720px) {
   .duel-card { flex-wrap: wrap; }
@@ -767,15 +782,9 @@ button.small { width: auto; margin-top: 8px; padding: 4px 12px; font-size: 12px;
 
 /* ---------- 竞技场改版: 配置面板 + 骨架预览 + 悬浮擂台侧卡 ---------- */
 
-/* 暗色细微网格底纹 (双主题走 --border 低透明) */
-#view-arena {
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--border) 36%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--border) 36%, transparent) 1px, transparent 1px);
-  background-size: 44px 44px;
-}
+/* 竞技场网格底纹已删 (ticket 20): 全站唯一的网格自成一派, 底色语言统一为 纸底+卡面 两级 */
 
-/* 居中紫色发光大按钮 */
+/* 居中发光大按钮 */
 .arena-run-row { flex-basis: 100%; display: flex; justify-content: center; margin-top: 6px; }
 .arena-run { width: auto; min-width: 260px; box-shadow: 0 6px 22px var(--glow-accent); }
 

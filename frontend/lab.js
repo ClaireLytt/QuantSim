@@ -179,8 +179,8 @@ function labCard(title, big, rows) {
 
 // ---------- 研究所: 双股对比 ----------
 
-let labCmpChart = null;
 let labCmp = null;
+const labCmpH = qsChart("lab-compare-chart", () => (labCmp ? buildCompareOption() : null));
 
 async function runCompare() {
   const a = $("lab-stock-a").value;
@@ -215,15 +215,18 @@ function renderCompare() {
   box.hidden = false;
   box.textContent = t("lab.corr", n - 1, r.toFixed(2), label);
 
+  $("lab-compare-chart").hidden = false;
+  labCmpH.refresh();
+}
+
+function buildCompareOption() {
+  const { ha, hb } = labCmp;
+  const n = Math.min(ha.close.length, hb.close.length);
   const sa = ha.close.slice(0, n).map((c) => +(Number(c) / Number(ha.close[0]) * 100).toFixed(2));
   const sb = hb.close.slice(0, n).map((c) => +(Number(c) / Number(hb.close[0]) * 100).toFixed(2));
   const nameA = `${stockName(ha.name, ha.code)} (${ha.code})`;
   const nameB = `${stockName(hb.name, hb.code)} (${hb.code})`;
-
-  const el = $("lab-compare-chart");
-  el.hidden = false;
-  if (!labCmpChart) labCmpChart = echarts.init(el);
-  labCmpChart.setOption({
+  return ({
     tooltip: { trigger: "axis" },
     legend: { data: [nameA, nameB], textStyle: { color: COLORS.text } },
     grid: { left: 48, right: 16, top: 36, bottom: 28 },
@@ -243,8 +246,7 @@ function renderCompare() {
       { name: nameA, type: "line", data: sa, showSymbol: false, lineStyle: { width: 2, color: COLORS.ma5 }, itemStyle: { color: COLORS.ma5 } },
       { name: nameB, type: "line", data: sb, showSymbol: false, lineStyle: { width: 2, color: COLORS.ma20 }, itemStyle: { color: COLORS.ma20 } },
     ],
-  }, true);
-  labCmpChart.resize();
+  });
 }
 
 // ---------- 研究所: AI 模型分歧 ----------
@@ -530,7 +532,7 @@ QUIZ_DIMS.forEach((d) => {
 });
 
 let quiz = null;
-let quizRadar = null;
+const quizRadarH = qsChart("quiz-radar", () => buildQuizRadarOption());
 let quizResult = null;
 
 function renderQuizCollected() {
@@ -599,16 +601,20 @@ function finishQuiz() {
 
 function renderQuizResult() {
   if (!quizResult) return;
-  const { norm, persona } = quizResult;
+  const { persona } = quizResult;
   $("quiz-persona").textContent = t("quiz.resultTitle", pick(persona.name));
   $("quiz-desc").innerHTML = linkifyTerms(pick(persona.desc));
   const adviceEl = $("quiz-advice");
   adviceEl.hidden = false;
   adviceEl.innerHTML = linkifyTerms(t("quiz.advice", pick(persona.advice)));
 
-  const el = $("quiz-radar");
-  if (!quizRadar) quizRadar = echarts.init(el);
-  quizRadar.setOption({
+  quizRadarH.refresh();
+}
+
+function buildQuizRadarOption() {
+  if (!quizResult) return null;
+  const { norm } = quizResult;
+  return ({
     radar: {
       indicator: QUIZ_DIMS.map((d) => ({ name: pick(d.name), max: 1 })),
       radius: "65%",
@@ -625,8 +631,7 @@ function renderQuizResult() {
       itemStyle: { color: COLORS.ma5 },
       areaStyle: { color: COLORS.ma5, opacity: 0.25 },
     }],
-  }, true);
-  quizRadar.resize();
+  });
 }
 
 // ---------- 研究所: 择时的代价 ----------
@@ -745,69 +750,72 @@ function renderOverview() {
 
 // ---------- 研究所: 预测置信度校准 ----------
 
-let labCalibChart = null;
+let labCalibRows = null;
+const labCalibH = qsChart("lab-calib-chart", () => (labCalibRows ? buildCalibOption() : null));
 
 // probUp 分桶 vs 实际上涨频率: 贴近对角线 = 校准好; 整体偏上/偏下 = 过度保守/自信
 async function runCalibration() {
   const btn = $("btn-lab-calib");
   btn.disabled = true;
   try {
-    const rows = await api("/lab/calibration");
-    const el = $("lab-calib-chart");
-    el.hidden = false;
-    if (!labCalibChart) labCalibChart = echarts.init(el);
-    const palette = [COLORS.ma5, COLORS.ma20, cssVar("--accent-2")];
-    const series = rows.map((row, i) => {
-      const meta = MODEL_META.find((m) => m.key === row.model);
-      const name = meta ? pick(meta.name) : row.model;
-      return {
-        name,
-        type: "line",
-        data: row.buckets.map((b) => [
-          +(((b.probFrom + b.probTo) / 2) * 100).toFixed(0),
-          +(b.actualUpRate * 100).toFixed(1),
-        ]),
-        showSymbol: true,
-        symbolSize: 7,
-        lineStyle: { width: 2, color: palette[i % palette.length] },
-        itemStyle: { color: palette[i % palette.length] },
-      };
-    });
-    // 对角参考线: 完美校准 (说 70% 就真有 70% 在涨)
-    series.push({
-      name: t("lab.calibIdeal"),
-      type: "line",
-      data: [[0, 0], [100, 100]],
-      showSymbol: false,
-      lineStyle: { width: 1, color: COLORS.muted, type: "dashed" },
-      itemStyle: { color: COLORS.muted },
-      tooltip: { show: false },
-    });
-    labCalibChart.setOption({
-      tooltip: { trigger: "axis", valueFormatter: (v) => v + "%" },
-      legend: { data: series.map((s) => s.name), textStyle: { color: COLORS.text } },
-      grid: { left: 48, right: 16, top: 36, bottom: 40 },
-      xAxis: {
-        type: "value", min: 0, max: 100, name: t("lab.calibX"),
-        nameLocation: "middle", nameGap: 26, nameTextStyle: { color: COLORS.muted },
-        axisLabel: { color: COLORS.muted, formatter: "{value}%" },
-        axisLine: { lineStyle: { color: COLORS.border } },
-        splitLine: { lineStyle: { color: COLORS.border, opacity: 0.3 } },
-      },
-      yAxis: {
-        type: "value", min: 0, max: 100, name: t("lab.calibY"),
-        nameTextStyle: { color: COLORS.muted },
-        axisLabel: { color: COLORS.muted, formatter: "{value}%" },
-        splitLine: { lineStyle: { color: COLORS.border, opacity: 0.3 } },
-      },
-      series,
-    }, true);
-    labCalibChart.resize();
+    labCalibRows = await api("/lab/calibration");
+    $("lab-calib-chart").hidden = false;
+    labCalibH.refresh();
   } catch (e) {
     toast(e.message);
   } finally {
     btn.disabled = false;
   }
+}
+
+function buildCalibOption() {
+  const rows = labCalibRows;
+  const palette = [COLORS.ma5, COLORS.ma20, cssVar("--accent-2")];
+  const series = rows.map((row, i) => {
+    const meta = MODEL_META.find((m) => m.key === row.model);
+    const name = meta ? pick(meta.name) : row.model;
+    return {
+      name,
+      type: "line",
+      data: row.buckets.map((b) => [
+        +(((b.probFrom + b.probTo) / 2) * 100).toFixed(0),
+        +(b.actualUpRate * 100).toFixed(1),
+      ]),
+      showSymbol: true,
+      symbolSize: 7,
+      lineStyle: { width: 2, color: palette[i % palette.length] },
+      itemStyle: { color: palette[i % palette.length] },
+    };
+  });
+  // 对角参考线: 完美校准 (说 70% 就真有 70% 在涨)
+  series.push({
+    name: t("lab.calibIdeal"),
+    type: "line",
+    data: [[0, 0], [100, 100]],
+    showSymbol: false,
+    lineStyle: { width: 1, color: COLORS.muted, type: "dashed" },
+    itemStyle: { color: COLORS.muted },
+    tooltip: { show: false },
+  });
+  return ({
+    tooltip: { trigger: "axis", valueFormatter: (v) => v + "%" },
+    legend: { data: series.map((s) => s.name), textStyle: { color: COLORS.text } },
+    grid: { left: 48, right: 16, top: 36, bottom: 40 },
+    xAxis: {
+      type: "value", min: 0, max: 100, name: t("lab.calibX"),
+      nameLocation: "middle", nameGap: 26, nameTextStyle: { color: COLORS.muted },
+      axisLabel: { color: COLORS.muted, formatter: "{value}%" },
+      axisLine: { lineStyle: { color: COLORS.border } },
+      splitLine: { lineStyle: { color: COLORS.border, opacity: 0.3 } },
+    },
+    yAxis: {
+      type: "value", min: 0, max: 100, name: t("lab.calibY"),
+      nameTextStyle: { color: COLORS.muted },
+      axisLabel: { color: COLORS.muted, formatter: "{value}%" },
+      splitLine: { lineStyle: { color: COLORS.border, opacity: 0.3 } },
+    },
+    series,
+  });
 }
 
 // ---------- 研究所导航瓷砖: 单开手风琴, 点当前瓷砖收起 ----------
@@ -1104,10 +1112,7 @@ function openLabReports() {
   $("lab-reports-modal").hidden = false;
 }
 
-$("btn-lab-reports-close").addEventListener("click", () => { $("lab-reports-modal").hidden = true; });
-$("lab-reports-modal").addEventListener("click", (e) => {
-  if (e.target === $("lab-reports-modal")) $("lab-reports-modal").hidden = true;
-});
+qsModal("lab-reports-modal", { closeBtnId: "btn-lab-reports-close" });
 
 // ---------- 本周推荐实验: 按 ISO 周轮换, 一键开跑 ----------
 
@@ -1175,9 +1180,7 @@ $("btn-lab-guide-start").addEventListener("click", () => {
     runSignal();
   });
 });
-$("lab-guide-modal").addEventListener("click", (e) => {
-  if (e.target === $("lab-guide-modal")) dismissLabGuide();
-});
+qsModal("lab-guide-modal", { onClose: dismissLabGuide }); // 背板关闭走既有 dismiss (落已读标记)
 
 // 初始化放在全部 const 声明之后 (renderLabRecent 依赖报告存储的键)
 renderLabRecent();
@@ -1210,20 +1213,15 @@ $("btn-quiz-retry").addEventListener("click", startQuiz);
 document.addEventListener("qs:view", (e) => {
   if (e.detail === "lab") {
     if (!labStocks.length) loadLabStocks();
-    if (labCmpChart) labCmpChart.resize();
     maybeShowLabGuide();
   } else {
     // 切走视图时收起首访引导 (不记已读: 用户没看完, 下次进研究所再弹)——
     // 否则弹层会盖在新视图上 (2026-10 审计 P2)
     $("lab-guide-modal").hidden = true;
-    if (e.detail === "quiz" && quizRadar) quizRadar.resize();
   }
 });
 
-document.addEventListener("qs:theme", () => {
-  if (labCmp) renderCompare();
-  if (quizResult && !$("quiz-result").hidden) renderQuizResult();
-});
+// 图表主题/尺寸由 qsChart 兜底
 
 document.addEventListener("qs:lang", () => {
   renderLabStockOptions();
@@ -1235,11 +1233,6 @@ document.addEventListener("qs:lang", () => {
   renderQuizCollected();
   if (quiz) renderQuizQuestion();
   if (quizResult && !$("quiz-result").hidden) renderQuizResult();
-});
-
-window.addEventListener("resize", () => {
-  if (labCmpChart) labCmpChart.resize();
-  if (quizRadar) quizRadar.resize();
 });
 
 loadLabStocks();

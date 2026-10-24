@@ -13,7 +13,7 @@
 // 退出码: 0 全部通过 / 1 任一步失败; --json 时 stdout 输出结构化结果供程序读取。
 
 import { chromium } from "playwright";
-import { enterApp, attachRuntimeGuards, dismissLabGuide } from "./enter_app.mjs";
+import { enterApp, attachRuntimeGuards, dismissLabGuide, setTheme } from "./enter_app.mjs";
 
 const BASE = process.env.QUANTSIM_URL || "http://localhost:8080";
 
@@ -115,13 +115,8 @@ try {
         });
         break;
       case "--theme":
-        await step(`主题 ${val}`, async () => {
-          await page.evaluate((t) => {
-            document.documentElement.dataset.theme = t;
-            try { localStorage.setItem("quantsim_theme", t); } catch {}
-          }, val);
-          await page.waitForTimeout(300);
-        });
+        // 真实切换路径归共享基座 (架构评审②): 实现与"为什么不能直设 dataset.theme"见 enter_app.setTheme
+        await step(`主题 ${val}`, () => setTheme(page, val));
         break;
       case "--lang":
         await step(`语言 ${val}`, async () => {
@@ -145,6 +140,11 @@ try {
         break;
       }
       case "--wait":
+        // 纯数字直接报错: --wait 等的是 selector, 等毫秒用 --wait-ms (retro: 曾被误用静默空等)
+        if (/^\d+$/.test(val)) {
+          console.error(`--wait 接收 selector, 不是毫秒; 要等 ${val}ms 请用 --wait-ms ${val}`);
+          process.exit(1);
+        }
         await step(`等待 ${val}`, () => page.waitForSelector(val, { timeout: 10000 }));
         break;
       case "--wait-ms":

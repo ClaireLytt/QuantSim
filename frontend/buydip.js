@@ -11,7 +11,7 @@
   const FUTURE_DAYS = 15;
   const DIP_PCT = 0.03; // 等待回调的限价折扣
 
-  let chart = null;
+  const chartH = qsChart("bd-chart", () => buildBdOption());
   const g = {
     playing: false, busy: false, round: 0,
     assets: 0, baseAssets: 0,
@@ -41,7 +41,11 @@
 
   // ---------- 图表 ----------
   function renderChart() {
-    if (!chart) chart = echarts.init($("bd-chart"));
+    chartH.refresh();
+  }
+
+  function buildBdOption() {
+    if (!g.past.length) return null;
     const data = [...g.past, ...g.future.slice(0, g.revealed)];
     const marks = [];
     const decideIdx = PAST_DAYS - 1;
@@ -50,7 +54,7 @@
     } else if (g.choice === "wait" && g.fillIdx != null && g.revealed > g.fillIdx) {
       marks.push({ coord: [PAST_DAYS + g.fillIdx, g.entry], value: "B", itemStyle: { color: cssVar("--up") } });
     }
-    chart.setOption({
+    return ({
       animation: false,
       grid: { left: 48, right: 14, top: 14, bottom: 24 },
       xAxis: {
@@ -81,7 +85,7 @@
           data: [{ yAxis: g.entry }],
         } : undefined,
       }],
-    }, true);
+    });
   }
 
   // ---------- 流程 ----------
@@ -112,7 +116,6 @@
     $("btn-bd-next").hidden = true;
     renderStats();
     renderChart();
-    if (chart) chart.resize();
   }
 
   function renderStats() {
@@ -249,17 +252,8 @@
   $("btn-bd-next").addEventListener("click", next);
 
   document.addEventListener("qs:view", (e) => {
-    if (e.detail === "buydip") {
-      renderIntroBest();
-      if (chart) chart.resize();
-    }
+    if (e.detail === "buydip") renderIntroBest();
   });
-  // 主题切换后用新变量重画
-  document.addEventListener("qs:theme", () => {
-    if (chart && g.playing) renderChart();
-  });
-  window.addEventListener("resize", () => {
-    if (chart) chart.resize();
-  });
+  // 图表主题/尺寸由 qsChart 兜底
   renderIntroBest();
 })();

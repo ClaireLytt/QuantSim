@@ -121,25 +121,34 @@ def main():
                 errors.append(f'E5 半死按钮: id "{bid}" 有引用但未发现事件绑定 @ index.html:{line}')
 
     # ---------- i18n ----------
+    # 字典结构 (架构评审③ 2026-10-25): PAIRS = { "key": ["zh", "en"], ... } 每键一行双语对齐。
+    # zh/en 同行给出, 双语缺一即是结构错误 (E4b), "缺英文回退"一类状态不再存在。
     i18n_src = sources.get("i18n.js", "")
     zh_keys, en_keys = set(), set()
-    section = None
-    section_name = ""
+    in_pairs = False
     for ln, line in enumerate(i18n_src.splitlines(), 1):
-        if re.match(r"\s*zh:\s*{", line):
-            section, section_name = zh_keys, "zh"
-        elif re.match(r"\s*en:\s*{", line):
-            section, section_name = en_keys, "en"
-        elif re.match(r"\s*},?\s*$", line) and section is not None:
-            # 只在遇到语言块结束时退出该 section; 嵌套结构 i18n.js 没有, 够用
-            if section is en_keys or section is zh_keys:
-                section = None
-        km = re.match(r'\s*"([^"]+)":', line)
-        if km and section is not None:
-            # E6 同一字典键重复定义: JS 对象字面量后者覆盖前者, 极难察觉
-            if km.group(1) in section:
-                errors.append(f'E6 i18n 键 "{km.group(1)}" 在 {section_name} 字典重复定义 @ i18n.js:{ln}')
-            section.add(km.group(1))
+        if re.match(r"\s*const PAIRS\s*=\s*{", line):
+            in_pairs = True
+            continue
+        if in_pairs and re.match(r"\s*};\s*$", line):
+            in_pairs = False
+            continue
+        if not in_pairs:
+            continue
+        km = re.match(r'\s*"((?:[^"\\]|\\.)+)":\s*\[', line)
+        if not km:
+            continue
+        key = km.group(1)
+        # E6 键重复定义: JS 对象字面量后者覆盖前者, 极难察觉
+        if key in zh_keys:
+            errors.append(f'E6 i18n 键 "{key}" 重复定义 @ i18n.js:{ln}')
+        zh_keys.add(key)
+        # 双语对齐校验: 行内必须是两个字符串字面量 (显式空串合法, 如 unit.money 英文无"元"后缀)
+        pm = re.match(r'\s*"(?:[^"\\]|\\.)+":\s*\["(?:[^"\\]|\\.)*",\s*"(?:[^"\\]|\\.)*"\]', line)
+        if pm:
+            en_keys.add(key)
+        else:
+            errors.append(f'E4b i18n 键 "{key}" 双语对不完整 (en 字面量缺失) @ i18n.js:{ln}')
 
     used_keys = {}  # key -> "file:line"
     # data-i18n / -placeholder / -title / -attr 四种挂载方式都要收集
@@ -201,6 +210,19 @@ def main():
                 all_js):
             continue
         warns.append(f"W7 硬编码中文 (英文界面不翻译) @ index.html:{i} -> {ln.strip()[:50]}")
+
+    # ---------- E8/E9 深模块回潮检查 (2026-10 收口后防复发) ----------
+    # 历史: echarts 三件套曾散落 19 文件 25 处, 弹窗三件套 9 文件 19 处; 架构已收口到
+    # app.js 的 qsChart/qsModal。坏代码仍能编译, 这里把"抄最近的样例"这条路堵死。
+    for name, src in sources.items():
+        if name == "app.js":
+            continue  # 模块本体 (qsChart 内的 init、qsModal 内的背板判定) 豁免
+        for m in re.finditer(r"echarts\.init\s*\(", src):
+            errors.append(f'E8 手搓 echarts.init (图表生命周期归 app.js 的 qsChart 管, '
+                          f'用 qsChart(elId, buildOption)) @ {name}:{line_of(src, m.start())}')
+        for m in re.finditer(r"e\.target\s*===\s*\$\(", src):
+            errors.append(f'E9 手搓弹窗背板三件套 (弹窗接线归 app.js 的 qsModal 管, '
+                          f'用 qsModal(modalId, opts)) @ {name}:{line_of(src, m.start())}')
 
     # ---------- E7/W8 主题对比度审核 (WCAG) ----------
     def luminance(hexcolor):

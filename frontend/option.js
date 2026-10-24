@@ -13,7 +13,7 @@
   const BEST_KEY = "qs_opt_best";
 
   let g = null;        // 对局状态
-  let ogChart = null;
+  const ogChartH = qsChart("og-chart", () => buildOgOption());
   let tradeType = "call";
 
   // ---------- Black-Scholes (r=0, 到期按交易日/252 折年; 公式共享 app.js qsBsPrice) ----------
@@ -218,10 +218,11 @@
   }
 
   function renderChart() {
-    if (!ogChart) {
-      ogChart = echarts.init($("og-chart"));
-      window.addEventListener("resize", () => ogChart.resize());
-    }
+    ogChartH.refresh();
+  }
+
+  function buildOgOption() {
+    if (!g) return null;
     const xs = [];
     const ys = [];
     for (let d = 0; d <= g.day; d++) {
@@ -231,7 +232,7 @@
     const marks = [];
     // 持仓行权价虚线: 直观看到现价离行权还差多远
     g.positions.forEach((p) => marks.push({ yAxis: p.strike }));
-    ogChart.setOption({
+    return ({
       backgroundColor: "transparent",
       animation: false,
       tooltip: { trigger: "axis" },
@@ -248,8 +249,7 @@
         markLine: { symbol: "none", silent: true,
           lineStyle: { color: cssVar("--warn"), type: "dashed" },
           label: { color: cssVar("--text-muted") }, data: marks } }],
-    }, true);
-    ogChart.resize();
+    });
   }
 
   function renderBest() {
@@ -290,9 +290,7 @@
     renderBest();
     if (g && !g.over) render(); // 图表在隐藏容器中尺寸为 0, 回到视图要重算
   });
-  document.addEventListener("qs:theme", () => {
-    if (!$("view-option").hidden && g && !g.over) renderChart();
-  });
+  // 主题重绘由 qsChart 兜底
   document.addEventListener("qs:lang", () => {
     if (!$("view-option").hidden) { renderBest(); if (g && !g.over) render(); }
   });

@@ -12,7 +12,6 @@
 
   let g = null;
   let timer = null;
-  let tpChart = null;
 
   const gauss = qsGauss; // 共享实现在 app.js
 
@@ -163,14 +162,17 @@
     $("btn-tp-flat").disabled = g.side === 0;
   }
 
+  const tpChartH = qsChart("tp-chart", () => (g ? buildTpOption() : null));
   function renderChart(full) {
-    if (!tpChart) {
-      tpChart = echarts.init($("tp-chart"));
-      window.addEventListener("resize", () => tpChart.resize());
-    }
+    // 高频 tick 走 merge 增量 (qsChart 逃生口); 全量/主题/首画走 refresh
+    if (full === true || !tpChartH.instance()) { tpChartH.refresh(); return; }
+    tpChartH.instance().setOption(buildTpOption());
+  }
+
+  function buildTpOption() {
     const ys = g.path.slice(0, g.tick + 1);
     const marks = g.side ? [{ yAxis: g.entry }] : [];
-    tpChart.setOption({
+    return ({
       backgroundColor: "transparent",
       animation: false,
       grid: { left: 48, right: 12, top: 10, bottom: 20 },
@@ -185,8 +187,7 @@
         markLine: { symbol: "none", silent: true,
           lineStyle: { color: cssVar("--warn"), type: "dashed" },
           label: { show: false }, data: marks } }],
-    }, full === true);
-    if (full === true) tpChart.resize();
+    });
   }
 
   function renderBest() {
@@ -226,9 +227,7 @@
       stopTimer();
     }
   });
-  document.addEventListener("qs:theme", () => {
-    if (!$("view-tape").hidden && g && !g.over) renderChart(true);
-  });
+  // 主题重绘由 qsChart 兜底
   document.addEventListener("qs:lang", () => {
     if (!$("view-tape").hidden) { renderBest(); if (g && !g.over) renderStats(); }
   });

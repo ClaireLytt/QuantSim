@@ -1,6 +1,6 @@
 # QuantSim 设计规范
 
-本文档从 `frontend/style.css`（现行实现）提炼，是全站视觉的唯一事实来源。
+本文档从 `frontend/theme.css`（皮肤单属主，2026-10-25 起）提炼，是全站视觉的唯一事实来源；布局框架在 style.css。
 **做任何新页面/新组件前先通读本文档；所有色值必须引用 CSS 变量，禁止硬编码。**
 双主题：暗色为默认，亮色通过 `<html data-theme="light">` 切换（偏好存 `localStorage.qs_theme`，
 `app.js` 启动时先应用主题再初始化图表）。新增颜色必须同时在 `:root` 与

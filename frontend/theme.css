@@ -1,0 +1,266 @@
+/* ==================== theme.css · 茶室皮肤单属主 (架构评审①, 2026-10-25) ====================
+   全站皮肤的唯一事实源: 两主题变量 + --tr-* 材质 + .tearoom 结构层 + 字体支柱。
+   必须第一个加载 (变量在前); 其他 css 只许 var() 引用, 不许再定义皮肤选择器。
+   换色 / 加变量 / 调氛围层: 只开这一个文件。 */
+
+/* 全站主题 = 「雨声茶室」(2026-10-24 用户确认全局提升, ticket 06):
+   暗色 = 深夜雨屋 (墨绿暗房/灯晕/暖橙), 亮色 = 茶室 (暖纸/墨/茶)。
+   涨跌 = 茶红/苔绿; 紫色系全面退场 (设计规范禁紫)。 */
+:root {
+  /* 暗色 = 夜茶室 (2026-10-25 用户拍板转暖褐, 覆盖先前墨绿方案): 暖深褐底 + 茶色点睛 */
+  /* 底色两级 (ticket 20): surface-2 并入卡面 panel, 嵌入块靠边框区分; panel-raised 仅留给
+     暗色可交互件 (按钮在暗房里需要一级抬升的可供性) */
+  --surface: hsl(30, 12%, 9%);
+  --surface-2: hsl(30, 12%, 11%);
+  --panel: hsl(30, 12%, 11%);
+  --panel-raised: hsl(30, 10%, 16%);
+  --border: hsl(30, 8%, 26%);
+  --border-strong: hsl(30, 8%, 36%);
+  --text: hsl(35, 12%, 86%);
+  --text-muted: hsl(33, 8%, 63%);
+  --up: hsl(18, 62%, 64%);
+  --down: hsl(150, 26%, 60%);
+  --good: hsl(150, 26%, 60%);
+  --bad: hsl(14, 60%, 62%);
+  --ma5: hsl(28, 50%, 62%);
+  --ma20: hsl(190, 15%, 58%);
+  --accent: hsl(28, 45%, 66%);
+  --accent-strong: hsl(28, 40%, 55%);
+  --accent-2: hsl(28, 45%, 66%);
+  --accent-soft: hsl(28, 35%, 58%);
+  --on-accent: hsl(30, 15%, 10%);
+  /* 宠物专属暖色 (2026-10 用户钦定: 宠物不能灰, 独立于主题主色) */
+  --pet-warm: #d98a52;
+  --pet-warm-deep: #b5602f;
+  --warn: #ffd60a;
+  --mask: rgba(0, 0, 0, .55);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 14px 36px -18px rgba(0, 0, 0, .6);
+  --shadow-lg: 0 8px 20px rgba(0, 0, 0, .35), 0 24px 60px rgba(0, 0, 0, .45);
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 20px;
+  --header-bg: rgba(18, 15, 12, .65);
+  --glow-1: hsla(28, 40%, 55%, .08);
+  --glow-2: hsla(45, 45%, 55%, .05);
+  --sheen: rgba(255, 255, 255, .03);
+  --h1-grad-a: hsl(28, 45%, 66%);
+  --h1-grad-b: hsl(45, 35%, 60%);
+  --glow-accent: hsla(28, 45%, 60%, .24);
+  /* 研究所点缀色并入茶色系 (原低饱和蓝紫, 禁紫后退场) */
+  --lab-blue: hsl(28, 45%, 66%);
+  --lab-card: hsl(30, 12%, 11%);
+  --lab-line: hsl(30, 8%, 26%);
+  --lab-glow: hsla(28, 45%, 60%, .13);
+  --blur-material: blur(20px) saturate(1.8);
+  /* 茶室材质三件套 + 三字体 (原 widgets.css 作用域块, ticket 06 升为全局) */
+  --tr-serif: "Noto Serif SC", "Songti SC", "SimSun", serif;
+  --tr-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --tr-hand: "STKaiti", "Kaiti SC", "KaiTi", "FangSong", cursive;
+  --tr-rain: hsla(35, 12%, 60%, .07);
+  --tr-fiber: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0.72  0 0 0 0 0.62  0 0 0 0 0.45  0 0 0 0.4 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>");
+  --tr-blend: soft-light;
+  --tr-paper-grad:
+    radial-gradient(ellipse at 30% 12%, hsla(30, 14%, 22%, .5), transparent 55%),
+    linear-gradient(180deg, hsl(30, 12%, 13%) 0%, hsl(30, 12%, 10%) 100%);
+  --tr-paper-shadow:
+    inset 0 0 46px hsla(30, 20%, 4%, .5),
+    inset 0 1px 0 hsla(35, 15%, 60%, .08),
+    0 1px 2px rgba(0, 0, 0, .35), 0 14px 36px -18px rgba(0, 0, 0, .6);
+  --ease-out: cubic-bezier(.25, 1, .5, 1);
+  --ease-sheet: cubic-bezier(.32, .72, 0, 1);
+  --ease-bounce: cubic-bezier(.34, 1.3, .64, 1);
+}
+
+/* ---------- 浅色主题 ---------- */
+
+:root[data-theme="light"] {
+  /* 底色两级 (ticket 20): 亮色只剩 纸底(surface) + 卡面(panel) 两个可辨层级,
+     surface-2 并入卡面、panel-raised 并入纸底, 内部区分交给 1px 边框 */
+  --surface: hsl(38, 14%, 91%);
+  --surface-2: hsl(40, 20%, 94%);
+  --panel: hsl(40, 20%, 94%);
+  --panel-raised: hsl(38, 14%, 91%);
+  --border: hsl(36, 10%, 78%);
+  --border-strong: hsl(35, 10%, 62%);
+  --text: hsl(30, 10%, 26%);
+  --text-muted: hsl(33, 9%, 42%);
+  --up: hsl(14, 55%, 40%);
+  --down: hsl(150, 20%, 31%);
+  --good: hsl(150, 20%, 31%);
+  --bad: hsl(14, 55%, 40%);
+  --ma5: hsl(24, 48%, 42%);
+  --ma20: hsl(195, 22%, 38%);
+  --accent: hsl(22, 38%, 40%);
+  --accent-strong: hsl(22, 42%, 32%);
+  --accent-2: hsl(22, 38%, 40%);
+  --accent-soft: hsl(22, 32%, 48%);
+  --on-accent: hsl(40, 20%, 95%);
+  /* 宠物专属暖色 (亮色阶调深保证对比) */
+  --pet-warm: #c06a35;
+  --pet-warm-deep: #9c4f1f;
+  --warn: #9a6a00;
+  --mask: rgba(0, 0, 0, .32);
+  --shadow: 0 1px 2px hsla(30, 12%, 40%, .1), 0 12px 32px -18px hsla(30, 12%, 30%, .4);
+  --shadow-lg: 0 8px 20px rgba(0, 0, 0, .10), 0 24px 60px rgba(0, 0, 0, .16);
+  --header-bg: rgba(246, 243, 236, .72);
+  --glow-1: hsla(28, 35%, 78%, .25);
+  --glow-2: hsla(90, 30%, 60%, .12);
+  --sheen: rgba(255, 255, 255, .6);
+  --h1-grad-a: hsl(22, 42%, 32%);
+  --h1-grad-b: hsl(150, 20%, 31%);
+  --glow-accent: hsla(22, 38%, 44%, .2);
+  --lab-blue: hsl(22, 38%, 40%);
+  --lab-card: hsl(40, 20%, 94%);
+  --lab-line: hsl(37, 10%, 84%);
+  --lab-glow: hsla(22, 38%, 44%, .12);
+  --tr-rain: hsla(40, 10%, 60%, .08);
+  --tr-blend: multiply;
+  --tr-paper-grad:
+    radial-gradient(ellipse at 30% 12%, hsla(45, 60%, 98%, .85), transparent 55%),
+    radial-gradient(ellipse at 82% 92%, hsla(28, 35%, 78%, .3), transparent 60%),
+    linear-gradient(180deg, hsl(41, 24%, 96%) 0%, hsl(40, 20%, 93%) 60%, hsl(38, 18%, 91%) 100%);
+  --tr-paper-shadow:
+    inset 0 0 46px hsla(30, 25%, 55%, .13),
+    inset 0 1px 0 hsla(45, 60%, 98%, .8),
+    0 1px 2px hsla(30, 12%, 40%, .1), 0 12px 32px -18px hsla(30, 12%, 30%, .4);
+}
+
+
+/* ==================== 「雨声茶室」结构层（色板与结构层同住本文件） ====================
+   ticket 06（2026-10-24 用户确认全局提升）后 .tearoom 不再承载变量，只标记"获得
+   房间背景 / 暗角 / 纸面卡"的视图容器。氛围分级保留：首页全套（颗粒+暗角+雨丝）；
+   其余视图只带 纸面材质 + 暗角，高密度页面（对局 K 线区）保持干净。字体规则归各域文件。
+   亮色 = 茶室（暖纸/墨/茶），暗色 = 深夜雨屋（墨绿暗房/灯晕/暖橙）。
+   动画一律显式 cubic-bezier（禁 ease-in-out）；雨丝尊重 prefers-reduced-motion。 */
+
+.tearoom {
+  /* 房间背景 (暗色 = 深夜雨屋); 色板变量已全部升入 style.css :root (ticket 06) */
+  position: relative;
+  /* 底层色 = var(--surface): 容器与 body 同底, 边缘零色阶 (ticket 07, critic #1 夹层);
+     受光 radial 只做轻微氛围, 不改变基调 */
+  background:
+    radial-gradient(ellipse 54% 38% at 78% 0%, hsla(32, 40%, 55%, .09), transparent 60%),
+    var(--surface);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+:root[data-theme="light"] .tearoom {
+  background:
+    radial-gradient(ellipse 60% 48% at 22% 0%, hsla(45, 55%, 97%, .7), transparent 65%),
+    var(--surface);
+}
+/* 胶片颗粒（craft 转正）：overlay 混合盖在内容上方，pointer-events 穿透；雨丝 3s 慢速保持"冷静" */
+#view-home::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  opacity: .09;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.6'/></svg>");
+}
+/* 暗角（craft 转正，亮色室内版压茶褐不压黑）：inset 阴影画在背景之上内容之下，零遮挡风险 */
+.tearoom {
+  box-shadow: inset 0 0 140px -30px hsla(30, 25%, 25%, .22);
+}
+:root:not([data-theme="light"]) .tearoom {
+  box-shadow: inset 0 0 160px -30px rgba(0, 0, 0, .5);
+}
+#view-home::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: repeating-linear-gradient(94deg, transparent 0 11px, var(--tr-rain) 11px 12px, transparent 12px 31px);
+  animation: tr-drizzle 3s cubic-bezier(.45, .05, .55, .95) infinite;
+}
+@keyframes tr-drizzle {
+  from { background-position: 0 0; }
+  to { background-position: -20px 240px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #view-home::after { animation: none; background: none; }
+}
+/* 内容抬到氛围层之上 */
+#view-home > section { position: relative; z-index: 1; }
+
+/* 原生控件跟色（换装域通用）：range/checkbox 的浏览器默认蓝在纸面上很刺眼 */
+.tearoom input[type="range"],
+.tearoom input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+/* 衬线标题（换装域通用）：.tearoom 内卡片标题一律衬线，数字支柱按域在各自文件指定 */
+.tearoom .card h2,
+.tearoom .card h3 {
+  font-family: var(--tr-serif);
+  font-weight: 600;
+  letter-spacing: .06em;
+}
+
+/* 衬线标题 + 等宽数字：茶室气质的两根支柱 */
+#view-home .home-hero-title,
+#view-home .academy-panel h2,
+#view-home .home-core strong,
+#view-home .home-reco strong,
+#view-home .tasks-head b,
+#view-home .senti-head b {
+  font-family: var(--tr-serif);
+  font-weight: 600;
+  letter-spacing: .06em;
+}
+#view-home .home-hero-title { letter-spacing: .12em; }
+#view-home .home-rank-list li i,
+#view-home .home-rank-list li b,
+#view-home #tasks-streak {
+  font-family: var(--tr-mono);
+}
+
+/* 纸面卡与墨按钮：primary 按原型定为"墨底纸字"（暗色下为灯晕浅绿底墨字），
+   覆盖全局的紫色渐变与光晕 */
+.tearoom button.primary {
+  /* 亮色主按钮 = 茶褐实心纸字 (ticket 11, 原近黑像 SaaS); 暗色版在下方覆盖 */
+  background: var(--accent-strong);
+  color: hsl(40, 20%, 95%);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
+}
+.tearoom button.primary:hover:not(:disabled) {
+  filter: brightness(1.18);
+  box-shadow: 0 4px 16px var(--glow-accent);
+}
+:root:not([data-theme="light"]) .tearoom button.primary {
+  /* 夜茶室点睛: 茶色灯晕底 + 墨字 (ticket 10/11) */
+  background: var(--accent);
+  color: var(--on-accent);
+}
+/* hero 行情图外框在纸面上收敛为细线内衬 */
+#view-home .home-hero-art {
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+  border-color: var(--border);
+}
+/* 纸面材质（craft 转正）：纤维噪点与纸底渐变叠在同一 background 栈里（免用伪元素，
+   按钮卡片都适用），内阴影做边缘压暗 + 顶部受光 */
+#view-home .home-core,
+#view-home .home-reco,
+#view-home .home-hero,
+#view-home .home-group-grid .home-card,
+.tearoom .card {
+  background: var(--tr-fiber), var(--tr-paper-grad);
+  background-blend-mode: var(--tr-blend), normal;
+  box-shadow: var(--tr-paper-shadow);
+}
+/* 打字机体标签（三字体之二）：推荐位 tag 与 hero 标语行 */
+#view-home .lab-tier,
+#view-home .home-hero-text .hint {
+  font-family: var(--tr-mono);
+  letter-spacing: .18em;
+}
+/* 手写体点睛（三字体之三）：只给 footer 那句雨注 */
+#view-home .home-footer .hint {
+  font-family: var(--tr-hand);
+  font-size: 19px;
+  color: var(--accent);
+  transform: rotate(-.5deg);
+}
+

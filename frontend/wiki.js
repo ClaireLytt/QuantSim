@@ -149,7 +149,7 @@
 
   let curCat = CATS[0].id;
   let curArt = CATS[0].articles[0].id;
-  let chart = null;
+  const chartH = qsChart("wiki-chart", () => buildWikiOption());
 
   const allArticles = () => CATS.flatMap((c) => c.articles.map((a) => ({ ...a, cat: c })));
 
@@ -199,12 +199,19 @@
     }
   }
 
+  let lastKind = null; // 当前文章的示意图类型 (qsChart buildOption 数据源)
   function renderChart(kind) {
     const box = $("wiki-chart");
     const spec = demoSeries(kind);
     box.hidden = !spec;
+    lastKind = spec ? kind : null;
     if (!spec) return;
-    if (!chart) chart = echarts.init(box);
+    chartH.refresh();
+  }
+
+  function buildWikiOption() {
+    const spec = lastKind ? demoSeries(lastKind) : null;
+    if (!spec) return null;
     const specs = Array.isArray(spec) ? spec : [spec];
     const colors = [cssVar("--lab-blue"), cssVar("--text-muted"), cssVar("--up")];
     const series = specs.map((s, i) => ({
@@ -228,7 +235,7 @@
         data: [{ xAxis: specs[0].splitAt }],
       } : undefined),
     }));
-    chart.setOption({
+    return ({
       animation: false,
       grid: { left: 40, right: 10, top: 10, bottom: 20 },
       xAxis: { type: "category", data: Array.from({ length: 40 }, (_, i) => i + 1), axisLine: { lineStyle: { color: cssVar("--border") } }, axisLabel: { show: false } },
@@ -240,8 +247,7 @@
         axisLabel: { color: cssVar("--text-muted"), fontSize: 10 },
       },
       series,
-    }, true);
-    chart.resize();
+    });
   }
 
   // ---------- 渲染: 目录 / 文章列表 / 文章卡 ----------
@@ -334,19 +340,11 @@
   $("btn-wiki-game").addEventListener("click", () => switchView(currentArticle().game));
 
   document.addEventListener("qs:view", (e) => {
-    if (e.detail === "wiki") {
-      renderAll();
-      if (chart) chart.resize();
-    }
+    if (e.detail === "wiki") renderAll();
   });
   document.addEventListener("qs:lang", () => {
     if (!$("view-wiki").hidden) renderAll();
   });
-  document.addEventListener("qs:theme", () => {
-    if (chart && !$("view-wiki").hidden) renderChart(currentArticle().chart);
-  });
-  window.addEventListener("resize", () => {
-    if (chart) chart.resize();
-  });
+  // 图表主题/尺寸由 qsChart 兜底
   renderAll();
 })();

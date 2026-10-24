@@ -79,10 +79,11 @@ public class GameService {
     private final com.quantsim.repository.EventTimelineRepository eventTimelineRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final GameProperties props;
-    private final GameAiService gameAi;
     private final GameBenchmarks benchmarks;
     private final LedgerReplay ledger;
     private final AiOpponent aiOpponent;
+    private final TradeBudget tradeBudget;
+    private final GameDay gameDay;
 
     public static final ZoneId GAME_ZONE = ZoneId.of("Asia/Shanghai");
 
@@ -167,30 +168,16 @@ public class GameService {
         }
         DailyPrice next = sd.prices().get(curIdx + 1);
 
-        // AI 在推进前用今日预测决策, 按今日收盘价成交 (只用已揭晓的数据, 无未来泄漏)
-        int aiTradeShares = gameAi.applyAiTrade(session, sd);
-
-        session.setCurrentTradeDate(next.getTradeDate());
-        session.setDaysElapsed(session.getDaysElapsed() + 1);
-        int daysElapsed = session.getDaysElapsed();
-
-        KlinePoint bar = toKlinePoint(session, sd, next, sd.indicators().get(next.getTradeDate()));
-
-        // 新交易日揭晓后: 隔夜资金计息 -> 撮合挂单 -> 进阶模式保证金检查
+        // 推进编排收口在 GameDay (一日推进); 门面只管锁、事务、结算触发与 DTO 组装
         Account account = accountRepository.findWithLockBySessionId(sessionId)
                 .orElseThrow(() -> new NotFoundException("账户不存在"));
-        accrueInterest(session, account);
-        FillSummary fills = orderService.fillOrders(session, account);
-
-        boolean liquidatedNow = false;
-        if (session.isAdvanced() && !session.isLiquidated()) {
-            Map<Long, BigDecimal> closes = tradeEngine.currentCloses(session);
-            if (tradeEngine.equity(session, account, closes).signum() <= 0) {
-                forceLiquidate(session, account, closes);
-                liquidatedNow = true;
-            }
-        }
+        GameDay.DayResult day = gameDay.advance(session, account, sd, next);
+        int daysElapsed = day.daysElapsed();
+        FillSummary fills = day.fills();
+        boolean liquidatedNow = day.liquidatedNow();
         accountRepository.save(account);
+
+        KlinePoint bar = toKlinePoint(session, sd, next, sd.indicators().get(next.getTradeDate()));
 
         SettleResponse settleResult = null;
         boolean settled = liquidatedNow || daysElapsed >= props.getTotalTicks();
@@ -207,7 +194,7 @@ public class GameService {
 
         return new TickResponse(BlindDates.mask(session, next.getTradeDate()), daysElapsed, props.getTotalTicks(),
                 settled, bar, settleResult, status,
-                fills.filled(), fills.autoCancelled(), liquidatedNow, news, aiTradeShares);
+                fills.filled(), fills.autoCancelled(), liquidatedNow, news, day.aiTradeShares());
     }
 
     /**
@@ -226,37 +213,6 @@ public class GameService {
             return List.of();
         }
         return newsService.eventsFor(sd.stock(), sd.prices().get(curIdx + 1).getTradeDate());
-    }
-
-    /**
-     * 隔夜资金计息: 公式/舍入收口在 LedgerReplay.dailyInterest (结算曲线与 undo 重放同一内核,
-     * 天然同口径)。玩家与 AI 一起计, AI 的账走 AiOpponent。
-     */
-    private void accrueInterest(GameSession session, Account account) {
-        BigDecimal interest = ledger.dailyInterest(account.getCashBalance());
-        if (interest.signum() != 0) {
-            account.setCashBalance(account.getCashBalance().add(interest));
-            account.setInterestTotal(account.getInterestTotal().add(interest));
-        }
-        aiOpponent.accrue(session);
-    }
-
-    /** 净值归零强平: 全部持仓按现价了结 (含费用), 现金落定。 */
-    private void forceLiquidate(GameSession session, Account account, Map<Long, BigDecimal> closes) {
-        for (Map.Entry<Long, Integer> e : tradeEngine.sharesByStock(session, account).entrySet()) {
-            int shares = e.getValue();
-            if (shares == 0) {
-                continue;
-            }
-            BigDecimal price = closes.getOrDefault(e.getKey(), BigDecimal.ZERO);
-            if (price.signum() <= 0) {
-                continue; // 无有效价格时不能按 0 元"平仓"毁掉仓位
-            }
-            TradeTransaction.Direction dir = shares > 0
-                    ? TradeTransaction.Direction.SELL : TradeTransaction.Direction.BUY;
-            tradeEngine.execute(session, account, e.getKey(), dir, price, Math.abs(shares));
-        }
-        session.setLiquidated(true);
     }
 
     @Transactional
@@ -296,7 +252,7 @@ public class GameService {
 
         // 限制条件: 笔数上限与强制理由 (与 placeOrder 同走 requireBudgetAndReason, 保证口径一致)
         String reason = sanitizeReason(request.reason());
-        Long usedBefore = requireBudgetAndReason(session, reason, "下单"); // 只查一次, 剩余笔数由它推出
+        TradeBudget.Snapshot budget = requireBudgetAndReason(session, reason, "下单"); // 只查一次, 剩余笔数由快照推出
 
         String error = tradeEngine.validate(session, account, stockId, direction, price, shares);
         if (error != null) {
@@ -307,8 +263,7 @@ public class GameService {
 
         return new TradeResponse(account.getCashBalance(),
                 account.getHoldingShares(), account.getHoldingCost(), fee,
-                usedBefore == null ? null
-                        : (int) Math.max(0, session.getMaxTrades() - usedBefore - 1));
+                budget.remainingAfterAdd());
     }
 
     /** 理由只留可见字符 (去控制符), 截 100 字; 渲染安全由前端 textContent 保证。 */
@@ -320,35 +275,22 @@ public class GameService {
         return cleaned.length() > 100 ? cleaned.substring(0, 100) : cleaned;
     }
 
-    /** 已用笔数预算: 已成交 + 在挂单。挂单也占预算, 否则挂单就是绕过笔数上限的后门。 */
-    private long budgetUsed(Long sessionId) {
-        return transactionRepository.countBySessionId(sessionId) + orderService.countOpen(sessionId);
-    }
-
     /**
-     * 笔数预算 + 强制理由校验, trade/placeOrder 共用 (同一口径, 不再各写一份)。
-     * 返回已用笔数 (无上限时 null), 调用方可据此推出剩余笔数, 省掉第二次 COUNT。
+     * 笔数预算 + 强制理由校验, trade/placeOrder 共用。预算口径收口在 {@link TradeBudget},
+     * 这里只串联"预算 + 理由"两道闸并把快照递回 (调用方推剩余笔数, 省第二次 COUNT)。
      */
-    private Long requireBudgetAndReason(GameSession session, String sanitizedReason, String action) {
-        Long used = null;
-        if (session.getMaxTrades() != null) {
-            used = budgetUsed(session.getSessionId());
-            if (used >= session.getMaxTrades()) {
-                throw new BusinessException("本局交易笔数已达上限 " + session.getMaxTrades() + " 笔（在挂单也占用笔数）");
-            }
-        }
+    private TradeBudget.Snapshot requireBudgetAndReason(GameSession session, String sanitizedReason, String action) {
+        TradeBudget.Snapshot budget = tradeBudget.snapshot(session);
+        budget.requireHeadroom();
         if (session.isRequireReason() && (sanitizedReason == null || sanitizedReason.isEmpty())) {
             throw new BusinessException("本局开启了交易日志: 请写一句交易理由再" + action);
         }
-        return used;
+        return budget;
     }
 
     /** 剩余可交易笔数 (无上限返回 null)。 */
     private Integer tradesRemaining(GameSession session) {
-        if (session.getMaxTrades() == null) {
-            return null;
-        }
-        return (int) Math.max(0, session.getMaxTrades() - budgetUsed(session.getSessionId()));
+        return tradeBudget.snapshot(session).remaining();
     }
 
     // ---------- 挂单 ----------

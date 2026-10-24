@@ -109,10 +109,7 @@
     playSound("flip");
   }
   window.qsOpenRole = openRoleModal;
-  $("btn-role-close").addEventListener("click", () => { $("role-modal").hidden = true; });
-  $("role-modal").addEventListener("click", (e) => {
-    if (e.target === $("role-modal")) $("role-modal").hidden = true;
-  });
+  qsModal("role-modal", { closeBtnId: "btn-role-close" });
   $("btn-role-archive").addEventListener("click", () => {
     $("role-modal").hidden = true;
     switchView("relics");

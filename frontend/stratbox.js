@@ -45,7 +45,7 @@
   }
 
   const g = { playing: false, regime: null, prices: [], runs: 0, lastEquity: null, lastDd: null, done: false };
-  let chart = null;
+  const chartH = qsChart("sb-chart", () => buildSbOption());
 
   const loadBest = () => qsLoadBest(BEST_KEY); // 共享实现在 app.js
 
@@ -97,8 +97,15 @@
   }
 
   // ---------- 图表: 净值曲线 + 回撤阴影 (双轴) ----------
+  let lastReveal = null; // 揭晓后的隐藏行情 (qsChart 主题重绘要能重现虚线)
   function renderChart(revealPrices) {
-    if (!chart) chart = echarts.init($("sb-chart"));
+    lastReveal = revealPrices || null;
+    chartH.refresh();
+  }
+
+  function buildSbOption() {
+    if (!g.playing && !g.done) return null;
+    const revealPrices = lastReveal;
     const series = [];
     if (g.lastEquity) {
       series.push({
@@ -119,7 +126,7 @@
         yAxisIndex: 0, lineStyle: { width: 1.5, type: "dashed", color: cssVar("--warn") },
       });
     }
-    chart.setOption({
+    return ({
       animation: false,
       grid: { left: 58, right: 44, top: 14, bottom: 24 },
       xAxis: {
@@ -133,7 +140,7 @@
         { max: 0, min: -60, splitLine: { show: false }, axisLabel: { color: cssVar("--text-muted"), fontSize: 10, formatter: "{value}%" } },
       ],
       series,
-    }, true);
+    });
   }
 
   // ---------- 流程 ----------
@@ -153,7 +160,6 @@
     $("sb-msg").textContent = t("sb.prompt");
     renderBox();
     renderChart();
-    if (chart) chart.resize();
     renderGuessBtns();
   }
 
@@ -242,16 +248,8 @@
   $("btn-sb-run").addEventListener("click", runBacktest);
 
   document.addEventListener("qs:view", (e) => {
-    if (e.detail === "stratbox") {
-      renderIntroBest();
-      if (chart) chart.resize();
-    }
+    if (e.detail === "stratbox") renderIntroBest();
   });
-  document.addEventListener("qs:theme", () => {
-    if (chart && (g.playing || g.done)) renderChart(g.done ? g.prices : null);
-  });
-  window.addEventListener("resize", () => {
-    if (chart) chart.resize();
-  });
+  // 图表主题/尺寸由 qsChart 兜底
   renderIntroBest();
 })();

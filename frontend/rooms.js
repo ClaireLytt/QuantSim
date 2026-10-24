@@ -129,20 +129,22 @@
   }
 
   // 终局对比: 全员收益揭晓后画一张柱状图, 你的柱子用主题色高亮
-  let roomChart = null;
-  function renderRoomChart(room) {
+  const roomChartH = qsChart("room-chart", () => buildRoomChartOption());
+  function renderRoomChart(r) {
     const box = $("room-chart");
-    const rows = (room.standings || []).filter((m) => m.returnRate != null);
+    const rows = ((r && r.standings) || []).filter((m) => m.returnRate != null);
     if (rows.length < 2) {
       box.hidden = true;
       return;
     }
     box.hidden = false;
-    if (!roomChart) {
-      roomChart = echarts.init(box);
-      window.addEventListener("resize", () => roomChart.resize());
-    }
-    roomChart.setOption({
+    roomChartH.refresh();
+  }
+
+  function buildRoomChartOption() {
+    const rows = ((room && room.standings) || []).filter((m) => m.returnRate != null);
+    if (rows.length < 2) return null;
+    return ({
       backgroundColor: "transparent",
       animation: false,
       tooltip: { valueFormatter: (v) => fmtPct(v / 100) },
@@ -160,8 +162,7 @@
             : Number(m.returnRate) >= 0 ? cssVar("--up") : cssVar("--down"),
             opacity: m.isSelf ? 1 : 0.7, borderRadius: [3, 3, 0, 0] },
         })) }],
-    }, true);
-    roomChart.resize();
+    });
   }
 
   // 创建/加入单卡切换: 默认展示登录, 小字链接切到加入 (与登录弹窗同范式)
@@ -196,8 +197,7 @@
     if (e.isComposing) return; // IME 选字的 Enter 不当提交
     if (e.key === "Enter") join();
   });
-  // 切主题重绘终局柱状图 (图表色是 render 时从 cssVar 取的快照, 不重绘会停留旧主题)
-  document.addEventListener("qs:theme", () => { if (room) renderRoom(); });
+  // 终局柱状图主题重绘由 qsChart 兜底 (buildOption 读 room 闭包变量)
 
   document.addEventListener("qs:view", (e) => {
     if (e.detail === "rooms") {

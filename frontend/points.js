@@ -304,9 +304,7 @@
   }
   $("btn-points-head").addEventListener("click", openShop);
   $("btn-points-close").addEventListener("click", closeShop);
-  $("points-modal").addEventListener("click", (e) => {
-    if (e.target === $("points-modal")) closeShop();
-  });
+  qsModal("points-modal", { onClose: closeShop }); // 背板关闭走既有 closeShop
   document.addEventListener("qs:lang", () => {
     if (!$("points-modal").hidden) { renderAll(); renderShop(); }
   });

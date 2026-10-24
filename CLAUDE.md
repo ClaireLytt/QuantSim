@@ -5,8 +5,10 @@ QuantSim 虚拟炒股游戏：AKShare/mock 数据采集 → PySpark 指标 → S
 ## 常用命令
 
 ```bash
-# 后端测试 (集成测试需要本机 3306 有 MySQL, root/root, CI 同配置)
+# 后端测试 (集成测试需要 MySQL root/root; 默认 3306, CI 同配置)
 cd backend && mvn -B test
+# 本机 3306 常被其他项目占用 (已踩 2 次, 见 issue_recode/1.md): 用自带测试库
+#   docker start quantsim-mysql-test && QUANTSIM_DB_PORT=3307 mvn -B test
 
 # 后端运行 (静态资源直接指向 ../frontend, 改前端刷新即生效)
 cd backend && mvn spring-boot:run     # 或仓库根目录 .\start.ps1 一键启动
@@ -22,16 +24,18 @@ python train_predictor.py   # 滚动窗口训练涨跌预测 -> data/predictions
 python load_to_db.py        # 全部入库 (幂等 upsert)
 ```
 
+**写代码前先读根目录 `CONSTRAINTS.md`（质量门槛单一事实源），不得为放行改动而削弱它**；任务收尾跑 `node tools/floor_guard.mjs`（阻断级）。
+
 测试说明见 `TESTING.md`。数据库 schema 全部走 Flyway（`backend/src/main/resources/db/migration/`，新表/新列只加新 `V{n}__*.sql`，不改旧文件；`ddl-auto: validate`）。**迁移里不要用 CHAR 列**：JPA `@Column(length=n)` 映射 VARCHAR，validate 模式下 CHAR 列直接拒启（V12/V13 就是在还这个债）。
 
 ## 架构速览
 
 - **backend/**：Spring Boot 3 + JPA + Flyway + Caffeine。分层 controller → service → repository；DTO 全部是 record（`dto/*Dtos.java` 聚合类）；业务错误抛 `BusinessException`（400）/`NotFoundException`（404），由 `GlobalExceptionHandler` 统一转 `{success:false, message}`。
-- 大 service 已按域拆分（2026-10，单文件 >800 行即拆）：回测 = `BacktestService` 门面 + `BacktestEngine`（模拟内核）+ `BacktestTuner`（调参网格）；对局 = `GameService` 核心 + `GameStartService`（开局）+ `GameAiService`（AI 操盘）+ `GameBenchmarks`（结算复盘纯计算）。新逻辑放对应域，别往门面里堆回去；`@Transactional` 只放公共入口，拆出的组件是事务内被调方。
+- 大 service 已按域拆分（2026-10，单文件 >800 行即拆）：回测 = `BacktestService` 门面（含 tune 调参网格入口）+ `BacktestEngine`（模拟内核）+ `BacktestStrategy`（策略深模块，2026-10 已把原调参网格类的定义收拢进来）；对局 = `GameService` 核心 + `GameStartService`（开局）+ `GameAiService`（AI 操盘）+ `GameBenchmarks`（结算复盘纯计算）。新逻辑放对应域，别往门面里堆回去；`@Transactional` 只放公共入口，拆出的组件是事务内被调方。
 - 登录态 = 容器 `HttpSession`（`CurrentUser` 存取 userId），`AuthFilter` 只保护 `/api/me/`、`/api/rooms`、`/api/daily`、`/api/event` 四组前缀，其余接口游客可用（设计如此：降低上手门槛，竞技入口才需要身份）。
 - 行情数据只读，整只股票打包缓存（`MarketDataService.StockData`，Caffeine 10 分钟过期）。
-- **frontend/**：无构建、无框架。每个视图一个 IIFE 文件，依赖 `app.js` 的全局 `$ / api / toast / switchView / state` 与 `i18n.js` 的 `t()`。`index.html` 引 script 带 `?v=日期` 手动 cache-busting，改了 JS/CSS 记得同步改版本号——没有构建器帮忙失效缓存，忘 bump 等于白改。
-- 样式按视图域拆 5 个文件（2026-10）：`style.css` 是基础层（变量/主题/框架，**必须第一个加载**），`game / academy / lab-games / widgets` 四个域各管各的视图。新样式写进对应域文件；同一选择器别跨文件重复定义——层叠顺序随加载顺序走，拆分时翻过一次车。
+- **frontend/**：无构建、无框架。每个视图一个 IIFE 文件，依赖 `app.js` 的全局 `$ / api / toast / switchView / state` 与 `i18n.js` 的 `t()`。`index.html` 引 script 带 `?v=日期+内容指纹` cache-busting，由 `tools/bump_assets.py` **自动**维护（PostToolUse hook 在前端写入后跑它，人不要手改 `?v=`）；ui_check 的 W3 保留为兜底。
+- 样式分层（2026-10-25 架构评审①）：`theme.css` 是**皮肤单属主**（两主题变量/--tr-* 材质/.tearoom 结构层/字体支柱，**必须第一个加载**，换色调氛围只开它）；`style.css` 是布局框架层；`game / academy / lab-games / widgets` 四个域各管各的视图。新样式写进对应域文件，域文件只许 var() 引用皮肤、不许定义皮肤选择器；同一选择器别跨文件重复定义——层叠顺序随加载顺序走，拆分时翻过一次车。
 - 金额一律 `BigDecimal` 且显式 scale + RoundingMode；费用统一走 `FeeCalculator`，玩家/AI/基准/回测同口径。
 - Python 管道 SQL 全部参数化（pymysql `%s`），保持这个习惯。
 
@@ -92,7 +96,9 @@ pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端
 **分析 → 修改 → 自动验证 → 未通过回到分析 → 通过后输出前后差异证据。** 禁止没跑验证就宣布完成。
 
 - 验证手段按改动范围选：前端 → `ui_check.py` + `npm run buttons`（针对性交互用 browse.mjs，见体检⑥）；
-  后端 → `cd backend && mvn -B test`；数据管道 → `cd data-pipeline && python -m pytest`；跨层 → `npm run smoke`。
+  后端 → `cd backend && mvn -B test`；数据管道 → `cd data-pipeline && python -m pytest`；跨层 → `npm run smoke`；
+  **tools/*.py、依赖/vendor、CI 配置类改动 → `bash tools/ci_local.sh`**（镜像 CI 的 ruff/eslint/ui_check/指纹
+  四项秒级子集——PR #11 首跑三连红全是本地没跑 CI 同款检查，推送前必过）。
 - 验证未通过 = 回到分析（按下节 Evidence-First 归因），不是盲改重试。
 - **通过后必须给出前后差异证据**，三选一：测试结果 diff（修前失败输出 vs 修后通过输出）、
   browse.mjs/shot 修改前后两张截图路径、关键日志行对比。只说"改好了"不算完成。
@@ -122,7 +128,7 @@ pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端
 
 - 每次代码修改完成后，必须先跑 CLI 工具验证（见「UI 自动体检」与后端 `mvn test`），发现问题修到通过，
   然后**立即** `git commit`。
-- 提交信息清晰，用 `feat: ...`、`fix: ...`、`refactor: ...`、`docs: ...` 前缀。
+- 提交信息清晰，**用英文书写**，带 `feat: ...`、`fix: ...`、`refactor: ...`、`docs: ...` 前缀。
 - 不允许留下未提交的修改。
 - **不添加 AI 的署名或 Co-authored-by 信息**（commit message 与 PR 描述都不加）。
 
@@ -142,6 +148,7 @@ pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端
 - **禁止使用紫色、蓝紫色及相关渐变**（2026-10-15 用户钦定）。注意：现存主题的 `--accent` 系恰是紫色——
   这条规矩约束**新增** UI；存量主题是否整体换色是单独的大改动，动之前必须和用户确认方案。
 - 保持整体视觉风格一致。
+- 在可以用图形和按钮说明操作的情况下，不要添加多余的解释性文字——界面自解释优先于说明文案。
 
 ## 安全与正确性守则（来自 2026-10 对 enhance 分支的审计，勿再犯）
 
@@ -174,13 +181,32 @@ pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端
 - 前端渲染用户可控数据（用户名、params 等）一律 `textContent`，模板字符串 `innerHTML` 里只插数字/本地枚举/i18n 文案——目前全站无 XSS，新代码延续这个纪律（见 `app.js renderLeaderboard`、`rooms.js`、`history.js` 的写法）。
 - 秘密不入库：`.gitignore` 已排除 `.localdb/`、`start-local.bat`、`data-pipeline/data/`；提交前若新增含密钥/本机口令的文件，先加 ignore。
 - 并发写用 `findWithLockBy...` 悲观锁（session/account/room），别用先查后插。唯一约束冲突：若 catch 后还要在**同一事务**里继续读写，不能用 `saveAndFlush` + catch（flush 失败会把事务标记 rollback-only，提交时 500），改用 `INSERT IGNORE` native 语句（见 `UserPointsRepository.insertIgnore`）；只有 catch 后直接抛业务异常收场的场景才允许 catch `DataIntegrityViolationException`。
-- 回测/自定义策略全部经 enum 白名单解析（`BacktestEngine` 的 `CustomField/CustomOp` + `Enums.parse`），没有任何 eval/拼接——扩展策略字段时沿用，用户输入永远到不了可执行层。
+- 回测/自定义策略全部经 enum 白名单解析（`BacktestStrategy` 的 `CustomField/CustomOp` + `Enums.parse`），没有任何 eval/拼接——扩展策略字段时沿用，用户输入永远到不了可执行层。
 
 ## 布局冻结区（用户钦定，勿擅改）
 
 - **右上角工具簇 `.header-tools`（🎁积分 / 登录 / EN / 主题 / 音效）在桌面端必须保持单行横排**。
   2026-10 曾为修 390px 溢出给它加 `flex-wrap: wrap` 导致桌面端变竖排，被用户退回。
   窄屏适配只允许写在 `@media (max-width: 720px)` 里；除非用户明确要求，不要改这个区域的布局。
+
+## 规则 ↔ 机制对照表
+
+每条强规则配一个"谁来拦"。被纠正同类错误第二次时: 先修错, 再把规则在更高层级机械化, 然后更新本表。错误类已不可能发生时删行。
+
+| 规则 | 机制 | 层级 |
+|---|---|---|
+| 图表不手搓 init/theme/resize | `ui_check.py` E8 → 指路 qsChart | lint |
+| 弹窗不手搓背板三件套 | `ui_check.py` E9 → 指路 qsModal | lint |
+| 死按钮 / 重复 id / i18n 缺键漏键 / 对比度 | `ui_check.py` E1–E7 + PostToolUse hook | lint+hook |
+| 改资源必须失效缓存 (?v=) | `tools/bump_assets.py` 内容指纹自动盖 (hook 内先跑), W3 兜底 | 机制 |
+| 笔数预算口径唯一 | `TradeBudget` 深模块 + `TradeBudgetTest` | 架构+测试 |
+| 撮合决策矩阵唯一且闸门顺序固定 | `OrderMatching` + `OrderMatchingTest` | 架构+测试 |
+| pandas/Spark 指标口径一致 | `tests/test_indicator_parity.py` 对拍 | 测试 |
+| 结算落库列完整 | `SettledColumnsTest` 反射对齐 | 测试 |
+| 历史反面模式 7 类 (分页后过滤等) | `tools/pr_guard.py` RULES | 扫描 |
+| Git Bash heredoc 禁非 ASCII / PS 禁文本替换改源文件 | 本机 PreToolUse hook (block_heredoc) | hook |
+| 枚举解析走 Enums.parse / 金额 BigDecimal 显式 scale / 竞技字段防剧透 | 无机械兜底——评审判断 | docs |
+| 跨脚本全局依赖需在文件头注释声明加载序 | 无机械兜底 (无构建架构的设计代价)——评审判断 | docs |
 
 ## 代码风格
 
@@ -189,76 +215,30 @@ pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端
 - 前端新视图 = 新 IIFE 文件 + `index.html` 挂载 + `i18n.js` 双语键（所有文案必须中英双份，走 `t()`）——站点承诺中英切换，漏一个键 `ui_check.py` 会报错，硬编码中文则直接漏给英文用户。
 
 
-## 1. Git 提交规范
-
-- 每次代码修改完成后,都必须跑 CLI 工具验证,验证不过先修复;然后立即提交 Git Commit(写英文)，不允许泄露带有电子邮件和api key的文件。
-- 提交信息清晰,例如 `feat: ...`、`fix: ...`。
+## Git 提交规范
+- 每次代码修改完成后，都必须立即提交 Git Commit(写英文)，不允许泄露带有电子邮件和api key的文件。
+- 提交信息清晰，例如 feat: ...、fix: ...。
 - 不允许留下未提交的修改。
 - 不添加 AI 的署名或 Co-authored-by 信息。
 
-## 2. UI 设计规范
-
-- 禁止使用蓝紫色及相关渐变。
+## UI 设计规范禁止清单
+- 禁止使用紫色、蓝紫色及相关渐变。
 - 保持整体视觉风格一致。
-- 在可以用图形和按钮说明操作的情况下，不要添加多余的解释性文字
+- 不允许使用emoji
+- 纯平背景色(必须有噪点或渐变)
+- Hero+三卡片布局
+- 高深的专业名词和无意义的空话
+- Emoji作为功能图标
+- 线性动画 ease-in-out
 
-## 3. 工作原则
+## 编码规范：
+- 先思考，再编码：不要擅自假设需求；遇到歧义先说明假设、分析方案，必要时向用户确认。
+- 保持简单：只实现用户要求的功能，不添加多余功能、抽象或复杂设计。
+- 精准修改：只修改与需求直接相关的代码，不顺手重构其他模块；只清理自己此次修改产生的无用代码。
+- 以结果为导向：先明确成功标准和执行计划，再通过测试、构建等方式验证结果，发现问题就继续修复。
+- 优先复用现有代码；对于确实需要重复使用的逻辑，抽象为可复用函数，避免重复造轮子。
+- 禁止直接在main分支修改代码 必须先判断main分支为最新代码后checkout到新分支再开始改代码
+- 如果现在的分支不是main分支的话就直接开发 不允许切换到其他分支
 
-- **先思考,再编码**:不要擅自假设需求;遇到歧义先说明假设、分析方案,必要时向用户确认。
-- **保持简单**:只实现用户要求的功能,不添加多余功能、抽象或复杂设计。
-- **精准修改**:只修改与需求直接相关的代码,不顺手重构其他模块;只清理自己此次修改产生的无用代码。
-- **以结果为导向**:先明确成功标准和执行计划,再通过测试、构建等方式验证结果,发现问题就继续修复。
-- **优先复用现有代码**:对于确实需要重复使用的逻辑,抽象为可复用函数,避免重复造轮子。
-
-
-## 4. Evidence-First Problem Solving
-Before asking the user a question, first investigate whether the answer can be derived from available evidence.
-1. Inspect before asking. Read relevant source files, configuration, tests, documentation, logs, Git history, and available tool outputs.
-2. Verify assumptions. Reproduce the issue or run targeted tests when feasible. Do not treat an untested hypothesis as a confirmed root cause.
-3. Cite evidence. Support factual claims with file paths, line references, command output, test results, or other verifiable sources.
-4. Separate facts from hypotheses. Clearly label confirmed facts, plausible explanations, and unknowns.
-5. Never fabricate evidence. If evidence is unavailable or verification fails, state what is missing and what was attempted.
-6. Ask only when necessary. Ask the user only when the decision depends on their intent, preferences, authorization, or information that cannot reasonably be obtained from available sources.
-7. Minimize interruptions. When safe, proceed with a reversible, evidence-supported default. State the assumption and verify the result.
-8. Verify completion. After making changes, run the relevant checks and report actual results. Never claim a check passed unless it was executed successfully.
-9. Failure attribution (three steps):
-   - step1: After a failure, first read CLAUDE.md and docs/pitfalls.md for prior evidence and lessons.
-   - step2: Every conclusion must carry evidence (file path / command output / test result).
-   - step3: When evidence is insufficient, design a minimal experiment yourself (minimal repro script, extra logging, bisection) to locate the cause before concluding.
-
-## 5. 验证闭环
-
-- 每次修改必须走闭环:分析 → 解决 → 验证 → 未通过则再次分析修复 → 通过后反馈前后差异。
-- 差异反馈形式:
-  - 测试类改动:给出测试结果的前后对比。
-  - UI 类改动:给出截图/可视化对比(可用 `seatunnel-agent uitest` 产出的截图)。
-
-## 6. 重复犯错记录
-
-- 同类错误出现 ≥2 次时,必须把问题、根因、规避方法追加到 `docs/pitfalls.md`,供人类查阅。
-- 动手前先查 `docs/pitfalls.md`,避免重蹈覆辙。
-
-## 7. 批次工作流(修改类任务必须走此流程)
-
-1. **只读调查**:阅读代码、复现问题,此阶段不修改任何文件。
-2. **输出问题清单与批次划分**:按依赖关系、风险、修改范围分批;每个问题附证据(文件:行号/命令输出)。
-3. **等待批准**:用户以"批次 N"等明确字样批准后才能动手;未批准的批次不得执行任何修改。
-4. **只做已批准范围**:发现重大新问题或需扩大范围时,立即暂停并报告,等用户决定;失败后最多自主修复 3 次。
-5. **验证**:按第 8 节命令执行(UI 改动加跑 uitest),并核对实际 git diff 与批准范围一致。
-6. **结果报告落盘**:按 `docs/reports/TEMPLATE.md` 写入 `docs/reports/<YYYYMMDD>-<批次名>.md` 并随批次提交;同时在对话中交付。**未落盘报告 = 批次未完成**。
-7. **遗留问题清单**(报告内必含):每条给出 证据 / 原因 / 影响 / 优先级(高中低) / 建议处理方式;没有则写"无"。
-8. **等待用户圈选**下一步要处理的问题,再回到第 3 步。
-
-**证据与诚实要求**:
-- 未执行的步骤必须标记"未执行",不得假装完成;未运行的测试不得报告为通过。
-- "验证已跑"的证据 = 报告中贴命令及其结尾输出行(如 `2902 passed`);"真浏览器已验"的证据 = 截图或报告路径;"已获批准"的证据 = 引用用户批准原话。
-- 每批结束必须跑 `python scripts/check_workflow.py` 并在报告中附其输出(机械核对:无 AI 署名、工作区干净、报告已落盘)。
-
-## 8. 本地验证命令
-
-- `ruff check src tests`
-- `mypy`(按 pyproject.toml `[tool.mypy]` files 白名单检查)
-- `pytest`(默认跳过 uitest,见 pyproject 的 `addopts = "-v -m 'not uitest'"`)
-- UI 相关改动:`python -m seatunnel_agent.agents.devops.ui_testing run --suite smoke --no-llm`
-- 纯文档改动(docs/、*.md):至少跑 `ruff check src tests` + `pytest --collect-only -q` 确认仓库未损坏;不要求全量 pytest/uitest。
-- 批次收尾:`python scripts/check_workflow.py`(工作流机械核对,FAIL 则本批次不得标记完成)。
+## 犯错：
+当我跟你强调修改或者添加某个功能，你已经修改了代码之后还是没有达到我要的效果，应该先仔细思考找出没有起效的原因和真正的解决方法写入到claude.md中，避免下次再次犯错
