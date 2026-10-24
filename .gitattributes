@@ -1,6 +1,16 @@
-# shell 脚本强制 LF 检出/入库:
-# Windows 开发者注意 —— 编辑器(含 VSCode 默认跟随系统)可能把 .sh 存成 CRLF,
-# CRLF 的 bash 脚本在 Linux CI 直接报 $'\r': command not found。
-# 本规则保证仓库与检出都为 LF; 若本地已被编辑器转成 CRLF, 跑:
-#   git add --renormalize <file>
-*.sh text eol=lf
+# 源码钉死 LF (错误类 A): autocrlf 曾让 checkout 往返翻转行尾——资源指纹漂移 (f00fd12 修的是症状)、
+# 每次提交刷 CRLF warning 噪音。索引本就是 LF, 此处只固化 checkout 行为, 无需 renormalize。
+*.js    text eol=lf
+*.mjs   text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.py    text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.json  text eol=lf
+*.java  text eol=lf
+*.sql   text eol=lf
+*.sh    text eol=lf
+*.png   binary
+*.ico   binary
+*.woff2 binary
