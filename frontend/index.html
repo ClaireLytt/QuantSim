@@ -17,8 +17,8 @@
   <!-- 自托管字体 (茶室首页样板): Noto Serif SC 600 + IBM Plex Mono 400/500, woff2 子集在 fonts/, 不走 CDN -->
   <link rel="stylesheet" href="fonts.css?v=20261024">
   <!-- 样式按视图域拆分 (2026-10): style.css 是基础层 (变量/主题/框架), 必须第一个加载 -->
-  <link rel="stylesheet" href="style.css?v=20261025a">
-  <link rel="stylesheet" href="game.css?v=20261025b">
+  <link rel="stylesheet" href="style.css?v=20261025b">
+  <link rel="stylesheet" href="game.css?v=20261025c">
   <link rel="stylesheet" href="academy.css?v=20261025">
   <link rel="stylesheet" href="lab-games.css?v=20261025">
   <link rel="stylesheet" href="widgets.css?v=20261025t">
@@ -64,6 +64,11 @@
   <section id="game-intro" class="card game-intro">
     <h2 data-i18n="intro.title">开始你的第一局</h2>
     <p data-i18n="intro.text">选好市场、AI 难度和模式，点「开始新对局」穿越回历史行情。不确定怎么玩？点「玩法说明」或先去「量化学堂」闯关。</p>
+    <!-- 呼吸式版式 (2026-10-25): 主 CTA 紧跟标题 (默认配置即可开局), 配置区下沉为带分隔线的安静次级区块 -->
+    <div class="start-cta start-cta-main">
+      <button id="btn-start" class="primary start-xl" data-i18n="btn.start">开始新对局</button>
+    </div>
+    <p class="hint start-custom-label" data-i18n="intro.customize">想换个开法？自定义市场 · 难度 · 模式</p>
     <!-- 开局配置: 原在页头常驻 (信息架构倒置, 评审 3/3 提及), 下沉为开局向导的一部分 -->
     <div class="start-box">
       <select id="market-select" data-i18n-title="market.title" title="选择市场">
@@ -100,10 +105,7 @@
         <input type="checkbox" id="reason-toggle"> <span data-i18n="start.constraints.reason">交易日志</span>
       </label>
     </div>
-    <!-- 主按钮独行放大建立层级: 玩法说明/新手引导降为次级行 -->
-    <div class="start-cta start-cta-main">
-      <button id="btn-start" class="primary start-xl" data-i18n="btn.start">开始新对局</button>
-    </div>
+    <!-- 玩法说明/新手引导: 次级行 -->
     <div class="start-cta">
       <button id="btn-help" class="ghost" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
       <button id="btn-tour" class="ghost" data-i18n="tour.btn" data-i18n-title="tour.btn">新手引导</button>
@@ -2528,7 +2530,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261025"></script>
+  <script src="i18n.js?v=20261025a"></script>
   <script src="glossary.js?v=20261016a"></script>
   <script src="app.js?v=20261025g"></script>
   <script src="advisor.js?v=20261024"></script>

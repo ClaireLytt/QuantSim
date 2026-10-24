@@ -159,6 +159,7 @@ const I18N = {
     "nav.profile": "行者档案",
     "intro.title": "开启一场时空交易对局",
     "intro.text": "穿越真实历史行情，选好市场与 AI 难度，开启 20 天模拟交易，冲击全服排行榜。不确定怎么玩？点「玩法说明」或先做「新手引导」。",
+    "intro.customize": "想换个开法？自定义市场 · 难度 · 模式",
     "unit.money": " 元",
     "session.day": "第 {0} / {1} 天",
 
@@ -1992,6 +1993,7 @@ const I18N = {
     "nav.profile": "Walker Profile",
     "intro.title": "Open a Time-Travel Trading Match",
     "intro.text": "Travel into real market history: pick a market and AI level, trade for 20 days and race the global leaderboard. Not sure how? Open \"How to Play\" or take the tour first.",
+    "intro.customize": "Want a different run? Customize market · difficulty · mode",
     "unit.money": "",
     "session.day": "Day {0} / {1}",
 

@@ -286,16 +286,37 @@ h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: -.1px; }
   max-width: 760px;
   /* 空态是这一屏的主角: 垂直重心上移到视口中段, 不给下半屏留大片真空 */
   margin: clamp(26px, 12vh, 120px) auto 8px;
-  padding: 40px 36px 32px;
+  /* 呼吸感 (2026-10-25 用户点名): 加大内边距与分段间距, hero 式编排 */
+  padding: 52px 44px 38px;
   text-align: center;
 }
-.game-intro p { color: var(--text-muted); margin: 0; }
+.game-intro h2 {
+  font-size: 26px;
+  letter-spacing: .1em;
+  margin: 0 0 14px;
+}
+.game-intro > p {
+  color: var(--text-muted);
+  margin: 0 auto;
+  max-width: 44ch;
+  line-height: 1.85;
+}
+/* 配置区下沉为安静次级区块: 细分隔线 + 打字机体小标签, 与主 CTA 拉开一段呼吸 */
+.start-custom-label {
+  margin: 38px auto 0;
+  padding-top: 20px;
+  width: min(80%, 460px);
+  border-top: 1px solid var(--border);
+  font-family: var(--tr-mono);
+  font-size: 12px;
+  letter-spacing: .12em;
+}
 /* 两种特殊开局: 并列小选项卡, 标题 + 单行描述 */
 .intro-modes {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 18px;
+  gap: 14px;
+  margin-top: 32px;
 }
 .intro-mode {
   display: flex;
@@ -303,7 +324,7 @@ h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: -.1px; }
   gap: 4px;
   align-items: flex-start;
   text-align: left;
-  padding: 12px 14px;
+  padding: 15px 17px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -320,8 +341,8 @@ h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: -.1px; }
   transform: translateY(-2px);
   box-shadow: 0 6px 20px var(--glow-accent);
 }
-/* 开局主按钮: 独行超大, 页面唯一视觉焦点 */
-.start-cta-main { margin-top: 18px; }
+/* 开局主按钮: 独行超大, 页面唯一视觉焦点 (紧跟标题, 默认配置即可开局) */
+.start-cta-main { margin-top: 26px; }
 .start-xl {
   font-size: 18px;
   font-weight: 700;

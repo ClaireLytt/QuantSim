@@ -511,6 +511,36 @@ header.collapsed h1 .sub { display: none; }
 
 #hist-games, #hist-bt { margin-bottom: 18px; }
 
+/* 茶室·每日挑战 hero 化（2026-10-25）：今日卡居中纸面 hero，榜单数字等宽，分节呼吸 */
+#view-daily h2,
+#view-daily .section-title {
+  font-family: var(--tr-serif);
+  letter-spacing: .06em;
+}
+#view-daily .section-title { margin-top: 34px; }
+#view-daily .daily-card {
+  text-align: center;
+  padding: 40px 30px 34px;
+}
+#view-daily #daily-info {
+  font-size: 15px;
+  line-height: 1.9;
+  max-width: 44ch;
+  margin: 0 auto;
+}
+#view-daily .daily-actions { margin-top: 20px; }
+#view-daily .daily-actions button {
+  font-size: 16px;
+  font-weight: 700;
+  padding: 13px 30px;
+  min-width: 240px;
+  box-shadow: 0 6px 22px var(--glow-accent);
+}
+#view-daily #daily-board td:first-child,
+#view-daily #daily-board td:last-child {
+  font-family: var(--tr-mono);
+}
+
 /* 茶室·我的域（ticket 05）：战绩表格数字列等宽，对齐不抖 */
 #view-history table td,
 #view-career .career-stats,
