@@ -22,6 +22,8 @@ jobs:
           --health-retries=20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # coverage_guard 需要 merge-base
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -33,6 +35,10 @@ jobs:
         # 包装脚本: PIPESTATUS 透传 mvn 原生退出码 + 失败时打印用例摘要 (见 tools/run_mvn_test.sh 头注)
         run: bash ../tools/run_mvn_test.sh target/mvn-test.log 60
         working-directory: backend
+      # 变更行覆盖率门禁 (CONSTRAINTS.md): 读 JaCoCo + git diff, 观察期只警告, 2026-11-07 后加 --strict
+      - name: Changed-line coverage guard (warn)
+        if: github.event_name == 'pull_request'
+        run: python3 tools/coverage_guard.py --base origin/${{ github.base_ref }}
       # 覆盖率只观测不卡口 (阈值待一个周期的数据再定)
       - name: Upload coverage report
         if: always()
@@ -48,6 +54,36 @@ jobs:
           name: mvn-test-log
           path: backend/target/mvn-test.log
           if-no-files-found: ignore
+
+  # Floor 门禁 (CONSTRAINTS.md): 压制注释/跳测试/stub/放宽阈值/新例外, 阻断级
+  floor-guard:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 需要 merge-base
+      - name: Floor guard
+        run: node tools/floor_guard.mjs --base origin/${{ github.base_ref }}
+
+  # 安全扫描 (CONSTRAINTS.md): 密钥阻断, 依赖漏洞观察期只警告
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks 扫全历史
+      - name: Secret scan (gitleaks, block)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+      - name: Dependency vulnerabilities (osv-scanner, warn)
+        continue-on-error: true # 观察期 (CONSTRAINTS.md), 2026-11-07 后移除本行转阻断
+        run: |
+          curl -sSL -o osv-scanner https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64
+          chmod +x osv-scanner
+          ./osv-scanner scan source -r . --format table
 
   # Python 质量: ruff + 纯逻辑 pytest (不起 Spark/MySQL, PySpark 本体逻辑本地手跑)
   python-check:

@@ -24,6 +24,8 @@ python train_predictor.py   # 滚动窗口训练涨跌预测 -> data/predictions
 python load_to_db.py        # 全部入库 (幂等 upsert)
 ```
 
+**写代码前先读根目录 `CONSTRAINTS.md`（质量门槛单一事实源），不得为放行改动而削弱它**；任务收尾跑 `node tools/floor_guard.mjs`（阻断级）。
+
 测试说明见 `TESTING.md`。数据库 schema 全部走 Flyway（`backend/src/main/resources/db/migration/`，新表/新列只加新 `V{n}__*.sql`，不改旧文件；`ddl-auto: validate`）。**迁移里不要用 CHAR 列**：JPA `@Column(length=n)` 映射 VARCHAR，validate 模式下 CHAR 列直接拒启（V12/V13 就是在还这个债）。
 
 ## 架构速览
