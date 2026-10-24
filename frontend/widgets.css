@@ -734,9 +734,12 @@
   max-width: 220px;
   margin: 0;
   padding: 7px 10px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text);
+  /* 手写体对话 (craft 原型转正): 楷体 + 茶色 + 微倾, 像宠物随手写的便签 */
+  font-family: var(--tr-hand);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--accent);
+  transform: rotate(-.4deg);
   background: color-mix(in srgb, var(--panel-raised) 86%, transparent);
   -webkit-backdrop-filter: var(--blur-material);
   backdrop-filter: var(--blur-material);
@@ -754,10 +757,12 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--panel);
+  /* 纸面面板 (craft 原型转正): 纤维噪点 + 纸底渐变 + 内阴影, 与首页卡片同一套材质变量 */
+  background: var(--tr-fiber), var(--tr-paper-grad);
+  background-blend-mode: var(--tr-blend), normal;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--tr-paper-shadow);
 }
 /* 指向宠物的小尾巴, 让气泡和本体建立从属关系 */
 .pet-bubble::before {
@@ -825,13 +830,26 @@
 .pet-bubble:not([hidden]) ~ .pet-pop:not([hidden]) { margin-top: 6px; translate: 0 64px; }
 .pet-pop-up .pet-bubble:not([hidden]) ~ .pet-pop:not([hidden]) { translate: 0 -64px; }
 .pet-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-#pet-name { cursor: pointer; font-size: 14px; }
+#pet-name { cursor: pointer; font-size: 15px; font-family: var(--tr-serif); font-weight: 600; letter-spacing: .08em; }
 #pet-name-input { width: 110px; }
 .pet-xp-track { height: 6px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
 .pet-xp-track i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s; }
 .pet-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .pet-ask-row { display: flex; gap: 6px; }
-.pet-ask-row input { flex: 1; min-width: 0; font-size: 12px; }
+/* 你的输入 = 手写体 (原型里用户发言的角色感); 送出键做键帽下沉 */
+.pet-ask-row input { flex: 1; min-width: 0; font-size: 14px; font-family: var(--tr-hand); color: var(--accent); }
+.pet-ask-row input::placeholder { color: color-mix(in srgb, var(--accent) 55%, transparent); }
+#btn-pet-ask {
+  background: var(--accent-strong);
+  color: var(--on-accent);
+  border-color: transparent;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--accent-strong) 60%, black);
+  transition: transform .08s cubic-bezier(.3, .7, .4, 1), box-shadow .08s cubic-bezier(.3, .7, .4, 1);
+}
+#btn-pet-ask:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent-strong) 60%, black);
+}
 .pet-pop .hint { margin: 0; font-size: 11px; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -876,9 +894,11 @@
 .pet-sec-title {
   margin: 10px 0 0;
   padding-top: 10px;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-  font-weight: 700;
+  border-top: 1px dashed var(--border); /* 纸面上的区隔用虚线, 对齐原型的档案感 */
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .24em;
+  font-family: var(--tr-mono);
   color: var(--text-muted);
 }
 .pet-xp-text { margin: 6px 0 0; font-size: 12px; }
