@@ -4,8 +4,8 @@
 
 **Blocked by:** None（按序最后执行）
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] mine/account 双主题截图呈 hero 形制
-- [ ] 登录注册流程回归（smoke 门禁注册步）
-- [ ] ci_local + buttons + smoke 全绿
+- [x] mine/account 双主题截图呈 hero 形制
+- [x] 登录注册流程回归（smoke 门禁注册步）
+- [x] ci_local + buttons + smoke 全绿

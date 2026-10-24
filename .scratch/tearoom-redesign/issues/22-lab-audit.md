@@ -4,8 +4,10 @@
 
 **Blocked by:** None（与 21 独立，按序执行）
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 真点立即开跑进入实验（无 console error）
-- [ ] 核对结论或修正记录
-- [ ] ci_local + buttons 全绿
+- [x] 真点立即开跑进入实验（无 console error）
+- [x] 核对结论或修正记录
+- [x] ci_local + buttons 全绿
+
+> 核对结论 (2026-10-25): 研究所已达标——hero bar 茶色 CTA, 真点「立即开跑」直落双股对比实验出图 (t22-lab-weekly.png), 无默认蓝/无 emoji 功能图标。零改动结案。

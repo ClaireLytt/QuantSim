@@ -4,8 +4,8 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 主线页出现 hero CTA，真点进入当前时代（无 console error）
-- [ ] 双主题截图
-- [ ] ci_local + buttons + smoke 全绿
+- [x] 主线页出现 hero CTA，真点进入当前时代（无 console error）
+- [x] 双主题截图
+- [x] ci_local + buttons + smoke 全绿

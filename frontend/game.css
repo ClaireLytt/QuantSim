@@ -430,12 +430,21 @@ header.collapsed h1 .sub { display: none; }
 /* 账户页 (已登录资料卡 / 未登录提示卡): 居中窄卡, 不占满整屏 */
 #auth-me,
 #auth-guest {
-  max-width: 400px;
+  max-width: 420px;
   margin: 0 auto;
+  /* hero 形制 (ticket 23): 与建房卡同构的居中纸面 + 突出 CTA */
+  padding: 36px 28px 30px;
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+}
+#auth-guest button.primary {
+  font-size: 16px;
+  font-weight: 700;
+  padding: 12px 30px;
+  min-width: 220px;
+  box-shadow: 0 6px 22px var(--glow-accent);
 }
 #auth-me h3 { margin: 0; font-size: 15px; color: var(--accent); overflow-wrap: anywhere; }
 #auth-me button, #auth-guest button { align-self: center; width: auto; min-width: 120px; }
