@@ -13,7 +13,7 @@
 // 退出码: 0 全部通过 / 1 任一步失败; --json 时 stdout 输出结构化结果供程序读取。
 
 import { chromium } from "playwright";
-import { enterApp, attachRuntimeGuards, dismissLabGuide } from "./enter_app.mjs";
+import { enterApp, attachRuntimeGuards, dismissLabGuide, setTheme } from "./enter_app.mjs";
 
 const BASE = process.env.QUANTSIM_URL || "http://localhost:8080";
 
@@ -115,17 +115,8 @@ try {
         });
         break;
       case "--theme":
-        // 走真实切换路径 (ticket 17): 直设 dataset.theme 会绕过 toggleTheme —— 按钮文案不换、
-        // qs:theme 不派发、图表不重绘, 曾被设计评审当成真 bug; 旧实现还写错了存储键
-        // (quantsim_theme, 应用实际用 qs_theme)。现在与用户同路径: 不一致时点一下主题按钮。
-        await step(`主题 ${val}`, async () => {
-          await page.evaluate((t) => {
-            if ((document.documentElement.dataset.theme || "dark") !== t) {
-              document.getElementById("btn-theme").click();
-            }
-          }, val);
-          await page.waitForTimeout(300);
-        });
+        // 真实切换路径归共享基座 (架构评审②): 实现与"为什么不能直设 dataset.theme"见 enter_app.setTheme
+        await step(`主题 ${val}`, () => setTheme(page, val));
         break;
       case "--lang":
         await step(`语言 ${val}`, async () => {

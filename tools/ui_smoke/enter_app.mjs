@@ -44,6 +44,17 @@ export function attachRuntimeGuards(page, report) {
   });
 }
 
+/** 切主题走真实路径: 直设 dataset.theme 会绕过 toggleTheme (按钮文案不换 / qs:theme 不派发 /
+ *  图表不重绘), 曾被设计评审当成产品 bug。所有 runner 一律经此切换。 */
+export async function setTheme(page, theme) {
+  await page.evaluate((t) => {
+    if ((document.documentElement.dataset.theme || "dark") !== t) {
+      document.getElementById("btn-theme").click();
+    }
+  }, theme);
+  await page.waitForTimeout(300);
+}
+
 export async function enterApp(page, BASE, userPrefix = "smoke_") {
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
   // 首访会被 index.html 内联脚本 location.replace 到 landing.html, 点 CTA 回主应用
