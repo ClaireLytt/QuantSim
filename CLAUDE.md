@@ -34,7 +34,7 @@ python load_to_db.py        # 全部入库 (幂等 upsert)
 - 大 service 已按域拆分（2026-10，单文件 >800 行即拆）：回测 = `BacktestService` 门面（含 tune 调参网格入口）+ `BacktestEngine`（模拟内核）+ `BacktestStrategy`（策略深模块，2026-10 已把原调参网格类的定义收拢进来）；对局 = `GameService` 核心 + `GameStartService`（开局）+ `GameAiService`（AI 操盘）+ `GameBenchmarks`（结算复盘纯计算）。新逻辑放对应域，别往门面里堆回去；`@Transactional` 只放公共入口，拆出的组件是事务内被调方。
 - 登录态 = 容器 `HttpSession`（`CurrentUser` 存取 userId），`AuthFilter` 只保护 `/api/me/`、`/api/rooms`、`/api/daily`、`/api/event` 四组前缀，其余接口游客可用（设计如此：降低上手门槛，竞技入口才需要身份）。
 - 行情数据只读，整只股票打包缓存（`MarketDataService.StockData`，Caffeine 10 分钟过期）。
-- **frontend/**：无构建、无框架。每个视图一个 IIFE 文件，依赖 `app.js` 的全局 `$ / api / toast / switchView / state` 与 `i18n.js` 的 `t()`。`index.html` 引 script 带 `?v=日期` 手动 cache-busting，改了 JS/CSS 记得同步改版本号——没有构建器帮忙失效缓存，忘 bump 等于白改。
+- **frontend/**：无构建、无框架。每个视图一个 IIFE 文件，依赖 `app.js` 的全局 `$ / api / toast / switchView / state` 与 `i18n.js` 的 `t()`。`index.html` 引 script 带 `?v=日期+内容指纹` cache-busting，由 `tools/bump_assets.py` **自动**维护（PostToolUse hook 在前端写入后跑它，人不要手改 `?v=`）；ui_check 的 W3 保留为兜底。
 - 样式按视图域拆 5 个文件（2026-10）：`style.css` 是基础层（变量/主题/框架，**必须第一个加载**），`game / academy / lab-games / widgets` 四个域各管各的视图。新样式写进对应域文件；同一选择器别跨文件重复定义——层叠顺序随加载顺序走，拆分时翻过一次车。
 - 金额一律 `BigDecimal` 且显式 scale + RoundingMode；费用统一走 `FeeCalculator`，玩家/AI/基准/回测同口径。
 - Python 管道 SQL 全部参数化（pymysql `%s`），保持这个习惯。
@@ -195,7 +195,8 @@ pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端
 |---|---|---|
 | 图表不手搓 init/theme/resize | `ui_check.py` E8 → 指路 qsChart | lint |
 | 弹窗不手搓背板三件套 | `ui_check.py` E9 → 指路 qsModal | lint |
-| 死按钮 / 重复 id / i18n 缺键漏键 / 版本号未 bump / 对比度 | `ui_check.py` E1–E7 + PostToolUse hook | lint+hook |
+| 死按钮 / 重复 id / i18n 缺键漏键 / 对比度 | `ui_check.py` E1–E7 + PostToolUse hook | lint+hook |
+| 改资源必须失效缓存 (?v=) | `tools/bump_assets.py` 内容指纹自动盖 (hook 内先跑), W3 兜底 | 机制 |
 | 笔数预算口径唯一 | `TradeBudget` 深模块 + `TradeBudgetTest` | 架构+测试 |
 | 撮合决策矩阵唯一且闸门顺序固定 | `OrderMatching` + `OrderMatchingTest` | 架构+测试 |
 | pandas/Spark 指标口径一致 | `tests/test_indicator_parity.py` 对拍 | 测试 |

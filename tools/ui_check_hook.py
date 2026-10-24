@@ -22,6 +22,11 @@ def main():
     if "/frontend/" not in f:
         return 0
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # 先自动盖缓存指纹 (架构评审④): 人不再手动 bump ?v=, ui_check 的 W3 只是兜底
+    subprocess.run(
+        [sys.executable, os.path.join(root, "tools", "bump_assets.py")],
+        capture_output=True, text=True,
+    )
     r = subprocess.run(
         [sys.executable, os.path.join(root, "tools", "ui_check.py")],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
