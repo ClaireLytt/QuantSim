@@ -115,10 +115,14 @@ try {
         });
         break;
       case "--theme":
+        // 走真实切换路径 (ticket 17): 直设 dataset.theme 会绕过 toggleTheme —— 按钮文案不换、
+        // qs:theme 不派发、图表不重绘, 曾被设计评审当成真 bug; 旧实现还写错了存储键
+        // (quantsim_theme, 应用实际用 qs_theme)。现在与用户同路径: 不一致时点一下主题按钮。
         await step(`主题 ${val}`, async () => {
           await page.evaluate((t) => {
-            document.documentElement.dataset.theme = t;
-            try { localStorage.setItem("quantsim_theme", t); } catch {}
+            if ((document.documentElement.dataset.theme || "dark") !== t) {
+              document.getElementById("btn-theme").click();
+            }
           }, val);
           await page.waitForTimeout(300);
         });
