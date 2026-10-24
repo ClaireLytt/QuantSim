@@ -271,7 +271,9 @@
         name: "#" + (i + 1),
         data: c,
         showSymbol: false,
+        // itemStyle 同步线色: 否则 legend 圆点走 echarts 默认蓝绿, 与茶室线色对不上
         lineStyle: { width: i === finalSel ? 3 : 1.4, color: cssVar(FINAL_COLORS[i % FINAL_COLORS.length]), opacity: i === finalSel ? 1 : 0.55 },
+        itemStyle: { color: cssVar(FINAL_COLORS[i % FINAL_COLORS.length]) },
         emphasis: { focus: "series" },
       });
     });
@@ -307,7 +309,7 @@
         return td;
       };
       tr.append(
-        mk(["🥇", "🥈", "🥉"][i] || "#" + (i + 1)),
+        mk("#" + (i + 1), "duel-final-rank"), // 茶色序号徽章 (与主榜同款, 奖牌 emoji 违反设计禁令)
         mk(e.username + " · " + t("strat." + e.strategy)),
         mk(String(e.score)),
         mk(pctText(e.totalReturn), Number(e.totalReturn) >= 0 ? "pos" : "neg"),
