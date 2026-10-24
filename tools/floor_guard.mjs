@@ -19,7 +19,8 @@ const base = (() => {
 
 // git diff --no-index 两侧不同就退 1 (新文件的正常情况)，保留输出；其他失败返回 null，null 永不当"干净"。
 const git = (args, { diffExit = false } = {}) => {
-  try { return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); }
+  // maxBuffer 默认 1MB 不够: vendor 大文件 (echarts.min.js) 入 diff 后曾把 guard 打成 exit 2
+  try { return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 }); }
   catch (e) { return diffExit && e.status === 1 && typeof e.stdout === 'string' ? e.stdout : null; }
 };
 const bail = (msg) => { console.error('floor-guard: ' + msg); process.exit(2); };
@@ -72,8 +73,8 @@ const flag = (rule, f, text) => findings.push({ rule, file: f, text: text.trim()
 // 本仓测试形态: Java 的 *Test.java / *Tests.java, Python 的 test_*.py, JS 冒烟脚本不算测试
 const isTest = (f) => /Tests?\.java$|(^|\/)test_[^/]+\.py$|\.(test|spec)\./.test(f);
 const isConstraints = (f) => /CONSTRAINTS\.md$/.test(f);
-// guard 自身与知识库文档里的模式示例不触发
-const isGuardOrDoc = (f) => /floor_guard\.mjs$|pr_guard\.py$|docs\/|issue_recode\//.test(f);
+// guard 自身、知识库文档里的模式示例、第三方 vendor 压缩库不触发
+const isGuardOrDoc = (f) => /floor_guard\.mjs$|pr_guard\.py$|docs\/|issue_recode\/|\/vendor\/|^vendor\//.test(f);
 
 // 1. 压制注释 — Java/JS/Python 三栈
 // noqa: E402 豁免: sys.path hack 后再 import 的惯用法 (本仓测试都这么写), 不压制正确性检查

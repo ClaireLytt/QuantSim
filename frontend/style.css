@@ -3,8 +3,10 @@
    涨跌 = 茶红/苔绿; 紫色系全面退场 (设计规范禁紫)。 */
 :root {
   /* 暗色 = 夜茶室 (2026-10-25 用户拍板转暖褐, 覆盖先前墨绿方案): 暖深褐底 + 茶色点睛 */
+  /* 底色两级 (ticket 20): surface-2 并入卡面 panel, 嵌入块靠边框区分; panel-raised 仅留给
+     暗色可交互件 (按钮在暗房里需要一级抬升的可供性) */
   --surface: hsl(30, 12%, 9%);
-  --surface-2: hsl(30, 11%, 12%);
+  --surface-2: hsl(30, 12%, 11%);
   --panel: hsl(30, 12%, 11%);
   --panel-raised: hsl(30, 10%, 16%);
   --border: hsl(30, 8%, 26%);
@@ -67,10 +69,12 @@
 /* ---------- 浅色主题 ---------- */
 
 :root[data-theme="light"] {
+  /* 底色两级 (ticket 20): 亮色只剩 纸底(surface) + 卡面(panel) 两个可辨层级,
+     surface-2 并入卡面、panel-raised 并入纸底, 内部区分交给 1px 边框 */
   --surface: hsl(38, 14%, 91%);
-  --surface-2: hsl(40, 22%, 96%);
+  --surface-2: hsl(40, 20%, 94%);
   --panel: hsl(40, 20%, 94%);
-  --panel-raised: hsl(39, 16%, 89%);
+  --panel-raised: hsl(38, 14%, 91%);
   --border: hsl(36, 10%, 78%);
   --border-strong: hsl(35, 10%, 62%);
   --text: hsl(30, 10%, 26%);

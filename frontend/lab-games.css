@@ -782,15 +782,9 @@ button.small { width: auto; margin-top: 8px; padding: 4px 12px; font-size: 12px;
 
 /* ---------- 竞技场改版: 配置面板 + 骨架预览 + 悬浮擂台侧卡 ---------- */
 
-/* 暗色细微网格底纹 (双主题走 --border 低透明) */
-#view-arena {
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--border) 36%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--border) 36%, transparent) 1px, transparent 1px);
-  background-size: 44px 44px;
-}
+/* 竞技场网格底纹已删 (ticket 20): 全站唯一的网格自成一派, 底色语言统一为 纸底+卡面 两级 */
 
-/* 居中紫色发光大按钮 */
+/* 居中发光大按钮 */
 .arena-run-row { flex-basis: 100%; display: flex; justify-content: center; margin-top: 6px; }
 .arena-run { width: auto; min-width: 260px; box-shadow: 0 6px 22px var(--glow-accent); }
 
