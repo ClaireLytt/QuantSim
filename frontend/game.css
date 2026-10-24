@@ -511,25 +511,46 @@ header.collapsed h1 .sub { display: none; }
 
 #hist-games, #hist-bt { margin-bottom: 18px; }
 
-/* 茶室·每日挑战 hero 化（2026-10-25）：今日卡居中纸面 hero，榜单数字等宽，分节呼吸 */
+/* 茶室·每日挑战/事件回放 hero 化（2026-10-25）：入口卡居中纸面 hero，CTA 前置，分节呼吸 */
 #view-daily h2,
+#view-event h2,
 #view-daily .section-title {
   font-family: var(--tr-serif);
   letter-spacing: .06em;
 }
 #view-daily .section-title { margin-top: 34px; }
-#view-daily .daily-card {
+#view-daily .daily-card,
+#view-event .daily-card {
   text-align: center;
   padding: 40px 30px 34px;
 }
-#view-daily #daily-info {
+#view-daily #daily-info,
+#view-event .daily-card > .hint:first-child {
   font-size: 15px;
   line-height: 1.9;
   max-width: 44ch;
   margin: 0 auto;
 }
-#view-daily .daily-actions { margin-top: 20px; }
-#view-daily .daily-actions button {
+/* 偏好选择: 次级区并排, 跟在 start-custom-label 分隔线之后 */
+#view-event .event-prefs {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+#view-event .event-prefs label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+#view-event .event-prefs select { width: auto; }
+#view-daily .daily-actions,
+#view-event .daily-actions { margin-top: 20px; }
+#view-daily .daily-actions button,
+#view-event .daily-actions button {
   font-size: 16px;
   font-weight: 700;
   padding: 13px 30px;
