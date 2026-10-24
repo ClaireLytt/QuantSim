@@ -1088,15 +1088,17 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
 .tearoom {
   /* 房间背景 (暗色 = 深夜雨屋); 色板变量已全部升入 style.css :root (ticket 06) */
   position: relative;
+  /* 底层色 = var(--surface): 容器与 body 同底, 边缘零色阶 (ticket 07, critic #1 夹层);
+     受光 radial 只做轻微氛围, 不改变基调 */
   background:
-    radial-gradient(ellipse 54% 38% at 78% 0%, hsla(80, 25%, 55%, .12), transparent 60%),
-    linear-gradient(170deg, hsl(168, 14%, 13%), hsl(170, 16%, 8%) 70%);
+    radial-gradient(ellipse 54% 38% at 78% 0%, hsla(80, 25%, 55%, .1), transparent 60%),
+    var(--surface);
   border-radius: 0 0 var(--radius) var(--radius);
 }
 :root[data-theme="light"] .tearoom {
   background:
-    radial-gradient(ellipse 60% 48% at 22% 0%, hsl(40, 18%, 95%), transparent 65%),
-    linear-gradient(172deg, hsl(38, 14%, 91%), hsl(36, 10%, 85%) 70%);
+    radial-gradient(ellipse 60% 48% at 22% 0%, hsla(45, 55%, 97%, .7), transparent 65%),
+    var(--surface);
 }
 /* 胶片颗粒（craft 转正）：overlay 混合盖在内容上方，pointer-events 穿透；雨丝 3s 慢速保持"冷静" */
 #view-home::before {

@@ -17,11 +17,11 @@
   <!-- 自托管字体 (茶室首页样板): Noto Serif SC 600 + IBM Plex Mono 400/500, woff2 子集在 fonts/, 不走 CDN -->
   <link rel="stylesheet" href="fonts.css?v=20261024">
   <!-- 样式按视图域拆分 (2026-10): style.css 是基础层 (变量/主题/框架), 必须第一个加载 -->
-  <link rel="stylesheet" href="style.css?v=20261025b">
+  <link rel="stylesheet" href="style.css?v=20261025c">
   <link rel="stylesheet" href="game.css?v=20261025c">
   <link rel="stylesheet" href="academy.css?v=20261025">
   <link rel="stylesheet" href="lab-games.css?v=20261025">
-  <link rel="stylesheet" href="widgets.css?v=20261025t">
+  <link rel="stylesheet" href="widgets.css?v=20261025u">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
 </head>
 <body>
@@ -105,8 +105,8 @@
         <input type="checkbox" id="reason-toggle"> <span data-i18n="start.constraints.reason">交易日志</span>
       </label>
     </div>
-    <!-- 玩法说明/新手引导: 次级行 -->
-    <div class="start-cta">
+    <!-- 玩法说明/新手引导: 降为文字链 (ticket 08, critic #2 占位式按钮) -->
+    <div class="start-cta start-links">
       <button id="btn-help" class="ghost" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
       <button id="btn-tour" class="ghost" data-i18n="tour.btn" data-i18n-title="tour.btn">新手引导</button>
     </div>

@@ -235,6 +235,34 @@ h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: -.1px; }
 }
 .start-cta { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
 .start-cta button { width: auto; min-width: 120px; margin-top: 0; white-space: nowrap; }
+/* 次级入口降为文字链 (ticket 08): 茶色细下边线, 视觉重量让位给主 CTA 与玩法卡 */
+.start-links { gap: 26px; margin-top: 20px; }
+/* 双类选择器压过后文的 button.ghost { width: 100% } (同优先级后者胜, 曾被撑成整行下划线) */
+.start-cta.start-links button.ghost {
+  width: auto;
+  min-width: 0;
+  margin-top: 0;
+  padding: 4px 2px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.start-cta.start-links button.ghost:hover:not(:disabled) {
+  color: var(--accent-strong);
+  border-bottom-color: var(--accent-strong);
+  filter: none;
+}
+
+/* 登录胶囊: 长用户名优雅省略 (ticket 09), 只约束按钮内部文本, 冻结区布局不动 */
+#btn-account {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ---------- 顶部导航 ---------- */
 
