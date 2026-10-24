@@ -18,10 +18,10 @@
   <link rel="stylesheet" href="fonts.css?v=202610255dfb">
   <!-- 样式分层 (2026-10-25 架构评审①): theme.css 皮肤单属主必须第一个加载, style.css 是布局框架层, 其余按视图域拆分 -->
   <link rel="stylesheet" href="theme.css?v=202610251604"><!-- 皮肤单属主, 必须第一个加载 (架构评审①) -->
-  <link rel="stylesheet" href="style.css?v=202610256cd4">
-  <link rel="stylesheet" href="game.css?v=202610253a4a">
+  <link rel="stylesheet" href="style.css?v=20261025de84">
+  <link rel="stylesheet" href="game.css?v=2026102541c8">
   <link rel="stylesheet" href="academy.css?v=202610253e23">
-  <link rel="stylesheet" href="lab-games.css?v=20261025ea44">
+  <link rel="stylesheet" href="lab-games.css?v=20261025e839">
   <link rel="stylesheet" href="widgets.css?v=20261025aaa7">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
@@ -108,8 +108,8 @@
     </div>
     <!-- 玩法说明/新手引导: 降为文字链 (ticket 08, critic #2 占位式按钮) -->
     <div class="start-cta start-links">
-      <button id="btn-help" class="ghost" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
-      <button id="btn-tour" class="ghost" data-i18n="tour.btn" data-i18n-title="tour.btn">新手引导</button>
+      <button id="btn-help" class="ghost qs-textlink" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
+      <button id="btn-tour" class="ghost qs-textlink" data-i18n="tour.btn" data-i18n-title="tour.btn">新手引导</button>
     </div>
     <!-- 推荐挑战: 两张高亮玩法卡 (emoji 为视觉锚点不进 i18n, 文案 span 单独挂键) -->
     <div class="intro-modes">
@@ -361,9 +361,9 @@
         </div>
       </div>
       <div class="arena-ops">
-        <button id="btn-tune" class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6.5a4 4 0 0 0-5.3 5L4 16.7V20h3.3l5.2-5.2a4 4 0 0 0 5-5.3l-2.7 2.7-2.3-2.3z"/></svg><span data-i18n="arena.tune">自动调参</span></button>
-        <button id="btn-code-copy" class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span data-i18n="code.copy">复制策略码</span></button>
-        <button id="btn-code-import" class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10"/><path d="M8 10l4 4 4-4"/><path d="M4 18h16"/></svg><span data-i18n="code.import">导入策略码</span></button>
+        <button id="btn-tune" class="ghost qs-textlink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6.5a4 4 0 0 0-5.3 5L4 16.7V20h3.3l5.2-5.2a4 4 0 0 0 5-5.3l-2.7 2.7-2.3-2.3z"/></svg><span data-i18n="arena.tune">自动调参</span></button>
+        <button id="btn-code-copy" class="ghost qs-textlink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span data-i18n="code.copy">复制策略码</span></button>
+        <button id="btn-code-import" class="ghost qs-textlink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10"/><path d="M8 10l4 4 4-4"/><path d="M4 18h16"/></svg><span data-i18n="code.import">导入策略码</span></button>
       </div>
       <p class="hint arena-desc"><span class="arena-info" data-i18n-title="arena.descTip" title="玩法说明随所选策略变化"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.8" fill="currentColor"/></svg></span><span id="bt-strategy-desc"></span></p>
       <p class="hint" id="bt-tune-msg" hidden></p>
@@ -937,8 +937,8 @@
 
       <div class="qd-actions">
         <button id="btn-duel-submit" class="primary big" data-i18n="duel.submit">提交我的策略</button>
-        <button id="btn-duel-final" class="big" data-i18n="duel.final.open">本轮结算</button>
-        <button id="btn-duel-history" class="big" data-i18n="duel.history">查看历史擂台</button>
+        <button id="btn-duel-final" class="big qs-textlink" data-i18n="duel.final.open">本轮结算</button>
+        <button id="btn-duel-history" class="big qs-textlink" data-i18n="duel.history">查看历史擂台</button>
       </div>
     </div>
 
@@ -961,9 +961,9 @@
       <p id="duel-final-detail" class="lab-verdict" hidden></p>
       <p class="duel-final-tip hint" data-i18n="duel.final.tip">💡 知识点：擂台评分综合收益与回撤，不单纯看收益率——翻倍但腰斩过的策略，排名未必赢过稳稳 +20% 的。</p>
       <div class="qd-actions">
-        <button id="btn-duel-final-detail" class="big" data-i18n="duel.final.detailBtn">查看策略详情</button>
+        <button id="btn-duel-final-detail" class="big qs-textlink" data-i18n="duel.final.detailBtn">查看策略详情</button>
         <button id="btn-duel-final-next" class="primary big" data-i18n="duel.final.next">参加下一轮擂台</button>
-        <button id="btn-duel-final-back" class="ghost" data-i18n="duel.build.back">↩ 返回擂台榜</button>
+        <button id="btn-duel-final-back" class="ghost qs-textlink" data-i18n="duel.build.back">↩ 返回擂台榜</button>
       </div>
     </div>
 
@@ -998,7 +998,7 @@
       </div>
       <div class="qd-actions">
         <button id="btn-duel-enter" class="primary big" disabled data-i18n="duel.build.enter">提交策略参加擂台</button>
-        <button id="btn-duel-back" class="big" data-i18n="duel.build.back">↩ 返回擂台榜</button>
+        <button id="btn-duel-back" class="big qs-textlink" data-i18n="duel.build.back">↩ 返回擂台榜</button>
       </div>
     </div>
   </section>
@@ -2551,10 +2551,10 @@
 
   <script src="i18n.js?v=20261025794a"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=2026102553c4"></script>
-  <script src="play.js?v=20261025ca63"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
+  <script src="app.js?v=20261025b571"></script>
+  <script src="play.js?v=20261025dd95"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
-  <script src="arena.js?v=20261025b51f"></script>
+  <script src="arena.js?v=202610253339"></script>
   <script src="replay.js?v=20261025bda6"></script>
   <script src="auth.js?v=202610252658"></script>
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
