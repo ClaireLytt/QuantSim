@@ -1072,7 +1072,19 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 14px 36px -18px rgba(0, 0, 0, .6);
   --tr-serif: "Noto Serif SC", "Songti SC", "SimSun", serif;
   --tr-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  /* 手写体用系统楷体栈：只点睛一行文案，不值得为它自托管整套 CJK 手写字库 */
+  --tr-hand: "STKaiti", "Kaiti SC", "KaiTi", "FangSong", cursive;
   --tr-rain: hsla(160, 18%, 60%, .07);
+  /* 纸面材质三件套（craft 原型转正）：纤维噪点 / 纸底渐变 / 内阴影；暗色是墨纸版 */
+  --tr-fiber: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0.72  0 0 0 0 0.62  0 0 0 0 0.45  0 0 0 0.4 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>");
+  --tr-blend: soft-light;
+  --tr-paper-grad:
+    radial-gradient(ellipse at 30% 12%, hsla(150, 12%, 24%, .5), transparent 55%),
+    linear-gradient(180deg, hsl(168, 12%, 13%) 0%, hsl(168, 12%, 10%) 100%);
+  --tr-paper-shadow:
+    inset 0 0 46px hsla(170, 20%, 4%, .5),
+    inset 0 1px 0 hsla(140, 15%, 60%, .08),
+    0 1px 2px rgba(0, 0, 0, .35), 0 14px 36px -18px rgba(0, 0, 0, .6);
   position: relative;
   color: var(--text);
   background:
@@ -1104,19 +1116,36 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   --sheen: rgba(255, 255, 255, .6);
   --shadow: 0 1px 2px hsla(30, 12%, 40%, .1), 0 12px 32px -18px hsla(30, 12%, 30%, .4);
   --tr-rain: hsla(40, 10%, 60%, .08);
+  --tr-blend: multiply;
+  --tr-paper-grad:
+    radial-gradient(ellipse at 30% 12%, hsla(45, 60%, 98%, .85), transparent 55%),
+    radial-gradient(ellipse at 82% 92%, hsla(28, 35%, 78%, .3), transparent 60%),
+    linear-gradient(180deg, hsl(41, 24%, 96%) 0%, hsl(40, 20%, 93%) 60%, hsl(38, 18%, 91%) 100%);
+  --tr-paper-shadow:
+    inset 0 0 46px hsla(30, 25%, 55%, .13),
+    inset 0 1px 0 hsla(45, 60%, 98%, .8),
+    0 1px 2px hsla(30, 12%, 40%, .1), 0 12px 32px -18px hsla(30, 12%, 30%, .4);
   background:
     radial-gradient(ellipse 60% 48% at 22% 0%, hsl(40, 18%, 95%), transparent 65%),
     linear-gradient(172deg, hsl(38, 14%, 91%), hsl(36, 10%, 85%) 70%);
 }
-/* 噪点与檐外细雨：absolute 跟内容走，只盖首页自身；雨丝 3s 慢速保持"冷静" */
+/* 胶片颗粒（craft 转正）：overlay 混合盖在内容上方，pointer-events 穿透；雨丝 3s 慢速保持"冷静" */
 #view-home::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
-  opacity: .5;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .03 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index: 2;
+  opacity: .09;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.6'/></svg>");
+}
+/* 暗角（craft 转正，亮色室内版压茶褐不压黑）：inset 阴影画在背景之上内容之下，零遮挡风险 */
+#view-home {
+  box-shadow: inset 0 0 140px -30px hsla(30, 25%, 25%, .22);
+}
+:root:not([data-theme="light"]) #view-home {
+  box-shadow: inset 0 0 160px -30px rgba(0, 0, 0, .5);
 }
 #view-home::after {
   content: "";
@@ -1175,9 +1204,27 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   background: color-mix(in srgb, var(--surface-2) 72%, transparent);
   border-color: var(--border);
 }
-/* 卡片落上双层柔影（原型决策：纸面 + 1px 柔边 + 近影/远影） */
+/* 纸面材质（craft 转正）：纤维噪点与纸底渐变叠在同一 background 栈里（免用伪元素，
+   按钮卡片都适用），内阴影做边缘压暗 + 顶部受光 */
 #view-home .home-core,
 #view-home .home-reco,
+#view-home .home-hero,
+#view-home .home-group-grid .home-card,
 #view-home .card {
-  box-shadow: var(--shadow);
+  background: var(--tr-fiber), var(--tr-paper-grad);
+  background-blend-mode: var(--tr-blend), normal;
+  box-shadow: var(--tr-paper-shadow);
+}
+/* 打字机体标签（三字体之二）：推荐位 tag 与 hero 标语行 */
+#view-home .lab-tier,
+#view-home .home-hero-text .hint {
+  font-family: var(--tr-mono);
+  letter-spacing: .18em;
+}
+/* 手写体点睛（三字体之三）：只给 footer 那句雨注 */
+#view-home .home-footer .hint {
+  font-family: var(--tr-hand);
+  font-size: 19px;
+  color: var(--accent);
+  transform: rotate(-.5deg);
 }
