@@ -1099,6 +1099,7 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   --accent: hsl(88, 24%, 70%);
   --accent-strong: hsl(88, 20%, 58%);
   --accent-2: hsl(88, 24%, 70%);
+  --accent-soft: hsl(88, 20%, 60%);
   --on-accent: hsl(170, 16%, 10%);
   --up: hsl(18, 62%, 64%);
   --down: hsl(150, 28%, 62%);
@@ -1147,6 +1148,7 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   --accent: hsl(22, 38%, 40%);
   --accent-strong: hsl(22, 42%, 32%);
   --accent-2: hsl(22, 38%, 40%);
+  --accent-soft: hsl(22, 32%, 48%);
   --on-accent: hsl(40, 20%, 95%);
   --up: hsl(14, 55%, 40%);
   --down: hsl(150, 20%, 31%);
