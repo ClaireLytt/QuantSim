@@ -1,6 +1,8 @@
 // 中英文双语字典与切换。t(key, ...args) 取当前语言文案, {0}/{1} 为占位符。
 // 结构 (架构评审③ 2026-10-25): 每键一行 [zh, en] 双语对齐 —— 增删改一个键只动一行,
 // "EN 漏翻"从流程纪律问题变成结构上不可能; ui_check 的缺键/死键扫描照常兜底。
+// 工具契约: ui_check 的 E4b/E6 按"一键一行、双语字面量同行"逐行正则解析——值不要换行,
+// 新键严格照此行形写 (code-review 点名的隐性契约, 在此显式化)。
 const PAIRS = {
   "app.title": ["QuantSim 虚拟炒股", "QuantSim Trading Game"],
   "header.sub": ["虚拟炒股游戏", "Virtual Trading Game"],

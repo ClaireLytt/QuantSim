@@ -19,7 +19,8 @@ from datetime import date
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND = os.path.join(ROOT, "frontend")
 PAGES = ["index.html", "landing.html"]
-REF = re.compile(r'((?:src|href)=")([\w./]+\.(?:js|css))\?v=(\w+)(")')
+# 文件名字符类含连字符: lab-games.css 曾因 \w 不含 '-' 被漏盖 (code-review 发现的真 bug)
+REF = re.compile(r'((?:src|href)=")([-\w./]+\.(?:js|css))\?v=(\w+)(")')
 
 
 def fingerprint(path: str) -> str:

@@ -16,12 +16,12 @@
   <link rel="manifest" href="manifest.json">
   <!-- 自托管字体 (茶室首页样板): Noto Serif SC 600 + IBM Plex Mono 400/500, woff2 子集在 fonts/, 不走 CDN -->
   <link rel="stylesheet" href="fonts.css?v=202610255dfb">
-  <!-- 样式按视图域拆分 (2026-10): style.css 是基础层 (变量/主题/框架), 必须第一个加载 -->
+  <!-- 样式分层 (2026-10-25 架构评审①): theme.css 皮肤单属主必须第一个加载, style.css 是布局框架层, 其余按视图域拆分 -->
   <link rel="stylesheet" href="theme.css?v=202610251604"><!-- 皮肤单属主, 必须第一个加载 (架构评审①) -->
   <link rel="stylesheet" href="style.css?v=202610256cd4">
   <link rel="stylesheet" href="game.css?v=202610257c9a">
   <link rel="stylesheet" href="academy.css?v=202610259816">
-  <link rel="stylesheet" href="lab-games.css?v=20261025b">
+  <link rel="stylesheet" href="lab-games.css?v=20261025817a">
   <link rel="stylesheet" href="widgets.css?v=20261025fa22">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
@@ -2541,7 +2541,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610258c1a"></script>
+  <script src="i18n.js?v=20261025964c"></script>
   <script src="glossary.js?v=202610257671"></script>
   <script src="app.js?v=202610258fa6"></script>
   <script src="play.js?v=20261025ca63"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
