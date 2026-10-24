@@ -531,26 +531,45 @@ header.collapsed h1 .sub { display: none; }
   max-width: 44ch;
   margin: 0 auto;
 }
-/* 偏好选择: 次级区并排, 跟在 start-custom-label 分隔线之后 */
-#view-event .event-prefs {
+/* 偏好选择: 次级区并排, 跟在 start-custom-label 分隔线之后 (事件回放/好友房间共用) */
+#view-event .event-prefs,
+#view-rooms .event-prefs {
   display: flex;
   gap: 18px;
   justify-content: center;
   flex-wrap: wrap;
   margin-top: 14px;
 }
-#view-event .event-prefs label {
+#view-event .event-prefs label,
+#view-rooms .event-prefs label {
   display: flex;
   align-items: center;
   gap: 8px;
   color: var(--text-muted);
   font-size: 13px;
 }
-#view-event .event-prefs select { width: auto; }
+#view-event .event-prefs select,
+#view-rooms .event-prefs select { width: auto; }
+/* checkbox 不吃全局输入全宽, 否则被撑成长条 */
+#view-rooms .event-prefs input[type="checkbox"] { width: auto; }
+
+/* 好友房间 (ticket 13): 双入口卡居中 hero; 房间码与战况数字列等宽 (刷新不跳宽) */
+#view-rooms #room-create-card,
+#view-rooms #room-join-card {
+  text-align: center;
+  padding: 36px 28px 30px;
+}
+#view-rooms .room-code,
+#view-rooms #room-standings td:first-child,
+#view-rooms #room-standings td:nth-child(3),
+#view-rooms #room-standings td:last-child {
+  font-family: var(--tr-mono);
+}
 #view-daily .daily-actions,
 #view-event .daily-actions { margin-top: 20px; }
 #view-daily .daily-actions button,
-#view-event .daily-actions button {
+#view-event .daily-actions button,
+#view-rooms .daily-actions button.primary {
   font-size: 16px;
   font-weight: 700;
   padding: 13px 30px;
