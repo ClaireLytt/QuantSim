@@ -511,6 +511,13 @@ header.collapsed h1 .sub { display: none; }
 
 #hist-games, #hist-bt { margin-bottom: 18px; }
 
+/* 茶室·我的域（ticket 05）：战绩表格数字列等宽，对齐不抖 */
+#view-history table td,
+#view-career .career-stats,
+#view-mine .mine-stats {
+  font-family: var(--tr-mono);
+}
+
 /* ---------- 茶室皮肤·对局域（2026-10-24 推广自首页样板） ----------
    色板/纸面材质/暗角由 widgets.css 的作用域块（#view-home + #view-game）承载，
    这里只写对局独有的两根支柱：衬线标题 + 等宽数字。
