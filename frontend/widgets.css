@@ -731,6 +731,42 @@
   border-top: 1px solid var(--border);
   border-left: 1px solid var(--border);
 }
+/* 气泡对话效果 (craft 原型转正): 淡入 / 打字光标 / LLM 思考键帽 */
+.pet-bubble:not([hidden]) { animation: pet-bubble-in .4s cubic-bezier(.2, .8, .3, 1); }
+@keyframes pet-bubble-in {
+  from { opacity: 0; translate: 0 8px; }
+  to { opacity: 1; translate: 0 0; }
+}
+.pet-typing::after {
+  content: "▍";
+  color: var(--pet-warm);
+  margin-left: 1px;
+  animation: pet-cursor-blink 1s steps(1, end) infinite;
+}
+@keyframes pet-cursor-blink { 50% { opacity: 0; } }
+/* 思考键帽: 只在等 /pet/chat 回复时出现, 三颗轮流下沉 */
+.pet-thinking-caps { display: flex; gap: 5px; }
+.pet-thinking-caps i {
+  width: 20px;
+  height: 18px;
+  border-radius: 4px;
+  font-style: normal;
+  font: 10px/18px ui-monospace, monospace;
+  text-align: center;
+  color: var(--text-muted);
+  background: linear-gradient(180deg, var(--panel-raised), var(--surface-2));
+  box-shadow: 0 2px 0 var(--border-strong);
+  animation: pet-key-think 1.2s cubic-bezier(.35, .1, .65, .9) infinite;
+}
+.pet-thinking-caps i:nth-child(2) { animation-delay: .2s; }
+.pet-thinking-caps i:nth-child(3) { animation-delay: .4s; }
+@keyframes pet-key-think {
+  0%, 100% { transform: translateY(0); box-shadow: 0 2px 0 var(--border-strong); }
+  30% { transform: translateY(2px); box-shadow: 0 0 0 var(--border-strong); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pet-bubble:not([hidden]), .pet-typing::after, .pet-thinking-caps i { animation: none; }
+}
 .pet-pop-up .pet-bubble::before { top: auto; bottom: -6px; rotate: 225deg; }
 .pet-pop-left .pet-bubble::before { left: auto; right: 18px; }
 .pet-pop-left .pet-bubble, .pet-pop-left .pet-pop { left: auto; right: 26px; }
@@ -765,12 +801,13 @@
 .pet-head-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .pet-avatar { width: 38px; height: 38px; flex: none; }
 .pet-avatar svg { width: 100%; height: 100%; }
-.pav-face { fill: color-mix(in srgb, var(--accent) 14%, var(--surface-2)); stroke: color-mix(in srgb, var(--accent) 45%, var(--border-strong)); stroke-width: 1.6; }
-.pav-body { fill: var(--surface-2); stroke: var(--border-strong); stroke-width: 1.4; }
-.pav-line { stroke: var(--border-strong); stroke-width: 1.6; }
-.pav-dot { fill: var(--accent-2); }
-.pav-eye { fill: var(--accent-2); }
-.pav-eye-happy { fill: none; stroke: var(--accent-2); stroke-width: 1.8; stroke-linecap: round; display: none; }
+/* 宠物头像走专属暖色 --pet-warm (用户多次反馈"宠物发灰", 原因是灰底灰边只靠一点主色混色撑不起颜色) */
+.pav-face { fill: color-mix(in srgb, var(--pet-warm) 26%, var(--surface-2)); stroke: color-mix(in srgb, var(--pet-warm) 70%, var(--border-strong)); stroke-width: 1.6; }
+.pav-body { fill: color-mix(in srgb, var(--pet-warm) 14%, var(--surface-2)); stroke: color-mix(in srgb, var(--pet-warm) 50%, var(--border-strong)); stroke-width: 1.4; }
+.pav-line { stroke: color-mix(in srgb, var(--pet-warm) 55%, var(--border-strong)); stroke-width: 1.6; }
+.pav-dot { fill: var(--pet-warm); }
+.pav-eye { fill: var(--pet-warm-deep); }
+.pav-eye-happy { fill: none; stroke: var(--pet-warm-deep); stroke-width: 1.8; stroke-linecap: round; display: none; }
 .pav-mouth { fill: none; stroke: var(--text-muted); stroke-width: 1.6; stroke-linecap: round; }
 /* 开心: 眯眼弧线; 低落: 嘴角反转 */
 .pet-happy .pav-eye { display: none; }

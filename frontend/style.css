@@ -18,6 +18,9 @@
   --accent-2: #64d2ff;
   --accent-soft: #7d7aff;
   --on-accent: #ffffff;
+  /* 宠物专属暖色 (2026-10 用户钦定: 宠物不能灰, 独立于主题主色) */
+  --pet-warm: #d98a52;
+  --pet-warm-deep: #b5602f;
   --warn: #ffd60a;
   --mask: rgba(0, 0, 0, .55);
   --shadow: 0 1px 3px rgba(0, 0, 0, .3), 0 4px 14px rgba(0, 0, 0, .22);
@@ -64,6 +67,9 @@
   --accent-strong: #4a48c4;
   --accent-2: #008577;
   --accent-soft: #6a63e0;
+  /* 宠物专属暖色 (亮色阶调深保证对比) */
+  --pet-warm: #c06a35;
+  --pet-warm-deep: #9c4f1f;
   --warn: #9a6a00;
   --mask: rgba(0, 0, 0, .32);
   --shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 4px 14px rgba(0, 0, 0, .07);
