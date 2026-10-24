@@ -57,7 +57,7 @@
       li.className = "duel-card" + (i < 3 ? " duel-top" : "");
       const rank = document.createElement("b");
       rank.className = "duel-rank";
-      rank.textContent = ["🥇", "🥈", "🥉"][i] || "#" + (i + 1);
+      rank.textContent = "#" + (i + 1); // 茶色序号徽章 (ticket 14: 奖牌 emoji 违反设计禁令, 名次由 duel-top 描边 + 序号表达)
       const main = document.createElement("div");
       main.className = "duel-main";
       const title = document.createElement("strong");

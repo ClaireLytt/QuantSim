@@ -581,6 +581,20 @@ header.collapsed h1 .sub { display: none; }
   font-family: var(--tr-mono);
 }
 
+/* 茶室·排行榜/竞技场数字支柱（ticket 15）：名次与数值列等宽，刷新/排序不跳宽 */
+#view-ranking #leaderboard td:first-child,
+#view-ranking #leaderboard td:nth-child(n+4),
+#view-ranking #points-board td:first-child,
+#view-ranking #points-board td:last-child,
+#view-ranking #arena-board td:first-child,
+#view-ranking #arena-board td:nth-child(n+5),
+#view-duel .duel-final-table td:first-child,
+#view-duel .duel-final-table td:nth-child(n+3),
+#view-arena #bt-result dd,
+#view-arena .arena-stat b {
+  font-family: var(--tr-mono);
+}
+
 /* 茶室·我的域（ticket 05）：战绩表格数字列等宽，对齐不抖 */
 #view-history table td,
 #view-career .career-stats,
