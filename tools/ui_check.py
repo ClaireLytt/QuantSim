@@ -121,25 +121,34 @@ def main():
                 errors.append(f'E5 半死按钮: id "{bid}" 有引用但未发现事件绑定 @ index.html:{line}')
 
     # ---------- i18n ----------
+    # 字典结构 (架构评审③ 2026-10-25): PAIRS = { "key": ["zh", "en"], ... } 每键一行双语对齐。
+    # zh/en 同行给出, 双语缺一即是结构错误 (E4b), "缺英文回退"一类状态不再存在。
     i18n_src = sources.get("i18n.js", "")
     zh_keys, en_keys = set(), set()
-    section = None
-    section_name = ""
+    in_pairs = False
     for ln, line in enumerate(i18n_src.splitlines(), 1):
-        if re.match(r"\s*zh:\s*{", line):
-            section, section_name = zh_keys, "zh"
-        elif re.match(r"\s*en:\s*{", line):
-            section, section_name = en_keys, "en"
-        elif re.match(r"\s*},?\s*$", line) and section is not None:
-            # 只在遇到语言块结束时退出该 section; 嵌套结构 i18n.js 没有, 够用
-            if section is en_keys or section is zh_keys:
-                section = None
-        km = re.match(r'\s*"([^"]+)":', line)
-        if km and section is not None:
-            # E6 同一字典键重复定义: JS 对象字面量后者覆盖前者, 极难察觉
-            if km.group(1) in section:
-                errors.append(f'E6 i18n 键 "{km.group(1)}" 在 {section_name} 字典重复定义 @ i18n.js:{ln}')
-            section.add(km.group(1))
+        if re.match(r"\s*const PAIRS\s*=\s*{", line):
+            in_pairs = True
+            continue
+        if in_pairs and re.match(r"\s*};\s*$", line):
+            in_pairs = False
+            continue
+        if not in_pairs:
+            continue
+        km = re.match(r'\s*"((?:[^"\\]|\\.)+)":\s*\[', line)
+        if not km:
+            continue
+        key = km.group(1)
+        # E6 键重复定义: JS 对象字面量后者覆盖前者, 极难察觉
+        if key in zh_keys:
+            errors.append(f'E6 i18n 键 "{key}" 重复定义 @ i18n.js:{ln}')
+        zh_keys.add(key)
+        # 双语对齐校验: 行内必须是两个字符串字面量 (显式空串合法, 如 unit.money 英文无"元"后缀)
+        pm = re.match(r'\s*"(?:[^"\\]|\\.)+":\s*\["(?:[^"\\]|\\.)*",\s*"(?:[^"\\]|\\.)*"\]', line)
+        if pm:
+            en_keys.add(key)
+        else:
+            errors.append(f'E4b i18n 键 "{key}" 双语对不完整 (en 字面量缺失) @ i18n.js:{ln}')
 
     used_keys = {}  # key -> "file:line"
     # data-i18n / -placeholder / -title / -attr 四种挂载方式都要收集
