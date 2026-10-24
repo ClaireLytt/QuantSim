@@ -601,7 +601,7 @@ function finishQuiz() {
 
 function renderQuizResult() {
   if (!quizResult) return;
-  const { norm, persona } = quizResult;
+  const { persona } = quizResult;
   $("quiz-persona").textContent = t("quiz.resultTitle", pick(persona.name));
   $("quiz-desc").innerHTML = linkifyTerms(pick(persona.desc));
   const adviceEl = $("quiz-advice");
