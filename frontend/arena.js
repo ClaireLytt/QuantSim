@@ -464,7 +464,15 @@ function buildEquityOption(curve, prev) {
     dataZoom: [
       { type: "inside", start: 0, end: 100 },
       { type: "slider", bottom: 0, height: 18,
-        borderColor: COLORS.border, textStyle: { color: COLORS.muted } },
+        // 滑块跟随主题色, 不给默认蓝 (对局主图同款, ticket 01 口径)
+        borderColor: COLORS.border, textStyle: { color: COLORS.muted },
+        backgroundColor: "transparent",
+        fillerColor: hexA(COLORS.accent, 0.14),
+        handleStyle: { color: COLORS.panel, borderColor: COLORS.border },
+        moveHandleStyle: { color: COLORS.border },
+        emphasis: { handleStyle: { borderColor: COLORS.accent }, moveHandleStyle: { color: COLORS.accent } },
+        dataBackground: { lineStyle: { color: COLORS.border }, areaStyle: { color: hexA(COLORS.muted, 0.1) } },
+        selectedDataBackground: { lineStyle: { color: COLORS.accent }, areaStyle: { color: hexA(COLORS.accent, 0.12) } } },
     ],
     series: [
       { name: t("bt.legendStrategy"), type: "line", data: curve.map((p) => p.strategy),

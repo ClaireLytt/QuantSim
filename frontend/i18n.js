@@ -356,6 +356,7 @@ const PAIRS = {
   "arena.addCond": ["+ 添加条件", "+ Add condition"],
   "arena.delCond": ["删除条件", "Remove condition"],
   "arena.run": ["运行回测", "Run Backtest"],
+  "arena.customize": ["想换个打法？标的 · 策略 · 参数", "Prefer a different play? Stock · strategy · params"],
   "arena.tune": ["自动调参", "Auto-tune"],
   "arena.tuning": ["正在网格搜索最优参数…", "Grid-searching for the best parameters…"],
   "arena.tuneMsg": ["已尝试 {0} 组参数，最优：{1}（已填入上方表单并入榜）", "Tried {0} parameter sets. Best: {1} (filled into the form above and submitted to the board)"],
