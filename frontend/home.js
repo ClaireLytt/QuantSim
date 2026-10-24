@@ -40,7 +40,8 @@
       label.appendChild(sub);
       wrap.appendChild(label);
       const grid = document.createElement("div");
-      grid.className = "home-group-grid";
+      // 组级 class: 即时速玩 12 卡压成两列行式条目 (ticket 18, critic "卡片海"), 其余组维持网格
+      grid.className = "home-group-grid home-group-" + g.id;
       g.cards.forEach(({ view, tier, emoji }) => {
         const btn = document.createElement("button");
         btn.className = "home-card" + (tier === "hero" ? " featured" : tier === "tool" ? " tool" : "");

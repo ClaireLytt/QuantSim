@@ -521,6 +521,25 @@
 .home-group-grid .home-card.featured:hover {
   box-shadow: 0 6px 20px var(--glow-accent);
 }
+/* 即时速玩: 两列紧凑行式条目 (ticket 18) —— 图标+名+一行描述同一行, 卡片海收敛;
+   hero (小游戏专区) 横跨整行作扫视锚点 */
+.home-group-quick { grid-template-columns: 1fr 1fr; }
+.home-group-quick .home-card:not(.featured) {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 14px;
+}
+.home-group-quick .home-card:not(.featured) strong { flex: 0 0 auto; font-size: 13px; }
+.home-group-quick .home-card:not(.featured) .hint {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* 进阶工具小卡: 低饱和下沉 —— surface-2 底 + muted 标题, hover 只亮边框不上浮不发光 */
 .home-group-grid .home-card.tool {
   padding: 10px 12px;
