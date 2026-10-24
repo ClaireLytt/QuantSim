@@ -4,8 +4,8 @@
 
 **Blocked by:** None（按序最后执行，吸收 18/19 的视觉变化后再定稿）
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 亮色全页只可辨两级底色（截图）
-- [ ] 竞技场无网格纹
-- [ ] ui_check WCAG 双主题 0 + buttons 0 + smoke 9/9
+- [x] 亮色全页只可辨两级底色（截图）
+- [x] 竞技场无网格纹
+- [x] ui_check WCAG 双主题 0 + buttons 0 + smoke 9/9
