@@ -10,7 +10,7 @@
        评审整改 (4.5 分轮): hero 换 ECharts 真图表、三步改横向时间线、区块加过渡、
        CTA 收敛为单一动词短语、卡片内建层级、数字条砍到 3 个。 -->
   <link rel="stylesheet" href="style.css?v=20261014m">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
+  <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
   <script>
     // 与应用共享主题偏好 (暗色默认)
     try { if (localStorage.getItem("qs_theme") === "light") document.documentElement.dataset.theme = "light"; } catch (e) {}
