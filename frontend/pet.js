@@ -277,6 +277,12 @@
 
   // ---------- 渲染 ----------
   let bubbleTimer;
+  // 气泡让路 (ticket 12): 点按立即收起 (移动端无 hover, 这是等价出口); hover 淡出走 CSS
+  $("pet-bubble").addEventListener("click", () => {
+    clearTimeout(bubbleTimer);
+    speakToken++; // 打断进行中的逐字打字, 否则收起后又被补字顶回来
+    $("pet-bubble").hidden = true;
+  });
   // 逐字打字 (craft 原型转正): 标点多停一拍像落笔迟疑; token 防新话打断旧话时串字
   let speakToken = 0;
   const REDUCED_MOTION = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;

@@ -731,6 +731,13 @@
   border-top: 1px solid var(--border);
   border-left: 1px solid var(--border);
 }
+/* 气泡让路 (ticket 12): 悬停淡出可读底下内容, 移开恢复; 配合 pet.js 点按收起 */
+#pet-bubble {
+  cursor: pointer;
+  transition: opacity .25s var(--ease-out);
+}
+#pet-bubble:hover { opacity: .12; }
+
 /* 气泡对话效果 (craft 原型转正): 淡入 / 打字光标 / LLM 思考键帽 */
 .pet-bubble:not([hidden]) { animation: pet-bubble-in .4s cubic-bezier(.2, .8, .3, 1); }
 @keyframes pet-bubble-in {
@@ -1091,7 +1098,7 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   /* 底层色 = var(--surface): 容器与 body 同底, 边缘零色阶 (ticket 07, critic #1 夹层);
      受光 radial 只做轻微氛围, 不改变基调 */
   background:
-    radial-gradient(ellipse 54% 38% at 78% 0%, hsla(80, 25%, 55%, .1), transparent 60%),
+    radial-gradient(ellipse 54% 38% at 78% 0%, hsla(32, 40%, 55%, .09), transparent 60%),
     var(--surface);
   border-radius: 0 0 var(--radius) var(--radius);
 }
@@ -1172,8 +1179,9 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
 /* 纸面卡与墨按钮：primary 按原型定为"墨底纸字"（暗色下为灯晕浅绿底墨字），
    覆盖全局的紫色渐变与光晕 */
 .tearoom button.primary {
-  background: hsl(30, 12%, 22%);
-  color: hsl(40, 20%, 94%);
+  /* 亮色主按钮 = 茶褐实心纸字 (ticket 11, 原近黑像 SaaS); 暗色版在下方覆盖 */
+  background: var(--accent-strong);
+  color: hsl(40, 20%, 95%);
   box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
 }
 .tearoom button.primary:hover:not(:disabled) {
@@ -1181,8 +1189,9 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
   box-shadow: 0 4px 16px var(--glow-accent);
 }
 :root:not([data-theme="light"]) .tearoom button.primary {
-  background: hsl(88, 25%, 68%);
-  color: hsl(170, 16%, 10%);
+  /* 夜茶室点睛: 茶色灯晕底 + 墨字 (ticket 10/11) */
+  background: var(--accent);
+  color: var(--on-accent);
 }
 /* hero 行情图外框在纸面上收敛为细线内衬 */
 #view-home .home-hero-art {
