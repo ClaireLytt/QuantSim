@@ -199,6 +199,7 @@ pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端
 | 弹窗不手搓背板三件套 | `ui_check.py` E9 → 指路 qsModal | lint |
 | 死按钮 / 重复 id / i18n 缺键漏键 / 对比度 | `ui_check.py` E1–E7 + PostToolUse hook | lint+hook |
 | 改资源必须失效缓存 (?v=) | `tools/bump_assets.py` 内容指纹自动盖 (hook 内先跑), W3 兜底 | 机制 |
+| 按钮禁 emoji 功能图标 (设计禁令) | `ui_check.py` E10 (扫 button 文本 + 挂 button 的 i18n 键) | lint+hook |
 | 笔数预算口径唯一 | `TradeBudget` 深模块 + `TradeBudgetTest` | 架构+测试 |
 | 撮合决策矩阵唯一且闸门顺序固定 | `OrderMatching` + `OrderMatchingTest` | 架构+测试 |
 | pandas/Spark 指标口径一致 | `tests/test_indicator_parity.py` 对拍 | 测试 |
