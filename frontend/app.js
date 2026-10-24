@@ -29,6 +29,23 @@ function hexA(color, a) {
   return color;
 }
 
+// dataZoom 滑块主题化的唯一口径 (2026-10-25 /correct 错误类 B): 曾在对局主图与回测曲线
+// 各手搓一份同样的 token 组合, 两处必然漂移。新图表要滑块一律 { ...qsSliderZoom(C), 自己的定位 }。
+function qsSliderZoom(C) {
+  return {
+    type: "slider",
+    borderColor: C.border,
+    textStyle: { color: C.muted },
+    backgroundColor: "transparent",
+    fillerColor: hexA(C.accent, 0.14),
+    handleStyle: { color: C.panel, borderColor: C.border },
+    moveHandleStyle: { color: C.border },
+    emphasis: { handleStyle: { borderColor: C.accent }, moveHandleStyle: { color: C.accent } },
+    dataBackground: { lineStyle: { color: C.border }, areaStyle: { color: hexA(C.muted, 0.1) } },
+    selectedDataBackground: { lineStyle: { color: C.accent }, areaStyle: { color: hexA(C.accent, 0.12) } },
+  };
+}
+
 
 const state = {
   sessionId: null,
