@@ -129,7 +129,7 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
           # 不配 npm 缓存: package-lock.json 被本仓有意 gitignore (前端零 npm 哲学),
