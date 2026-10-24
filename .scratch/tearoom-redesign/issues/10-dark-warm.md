@@ -4,8 +4,8 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 暗色全页截图呈暖褐夜茶室（无灰绿残留）
-- [ ] ui_check WCAG 双主题 0 error（accent/surface 等紧边距重验）
-- [ ] buttons 0 + smoke 主题切换往返过
+- [x] 暗色全页截图呈暖褐夜茶室（无灰绿残留）
+- [x] ui_check WCAG 双主题 0 error（accent/surface 等紧边距重验）
+- [x] buttons 0 + smoke 主题切换往返过

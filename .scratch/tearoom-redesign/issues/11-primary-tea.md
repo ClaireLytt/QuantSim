@@ -4,8 +4,8 @@
 
 **Blocked by:** 10（暗色点睛色由 10 定调）
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 亮色主按钮茶褐、暗色主按钮茶色点睛（截图）
-- [ ] on-accent 文字对比度过 WCAG（ui_check 0）
-- [ ] buttons 0
+- [x] 亮色主按钮茶褐、暗色主按钮茶色点睛（截图）
+- [x] on-accent 文字对比度过 WCAG（ui_check 0）
+- [x] buttons 0

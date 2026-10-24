@@ -4,8 +4,8 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 悬停气泡 → 淡出可读底下文字；移开恢复
-- [ ] 点按气泡立即收起
-- [ ] buttons 0 + 无 console error
+- [x] 悬停气泡 → 淡出可读底下文字；移开恢复
+- [x] 点按气泡立即收起
+- [x] buttons 0 + 无 console error
