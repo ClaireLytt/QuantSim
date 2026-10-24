@@ -1,0 +1,317 @@
+<!doctype html>
+<!--
+  PROTOTYPE — 可丢弃原型，勿当生产代码。
+  问题：room-1913 的工艺栈（三字体 / 纸面材质 / 全局氛围层 / 动效阶梯）搬到 QuantSim
+  茶室方向上，哪些层值得要？场景 = 茶室顾问对话 + 对局日头。
+  - 三字体：正文衬线 Noto Serif SC · 标签打字机 IBM Plex Mono/Special Elite · 用户发言手写 Ma Shan Zheng
+  - 材质：.paper = 多层渐变 + feTurbulence 噪点 + 内阴影（模板抄自 room-1913，调成茶室亮色）
+  - 氛围：vignette 暗角 → 胶片颗粒 → 雾，全是 fixed 覆盖层
+  - 动效阶梯：消息淡入 → 光标闪烁 → 逐字打字 → 按键下沉 → 思考键帽 → canvas 雨
+  底部开关可逐层启停（回答"哪层值得"）。双击即开，纯 mock，无持久化。
+  约束：无紫色、无 emoji、动画不用 ease-in-out、背景非纯平。
+-->
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuantSim 茶室工艺原型</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600&family=IBM+Plex+Mono:wght@400;500&family=Ma+Shan+Zheng&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --room:hsl(38,14%,91%); --shade:hsl(36,10%,84%); --paper:hsl(40,22%,95%);
+    --ink:hsl(30,10%,24%); --ink2:hsl(32,8%,42%); --dim:hsl(34,8%,56%);
+    --tea:hsl(22,38%,42%); --moss:hsl(150,16%,34%); --line:hsl(36,10%,78%);
+    --serif:"Noto Serif SC","Songti SC",serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+    --type:"Special Elite","IBM Plex Mono",monospace;
+    --hand:"Ma Shan Zheng",cursive;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    -webkit-font-smoothing:antialiased;
+    font-family:var(--serif); color:var(--ink); min-height:100vh;
+    background:
+      radial-gradient(ellipse 60% 48% at 22% 0%, hsl(40,18%,95%), transparent 65%),
+      linear-gradient(172deg, var(--room), var(--shade) 70%);
+    background-attachment:fixed;
+  }
+  button { cursor:pointer; font:inherit; border:none; background:none; color:inherit; }
+
+  /* ========== 全局氛围层（fixed 覆盖，开关控制） ========== */
+  /* canvas 雨在最底 */
+  #rain { position:fixed; inset:0; z-index:1; pointer-events:none; }
+  /* 雾：两层漂移（亮色调成暖雾） */
+  .fog { position:fixed; inset:-10%; pointer-events:none; z-index:2; opacity:.5;
+    background:
+      radial-gradient(ellipse at 20% 80%, hsla(38,40%,80%,.5), transparent 55%),
+      radial-gradient(ellipse at 80% 20%, hsla(35,30%,78%,.4), transparent 60%);
+    filter:blur(40px);
+    animation:fogDrift 32s cubic-bezier(.45,.05,.55,.95) infinite alternate; }
+  .fog-deep { position:fixed; inset:-15%; pointer-events:none; z-index:2; opacity:.35;
+    background:
+      radial-gradient(ellipse at 70% 50%, hsla(150,15%,70%,.3), transparent 50%),
+      radial-gradient(ellipse at 30% 30%, hsla(40,25%,75%,.28), transparent 60%);
+    filter:blur(60px);
+    animation:fogDrift 48s cubic-bezier(.45,.05,.55,.95) infinite alternate-reverse; }
+  @keyframes fogDrift {
+    0% { transform:translate3d(0,0,0) scale(1); }
+    50% { transform:translate3d(2%,-1.5%,0) scale(1.06); }
+    100% { transform:translate3d(-2%,1.5%,0) scale(1.03); }
+  }
+  /* 胶片颗粒（overlay 混合） */
+  .grain { position:fixed; inset:0; pointer-events:none; z-index:60; opacity:.09; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.6'/></svg>"); }
+  /* 暗角（亮色室内版：柔和茶褐，不压成黑） */
+  .vignette { position:fixed; inset:0; pointer-events:none; z-index:55;
+    background:radial-gradient(ellipse at 50% 46%, transparent 48%, hsla(30,25%,30%,.16) 82%, hsla(30,28%,20%,.34) 100%); }
+  /* 开关关掉 = display none */
+  body:not(.on-rain) #rain, body:not(.on-fog) .fog, body:not(.on-fog) .fog-deep,
+  body:not(.on-grain) .grain, body:not(.on-vignette) .vignette { display:none; }
+
+  .shell { position:relative; z-index:10; max-width:880px; margin:0 auto; padding:44px 24px 150px; }
+
+  /* ========== 日头 ========== */
+  header { display:flex; align-items:baseline; gap:18px; }
+  header h1 { font-size:21px; font-weight:600; letter-spacing:.4em; }
+  header .tag { font-family:var(--type); font-size:12px; color:var(--ink2); letter-spacing:.14em; }
+  header .day { margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--dim); }
+
+  /* ========== 纸面材质（room-1913 .paper 模板，调亮色茶室） ========== */
+  .paper {
+    position:relative; margin-top:26px; border-radius:10px; overflow:hidden;
+    background:
+      radial-gradient(ellipse at 30% 18%, hsla(45,60%,98%,.8), transparent 55%),
+      radial-gradient(ellipse at 80% 90%, hsla(28,35%,75%,.35), transparent 60%),
+      linear-gradient(180deg, hsl(41,24%,96%) 0%, hsl(40,20%,93%) 60%, hsl(38,18%,90%) 100%);
+    border:1px solid hsla(30,20%,55%,.28);
+    box-shadow:
+      inset 0 0 70px hsla(30,25%,55%,.14),
+      inset 0 0 18px hsla(40,40%,90%,.5),
+      0 30px 60px -24px hsla(30,20%,25%,.45),
+      0 6px 20px -8px hsla(30,20%,30%,.25);
+  }
+  .paper::before { /* 纸纤维噪点 */
+    content:""; position:absolute; inset:0; pointer-events:none; opacity:.13; mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0.72  0 0 0 0 0.62  0 0 0 0 0.45  0 0 0 0.5 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>"); }
+  .paper::after { /* 边缘压暗 + 受光 */
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse at 50% 50%, transparent 58%, hsla(30,25%,35%,.12) 100%),
+      linear-gradient(135deg, hsla(45,70%,96%,.5), transparent 38%); }
+  body:not(.on-paper) .paper { background:var(--paper); box-shadow:0 10px 28px -16px hsla(30,20%,30%,.3); }
+  body:not(.on-paper) .paper::before, body:not(.on-paper) .paper::after { display:none; }
+
+  /* ========== 顾问对话（三字体各司其职） ========== */
+  .chat-head { display:flex; justify-content:space-between; align-items:baseline;
+    padding:18px 24px 0; position:relative; z-index:1; }
+  .chat-head .t { font-family:var(--type); font-size:12px; letter-spacing:.3em; color:var(--ink2); }
+  .chat-head .st { font-family:var(--mono); font-size:11px; color:var(--dim); }
+  .log { position:relative; z-index:1; padding:16px 24px 6px; min-height:300px;
+    display:flex; flex-direction:column; gap:14px; }
+  .msg { max-width:78%; opacity:1; }
+  body.on-fade .msg.enter { animation:msgIn .5s cubic-bezier(.2,.8,.3,1) both; }
+  @keyframes msgIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+  .msg .who { font-family:var(--type); font-size:11px; letter-spacing:.22em; color:var(--dim); margin-bottom:5px; }
+  .msg.ai { align-self:flex-start; }
+  .msg.ai .bubble { font-family:var(--serif); font-size:15px; line-height:1.9; color:var(--ink);
+    border-left:2px solid hsla(22,38%,42%,.45); padding:2px 0 2px 14px; }
+  .msg.me { align-self:flex-end; text-align:right; }
+  .msg.me .bubble { font-family:var(--hand); font-size:21px; line-height:1.6; color:var(--tea);
+    transform:rotate(-.6deg); }
+  /* 打字光标 */
+  .cursor::after { content:"▍"; color:var(--tea); margin-left:1px; }
+  body.on-cursor .cursor::after { animation:blink 1s steps(1,end) infinite; }
+  @keyframes blink { 50% { opacity:0; } }
+
+  /* 数据批注行：打字机体 */
+  .note { font-family:var(--type); font-size:12px; color:var(--ink2); letter-spacing:.1em;
+    padding:0 24px 8px; position:relative; z-index:1; }
+  .note b { color:var(--tea); font-family:var(--mono); font-weight:500; }
+
+  /* ========== 输入排 + 键帽 ========== */
+  .input-row { display:flex; gap:12px; padding:14px 24px 22px; position:relative; z-index:1;
+    border-top:1px dashed hsla(30,20%,55%,.3); margin-top:8px; align-items:stretch; }
+  .input-row input { flex:1; font-family:var(--hand); font-size:20px; color:var(--tea);
+    background:hsla(45,40%,98%,.6); border:1px solid var(--line); border-radius:6px; padding:8px 14px; }
+  .input-row input:focus { outline:none; border-color:var(--tea); }
+  .input-row input::placeholder { color:hsla(22,20%,60%,.7); font-size:17px; }
+  /* 键帽：双层立体，按下下沉（按键下沉动效） */
+  .keycap { position:relative; font-family:var(--mono); font-size:13px; letter-spacing:.2em;
+    padding:10px 26px; border-radius:8px; color:hsl(40,20%,95%);
+    background:linear-gradient(180deg, hsl(30,14%,32%), hsl(30,12%,24%));
+    box-shadow:0 4px 0 hsl(30,12%,16%), 0 8px 16px -6px hsla(30,20%,20%,.5);
+    transition:transform .08s cubic-bezier(.3,.7,.4,1), box-shadow .08s cubic-bezier(.3,.7,.4,1);
+    top:0; }
+  body.on-keys .keycap:active { transform:translateY(3px); box-shadow:0 1px 0 hsl(30,12%,16%), 0 4px 8px -4px hsla(30,20%,20%,.5); }
+  /* 思考键帽：assistant 生成中，三颗键帽轮流下沉 */
+  .thinking { display:none; align-self:flex-start; gap:6px; padding:4px 0 0 14px; }
+  .thinking.show { display:flex; }
+  .thinking i { width:26px; height:24px; border-radius:5px; display:block;
+    background:linear-gradient(180deg, hsl(38,18%,86%), hsl(37,14%,78%));
+    box-shadow:0 3px 0 hsl(35,12%,62%);
+    font-style:normal; font-family:var(--type); font-size:11px; color:var(--ink2);
+    text-align:center; line-height:24px; }
+  body.on-keys .thinking.show i { animation:keyThink 1.2s cubic-bezier(.35,.1,.65,.9) infinite; }
+  .thinking i:nth-child(2) { animation-delay:.2s; }
+  .thinking i:nth-child(3) { animation-delay:.4s; }
+  @keyframes keyThink { 0%,100% { transform:translateY(0); box-shadow:0 3px 0 hsl(35,12%,62%); }
+    30% { transform:translateY(3px); box-shadow:0 0 0 hsl(35,12%,62%); } }
+
+  /* ========== 开关条（评审工具，非设计本体） ========== */
+  .switchbar { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:99;
+    display:flex; gap:4px; flex-wrap:wrap; justify-content:center; max-width:94vw;
+    background:hsl(0,0%,10%); color:hsl(0,0%,94%); border-radius:14px; padding:8px 10px;
+    font:12px/1 var(--mono); box-shadow:0 12px 36px rgba(0,0,0,.45); }
+  .switchbar button { padding:7px 11px; border-radius:8px; letter-spacing:.04em; opacity:.45;
+    transition:opacity .15s cubic-bezier(.3,.7,.4,1); }
+  .switchbar button.on { opacity:1; background:hsl(0,0%,20%); }
+  @media (prefers-reduced-motion: reduce) {
+    .fog, .fog-deep, .cursor::after, .thinking i { animation:none !important; }
+  }
+</style>
+</head>
+<body class="on-paper on-fog on-grain on-vignette on-rain on-fade on-cursor on-type on-keys">
+
+<canvas id="rain"></canvas>
+<div class="fog"></div><div class="fog-deep"></div>
+<div class="vignette"></div><div class="grain"></div>
+
+<div class="shell">
+  <header>
+    <h1>茶 室 复 盘</h1>
+    <span class="tag">ADVISOR · BLIND SESSION</span>
+    <span class="day">DAY 17 / 40 · 雨</span>
+  </header>
+
+  <div class="paper">
+    <div class="chat-head">
+      <span class="t">顾 问 手 记</span>
+      <span class="st">context: anonymized</span>
+    </div>
+    <div class="log" id="log">
+      <div class="msg ai">
+        <div class="who">顾问 · 衬线正文</div>
+        <div class="bubble">今日该标的放量收涨百分之四点二，但你的持仓成本在三十七元五角附近，不必急于加仓。</div>
+      </div>
+      <div class="msg me">
+        <div class="who">你 · 手写发言</div>
+        <div class="bubble">我想明天低开就补二百股，稳不稳？</div>
+      </div>
+    </div>
+    <div class="thinking" id="thinking"><i>Q</i><i>S</i><i>?</i></div>
+    <div class="note">仓位 <b>800 @ 37.52</b> · 现金 <b>72,418.50</b> · 批注用打字机体</div>
+    <div class="input-row">
+      <input id="inp" placeholder="以手写体输入你的想法……" autocomplete="off">
+      <button class="keycap" id="send">送 出</button>
+    </div>
+  </div>
+</div>
+
+<div class="switchbar" id="bar">
+  <button data-k="paper">纸面材质</button>
+  <button data-k="fog">雾</button>
+  <button data-k="grain">胶片颗粒</button>
+  <button data-k="vignette">暗角</button>
+  <button data-k="rain">canvas 雨</button>
+  <button data-k="fade">消息淡入</button>
+  <button data-k="cursor">光标闪烁</button>
+  <button data-k="type">逐字打字</button>
+  <button data-k="keys">键帽动效</button>
+</div>
+
+<script>
+/* ---------------- canvas 雨（最贵的一层：真下雨，斜落细线） ---------------- */
+(() => {
+  const cv = document.getElementById("rain"), ctx = cv.getContext("2d");
+  let drops = [];
+  function size() {
+    cv.width = innerWidth; cv.height = innerHeight;
+    drops = Array.from({ length: 90 }, () => ({
+      x: Math.random() * cv.width, y: Math.random() * cv.height,
+      l: 9 + Math.random() * 16, v: 3.5 + Math.random() * 4.5
+    }));
+  }
+  size(); addEventListener("resize", size);
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  (function tick() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (document.body.classList.contains("on-rain") && !reduced) {
+      ctx.strokeStyle = "hsla(210,12%,55%,.28)"; ctx.lineWidth = 1;
+      for (const d of drops) {
+        ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - d.l * .18, d.y + d.l); ctx.stroke();
+        d.y += d.v; d.x -= d.v * .18;
+        if (d.y > cv.height) { d.y = -20; d.x = Math.random() * (cv.width + 60); }
+      }
+    }
+    requestAnimationFrame(tick);
+  })();
+})();
+
+/* ---------------- 逐字打字（动效阶梯第 3 级：一个 20 行的 async 函数） ---------------- */
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+async function typeOut(el, text) {
+  const useType = document.body.classList.contains("on-type");
+  el.classList.add("cursor");
+  if (!useType) { el.textContent = text; }
+  else {
+    for (const ch of text) {
+      el.textContent += ch;
+      /* 标点处喘口气，像落笔迟疑 */
+      await sleep("，。？…；".includes(ch) ? 160 : 28 + Math.random() * 40);
+    }
+  }
+  await sleep(600);
+  el.classList.remove("cursor");
+}
+
+/* ---------------- 对话 mock：发送 → 思考键帽 → 逐字回复 ---------------- */
+const REPLIES = [
+  "低开补仓要先看量。若明日缩量回踩五日线，二百股在你的现金占比不足一成，风险可控；放量破位则按兵不动。",
+  "你的笔数预算还剩五笔。竞技局里每一笔都要花在拐点上，犹豫的单不如不下。",
+  "匿名行情里别猜标的身份。只看价量结构：这三天的影线都收在均线上方，耐心比预测值钱。",
+];
+let ri = 0;
+function addMsg(cls, who, text) {
+  const d = document.createElement("div");
+  d.className = `msg ${cls} enter`;
+  d.innerHTML = `<div class="who">${who}</div><div class="bubble"></div>`;
+  document.getElementById("log").appendChild(d);
+  return d.querySelector(".bubble");
+}
+async function send() {
+  const inp = document.getElementById("inp");
+  const v = inp.value.trim();
+  if (!v) return;
+  inp.value = "";
+  addMsg("me", "你 · 手写发言", "").textContent = v;
+  const think = document.getElementById("thinking");
+  think.classList.add("show");
+  await sleep(1300);
+  think.classList.remove("show");
+  const bubble = addMsg("ai", "顾问 · 衬线正文", "");
+  await typeOut(bubble, REPLIES[ri++ % REPLIES.length]);
+}
+document.getElementById("send").onclick = send;
+document.getElementById("inp").addEventListener("keydown", e => { if (e.key === "Enter") send(); });
+
+/* ---------------- 开场自动演示一轮，立刻能看到全套动效 ---------------- */
+(async () => {
+  await sleep(700);
+  const think = document.getElementById("thinking");
+  think.classList.add("show");
+  await sleep(1400);
+  think.classList.remove("show");
+  await typeOut(addMsg("ai", "顾问 · 衬线正文", ""),
+    "雨还没停。先把今天的收盘价记下来，然后我们聊聊你的持仓。");
+})();
+
+/* ---------------- 开关条 ---------------- */
+document.querySelectorAll("#bar button").forEach(b => {
+  const k = "on-" + b.dataset.k;
+  const sync = () => b.classList.toggle("on", document.body.classList.contains(k));
+  b.onclick = () => { document.body.classList.toggle(k); sync(); };
+  sync();
+});
+</script>
+</body>
+</html>
