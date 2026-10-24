@@ -1078,99 +1078,22 @@ button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow
 #pet-profile-modal .pet-attrs { margin-top: 0; }
 #pet-profile-modal .pet-actions { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
 
-/* ==================== 「雨声茶室」皮肤（范围 #view-home + #view-game） ====================
-   为什么作用域覆盖而不改全局：分步换装，重定义全局变量名会外溢到未换装视图；
-   在视图容器内重声明同名变量，让共享组件（按钮/卡片/hero SVG）原地换血，可整体回摘。
-   氛围分级（2026-10-24 决策）：首页全套（颗粒+暗角+雨丝）；对局是高密度盯盘场景，
-   只带 纸面材质 + 暗角，胶片颗粒与雨丝不进对局，K 线区保持干净。字体规则归各域文件。
+/* ==================== 「雨声茶室」结构层（色板已升为全局主题，见 style.css :root） ====================
+   ticket 06（2026-10-24 用户确认全局提升）后 .tearoom 不再承载变量，只标记"获得
+   房间背景 / 暗角 / 纸面卡"的视图容器。氛围分级保留：首页全套（颗粒+暗角+雨丝）；
+   其余视图只带 纸面材质 + 暗角，高密度页面（对局 K 线区）保持干净。字体规则归各域文件。
    亮色 = 茶室（暖纸/墨/茶），暗色 = 深夜雨屋（墨绿暗房/灯晕/暖橙）。
    动画一律显式 cubic-bezier（禁 ease-in-out）；雨丝尊重 prefers-reduced-motion。 */
 
 .tearoom {
-  /* —— 深夜雨屋（暗色默认） —— */
-  --surface: hsl(169, 14%, 10%);
-  --text: hsl(140, 8%, 85%);
-  --text-muted: hsl(155, 7%, 62%);
-  --panel: hsl(168, 12%, 11%);
-  --panel-raised: hsl(166, 10%, 16%);
-  --surface-2: hsl(167, 11%, 13%);
-  --border: hsl(162, 10%, 26%);
-  --border-strong: hsl(160, 10%, 36%);
-  --accent: hsl(88, 24%, 70%);
-  --accent-strong: hsl(88, 20%, 58%);
-  --accent-2: hsl(88, 24%, 70%);
-  --accent-soft: hsl(88, 20%, 60%);
-  --on-accent: hsl(170, 16%, 10%);
-  --up: hsl(18, 62%, 64%);
-  --down: hsl(150, 28%, 62%);
-  /* 均线: 茶褐 + 青灰, 顶掉全局的橙/紫蓝 (对局 K 线经 gameColors 读作用域值) */
-  --ma5: hsl(28, 50%, 62%);
-  --ma20: hsl(190, 18%, 58%);
-  --lab-blue: hsl(88, 24%, 70%);
-  --lab-card: hsl(168, 12%, 11%);
-  --lab-line: hsl(162, 10%, 26%);
-  --lab-glow: hsla(90, 30%, 60%, .13);
-  --glow-accent: hsla(90, 30%, 60%, .22);
-  --sheen: rgba(255, 255, 255, .03);
-  --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 14px 36px -18px rgba(0, 0, 0, .6);
-  --tr-serif: "Noto Serif SC", "Songti SC", "SimSun", serif;
-  --tr-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
-  /* 手写体用系统楷体栈：只点睛一行文案，不值得为它自托管整套 CJK 手写字库 */
-  --tr-hand: "STKaiti", "Kaiti SC", "KaiTi", "FangSong", cursive;
-  --tr-rain: hsla(160, 18%, 60%, .07);
-  /* 纸面材质三件套（craft 原型转正）：纤维噪点 / 纸底渐变 / 内阴影；暗色是墨纸版 */
-  --tr-fiber: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0.72  0 0 0 0 0.62  0 0 0 0 0.45  0 0 0 0.4 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>");
-  --tr-blend: soft-light;
-  --tr-paper-grad:
-    radial-gradient(ellipse at 30% 12%, hsla(150, 12%, 24%, .5), transparent 55%),
-    linear-gradient(180deg, hsl(168, 12%, 13%) 0%, hsl(168, 12%, 10%) 100%);
-  --tr-paper-shadow:
-    inset 0 0 46px hsla(170, 20%, 4%, .5),
-    inset 0 1px 0 hsla(140, 15%, 60%, .08),
-    0 1px 2px rgba(0, 0, 0, .35), 0 14px 36px -18px rgba(0, 0, 0, .6);
+  /* 房间背景 (暗色 = 深夜雨屋); 色板变量已全部升入 style.css :root (ticket 06) */
   position: relative;
-  color: var(--text);
   background:
     radial-gradient(ellipse 54% 38% at 78% 0%, hsla(80, 25%, 55%, .12), transparent 60%),
     linear-gradient(170deg, hsl(168, 14%, 13%), hsl(170, 16%, 8%) 70%);
   border-radius: 0 0 var(--radius) var(--radius);
 }
 :root[data-theme="light"] .tearoom {
-  /* —— 雨声茶室（亮色） —— */
-  --surface: hsl(38, 14%, 91%);
-  --text: hsl(30, 10%, 26%);
-  --text-muted: hsl(33, 9%, 42%);
-  --panel: hsl(40, 20%, 94%);
-  --panel-raised: hsl(39, 16%, 89%);
-  --surface-2: hsl(40, 22%, 96%);
-  --border: hsl(36, 10%, 78%);
-  --border-strong: hsl(35, 10%, 62%);
-  --accent: hsl(22, 38%, 40%);
-  --accent-strong: hsl(22, 42%, 32%);
-  --accent-2: hsl(22, 38%, 40%);
-  --accent-soft: hsl(22, 32%, 48%);
-  --on-accent: hsl(40, 20%, 95%);
-  --up: hsl(14, 55%, 40%);
-  --down: hsl(150, 20%, 31%);
-  --ma5: hsl(24, 48%, 42%);
-  --ma20: hsl(195, 22%, 38%);
-  --lab-blue: hsl(22, 38%, 40%);
-  --lab-card: hsl(40, 20%, 94%);
-  --lab-line: hsl(37, 10%, 84%);
-  --lab-glow: hsla(22, 38%, 44%, .12);
-  --glow-accent: hsla(22, 38%, 44%, .2);
-  --sheen: rgba(255, 255, 255, .6);
-  --shadow: 0 1px 2px hsla(30, 12%, 40%, .1), 0 12px 32px -18px hsla(30, 12%, 30%, .4);
-  --tr-rain: hsla(40, 10%, 60%, .08);
-  --tr-blend: multiply;
-  --tr-paper-grad:
-    radial-gradient(ellipse at 30% 12%, hsla(45, 60%, 98%, .85), transparent 55%),
-    radial-gradient(ellipse at 82% 92%, hsla(28, 35%, 78%, .3), transparent 60%),
-    linear-gradient(180deg, hsl(41, 24%, 96%) 0%, hsl(40, 20%, 93%) 60%, hsl(38, 18%, 91%) 100%);
-  --tr-paper-shadow:
-    inset 0 0 46px hsla(30, 25%, 55%, .13),
-    inset 0 1px 0 hsla(45, 60%, 98%, .8),
-    0 1px 2px hsla(30, 12%, 40%, .1), 0 12px 32px -18px hsla(30, 12%, 30%, .4);
   background:
     radial-gradient(ellipse 60% 48% at 22% 0%, hsl(40, 18%, 95%), transparent 65%),
     linear-gradient(172deg, hsl(38, 14%, 91%), hsl(36, 10%, 85%) 70%);

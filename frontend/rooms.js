@@ -144,23 +144,22 @@
   function buildRoomChartOption() {
     const rows = ((room && room.standings) || []).filter((m) => m.returnRate != null);
     if (rows.length < 2) return null;
-    const rv = (n) => cssVar(n, $("view-rooms")); // 茶室作用域取色 (ticket 02)
     return ({
       backgroundColor: "transparent",
       animation: false,
       tooltip: { valueFormatter: (v) => fmtPct(v / 100) },
       grid: { left: 50, right: 16, top: 12, bottom: 24 },
       xAxis: { type: "category", data: rows.map((m) => m.username),
-        axisLabel: { color: rv("--text-muted"), fontSize: 11 },
-        axisLine: { lineStyle: { color: rv("--border") } } },
-      yAxis: { type: "value", axisLabel: { color: rv("--text-muted"), formatter: "{value}%" },
-        splitLine: { lineStyle: { color: rv("--border"), opacity: 0.4 } } },
+        axisLabel: { color: cssVar("--text-muted"), fontSize: 11 },
+        axisLine: { lineStyle: { color: cssVar("--border") } } },
+      yAxis: { type: "value", axisLabel: { color: cssVar("--text-muted"), formatter: "{value}%" },
+        splitLine: { lineStyle: { color: cssVar("--border"), opacity: 0.4 } } },
       series: [{ type: "bar", barWidth: "55%",
         data: rows.map((m) => ({
           value: +(Number(m.returnRate) * 100).toFixed(2),
           // 认自己用后端 isSelf 标记, 不按 username 比对 (脱敏会让名字永不相等, 见 CLAUDE.md 教训)
-          itemStyle: { color: m.isSelf ? rv("--accent")
-            : Number(m.returnRate) >= 0 ? rv("--up") : rv("--down"),
+          itemStyle: { color: m.isSelf ? cssVar("--accent")
+            : Number(m.returnRate) >= 0 ? cssVar("--up") : cssVar("--down"),
             opacity: m.isSelf ? 1 : 0.7, borderRadius: [3, 3, 0, 0] },
         })) }],
     });

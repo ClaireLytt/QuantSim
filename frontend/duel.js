@@ -271,7 +271,7 @@
         name: "#" + (i + 1),
         data: c,
         showSymbol: false,
-        lineStyle: { width: i === finalSel ? 3 : 1.4, color: cssVar(FINAL_COLORS[i % FINAL_COLORS.length], $("view-duel")), opacity: i === finalSel ? 1 : 0.55 },
+        lineStyle: { width: i === finalSel ? 3 : 1.4, color: cssVar(FINAL_COLORS[i % FINAL_COLORS.length]), opacity: i === finalSel ? 1 : 0.55 },
         emphasis: { focus: "series" },
       });
     });

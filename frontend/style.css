@@ -1,46 +1,63 @@
+/* 全站主题 = 「雨声茶室」(2026-10-24 用户确认全局提升, ticket 06):
+   暗色 = 深夜雨屋 (墨绿暗房/灯晕/暖橙), 亮色 = 茶室 (暖纸/墨/茶)。
+   涨跌 = 茶红/苔绿; 紫色系全面退场 (设计规范禁紫)。 */
 :root {
-  --surface: #000000;
-  --surface-2: #161618;
-  --panel: #1c1c1e;
-  --panel-raised: #2c2c2e;
-  --border: #38383a;
-  --border-strong: #48484a;
-  --text: #f5f5f7;
-  --text-muted: #a1a1aa;
-  --up: #ff453a;
-  --down: #30d158;
-  --good: #4cd964;
-  --bad: #ff6961;
-  --ma5: #ff9f0a;
-  --ma20: #7d7aff;
-  --accent: #5e5ce6;
-  --accent-strong: #4a48d4;
-  --accent-2: #64d2ff;
-  --accent-soft: #7d7aff;
-  --on-accent: #ffffff;
+  --surface: hsl(169, 14%, 10%);
+  --surface-2: hsl(167, 11%, 13%);
+  --panel: hsl(168, 12%, 11%);
+  --panel-raised: hsl(166, 10%, 16%);
+  --border: hsl(162, 10%, 26%);
+  --border-strong: hsl(160, 10%, 36%);
+  --text: hsl(140, 8%, 85%);
+  --text-muted: hsl(155, 7%, 62%);
+  --up: hsl(18, 62%, 64%);
+  --down: hsl(150, 28%, 62%);
+  --good: hsl(150, 28%, 62%);
+  --bad: hsl(14, 60%, 62%);
+  --ma5: hsl(28, 50%, 62%);
+  --ma20: hsl(190, 18%, 58%);
+  --accent: hsl(88, 24%, 70%);
+  --accent-strong: hsl(88, 20%, 58%);
+  --accent-2: hsl(88, 24%, 70%);
+  --accent-soft: hsl(88, 20%, 60%);
+  --on-accent: hsl(170, 16%, 10%);
   /* 宠物专属暖色 (2026-10 用户钦定: 宠物不能灰, 独立于主题主色) */
   --pet-warm: #d98a52;
   --pet-warm-deep: #b5602f;
   --warn: #ffd60a;
   --mask: rgba(0, 0, 0, .55);
-  --shadow: 0 1px 3px rgba(0, 0, 0, .3), 0 4px 14px rgba(0, 0, 0, .22);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 14px 36px -18px rgba(0, 0, 0, .6);
   --shadow-lg: 0 8px 20px rgba(0, 0, 0, .35), 0 24px 60px rgba(0, 0, 0, .45);
   --radius-sm: 10px;
   --radius: 16px;
   --radius-lg: 20px;
-  --header-bg: rgba(10, 10, 12, .65);
-  --glow-1: rgba(94, 92, 230, .07);
-  --glow-2: rgba(100, 210, 255, .04);
-  --sheen: rgba(255, 255, 255, .045);
-  --h1-grad-a: #9d9bff;
-  --h1-grad-b: #64d2ff;
-  --glow-accent: rgba(94, 92, 230, .35);
-  /* 研究所专属低饱和蓝紫 (页面级点缀, 不碰全站金色主系) */
-  --lab-blue: #8fb8ff;
-  --lab-card: #1a1d27;
-  --lab-line: #353c55;
-  --lab-glow: rgba(110, 168, 255, .16);
+  --header-bg: rgba(14, 18, 16, .65);
+  --glow-1: hsla(80, 25%, 55%, .08);
+  --glow-2: hsla(28, 40%, 50%, .05);
+  --sheen: rgba(255, 255, 255, .03);
+  --h1-grad-a: hsl(88, 24%, 70%);
+  --h1-grad-b: hsl(28, 50%, 62%);
+  --glow-accent: hsla(90, 30%, 60%, .22);
+  /* 研究所点缀色并入茶室灯晕系 (原低饱和蓝紫, 禁紫后退场) */
+  --lab-blue: hsl(88, 24%, 70%);
+  --lab-card: hsl(168, 12%, 11%);
+  --lab-line: hsl(162, 10%, 26%);
+  --lab-glow: hsla(90, 30%, 60%, .13);
   --blur-material: blur(20px) saturate(1.8);
+  /* 茶室材质三件套 + 三字体 (原 widgets.css 作用域块, ticket 06 升为全局) */
+  --tr-serif: "Noto Serif SC", "Songti SC", "SimSun", serif;
+  --tr-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --tr-hand: "STKaiti", "Kaiti SC", "KaiTi", "FangSong", cursive;
+  --tr-rain: hsla(160, 18%, 60%, .07);
+  --tr-fiber: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0.72  0 0 0 0 0.62  0 0 0 0 0.45  0 0 0 0.4 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>");
+  --tr-blend: soft-light;
+  --tr-paper-grad:
+    radial-gradient(ellipse at 30% 12%, hsla(150, 12%, 24%, .5), transparent 55%),
+    linear-gradient(180deg, hsl(168, 12%, 13%) 0%, hsl(168, 12%, 10%) 100%);
+  --tr-paper-shadow:
+    inset 0 0 46px hsla(170, 20%, 4%, .5),
+    inset 0 1px 0 hsla(140, 15%, 60%, .08),
+    0 1px 2px rgba(0, 0, 0, .35), 0 14px 36px -18px rgba(0, 0, 0, .6);
   --ease-out: cubic-bezier(.25, 1, .5, 1);
   --ease-sheet: cubic-bezier(.32, .72, 0, 1);
   --ease-bounce: cubic-bezier(.34, 1.3, .64, 1);
@@ -49,42 +66,53 @@
 /* ---------- 浅色主题 ---------- */
 
 :root[data-theme="light"] {
-  --surface: #f2f2f7;
-  --surface-2: #e9e9ee;
-  --panel: #ffffff;
-  --panel-raised: #eaeaef;
-  --border: #d9d9de;
-  --border-strong: #aeaeb5;
-  --text: #1d1d1f;
-  --text-muted: #6e6e73;
-  --up: #d70015;
-  --down: #248a3d;
-  --good: #1e7a3c;
-  --bad: #d4403a;
-  --ma5: #b25a00;
-  --ma20: #5856d6;
-  --accent: #5856d6;
-  --accent-strong: #4a48c4;
-  --accent-2: #008577;
-  --accent-soft: #6a63e0;
+  --surface: hsl(38, 14%, 91%);
+  --surface-2: hsl(40, 22%, 96%);
+  --panel: hsl(40, 20%, 94%);
+  --panel-raised: hsl(39, 16%, 89%);
+  --border: hsl(36, 10%, 78%);
+  --border-strong: hsl(35, 10%, 62%);
+  --text: hsl(30, 10%, 26%);
+  --text-muted: hsl(33, 9%, 42%);
+  --up: hsl(14, 55%, 40%);
+  --down: hsl(150, 20%, 31%);
+  --good: hsl(150, 20%, 31%);
+  --bad: hsl(14, 55%, 40%);
+  --ma5: hsl(24, 48%, 42%);
+  --ma20: hsl(195, 22%, 38%);
+  --accent: hsl(22, 38%, 40%);
+  --accent-strong: hsl(22, 42%, 32%);
+  --accent-2: hsl(22, 38%, 40%);
+  --accent-soft: hsl(22, 32%, 48%);
+  --on-accent: hsl(40, 20%, 95%);
   /* 宠物专属暖色 (亮色阶调深保证对比) */
   --pet-warm: #c06a35;
   --pet-warm-deep: #9c4f1f;
   --warn: #9a6a00;
   --mask: rgba(0, 0, 0, .32);
-  --shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 4px 14px rgba(0, 0, 0, .07);
+  --shadow: 0 1px 2px hsla(30, 12%, 40%, .1), 0 12px 32px -18px hsla(30, 12%, 30%, .4);
   --shadow-lg: 0 8px 20px rgba(0, 0, 0, .10), 0 24px 60px rgba(0, 0, 0, .16);
-  --header-bg: rgba(249, 249, 251, .72);
-  --glow-1: rgba(88, 86, 214, .05);
-  --glow-2: rgba(0, 133, 119, .04);
+  --header-bg: rgba(246, 243, 236, .72);
+  --glow-1: hsla(28, 35%, 78%, .25);
+  --glow-2: hsla(90, 30%, 60%, .12);
   --sheen: rgba(255, 255, 255, .6);
-  --h1-grad-a: #4a48c4;
-  --h1-grad-b: #008577;
-  --glow-accent: rgba(88, 86, 214, .25);
-  --lab-blue: #2f5fb8;
-  --lab-card: #ffffff;
-  --lab-line: #c9d4ea;
-  --lab-glow: rgba(47, 95, 184, .14);
+  --h1-grad-a: hsl(22, 42%, 32%);
+  --h1-grad-b: hsl(150, 20%, 31%);
+  --glow-accent: hsla(22, 38%, 44%, .2);
+  --lab-blue: hsl(22, 38%, 40%);
+  --lab-card: hsl(40, 20%, 94%);
+  --lab-line: hsl(37, 10%, 84%);
+  --lab-glow: hsla(22, 38%, 44%, .12);
+  --tr-rain: hsla(40, 10%, 60%, .08);
+  --tr-blend: multiply;
+  --tr-paper-grad:
+    radial-gradient(ellipse at 30% 12%, hsla(45, 60%, 98%, .85), transparent 55%),
+    radial-gradient(ellipse at 82% 92%, hsla(28, 35%, 78%, .3), transparent 60%),
+    linear-gradient(180deg, hsl(41, 24%, 96%) 0%, hsl(40, 20%, 93%) 60%, hsl(38, 18%, 91%) 100%);
+  --tr-paper-shadow:
+    inset 0 0 46px hsla(30, 25%, 55%, .13),
+    inset 0 1px 0 hsla(45, 60%, 98%, .8),
+    0 1px 2px hsla(30, 12%, 40%, .1), 0 12px 32px -18px hsla(30, 12%, 30%, .4);
 }
 
 * { box-sizing: border-box; }

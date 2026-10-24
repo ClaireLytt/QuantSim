@@ -1,8 +1,7 @@
 const API = "/api";
 
 // 图表用色统一取自 style.css 的 CSS 变量, 避免两处维护
-// 可选第二参: 从指定元素读 (已换装视图的图表要读 .tearoom 容器上的作用域变量)
-const cssVar = (name, el) => getComputedStyle(el || document.documentElement).getPropertyValue(name).trim();
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 // 主题必须在读取 COLORS 前应用, 否则图表首帧取到错误配色
 // 2026-10 茶室换装: 默认亮色 (首页样板以茶室为第一印象), 存过 dark 偏好的用户不受影响
@@ -30,23 +29,6 @@ function hexA(color, a) {
   return color;
 }
 
-// 茶室作用域取色: 已换装视图的图表必须读视图容器上的作用域变量
-// (茶红/苔绿等, 见 widgets.css 皮肤块), 读根元素会拿到未换装的全局色。
-// 每次 buildOption 现读即可自动跟随主题切换, 未换装视图的图表不受影响。
-function viewColors(viewId) {
-  const el = document.getElementById(viewId);
-  if (!el) return COLORS;
-  const gv = (name) => getComputedStyle(el).getPropertyValue(name).trim();
-  return {
-    ...COLORS,
-    up: gv("--up"), down: gv("--down"),
-    ma5: gv("--ma5"), ma20: gv("--ma20"),
-    text: gv("--text"), muted: gv("--text-muted"),
-    border: gv("--border"), panel: gv("--panel-raised"),
-    accent: gv("--accent"), accent2: gv("--accent-2"),
-  };
-}
-const gameColors = () => viewColors("view-game");
 
 const state = {
   sessionId: null,
@@ -310,7 +292,6 @@ async function guarded(fn) {
 // ---------- 图表 ----------
 
 function chartData() {
-  const COLORS = gameColors(); // 遮蔽全局: 对局图表走茶室作用域色
   return {
     dates: state.klines.map((k) => k.tradeDate),
     candles: state.klines.map((k) => [k.open, k.close, k.low, k.high]),
@@ -419,7 +400,6 @@ function renderChart() {
 
 // 主图完整 option (qsChart 的 buildOption; tick 增量路径见 updateChartData)
 function buildChartOption() {
-  const COLORS = gameColors(); // 遮蔽全局: 对局图表走茶室作用域色
   const { dates, candles, ma5, ma20, volumes, rsi, macdHist, macdDif, macdDea } = chartData();
 
   return ({
@@ -1143,7 +1123,7 @@ function renderAi(pred, ai) {
     dir.className = up ? "pos" : "neg";
     const conf = up ? prob : 1 - prob;
     fill.style.width = (conf * 100).toFixed(1) + "%";
-    fill.style.background = up ? gameColors().up : gameColors().down;
+    fill.style.background = up ? COLORS.up : COLORS.down;
     // 置信度是可点击的名词解释
     text.innerHTML = termSpan("confidence") + t("ai.conf", (conf * 100).toFixed(1), (prob * 100).toFixed(1));
   } else {
@@ -1236,7 +1216,6 @@ function renderPositions(positions) {
 let lastPfHeld = null; // buildOption 的数据源 (renderPfPie 过滤后的持仓)
 const pfPieH = qsChart("pf-pie", () => {
   if (!lastPfHeld || !lastPfHeld.length) return null;
-  const COLORS = gameColors(); // 遮蔽全局: 组合饼图在对局视图内, 走茶室作用域色
   const cash = state.lastStatus ? Math.max(0, Number(state.lastStatus.cashBalance)) : 0;
   const data = lastPfHeld.map((p) => ({ name: stockName(p.stockName, p.stockCode), value: Number(p.marketValue) }));
   if (cash > 0) data.push({ name: t("status.cash"), value: cash });
@@ -1595,7 +1574,6 @@ function renderSettleCurve(result) {
 
 // 结算资金曲线 option; 数据源 state.lastSettle (toggleTheme 前已缓存)
 function buildSettleCurveOption() {
-  const COLORS = gameColors(); // 遮蔽全局: 结算曲线在对局视图内, 走茶室作用域色
   const result = state.lastSettle;
   const curve = result && result.equityCurve;
   if (!curve || curve.length < 2) return null;
