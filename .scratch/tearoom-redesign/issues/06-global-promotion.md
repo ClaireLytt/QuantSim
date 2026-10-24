@@ -4,9 +4,9 @@
 
 **Blocked by:** 02, 03, 04, 05
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 全站无紫色残留（含图表/渐变/聚焦环）
-- [ ] 作用域皮肤块删除，单一主题源
-- [ ] 冻结区桌面端仍单行横排
-- [ ] 全量 smoke 9 步过 + ui_check WCAG 双主题 + buttons 双 0
+- [x] 全站无紫色残留（含图表/渐变/聚焦环）
+- [x] 作用域皮肤块删除，单一主题源
+- [x] 冻结区桌面端仍单行横排
+- [x] 全量 smoke 9 步过 + ui_check WCAG 双主题 + buttons 双 0

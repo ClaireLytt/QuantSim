@@ -4,8 +4,8 @@
 
 **Blocked by:** None（与 02-04 并行；本次按序执行）
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] mine/career/history/account 视图双主题茶室化
-- [ ] 战绩数字等宽
-- [ ] ui_check + buttons 双 0
+- [x] mine/career/history/account 视图双主题茶室化
+- [x] 战绩数字等宽
+- [x] ui_check + buttons 双 0

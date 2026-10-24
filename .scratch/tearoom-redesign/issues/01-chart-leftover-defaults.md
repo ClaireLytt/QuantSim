@@ -4,8 +4,8 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** done (commit pending in sequence)
+**Status:** done
 
-- [ ] dataZoom 滑块两主题均为茶色系，截图证据
-- [ ] 取色口径可复用（任意视图容器 + 全局兜底）
-- [ ] ui_check 0 error + buttons 0 error
+- [x] dataZoom 滑块两主题均为茶色系，截图证据
+- [x] 取色口径可复用（任意视图容器 + 全局兜底）
+- [x] ui_check 0 error + buttons 0 error

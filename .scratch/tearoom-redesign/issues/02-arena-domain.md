@@ -4,8 +4,8 @@
 
 **Blocked by:** 01（图表取色口径）
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] daily/replay/rooms/arena/duel/ranking 视图双主题茶室化
-- [ ] 域内图表（竞技场走势等）茶红/苔绿
-- [ ] smoke 竞技路径无 console error；ui_check + buttons 双 0
+- [x] daily/replay/rooms/arena/duel/ranking 视图双主题茶室化
+- [x] 域内图表（竞技场走势等）茶红/苔绿
+- [x] smoke 竞技路径无 console error；ui_check + buttons 双 0
