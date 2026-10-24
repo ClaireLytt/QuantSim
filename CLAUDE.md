@@ -35,7 +35,7 @@ python load_to_db.py        # 全部入库 (幂等 upsert)
 - 登录态 = 容器 `HttpSession`（`CurrentUser` 存取 userId），`AuthFilter` 只保护 `/api/me/`、`/api/rooms`、`/api/daily`、`/api/event` 四组前缀，其余接口游客可用（设计如此：降低上手门槛，竞技入口才需要身份）。
 - 行情数据只读，整只股票打包缓存（`MarketDataService.StockData`，Caffeine 10 分钟过期）。
 - **frontend/**：无构建、无框架。每个视图一个 IIFE 文件，依赖 `app.js` 的全局 `$ / api / toast / switchView / state` 与 `i18n.js` 的 `t()`。`index.html` 引 script 带 `?v=日期+内容指纹` cache-busting，由 `tools/bump_assets.py` **自动**维护（PostToolUse hook 在前端写入后跑它，人不要手改 `?v=`）；ui_check 的 W3 保留为兜底。
-- 样式按视图域拆 5 个文件（2026-10）：`style.css` 是基础层（变量/主题/框架，**必须第一个加载**），`game / academy / lab-games / widgets` 四个域各管各的视图。新样式写进对应域文件；同一选择器别跨文件重复定义——层叠顺序随加载顺序走，拆分时翻过一次车。
+- 样式分层（2026-10-25 架构评审①）：`theme.css` 是**皮肤单属主**（两主题变量/--tr-* 材质/.tearoom 结构层/字体支柱，**必须第一个加载**，换色调氛围只开它）；`style.css` 是布局框架层；`game / academy / lab-games / widgets` 四个域各管各的视图。新样式写进对应域文件，域文件只许 var() 引用皮肤、不许定义皮肤选择器；同一选择器别跨文件重复定义——层叠顺序随加载顺序走，拆分时翻过一次车。
 - 金额一律 `BigDecimal` 且显式 scale + RoundingMode；费用统一走 `FeeCalculator`，玩家/AI/基准/回测同口径。
 - Python 管道 SQL 全部参数化（pymysql `%s`），保持这个习惯。
 
