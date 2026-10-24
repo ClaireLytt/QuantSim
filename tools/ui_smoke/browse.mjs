@@ -140,6 +140,11 @@ try {
         break;
       }
       case "--wait":
+        // 纯数字直接报错: --wait 等的是 selector, 等毫秒用 --wait-ms (retro: 曾被误用静默空等)
+        if (/^\d+$/.test(val)) {
+          console.error(`--wait 接收 selector, 不是毫秒; 要等 ${val}ms 请用 --wait-ms ${val}`);
+          process.exit(1);
+        }
         await step(`等待 ${val}`, () => page.waitForSelector(val, { timeout: 10000 }));
         break;
       case "--wait-ms":

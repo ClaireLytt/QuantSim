@@ -120,7 +120,33 @@ def _scan_null_render(lines):
     return hits
 
 
+def _scan_optional_dep_import(lines):
+    """pytest 测试文件顶层直 import 可选依赖 (pyspark/akshare) 且无 importorskip 守门:
+    运行时 skip 挡不住收集期 ImportError, CI 按设计不装这些库 (PR #11 首跑踩过)。"""
+    src = "\n".join(lines)
+    if "import pytest" not in src:
+        return []  # 非测试文件: 实现侧 (compute_indicators 等) 合法依赖这些库
+    hits = []
+    for i, ln in enumerate(lines):
+        m = re.match(r"\s*(?:import|from)\s+(pyspark|akshare)\b", ln)
+        if m and f'importorskip("{m.group(1)}"' not in src:
+            hits.append((i + 1, ln.strip()))
+    return hits
+
+
 RULES = [
+    {
+        "id": "R8-optional-dep-collect-crash",
+        "title": "测试顶层直 import 可选依赖 → CI 收集期炸",
+        "exts": (".py",),
+        "confidence": "high",
+        "scan": _scan_optional_dep_import,
+        "risk": "CI 的 python-check 按设计不装 pyspark/akshare; 顶层 import 在 pytest 收集期就 "
+                "ModuleNotFoundError, 整个 job 红, 运行时 pytest.skip 根本来不及生效。",
+        "fix": "import 前加收集期守门 (与 test_indicator_parity.py 同款):\n"
+               "  pytest.importorskip(\"pyspark\", reason=\"缺 PySpark, 本地手跑对拍\")\n"
+               "  import compute_indicators  # noqa: E402",
+    },
     {
         "id": "R1-paginate-then-filter",
         "title": "分页后再内存过滤 → TOP 榜单数据不准",

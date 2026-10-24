@@ -96,7 +96,9 @@ pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端
 **分析 → 修改 → 自动验证 → 未通过回到分析 → 通过后输出前后差异证据。** 禁止没跑验证就宣布完成。
 
 - 验证手段按改动范围选：前端 → `ui_check.py` + `npm run buttons`（针对性交互用 browse.mjs，见体检⑥）；
-  后端 → `cd backend && mvn -B test`；数据管道 → `cd data-pipeline && python -m pytest`；跨层 → `npm run smoke`。
+  后端 → `cd backend && mvn -B test`；数据管道 → `cd data-pipeline && python -m pytest`；跨层 → `npm run smoke`；
+  **tools/*.py、依赖/vendor、CI 配置类改动 → `bash tools/ci_local.sh`**（镜像 CI 的 ruff/eslint/ui_check/指纹
+  四项秒级子集——PR #11 首跑三连红全是本地没跑 CI 同款检查，推送前必过）。
 - 验证未通过 = 回到分析（按下节 Evidence-First 归因），不是盲改重试。
 - **通过后必须给出前后差异证据**，三选一：测试结果 diff（修前失败输出 vs 修后通过输出）、
   browse.mjs/shot 修改前后两张截图路径、关键日志行对比。只说"改好了"不算完成。
