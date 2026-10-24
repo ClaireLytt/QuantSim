@@ -536,9 +536,8 @@ button.small { width: auto; margin-top: 8px; padding: 4px 12px; font-size: 12px;
 }
 .duel-timer b { font-size: 20px; color: var(--accent-strong); font-family: var(--tr-mono); }
 .duel-timer .hint { flex: 1 1 100%; margin: 0; font-size: 12px; }
-/* 数字支柱: 榜内收益/回撤/评分与预回测统计走等宽 */
-.duel-stats b, .duel-score i, #view-duel .qdr-stats b { font-family: var(--tr-mono); }
-.duel-final-rank { font-family: var(--tr-mono); color: var(--accent-strong); font-weight: 700; }
+/* 数字支柱: 榜内收益/回撤与评分走等宽 */
+.duel-stats b, .duel-score i { font-family: var(--tr-mono); }
 .duel-list {
   list-style: none;
   margin: 14px 0;
@@ -591,53 +590,8 @@ button.small { width: auto; margin-top: 8px; padding: 4px 12px; font-size: 12px;
   .duel-stats { width: 100%; justify-content: flex-start; }
 }
 /* 策略搭建屏: 左条件积木 | 右净值预览 */
-/* 搭建/终榜子流程 hero 语法 (2026-10-25, 七页同构的收尾):
-   衬线标题居中, 主 CTA (预回测/提交/下一轮) 独大, 返回类操作降为小字链 */
-.duel-build-head { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; }
-.duel-build-head h3 { flex: 0 1 auto; min-width: 0; margin: 0; font-family: var(--tr-serif); letter-spacing: .06em; }
-#duel-final > h3 {
-  text-align: center;
-  font-family: var(--tr-serif);
-  letter-spacing: .06em;
-  margin-top: 16px;
-}
-#view-duel .qd-actions { justify-content: center; margin-top: 14px; }
-#view-duel .qd-actions button { flex: 0 1 auto; }
-#view-duel .qd-actions button.primary {
-  min-width: 240px;
-  font-size: 15px;
-  font-weight: 700;
-  box-shadow: 0 6px 22px var(--glow-accent);
-}
-/* 返回擂台榜/查看详情: 降为文字链 (与开局页次级链同文法) */
-#view-duel .qd-actions button.ghost,
-#view-duel .qd-actions button.big:not(.primary) {
-  width: auto;
-  min-width: 0;
-  white-space: nowrap;
-  padding: 6px 4px;
-  background: none;
-  border: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  border-radius: 0;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-#view-duel .qd-actions button.ghost:hover:not(:disabled),
-#view-duel .qd-actions button.big:not(.primary):hover:not(:disabled) {
-  color: var(--accent-strong);
-  border-bottom-color: var(--accent-strong);
-  filter: none;
-  transform: none;
-  box-shadow: none;
-}
-/* 预回测: 左栏主动作, 升一档重量 */
-#btn-duel-preview {
-  width: 100%;
-  font-weight: 700;
-  background: var(--panel-raised);
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
-}
+.duel-build-head { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+.duel-build-head h3 { flex: 1; min-width: 0; margin: 0; }
 .duel-build-cols { display: flex; gap: 14px; align-items: stretch; margin: 12px 0; }
 .duel-build-left { flex: 0 0 320px; display: flex; flex-direction: column; gap: 8px; }
 .duel-build-left .hint { margin: 4px 0 0; }
@@ -676,10 +630,9 @@ button.small { width: auto; margin-top: 8px; padding: 4px 12px; font-size: 12px;
 .duel-final-table th:nth-child(n+3) { text-align: right; }
 .duel-final-table tbody tr { cursor: pointer; }
 .duel-final-table tr.sel td { background: color-mix(in srgb, var(--lab-blue) 8%, transparent); }
-/* 第一名行: 茶色高亮 (原 --warn 金, 与主榜 ticket 14 同口径退场) */
 .duel-final-table tr.duel-final-first td {
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
+  background: color-mix(in srgb, var(--warn) 9%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 30%, transparent);
 }
 .duel-final-tip { margin: 0 0 12px; text-align: right; }
 @media (max-width: 720px) {
