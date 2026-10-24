@@ -521,6 +521,11 @@
 .home-group-grid .home-card.featured:hover {
   box-shadow: 0 6px 20px var(--glow-accent);
 }
+/* 功能卡线性图标 (ticket 19): currentColor 随主题, 茶墨点睛 */
+.hc-ico { display: inline-flex; margin-right: 7px; color: var(--accent-strong); transform: translateY(2px); }
+.hc-ico svg { width: 15px; height: 15px; }
+.home-card.tool .hc-ico { color: var(--text-muted); }
+
 /* 即时速玩: 两列紧凑行式条目 (ticket 18) —— 图标+名+一行描述同一行, 卡片海收敛;
    hero (小游戏专区) 横跨整行作扫视锚点 */
 .home-group-quick { grid-template-columns: 1fr 1fr; }

@@ -5,25 +5,52 @@
   // 档位三档: hero = 大卡占两列高亮 (优先推荐玩法), 默认中卡, tool = 小号低饱和 (进阶硬核工具)。
   // emoji 是视觉锚点不是文案, 本地映射不进 i18n (先例: pet.js 的配饰 emoji)。
   // 每张卡的数据 (view/tier/emoji) 收在一个对象里, 不另开平行映射表 —— 删卡时不会漏删
+  // 功能卡图标: 单色描边 SVG path (ticket 19, emoji 功能图标违反设计禁令)。
+  // 与 home-core 的 lab-ico 同语系: 24x24 / currentColor / 1.8 描边; 内容是本地静态串, 无注入面。
+  const CARD_ICONS = {
+    games: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
+    guess: '<path d="M3 17l6-6 4 4 7-8M14 7h6v6"/>',
+    newsjudge: '<path d="M4 5h13v14H5a1 1 0 0 1-1-1zM17 8h3v10a1 1 0 0 1-1 1h-2M7 9h7M7 13h7M7 17h4"/>',
+    tape: '<path d="M13 2L5 13h5l-2 9 8-11h-5z"/>',
+    qdetect: '<path d="M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM15.5 15.5L20 20"/>',
+    stratbox: '<path d="M3 8l9-5 9 5-9 5zM3 8v8l9 5 9-5V8M12 13v8"/>',
+    buydip: '<path d="M12 4v12M7 11l5 5 5-5M4 20h16"/>',
+    richman: '<path d="M4 4h16v16H4zM8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01"/>',
+    option: '<path d="M5 8h14M5 16h14M9 5v6M15 13v6"/>',
+    reborn: '<path d="M20 11a8 8 0 1 0-2.3 6.3M20 5v6h-6"/>',
+    bubble: '<path d="M10 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12zM17 15a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/>',
+    game: '<path d="M7 4v16M5 8h4v8H5zM17 2v20M15 6h4v9h-4z"/>',
+    daily: '<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/>',
+    rooms: '<path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20c0-3 3-5 6-5s6 2 6 5M16 10a3 3 0 1 0 0-6M17 15c3 0 5 2 5 5"/>',
+    event: '<path d="M11 19V5l-8 7zM21 19V5l-8 7z"/>',
+    academy: '<path d="M4 6h16M6 4v3M18 4v3M7 7v13M17 7v13M7 12h10"/>',
+    famous: '<path d="M3 8h18v12H3zM3 8l2-4h4L7 8M11 4h4l-2 4M17 4h4l-2 4"/>',
+    story: '<path d="M12 3c5 0 8 2 8 2v6c0 6-4 10-8 10S4 17 4 11V5s3-2 8-2zM8.5 10h.01M15.5 10h.01M8 15c1.5 1.5 6.5 1.5 8 0"/>',
+    quiz: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 1 4 10c-1 1-1.5 2-1.5 3h-5c0-1-.5-2-1.5-3a6 6 0 0 1 4-10z"/>',
+    lab: '<path d="M10 3h4M11 3v6l-5 9a2 2 0 0 0 2 3h8a2 2 0 0 0 2-3l-5-9V3M8 15h8"/>',
+    arena: '<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 12h.01"/>',
+    duel: '<path d="M5 5l5.5 5.5M19 5l-5.5 5.5M5 5h4M5 5v4M19 5h-4M19 5v4M8 16l-3 3M16 16l3 3M12 12l4 4M12 12l-4 4"/>',
+    wiki: '<path d="M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM18 16H7a2 2 0 0 0-2 2M9 8h6"/>',
+  };
   const CARD_GROUPS = [
-    { id: "quick", emoji: "⚡", cards: [ // 即时速玩: 3-10 分钟碎片化开局
-      { view: "games", tier: "hero", emoji: "🎮" }, { view: "guess", emoji: "📈" },
-      { view: "newsjudge", emoji: "📰" }, { view: "tape", emoji: "⚡" }, { view: "qdetect", emoji: "🔍" },
-      { view: "stratbox", tier: "tool", emoji: "🎁" }, { view: "buydip", tier: "tool", emoji: "🪂" },
-      { view: "richman", tier: "tool", emoji: "🎲" }, { view: "option", tier: "tool", emoji: "🧮" },
-      { view: "reborn", tier: "tool", emoji: "🔄" }, { view: "bubble", tier: "tool", emoji: "🫧" },
+    { id: "quick", cards: [ // 即时速玩: 3-10 分钟碎片化开局
+      { view: "games", tier: "hero" }, { view: "guess" },
+      { view: "newsjudge" }, { view: "tape" }, { view: "qdetect" },
+      { view: "stratbox", tier: "tool" }, { view: "buydip", tier: "tool" },
+      { view: "richman", tier: "tool" }, { view: "option", tier: "tool" },
+      { view: "reborn", tier: "tool" }, { view: "bubble", tier: "tool" },
     ] },
-    { id: "long", emoji: "⏳", cards: [ // 长线对局: 赛季冲榜主玩法
-      { view: "game", tier: "hero", emoji: "⚔️" }, { view: "daily", tier: "hero", emoji: "🗓️" },
-      { view: "rooms", emoji: "👥" }, { view: "event", emoji: "⏪" },
+    { id: "long", cards: [ // 长线对局: 赛季冲榜主玩法
+      { view: "game", tier: "hero" }, { view: "daily", tier: "hero" },
+      { view: "rooms" }, { view: "event" },
     ] },
-    { id: "learn", emoji: "📖", cards: [ // 学习闯关: 边玩边学
-      { view: "academy", tier: "hero", emoji: "🏯" }, { view: "famous", emoji: "🎬" },
-      { view: "story", emoji: "🎭" }, { view: "quiz", tier: "tool", emoji: "🧠" },
+    { id: "learn", cards: [ // 学习闯关: 边玩边学
+      { view: "academy", tier: "hero" }, { view: "famous" },
+      { view: "story" }, { view: "quiz", tier: "tool" },
     ] },
-    { id: "tools", emoji: "🧪", cards: [ // 进阶量化工具: 对局后复盘用, 视觉弱化
-      { view: "lab", tier: "tool", emoji: "🔬" }, { view: "arena", tier: "tool", emoji: "🏟️" },
-      { view: "duel", tier: "tool", emoji: "🥊" }, { view: "wiki", tier: "tool", emoji: "📚" },
+    { id: "tools", cards: [ // 进阶量化工具: 对局后复盘用, 视觉弱化
+      { view: "lab", tier: "tool" }, { view: "arena", tier: "tool" },
+      { view: "duel", tier: "tool" }, { view: "wiki", tier: "tool" },
     ] },
   ];
 
@@ -33,7 +60,7 @@
     CARD_GROUPS.forEach((g) => {
       const label = document.createElement("p");
       label.className = "home-group-label";
-      label.textContent = g.emoji + " " + t("home.group." + g.id);
+      label.textContent = t("home.group." + g.id); // 组名前的主色短条已是锚点, emoji 退场 (ticket 19)
       const sub = document.createElement("span");
       sub.className = "home-group-sub";
       sub.textContent = t("home.groupSub." + g.id);
@@ -42,11 +69,15 @@
       const grid = document.createElement("div");
       // 组级 class: 即时速玩 12 卡压成两列行式条目 (ticket 18, critic "卡片海"), 其余组维持网格
       grid.className = "home-group-grid home-group-" + g.id;
-      g.cards.forEach(({ view, tier, emoji }) => {
+      g.cards.forEach(({ view, tier }) => {
         const btn = document.createElement("button");
         btn.className = "home-card" + (tier === "hero" ? " featured" : tier === "tool" ? " tool" : "");
         const title = document.createElement("strong");
-        title.textContent = emoji + " " + t(`home.card.${view}.t`);
+        const ico = document.createElement("span");
+        ico.className = "hc-ico";
+        // innerHTML 只插本地静态 path 串 (CARD_ICONS), 用户数据仍走 textContent
+        ico.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (CARD_ICONS[view] || "") + "</svg>";
+        title.append(ico, document.createTextNode(t(`home.card.${view}.t`)));
         const desc = document.createElement("span");
         desc.className = "hint";
         desc.textContent = t(`home.card.${view}.d`);
