@@ -156,9 +156,7 @@ for (const r of removedRules) {
   if (verdict) flag(verdict, r.file, r.text + '  ->  ' + a.text);
 }
 
-// 指纹闸门: 前端资源内容已变但 index.html ?v= 未盖 → 阻断。
-// 为什么挂在这里: 2026-10-25 两次 commit 把旧指纹带上线 (bump hook 未落盘 + W3 同日盲区),
-// 用户命中缓存看不到改动; bump_assets --check 是精确判定, floor_guard 是任务收尾必跑的阻断位。
+// 指纹闸门: 资源内容已变但 ?v= 未盖 → 阻断 (2026-10-25 两次把旧指纹带上线, hook 与 W3 曾同时失守)。
 const py = process.platform === 'win32' ? 'python' : 'python3';
 try {
   execFileSync(py, ['tools/bump_assets.py', '--check'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });

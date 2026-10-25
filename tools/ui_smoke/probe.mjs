@@ -1,5 +1,4 @@
-// probe.mjs — 手搓 Playwright 探针的统一开场。
-// 为什么存在: 一次性 node -e 探针反复踩同三个坑 (2026-10-25 一个会话内 3 次首跑失败):
+// probe.mjs — 手搓 Playwright 探针的统一开场, 封掉三个必踩的坑:
 //   1) 首访无 qs_seen 会被 location.replace 跳去 landing.html, 等 #view-home 必超时;
 //   2) 登录门禁 #auth-modal 遮罩拦截一切 click, 文字链上还叠着 span, 必须 JS 点 #link-guest;
 //   3) 宠物 bob / 骨架屏等常驻动画让元素"not stable", 元素截图糊成色块。

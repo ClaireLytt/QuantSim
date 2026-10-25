@@ -309,6 +309,15 @@ def main():
     if not ht or "flex-wrap: nowrap" not in ht.group(1):
         errors.append("E13 布局冻结区: style.css 的 .header-tools 基础规则必须保持 flex-wrap: nowrap (桌面端单行横排是用户钦定)")
 
+    # ---------- E14 宠物视觉锁暖色 (用户多次纠正"宠物发灰", 2026-10-25 机械化) ----------
+    # 宠物相关选择器 (pav-*/pet-*) 的规则行里: 禁 grayscale/冷滤镜, 取色禁 var(--accent 系 (走 --pet-warm)。
+    wsrc = read(os.path.join(FRONTEND, "widgets.css"))
+    wsrc = re.sub(r"/\*.*?\*/", lambda m: re.sub(r"[^\n]", " ", m.group(0)), wsrc, flags=re.S)
+    for ln, line in enumerate(wsrc.splitlines(), 1):
+        if re.search(r"\.(pav-|pet-sprite|pet-hat|pet-avatar)", line):
+            if "grayscale" in line or "var(--accent" in line:
+                errors.append(f"E14 宠物视觉禁灰/禁跟主题 accent, 一律 --pet-warm @ widgets.css:{ln}")
+
     # ---------- W3 版本号 ----------
     for m in re.finditer(r'(?:src|href)="([\w./]+\.(?:js|css))\?v=([\w]+)"', html):
         fname, ver = m.group(1), m.group(2)

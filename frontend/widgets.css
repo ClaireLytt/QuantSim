@@ -734,7 +734,7 @@
   max-width: 220px;
   margin: 0;
   padding: 7px 10px;
-  /* 手写体对话 (craft 原型转正): 楷体 + 茶色 + 微倾, 像宠物随手写的便签 */
+  /* 手写体对话: 宠物发言的角色感 (craft 原型钦定三字体之三) */
   font-family: var(--tr-hand);
   font-size: 15px;
   line-height: 1.6;
@@ -757,7 +757,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  /* 纸面面板 (craft 原型转正): 纤维噪点 + 纸底渐变 + 内阴影, 与首页卡片同一套材质变量 */
+  /* 纸面材质: 与首页卡片共用同一套 --tr-* 变量, 换主题自动跟随 */
   background: var(--tr-fiber), var(--tr-paper-grad);
   background-blend-mode: var(--tr-blend), normal;
   border: 1px solid var(--border-strong);
@@ -797,7 +797,7 @@
   animation: pet-cursor-blink 1s steps(1, end) infinite;
 }
 @keyframes pet-cursor-blink { 50% { opacity: 0; } }
-/* 思考键帽: 只在等 /pet/chat 回复时出现, 三颗轮流下沉 */
+/* 思考键帽: 只在等 /pet/chat 真实回复时出现, 本地台词不装思考 */
 .pet-thinking-caps { display: flex; gap: 5px; }
 .pet-thinking-caps i {
   width: 20px;
@@ -836,7 +836,7 @@
 .pet-xp-track i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s; }
 .pet-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .pet-ask-row { display: flex; gap: 6px; }
-/* 你的输入 = 手写体 (原型里用户发言的角色感); 送出键做键帽下沉 */
+/* 输入框 = 用户发言, 同走手写体 */
 .pet-ask-row input { flex: 1; min-width: 0; font-size: 14px; font-family: var(--tr-hand); color: var(--accent); }
 .pet-ask-row input::placeholder { color: color-mix(in srgb, var(--accent) 55%, transparent); }
 #btn-pet-ask {
@@ -867,7 +867,7 @@
 .pet-head-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .pet-avatar { width: 38px; height: 38px; flex: none; }
 .pet-avatar svg { width: 100%; height: 100%; }
-/* 宠物头像走专属暖色 --pet-warm (用户多次反馈"宠物发灰", 原因是灰底灰边只靠一点主色混色撑不起颜色) */
+/* 宠物视觉一律 --pet-warm, 不跟主题 accent (ui_check E14 机械拦) */
 .pav-face { fill: color-mix(in srgb, var(--pet-warm) 26%, var(--surface-2)); stroke: color-mix(in srgb, var(--pet-warm) 70%, var(--border-strong)); stroke-width: 1.6; }
 .pav-body { fill: color-mix(in srgb, var(--pet-warm) 14%, var(--surface-2)); stroke: color-mix(in srgb, var(--pet-warm) 50%, var(--border-strong)); stroke-width: 1.4; }
 .pav-line { stroke: color-mix(in srgb, var(--pet-warm) 55%, var(--border-strong)); stroke-width: 1.6; }
@@ -894,7 +894,7 @@
 .pet-sec-title {
   margin: 10px 0 0;
   padding-top: 10px;
-  border-top: 1px dashed var(--border); /* 纸面上的区隔用虚线, 对齐原型的档案感 */
+  border-top: 1px dashed var(--border);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: .24em;
@@ -1141,8 +1141,8 @@
 
 /* 头像即档案入口: 可点 + hover 提亮 */
 button.pet-avatar { padding: 0; background: transparent; border: none; cursor: pointer; }
-button.pet-avatar:hover .pav-face { stroke: var(--accent); }
-button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+button.pet-avatar:hover .pav-face { stroke: var(--pet-warm); }
+button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--pet-warm) 25%, transparent); }
 #pet-profile-modal .pet-attrs { margin-top: 0; }
 #pet-profile-modal .pet-actions { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
 
