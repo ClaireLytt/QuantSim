@@ -325,7 +325,7 @@
   async function renderBias() {
     const box = $("home-bias-box");
     box.hidden = true;
-    let profile = null;
+    let profile;
     try { profile = await api("/me/bias-profile"); } catch (e) { return; }
     const top = (profile && profile.trends || [])
       .filter((tr) => tr.triggered > 0)
