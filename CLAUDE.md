@@ -203,6 +203,7 @@ pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端
 | 改资源必须失效缓存 (?v=) | `tools/bump_assets.py` 内容指纹自动盖 (hook 内先跑), W3 兜底 | 机制 |
 | 按钮禁 emoji 功能图标 (设计禁令) | `ui_check.py` E10 (扫 button 文本 + 挂 button 的 i18n 键) | lint+hook |
 | 源码行尾恒 LF (指纹/告警稳定) | `.gitattributes` eol=lf | 机制 |
+| 集成测试永不触碰真实数据库 | `backend/src/test/resources/application.properties` 强制专名库 quantsim_test (端口指错也免疫) | 机制 |
 | dataZoom 滑块主题化口径唯一 | `app.js qsSliderZoom` 共享 helper, 新图表 spread 复用 | 架构 |
 | 次级文字链文法唯一 | `style.css button.qs-textlink`, 降级按钮挂类不另写规则 | 架构 |
 | 笔数预算口径唯一 | `TradeBudget` 深模块 + `TradeBudgetTest` | 架构+测试 |
@@ -250,3 +251,4 @@ pageerror / 5xx。**每次写入/修改代码之后都必须运行**：起后端
 当我跟你强调修改或者添加某个功能，你已经修改了代码之后还是没有达到我要的效果，应该先仔细思考找出没有起效的原因和真正的解决方法写入到claude.md中，避免下次再次犯错
 
 - 2026-10-25 宠物手写体"没生效"：改了 widgets.css 但提交里没带 index.html 的 `?v=` 指纹（bump hook 这次没落盘），用户浏览器命中旧缓存。教训：**commit 前核对本次改过的每个前端资源在 index.html 里的指纹都变了**；"样式改了没效果"先查指纹/缓存，再查样式本身。
+- 2026-10-25 **数据库被清事故**：`QUANTSIM_DB_PORT=3307 mvn -B test` 清掉了真实账号——测试与开发共用库名 `quantsim` 只靠端口区分，旧文档还建议"3306 被占用 3307"，一库两用迟早全灭。教训：**会清数据的命令（mvn test / 任何 migrate-fresh 类）跑之前必须核实连接串指向的库里没有真实数据；约定防不住的用配置物理隔离**——现已由 test classpath 强制专名库 `quantsim_test` 机械兜底（见规则表），日常开发一律 3308（`start.ps1`）。
