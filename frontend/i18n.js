@@ -1287,6 +1287,7 @@ const PAIRS = {
   "home.life.curveSub": ["从 10 万起步，每局滚动结转", "Starts at 100k, compounding game by game"],
   "home.life.curveLock": ["再完成 {0} 局解锁你的资产曲线", "Finish {0} more game(s) to unlock your equity curve"],
   "home.life.start": ["起点", "Start"],
+  "home.life.dayN": ["第 {0} 日", "Day {0}"],
   "home.life.tradeWr": ["逐笔胜率 {0} · {1} 次平仓", "Per-trade {0} over {1} closes"],
   "home.bias.go": ["行为偏差档案", "Bias profile"],
   "home.bias.stat": ["{0}/{1} 局触发", "triggered in {0} of {1} games"],
