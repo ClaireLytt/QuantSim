@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done (8b70612; 证据 issue_recode/curve_axis_after.png, 序号轴+tooltip 日期+markArea)
 
 - [ ] x 轴标签为交易日序号（含"起点"），不再出现乱序历史日期
 - [ ] tooltip 含局内真实日期；双语文案走 t()

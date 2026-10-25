@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done (1bdd0d0 + 49e6e13 + 23125d0; check_design.py MISS: none)
 
 - [ ] DESIGN.md 色值表与 theme.css `:root` / `:root[data-theme="light"]` 当前值逐项一致（抽查对拍）
 - [ ] 字体/圆角/阴影/动效 token 与 theme.css 实际定义一致，不再出现 systemIndigo/紫色主色叙述

@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done (c42466b + 23125d0; 证据 issue_recode/streak_unified.png, 双处同显 2 天)
 
 - [ ] 登录用户任务卡与生活条 streak 数字一致（同一账号截图证据）
 - [ ] 游客任务卡仍显示本地 streak，不请求受保护接口
