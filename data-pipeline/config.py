@@ -76,9 +76,12 @@ VOLATILITY_WINDOW = 20
 OHLCV_COLUMNS = ["trade_date", "open", "high", "low", "close", "volume"]
 INDICATOR_COLUMNS = ["code", "trade_date", "ma5", "ma20", "volatility", "pct_change"]
 
+# 端口默认按部署形态分叉: 容器内 (设了 QUANTSIM_DB_HOST) 走网络内 3306; 本机裸跑默认 3308 开发库
+# (3306 被其他项目占用, 3307 是会被 mvn test 清空的测试库——2026-10-25 清库事故, 见 issue_recode/1.md)。
+_in_container = "QUANTSIM_DB_HOST" in os.environ
 DB_CONFIG = {
     "host": os.environ.get("QUANTSIM_DB_HOST", "127.0.0.1"),
-    "port": int(os.environ.get("QUANTSIM_DB_PORT", "3306")),
+    "port": int(os.environ.get("QUANTSIM_DB_PORT", "3306" if _in_container else "3308")),
     "user": os.environ.get("QUANTSIM_DB_USER", "root"),
     "password": os.environ.get("QUANTSIM_DB_PASSWORD", "root"),
     "database": os.environ.get("QUANTSIM_DB_NAME", "quantsim"),

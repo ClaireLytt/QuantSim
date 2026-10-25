@@ -283,7 +283,7 @@
     speakToken++; // 打断进行中的逐字打字, 否则收起后又被补字顶回来
     $("pet-bubble").hidden = true;
   });
-  // 逐字打字 (craft 原型转正): 标点多停一拍像落笔迟疑; token 防新话打断旧话时串字
+  // 逐字打字: token 防新话打断旧话时两段文字串在一起
   let speakToken = 0;
   const REDUCED_MOTION = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   function speak(text) {
@@ -306,7 +306,7 @@
       armHide();
     })();
   }
-  // 等 LLM 回复的思考态: 真思考才显示 (本地台词不装思考), 不自动隐藏
+  // 思考态: 仅等 /pet/chat 时显示 (本地台词不装思考), 不挂自动隐藏定时器
   function speakThinking() {
     const b = $("pet-bubble");
     ++speakToken;

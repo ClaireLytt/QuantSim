@@ -192,6 +192,9 @@ try {
         break;
     }
   }
+  // 自证主题: 截图类证据必须带生效主题, 否则"拍错主题当证据"无法被发现
+  // (2026-10-25 默认主题翻转后, 亮色截图两次被当成暗色交付)
+  result.theme = await page.evaluate(() => document.documentElement.dataset.theme || "light");
 } finally {
   await browser.close();
 }

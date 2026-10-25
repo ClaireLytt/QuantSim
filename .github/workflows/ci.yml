@@ -146,6 +146,10 @@ jobs:
         env:
           QUANTSIM_REFRESH_ENABLED: "false"
       - name: Seed synthetic market data
+        # config.py 的端口默认按部署形态分叉 (本机裸跑默认 3308 开发库),
+        # CI 的 MySQL service 在 3306, 必须显式指定, 不吃默认值
+        env:
+          QUANTSIM_DB_PORT: "3306"
         run: |
           python3 -m pip install pymysql
           python3 tools/ci_seed.py

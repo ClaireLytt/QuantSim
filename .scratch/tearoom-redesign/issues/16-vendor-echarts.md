@@ -4,8 +4,8 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 页面图表从本地加载正常渲染（无 cdnjs 请求）
-- [ ] smoke 9 步全绿
-- [ ] ui_check 0 + buttons 0
+- [x] 页面图表从本地加载正常渲染（无 cdnjs 请求）
+- [x] smoke 9 步全绿
+- [x] ui_check 0 + buttons 0

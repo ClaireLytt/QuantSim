@@ -105,6 +105,10 @@ public class GameSession {
     @Column(name = "bias_report", columnDefinition = "TEXT")
     private String biasReport;
 
+    /** 逐日净值曲线 (结算时落库, JSON [[date,value]...] ≤150 点; 老对局/曲线不可得为 null) */
+    @Column(name = "equity_curve", columnDefinition = "MEDIUMTEXT")
+    private String equityCurve;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

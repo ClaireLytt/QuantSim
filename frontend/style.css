@@ -119,26 +119,8 @@ h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: -.1px; }
 }
 .start-cta { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
 .start-cta button { width: auto; min-width: 120px; margin-top: 0; white-space: nowrap; }
-/* 次级入口降为文字链 (ticket 08): 茶色细下边线, 视觉重量让位给主 CTA 与玩法卡 */
+/* 次级入口文字链文法在 button.qs-textlink (本文件按钮族末尾), 此处只留容器间距 */
 .start-links { gap: 26px; margin-top: 20px; }
-/* 双类选择器压过后文的 button.ghost { width: 100% } (同优先级后者胜, 曾被撑成整行下划线) */
-.start-cta.start-links button.ghost {
-  width: auto;
-  min-width: 0;
-  margin-top: 0;
-  padding: 4px 2px;
-  background: none;
-  border: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  border-radius: 0;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-.start-cta.start-links button.ghost:hover:not(:disabled) {
-  color: var(--accent-strong);
-  border-bottom-color: var(--accent-strong);
-  filter: none;
-}
 
 /* 登录胶囊: 长用户名优雅省略 (ticket 09), 只约束按钮内部文本, 冻结区布局不动 */
 #btn-account {
@@ -384,6 +366,31 @@ button.replay {
   border-color: var(--border-strong);
 }
 button.replay:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-strong); filter: none; }
+
+/* 次级文字链的唯一文法 (/correct 错误类 C): 曾在 开局页/竞技场/擂台 各手搓一份同样的
+   "无边框+茶色细下边线"规则, 三处微差漂移。次级降级按钮一律挂 qs-textlink, 不再另写。
+   声明在 ghost/big 之后: 同优先级靠顺序盖掉它们的全宽/边框。 */
+button.qs-textlink {
+  width: auto;
+  min-width: 0;
+  margin-top: 0;
+  white-space: nowrap;
+  padding: 5px 3px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+button.qs-textlink:hover:not(:disabled) {
+  color: var(--accent-strong);
+  border-bottom-color: var(--accent-strong);
+  filter: none;
+  transform: none;
+  box-shadow: none;
+}
+button.qs-textlink svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; }
 
 /* iOS tinted 风格: 浅底 + 语义色文字, 白字压亮绿会不可读 */
 button.buy {

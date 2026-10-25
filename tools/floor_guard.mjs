@@ -156,6 +156,15 @@ for (const r of removedRules) {
   if (verdict) flag(verdict, r.file, r.text + '  ->  ' + a.text);
 }
 
+// 指纹闸门: 资源内容已变但 ?v= 未盖 → 阻断 (2026-10-25 两次把旧指纹带上线, hook 与 W3 曾同时失守)。
+const py = process.platform === 'win32' ? 'python' : 'python3';
+try {
+  execFileSync(py, ['tools/bump_assets.py', '--check'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+} catch (e) {
+  if (e.status === 1) flag('stale-asset-fingerprint', 'frontend/index.html', String(e.stderr || '').trim() || 'bump_assets --check failed');
+  else bail('bump_assets --check could not run: ' + (e.message || e));
+}
+
 if (findings.length === 0) { console.log('floor-guard: clean'); process.exit(0); }
 console.error('floor-guard: ' + findings.length + ' floor violation(s):');
 for (const f of findings) console.error(`  [${f.rule}] ${f.file}: ${f.text}`);

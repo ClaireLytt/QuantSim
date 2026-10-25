@@ -226,17 +226,175 @@
     });
   }
 
+  // ---------- 我的交易人生仪表盘 (2026-10-25 改版) ----------
+  // 三状态: 游客/无战绩 = 现状导航页; 有已结算对局 = 仪表盘态 (hero/core 收起, 总览折叠);
+  // 连续签到 ≥3 天 = streak 荣誉位点亮。口径 (10 万归一化几何连乘) 在后端 MeSummaryService。
+
+  let lifeSummary = null; // 最近一次 /me/summary 结果 (曲线重绘用)
+
+  const lifeCurveH = qsChart("home-life-curve", () => buildLifeCurveOption());
+
+  function buildLifeCurveOption() {
+    const s = lifeSummary;
+    if (!s || s.curve.length < 1) return null;
+    const points = [[t("home.life.start"), 100000]]
+      .concat(s.curve.map((p) => [p.date, Number(p.value)]));
+    // 最大回撤区间: 净值序列里"峰 → 之后最深谷"那一段, 茶红底标注
+    let peakI = 0; let troughI = 0; let worst = 0; let curPeak = 0;
+    points.forEach((p, i) => {
+      if (p[1] > points[curPeak][1]) curPeak = i;
+      const dd = (points[curPeak][1] - p[1]) / points[curPeak][1];
+      if (dd > worst) { worst = dd; peakI = curPeak; troughI = i; }
+    });
+    return {
+      grid: { left: 70, right: 16, top: 20, bottom: 28 },
+      tooltip: { trigger: "axis", backgroundColor: cssVar("--panel-raised"),
+        borderColor: cssVar("--border"), textStyle: { color: cssVar("--text") } },
+      xAxis: { type: "category", data: points.map((p) => p[0]),
+        axisLine: { lineStyle: { color: cssVar("--border") } },
+        axisLabel: { color: cssVar("--text-muted") } },
+      yAxis: { type: "value", scale: true,
+        splitLine: { lineStyle: { color: cssVar("--border") } },
+        axisLabel: { color: cssVar("--text-muted") } },
+      series: [{
+        type: "line", data: points.map((p) => p[1]),
+        symbol: "circle", symbolSize: 5,
+        lineStyle: { color: cssVar("--accent"), width: 2.5 },
+        itemStyle: { color: cssVar("--accent") },
+        areaStyle: { opacity: 0.12, color: cssVar("--accent") },
+        markArea: worst > 0 ? { silent: true,
+          itemStyle: { color: cssVar("--bad"), opacity: 0.12 },
+          data: [[{ xAxis: points[peakI][0] }, { xAxis: points[troughI][0] }]] } : undefined,
+      }],
+    };
+  }
+
+  function setDashboardMode(on) {
+    $("home-hero").hidden = on;
+    $("home-core-section").hidden = on;
+    setOverviewCollapsed(on);
+  }
+
+  function renderLifeNumbers(s) {
+    $("home-life-assets").textContent = Number(s.virtualAssets)
+      .toLocaleString(undefined, { maximumFractionDigits: 0 });
+    const ret = $("home-life-ret");
+    ret.textContent = fmtPct(Number(s.cumulativeReturn));
+    ret.className = Number(s.cumulativeReturn) >= 0 ? "pos" : "neg";
+    $("home-life-winrate").textContent = (Number(s.winRate) * 100).toFixed(0) + "%";
+    const dd = $("home-life-dd");
+    dd.textContent = (Number(s.maxDrawdown) * 100).toFixed(1) + "%";
+    dd.className = Number(s.maxDrawdown) > 0 ? "neg" : "";
+    const tw = $("home-life-tradewr");
+    tw.hidden = !(s.closedTrades > 0); // 无平仓流水不显示, 不造 0% 假数据
+    if (s.closedTrades > 0) {
+      tw.textContent = t("home.life.tradeWr",
+        (Number(s.tradeWinRate) * 100).toFixed(0) + "%", s.closedTrades);
+    }
+    const streakEl = $("home-life-streak");
+    streakEl.hidden = s.signInStreak < 1;
+    streakEl.textContent = t("home.life.streakN", s.signInStreak);
+    streakEl.classList.toggle("lit", s.signInStreak >= 3); // 连续 3 天点亮荣誉位
+  }
+
+  // 最近对局 3 条: 展示态列表 (进行中标注), 续局走 CTA, 全部记录走「我的」
+  function renderRecent(games) {
+    const card = $("home-recent-card");
+    card.hidden = !games.length;
+    const ul = $("home-recent-list");
+    ul.innerHTML = "";
+    games.slice(0, 3).forEach((g) => {
+      const li = document.createElement("li");
+      const mode = document.createElement("i");
+      mode.textContent = t("me.mode." + g.mode); // 动态键前缀已在 ui_check 白名单
+      const name = document.createElement("span");
+      name.textContent = g.stockName; // 后端已按进行中/事件局脱敏
+      const val = document.createElement("b");
+      if (g.status === "IN_PROGRESS") {
+        val.textContent = t("home.recent.playing");
+      } else {
+        val.textContent = qsSignedPct(g.returnRate);
+        val.className = Number(g.returnRate) >= 0 ? "pos" : "neg";
+      }
+      li.append(mode, name, val);
+      ul.appendChild(li);
+    });
+  }
+
+  // 偏差摘要: 触发率最高的一条上首页, 全未触发/无档案则整块隐藏
+  async function renderBias() {
+    const box = $("home-bias-box");
+    box.hidden = true;
+    let profile;
+    try { profile = await api("/me/bias-profile"); } catch (e) { return; }
+    const top = (profile && profile.trends || [])
+      .filter((tr) => tr.triggered > 0)
+      .sort((a, b) => b.triggered / b.games - a.triggered / a.games)[0];
+    if (!top) return;
+    $("home-bias-top").textContent = t("recap.bias." + top.key);
+    $("home-bias-stat").textContent = t("home.bias.stat", top.triggered, top.games);
+    box.hidden = false;
+  }
+
+  async function renderLife() {
+    if (!window.Auth || !Auth.user) { setDashboardMode(false); $("home-life").hidden = true; $("home-life-curve-section").hidden = true; $("home-recent-card").hidden = true; return; }
+    let s = null; let games = [];
+    try { s = await api("/me/summary"); } catch (e) { /* 拉不到保持导航态 */ }
+    try { games = await api("/me/games"); } catch (e) { /* 同上 */ }
+    const active = !!(s && s.settledCount > 0);
+    lifeSummary = s;
+    $("home-life").hidden = !active;
+    $("home-life-curve-section").hidden = !active;
+    setDashboardMode(active);
+    if (!active) { $("home-recent-card").hidden = true; return; }
+    renderLifeNumbers(s);
+    renderRecent(games);
+    renderBias();
+    // CTA: 有进行中对局 → 继续; 否则开新局
+    $("btn-home-life-cta").textContent =
+      games.some((g) => g.status === "IN_PROGRESS") ? t("home.life.resume") : t("home.hero.play");
+    // 曲线: 含起点 ≥3 点才有阅读价值, 不足时显示解锁引导
+    const unlocked = s.settledCount >= 2;
+    $("home-life-curve").hidden = !unlocked;
+    const lock = $("home-life-curve-lock");
+    lock.hidden = unlocked;
+    if (!unlocked) lock.textContent = t("home.life.curveLock", 2 - s.settledCount);
+    else lifeCurveH.refresh();
+  }
+
+  $("btn-home-life-cta").addEventListener("click", () => switchView("game"));
+  $("btn-home-recent-all").addEventListener("click", () => switchView("mine"));
+  $("btn-home-bias-all").addEventListener("click", () => switchView("profile"));
+  // 登录/登出即时切换首页形态 (auth.js 在 home.js 之前加载, 文件头声明的加载序)
+  if (window.Auth) Auth.onChange(() => renderLife());
+
+  // 功能总览折叠: 仪表盘态默认收起, 新用户/游客展开
+  let overviewCollapsed = false;
+  function setOverviewCollapsed(c) {
+    overviewCollapsed = c;
+    $("home-cards").hidden = c;
+    $("btn-home-all-toggle").textContent = t(c ? "home.all.show" : "home.all.hide");
+  }
+  $("btn-home-all-toggle").addEventListener("click", () => setOverviewCollapsed(!overviewCollapsed));
+
   document.addEventListener("qs:view", (e) => {
     if (e.detail !== "home") return;
     if (sentiScore == null) renderSentiment();
     else drawSentiment(); // 隐藏容器里尺寸为 0, 回到首页重算
     renderRankPreview();
+    renderLife();
   });
   // 仪表主题重绘由 qsChart 兜底; 语言切换要同步 senti-text 文案, 仍整体重画
-  document.addEventListener("qs:lang", () => { renderHome(); renderReco(); drawSentiment(); });
+  document.addEventListener("qs:lang", () => {
+    renderHome(); renderReco(); drawSentiment();
+    setOverviewCollapsed(overviewCollapsed);
+    if (lifeSummary && lifeSummary.settledCount > 0) { renderLifeNumbers(lifeSummary); lifeCurveH.refresh(); }
+  });
   renderHome();
   renderReco();
   renderSentiPlaceholder();
   renderSentiment();
   renderRankPreview();
+  setOverviewCollapsed(false);
+  renderLife();
 })();

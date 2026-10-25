@@ -38,6 +38,7 @@ public class MeController {
     private final GameSessionRepository sessionRepository;
     private final BacktestResultRepository backtestRepository;
     private final com.quantsim.service.BiasAnalysisService biasAnalysisService;
+    private final com.quantsim.service.MeSummaryService meSummaryService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public record GameRecord(
@@ -94,6 +95,12 @@ public class MeController {
                 .filter(java.util.Objects::nonNull)
                 .toList();
         return biasAnalysisService.profile(reports);
+    }
+
+    /** 「我的交易人生」首页聚合: 净值/累计收益/胜率/回撤/签到连续天数 + 净值曲线。口径见 MeSummaryService。 */
+    @GetMapping("/summary")
+    public com.quantsim.service.MeSummaryService.LifeSummary summary(HttpServletRequest request) {
+        return meSummaryService.summary(CurrentUser.idOrNull(request));
     }
 
     @GetMapping("/games")

@@ -49,6 +49,10 @@ public class UserPoints {
     @Column(name = "last_sign_in")
     private LocalDate lastSignIn;
 
+    /** 连续签到天数 (昨日也签过则 +1, 断签归 1); 服务端权威, 跨设备一致 */
+    @Column(name = "sign_in_streak", nullable = false)
+    private int signInStreak;
+
     @Column(name = "last_spin")
     private LocalDate lastSpin;
 

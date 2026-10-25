@@ -44,7 +44,8 @@ public class PointsService {
     private final UserPointsRepository repository;
 
     public record PointsState(int balance, int peek, int undo, int fast, int winStreak,
-                              boolean signedToday, boolean spunToday, int taskFlags) {}
+                              boolean signedToday, boolean spunToday, int taskFlags,
+                              int signInStreak) {}
 
     public record SpinResult(String kind, String value, int wheelIndex, PointsState state) {}
 
@@ -64,7 +65,8 @@ public class PointsService {
         LocalDate today = LocalDate.now(GameService.GAME_ZONE);
         int flags = today.equals(p.getTaskDate()) ? p.getTaskFlags() : 0;
         return new PointsState(p.getBalance(), p.getItemPeek(), p.getItemUndo(), p.getItemFast(),
-                p.getWinStreak(), today.equals(p.getLastSignIn()), today.equals(p.getLastSpin()), flags);
+                p.getWinStreak(), today.equals(p.getLastSignIn()), today.equals(p.getLastSpin()), flags,
+                p.getSignInStreak());
     }
 
     @Transactional
@@ -78,6 +80,8 @@ public class PointsService {
         UserPoints p = getOrCreate(userId);
         LocalDate today = LocalDate.now(GameService.GAME_ZONE);
         if (!today.equals(p.getLastSignIn())) {
+            // 昨日也签过则连续天数 +1, 断签 (或首签) 归 1
+            p.setSignInStreak(today.minusDays(1).equals(p.getLastSignIn()) ? p.getSignInStreak() + 1 : 1);
             p.setLastSignIn(today);
             p.setBalance(p.getBalance() + 10);
         }

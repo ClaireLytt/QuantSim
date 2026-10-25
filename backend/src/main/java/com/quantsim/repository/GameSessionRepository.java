@@ -85,6 +85,10 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
     @Query("select distinct s.season from GameSession s where s.season is not null order by s.season desc")
     List<String> findSeasons();
 
+    /** 我的交易人生: 已结算且有收益率的对局按时间升序, 用于累计净值曲线与胜率聚合 */
+    List<GameSession> findByUserIdAndStatusAndFinalReturnRateIsNotNullOrderByCreatedAtAsc(
+            Long userId, GameSession.Status status);
+
     @Query("""
             select s, st.name, st.code
             from GameSession s

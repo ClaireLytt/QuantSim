@@ -17,12 +17,12 @@
   <!-- 自托管字体 (茶室首页样板): Noto Serif SC 600 + IBM Plex Mono 400/500, woff2 子集在 fonts/, 不走 CDN -->
   <link rel="stylesheet" href="fonts.css?v=202610255dfb">
   <!-- 样式分层 (2026-10-25 架构评审①): theme.css 皮肤单属主必须第一个加载, style.css 是布局框架层, 其余按视图域拆分 -->
-  <link rel="stylesheet" href="theme.css?v=202610251604"><!-- 皮肤单属主, 必须第一个加载 (架构评审①) -->
-  <link rel="stylesheet" href="style.css?v=202610256cd4">
-  <link rel="stylesheet" href="game.css?v=202610253a4a">
-  <link rel="stylesheet" href="academy.css?v=202610253e23">
-  <link rel="stylesheet" href="lab-games.css?v=20261025ecbd">
-  <link rel="stylesheet" href="widgets.css?v=20261025aaa7">
+  <link rel="stylesheet" href="theme.css?v=2026102584aa"><!-- 皮肤单属主, 必须第一个加载 (架构评审①) -->
+  <link rel="stylesheet" href="style.css?v=20261025de84">
+  <link rel="stylesheet" href="game.css?v=2026102541c8">
+  <link rel="stylesheet" href="academy.css?v=202610251f7e">
+  <link rel="stylesheet" href="lab-games.css?v=20261025e839">
+  <link rel="stylesheet" href="widgets.css?v=2026102616e0">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
 <body>
@@ -42,11 +42,11 @@
     <button id="btn-header-fold" class="fold-btn" data-i18n-title="fold.title" title="折叠 / 展开导航">⌃ 收起导航</button>
     <h1>QuantSim <span class="sub" data-i18n="header.sub">虚拟炒股游戏</span></h1>
     <div class="header-tools">
-      <button id="btn-points-head" class="ghost" data-i18n-title="points.shopTitle" title="积分兑换">🎁 <span id="points-balance-head">0</span></button>
+      <button id="btn-points-head" class="ghost" data-i18n-title="points.shopTitle" title="积分兑换"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><rect x="3" y="8" width="18" height="4"/><path d="M5 12v8h14v-8M12 8v12M12 8c-2 0-4-1-4-2.5S9.5 3 12 8zm0 0c2 0 4-1 4-2.5S14.5 3 12 8z"/></svg><span id="points-balance-head">0</span></button>
       <button id="btn-account" class="ghost" data-i18n="auth.navBtn">登录</button>
       <button id="btn-lang" class="ghost" title="中文 / English">EN</button>
       <button id="btn-theme" class="ghost">浅色模式</button>
-      <button id="btn-sound" class="ghost" data-i18n-title="sound.title" title="音效开关">🔇</button>
+      <button id="btn-sound" class="ghost" data-i18n-title="sound.title" title="音效开关"></button>
     </div>
     <nav id="main-nav">
       <div id="nav-groups">
@@ -108,8 +108,8 @@
     </div>
     <!-- 玩法说明/新手引导: 降为文字链 (ticket 08, critic #2 占位式按钮) -->
     <div class="start-cta start-links">
-      <button id="btn-help" class="ghost" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
-      <button id="btn-tour" class="ghost" data-i18n="tour.btn" data-i18n-title="tour.btn">新手引导</button>
+      <button id="btn-help" class="ghost qs-textlink" data-i18n="btn.help" data-i18n-title="btn.help">玩法说明</button>
+      <button id="btn-tour" class="ghost qs-textlink" data-i18n="tour.btn" data-i18n-title="tour.btn">新手引导</button>
     </div>
     <!-- 推荐挑战: 两张高亮玩法卡 (emoji 为视觉锚点不进 i18n, 文案 span 单独挂键) -->
     <div class="intro-modes">
@@ -155,8 +155,8 @@
           <button class="small ind-chip active" data-ind="rsi">RSI</button>
           <button id="btn-sonify" class="small ind-chip" data-i18n-title="sonify.title" title="听盘模式">♪</button>
         </span>
-        <button id="btn-status-pop" class="fold-btn">💰 <span id="status-pop-label" data-i18n="status.title">账户状态</span></button>
-        <button id="btn-ai-pop" class="fold-btn">🤖 <span data-i18n="ai.title">AI 操盘手</span></button>
+        <button id="btn-status-pop" class="fold-btn"><span id="status-pop-label" data-i18n="status.title">账户状态</span></button>
+        <button id="btn-ai-pop" class="fold-btn"><span data-i18n="ai.title">AI 操盘手</span></button>
         <button id="btn-chart-guide" class="ghost" data-i18n="guide.btn">怎么看这张图？</button>
       </div>
       <div id="ai-bubble" class="ai-bubble" hidden></div>
@@ -215,9 +215,10 @@
         <button id="btn-tick" class="primary big" data-i18n="btn.tick">下一天 ➜</button>
         <button id="btn-settle" class="ghost" data-i18n="btn.settle">提前结算</button>
         <div id="item-bar" class="item-bar" hidden>
-          <button id="btn-item-peek" class="ghost small">🔮</button>
-          <button id="btn-item-undo" class="ghost small">💊</button>
-          <button id="btn-item-fast" class="ghost small">⏩</button>
+          <!-- 道具图标换单色 SVG (ticket 25): 预知=眼, 悔棋=回转, 快进=双箭头; 可访问名称由 points.js 的 title 提供 -->
+          <button id="btn-item-peek" class="ghost small"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.5"/></svg></button>
+          <button id="btn-item-undo" class="ghost small"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11a8 8 0 1 1 2.3 6.3"/><path d="M4 17v-6h6"/></svg></button>
+          <button id="btn-item-fast" class="ghost small"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5l7 7-7 7M13 5l7 7-7 7"/></svg></button>
         </div>
       </div>
 
@@ -360,9 +361,9 @@
         </div>
       </div>
       <div class="arena-ops">
-        <button id="btn-tune" class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6.5a4 4 0 0 0-5.3 5L4 16.7V20h3.3l5.2-5.2a4 4 0 0 0 5-5.3l-2.7 2.7-2.3-2.3z"/></svg><span data-i18n="arena.tune">自动调参</span></button>
-        <button id="btn-code-copy" class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span data-i18n="code.copy">复制策略码</span></button>
-        <button id="btn-code-import" class="ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10"/><path d="M8 10l4 4 4-4"/><path d="M4 18h16"/></svg><span data-i18n="code.import">导入策略码</span></button>
+        <button id="btn-tune" class="ghost qs-textlink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6.5a4 4 0 0 0-5.3 5L4 16.7V20h3.3l5.2-5.2a4 4 0 0 0 5-5.3l-2.7 2.7-2.3-2.3z"/></svg><span data-i18n="arena.tune">自动调参</span></button>
+        <button id="btn-code-copy" class="ghost qs-textlink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span data-i18n="code.copy">复制策略码</span></button>
+        <button id="btn-code-import" class="ghost qs-textlink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10"/><path d="M8 10l4 4 4-4"/><path d="M4 18h16"/></svg><span data-i18n="code.import">导入策略码</span></button>
       </div>
       <p class="hint arena-desc"><span class="arena-info" data-i18n-title="arena.descTip" title="玩法说明随所选策略变化"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.8" fill="currentColor"/></svg></span><span id="bt-strategy-desc"></span></p>
       <p class="hint" id="bt-tune-msg" hidden></p>
@@ -727,7 +728,7 @@
     <div id="nj-intro" class="card rb-card">
       <p class="hint" data-i18n="nj.introText">每轮 10 条真实感新闻：减持、回购、高送转、意向书、解禁……判断它对股价是利好 / 利空 / 中性。判完立刻讲透背后的财务常识。答对 +10 分，三连对起每题再 +5。</p>
       <p class="hint" id="nj-best" hidden></p>
-      <button id="btn-nj-start" class="primary" data-i18n="nj.start">📰 开始挑战</button>
+      <button id="btn-nj-start" class="primary" data-i18n="nj.start">开始挑战</button>
     </div>
 
     <div id="nj-play" class="nj-wrap" hidden>
@@ -741,9 +742,9 @@
       <div class="nj-main">
         <div class="nj-news"><p id="nj-text"></p></div>
         <div class="nj-opts">
-          <button id="btn-nj-bull" class="buy big" data-i18n="nj.bull">📈 利好</button>
-          <button id="btn-nj-flat" class="big" data-i18n="nj.flat">➖ 中性</button>
-          <button id="btn-nj-bear" class="sell big" data-i18n="nj.bear">📉 利空</button>
+          <button id="btn-nj-bull" class="buy big" data-i18n="nj.bull">利好</button>
+          <button id="btn-nj-flat" class="big" data-i18n="nj.flat">中性</button>
+          <button id="btn-nj-bear" class="sell big" data-i18n="nj.bear">利空</button>
         </div>
         <div id="nj-verdict" class="lab-verdict" hidden></div>
         <button id="btn-nj-next" class="primary big" hidden data-i18n="nj.next">下一条</button>
@@ -753,7 +754,7 @@
     <div id="nj-end" class="card rb-card" hidden>
       <h3 id="nj-end-title"></h3>
       <p id="nj-end-stats"></p>
-      <button id="btn-nj-again" class="primary" data-i18n="nj.again">🔁 再来一轮</button>
+      <button id="btn-nj-again" class="primary" data-i18n="nj.again">再来一轮</button>
     </div>
   </section>
   </div>
@@ -765,7 +766,7 @@
     <div id="bd-intro" class="card rb-card">
       <p class="hint" data-i18n="bd.introText">每回合看 30 天净值走势后二选一：「立即买入」按现价全仓；「等待回调」挂低 3% 的限价单——未来 15 天触价则折扣上车，没触价就空仓踏空。8 回合后和「无脑立即买」的基准比总资产，亲身体会等回调到底是折扣还是代价。</p>
       <p class="hint" id="bd-best" hidden></p>
-      <button id="btn-bd-start" class="primary" data-i18n="bd.start">⚖️ 开始挑战</button>
+      <button id="btn-bd-start" class="primary" data-i18n="bd.start">开始挑战</button>
     </div>
 
     <div id="bd-play" class="bd-wrap" hidden>
@@ -786,7 +787,7 @@
         <div id="bd-chart" class="bd-chart"></div>
         <p id="bd-msg" class="bd-msg"></p>
         <div class="bd-opts">
-          <button id="btn-bd-buy" class="buy big" data-i18n="bd.buyNow">🚀 立即买入</button>
+          <button id="btn-bd-buy" class="buy big" data-i18n="bd.buyNow">立即买入</button>
           <button id="btn-bd-wait" class="big" data-i18n="bd.wait">⏳ 等待回调（-3% 限价）</button>
         </div>
         <button id="btn-bd-next" class="primary big" hidden data-i18n="bd.nextRound">下一回合 →</button>
@@ -797,7 +798,7 @@
       <h3 id="bd-end-title"></h3>
       <p id="bd-end-stats"></p>
       <p id="bd-end-lesson" class="hint"></p>
-      <button id="btn-bd-again" class="primary" data-i18n="bd.again">🔁 再来一轮</button>
+      <button id="btn-bd-again" class="primary" data-i18n="bd.again">再来一轮</button>
     </div>
   </section>
   </div>
@@ -936,8 +937,8 @@
 
       <div class="qd-actions">
         <button id="btn-duel-submit" class="primary big" data-i18n="duel.submit">提交我的策略</button>
-        <button id="btn-duel-final" class="big" data-i18n="duel.final.open">🏁 本轮结算</button>
-        <button id="btn-duel-history" class="big" data-i18n="duel.history">📜 查看历史擂台</button>
+        <button id="btn-duel-final" class="big qs-textlink" data-i18n="duel.final.open">本轮结算</button>
+        <button id="btn-duel-history" class="big qs-textlink" data-i18n="duel.history">查看历史擂台</button>
       </div>
     </div>
 
@@ -960,9 +961,9 @@
       <p id="duel-final-detail" class="lab-verdict" hidden></p>
       <p class="duel-final-tip hint" data-i18n="duel.final.tip">💡 知识点：擂台评分综合收益与回撤，不单纯看收益率——翻倍但腰斩过的策略，排名未必赢过稳稳 +20% 的。</p>
       <div class="qd-actions">
-        <button id="btn-duel-final-detail" class="big" data-i18n="duel.final.detailBtn">🔍 查看策略详情</button>
-        <button id="btn-duel-final-next" class="primary big" data-i18n="duel.final.next">🥊 参加下一轮擂台</button>
-        <button id="btn-duel-final-back" class="ghost" data-i18n="duel.build.back">↩ 返回擂台榜</button>
+        <button id="btn-duel-final-detail" class="big qs-textlink" data-i18n="duel.final.detailBtn">查看策略详情</button>
+        <button id="btn-duel-final-next" class="primary big" data-i18n="duel.final.next">参加下一轮擂台</button>
+        <button id="btn-duel-final-back" class="ghost qs-textlink" data-i18n="duel.build.back">↩ 返回擂台榜</button>
       </div>
     </div>
 
@@ -996,8 +997,8 @@
         </div>
       </div>
       <div class="qd-actions">
-        <button id="btn-duel-enter" class="primary big" disabled data-i18n="duel.build.enter">🥊 提交策略参加擂台</button>
-        <button id="btn-duel-back" class="big" data-i18n="duel.build.back">↩ 返回擂台榜</button>
+        <button id="btn-duel-enter" class="primary big" disabled data-i18n="duel.build.enter">提交策略参加擂台</button>
+        <button id="btn-duel-back" class="big qs-textlink" data-i18n="duel.build.back">↩ 返回擂台榜</button>
       </div>
     </div>
   </section>
@@ -1044,7 +1045,7 @@
     <div id="qd-select">
       <p class="hint" data-i18n="qd.selectHint">每个案子都有一句诱人的宣传话术。翻证据卡办案——翻得越少、结论越准，得分越高。</p>
       <div id="qd-cases" class="qd-cases"></div>
-      <button id="btn-qd-enter" class="primary big" data-i18n="qd.enter">🚪 进入办案室</button>
+      <button id="btn-qd-enter" class="primary big" data-i18n="qd.enter">进入办案室</button>
     </div>
 
     <div id="qd-room" hidden>
@@ -1068,8 +1069,8 @@
         </div>
       </div>
       <div class="qd-actions">
-        <button id="btn-qd-fetch" class="big" data-i18n="qd.fetch">🔍 调取证据（消耗 1 次）</button>
-        <button id="btn-qd-conclude" class="primary big" data-i18n="qd.concludeBtn">⚖️ 提交结案判断</button>
+        <button id="btn-qd-fetch" class="big" data-i18n="qd.fetch">调取证据（消耗 1 次）</button>
+        <button id="btn-qd-conclude" class="primary big" data-i18n="qd.concludeBtn">提交结案判断</button>
       </div>
       <button id="btn-qd-back" class="ghost" data-i18n="qd.back">↩ 回到案件列表</button>
     </div>
@@ -1099,7 +1100,7 @@
       </div>
       <div class="qd-actions">
         <button id="btn-qdr-next" class="primary big" data-i18n="qd.nextCase">▶ 下一个案件</button>
-        <button id="btn-qdr-lab" class="big" data-i18n="qd.toLab">🔬 返回研究所亲手验证</button>
+        <button id="btn-qdr-lab" class="big" data-i18n="qd.toLab">返回研究所亲手验证</button>
       </div>
     </div>
   </section>
@@ -1112,7 +1113,7 @@
     <div id="sb-intro" class="card rb-card">
       <p class="hint" data-i18n="sb.introText">盲盒里藏着一种市场脾气（慢牛 / 阴跌熊 / 宽幅震荡 / 泡沫破裂）。你看不到行情，只能调双均线策略的参数、花掉最多 5 次回测机会，观察净值曲线与回撤的「指纹」：趋势策略在牛市如鱼得水、在震荡市反复止损、在崩盘市靠止损保命。猜对行情得分，剩的回测次数越多分越高。</p>
       <p class="hint" id="sb-best" hidden></p>
-      <button id="btn-sb-start" class="primary" data-i18n="sb.start">🎁 开一个盲盒</button>
+      <button id="btn-sb-start" class="primary" data-i18n="sb.start">开一个盲盒</button>
     </div>
 
     <div id="sb-play" class="sb-wrap" hidden>
@@ -1149,7 +1150,7 @@
       <h3 id="sb-end-title"></h3>
       <p id="sb-end-stats"></p>
       <p id="sb-end-lesson" class="hint"></p>
-      <button id="btn-sb-again" class="primary" data-i18n="sb.again">🔁 再开一个</button>
+      <button id="btn-sb-again" class="primary" data-i18n="sb.again">再开一个</button>
     </div>
   </section>
   </div>
@@ -1161,7 +1162,7 @@
     <div id="rm-intro" class="card rb-card">
       <p class="hint" data-i18n="rm.introText">1 万本金环游 16 格棋盘：行情格按比例涨跌、新闻格随机事件、答题格考财商（答对 +1500 / 答错 -800）、经过起点 +1000。18 次掷骰后按总资产结算。</p>
       <p class="hint" id="rm-best" hidden></p>
-      <button id="btn-rm-start" class="primary" data-i18n="rm.start">🎲 开始环游</button>
+      <button id="btn-rm-start" class="primary" data-i18n="rm.start">开始环游</button>
     </div>
 
     <div id="rm-play" class="rm-wrap" hidden>
@@ -1171,7 +1172,7 @@
           <dt data-i18n="rm.lap">圈数</dt><dd id="rm-lap">1</dd>
           <dt data-i18n="rm.rollsLeft">剩余骰子</dt><dd id="rm-rolls">18</dd>
         </dl>
-        <button id="btn-rm-roll" class="primary big" data-i18n="rm.roll">🎲 掷骰子</button>
+        <button id="btn-rm-roll" class="primary big" data-i18n="rm.roll">掷骰子</button>
       </aside>
       <div id="rm-board" class="rm-board">
         <div class="rm-center">
@@ -1188,7 +1189,7 @@
     <div id="rm-end" class="card rb-card" hidden>
       <h3 id="rm-end-title"></h3>
       <p id="rm-end-stats"></p>
-      <button id="btn-rm-again" class="primary" data-i18n="rm.again">🔁 再来一局</button>
+      <button id="btn-rm-again" class="primary" data-i18n="rm.again">再来一局</button>
     </div>
   </section>
   </div>
@@ -1200,7 +1201,7 @@
     <div id="og-intro" class="card rb-card">
       <p class="hint" data-i18n="og.introText">30 个交易日，10 万本金。盯着标的走势买看涨/看跌期权——选行权价、选到期日，每天眼睁睁看权利金随时间衰减；财报日前后波动翻倍，是风险也是机会。到期自动结算，中途也可平仓离场。亏损永远有底（权利金），收益却能放大数倍——用小钱体会期权的杠杆与时间。</p>
       <p class="hint" id="og-best" hidden></p>
-      <button id="btn-og-start" class="primary" data-i18n="og.start">🎯 开始 30 日挑战</button>
+      <button id="btn-og-start" class="primary" data-i18n="og.start">开始 30 日挑战</button>
     </div>
 
     <div id="og-game" class="card rb-card" hidden>
@@ -1277,7 +1278,7 @@
     <div id="tp-intro" class="card rb-card">
       <p class="hint" data-i18n="tp.introText">价格每 0.25 秒跳一次，持续 60 秒。三个键：做多、做空、平仓——满仓进出，每笔收 0.05% 手续费。行情里埋着几段趋势，也有大量噪声：追着每个波动打，手续费会把你磨死；等到真趋势再出手，一两笔就够。这是对「过度交易」最直观的一课。</p>
       <p class="hint" id="tp-best" hidden></p>
-      <button id="btn-tp-start" class="primary" data-i18n="tp.start">⚡ 开盘 60 秒</button>
+      <button id="btn-tp-start" class="primary" data-i18n="tp.start">开盘 60 秒</button>
     </div>
 
     <div id="tp-game" class="card rb-card" hidden>
@@ -1313,7 +1314,7 @@
     <div id="bb-intro" class="card rb-card">
       <p class="hint" data-i18n="bb.introText">60 个交易日，1000 万本金。低位悄悄吸筹 → 拉抬点火 → 发利好把散户骗进来 → 高位出货。拉得越猛散户越疯，监管盯得也越紧；出货太急会把价格砸在自己手里。玩过庄家，你就懂散户为什么亏钱。</p>
       <p class="hint" id="bb-best"></p>
-      <button id="btn-bb-start" class="primary" data-i18n="bb.start">🐳 开始坐庄</button>
+      <button id="btn-bb-start" class="primary" data-i18n="bb.start">开始坐庄</button>
     </div>
 
     <div id="bb-game" class="card rb-card" hidden>
@@ -1335,14 +1336,14 @@
         <div id="bb-result-pct" class="bb-result-pct"></div>
       </div>
       <div class="bb-actions">
-        <button id="btn-bb-accum"><span data-i18n="bb.act.accum">🤫 吸筹</span><small data-i18n="bb.desc.accum">悄悄买，动静小</small></button>
-        <button id="btn-bb-pump"><span data-i18n="bb.act.pump">🚀 拉抬</span><small data-i18n="bb.desc.pump">猛买点火，引散户</small></button>
-        <button id="btn-bb-news"><span data-i18n="bb.act.news">📰 发利好</span><small data-i18n="bb.desc.news">花钱买热度，嫌疑大增</small></button>
-        <button id="btn-bb-dump" class="primary"><span data-i18n="bb.act.dump">📤 出货</span><small data-i18n="bb.desc.dump">卖给热情的散户</small></button>
-        <button id="btn-bb-wait"><span data-i18n="bb.act.wait">🫥 观望</span><small data-i18n="bb.desc.wait">热度嫌疑都退一退</small></button>
+        <button id="btn-bb-accum"><span data-i18n="bb.act.accum">吸筹</span><small data-i18n="bb.desc.accum">悄悄买，动静小</small></button>
+        <button id="btn-bb-pump"><span data-i18n="bb.act.pump">拉抬</span><small data-i18n="bb.desc.pump">猛买点火，引散户</small></button>
+        <button id="btn-bb-news"><span data-i18n="bb.act.news">发利好</span><small data-i18n="bb.desc.news">花钱买热度，嫌疑大增</small></button>
+        <button id="btn-bb-dump" class="primary"><span data-i18n="bb.act.dump">出货</span><small data-i18n="bb.desc.dump">卖给热情的散户</small></button>
+        <button id="btn-bb-wait"><span data-i18n="bb.act.wait">观望</span><small data-i18n="bb.desc.wait">热度嫌疑都退一退</small></button>
       </div>
       <ul id="bb-log" class="rb-log"></ul>
-      <button id="btn-bb-restart" class="ghost" hidden data-i18n="bb.restart">🔁 再坐一庄</button>
+      <button id="btn-bb-restart" class="ghost" hidden data-i18n="bb.restart">再坐一庄</button>
     </div>
   </section>
   </div>
@@ -1360,7 +1361,7 @@
         <button class="ghost small" id="btn-rb_eye"><span data-i18n="rb.gift.eye">黄金眼</span> · 150</button>
       </div>
       <p class="hint" id="rb-gift-hint"></p>
-      <button id="btn-rb-start" class="primary" data-i18n="rb.start">👶 开始重生</button>
+      <button id="btn-rb-start" class="primary" data-i18n="rb.start">开始重生</button>
       <p class="hint" id="rb-best"></p>
       <div id="rb-hall"></div>
     </div>
@@ -1381,12 +1382,12 @@
       <div id="rb-assets" class="rb-assets"></div>
       <ul id="rb-log" class="rb-log"></ul>
       <div class="rb-actions">
-        <button id="btn-rb-work" data-i18n="rb.work">💼 打工</button>
-        <button id="btn-rb-biz" data-i18n="rb.biz">🛒 做生意</button>
-        <button id="btn-rb-auction" data-i18n="rb.auction">🔨 拍卖行</button>
-        <button id="btn-rb-next" class="primary" data-i18n="rb.next">🧧 过年 ➜</button>
+        <button id="btn-rb-work" data-i18n="rb.work">打工</button>
+        <button id="btn-rb-biz" data-i18n="rb.biz">做生意</button>
+        <button id="btn-rb-auction" data-i18n="rb.auction">拍卖行</button>
+        <button id="btn-rb-next" class="primary" data-i18n="rb.next">过年 ➜</button>
       </div>
-      <button id="btn-rb-restart" class="ghost" hidden data-i18n="rb.restart">🔁 再来一世</button>
+      <button id="btn-rb-restart" class="ghost" hidden data-i18n="rb.restart">再来一世</button>
     </div>
   </section>
   </div>
@@ -1418,8 +1419,35 @@
   </div>
 
   <div id="view-home" class="tearoom" hidden>
+  <!-- 我的交易人生仪表盘 (2026-10-25 改版): 登录且有已结算对局时替代 hero, 三状态切换在 home.js -->
+  <section class="home-life" id="home-life" hidden>
+    <div class="home-life-head">
+      <div class="home-life-title-wrap">
+        <p class="home-life-title" data-i18n="home.life.hello">我的交易人生</p>
+        <p class="home-life-streak" id="home-life-streak" hidden></p>
+      </div>
+      <button id="btn-home-life-cta" class="primary big"></button>
+    </div>
+    <div class="home-life-stats">
+      <div class="home-life-stat"><span class="hint" data-i18n="home.life.assets">虚拟资产</span><b id="home-life-assets"></b></div>
+      <div class="home-life-stat"><span class="hint" data-i18n="home.life.ret">累计收益率</span><b id="home-life-ret"></b></div>
+      <div class="home-life-stat"><span class="hint" data-i18n="home.life.winrate">对局胜率</span><b id="home-life-winrate"></b>
+        <span class="hint" id="home-life-tradewr" hidden></span></div>
+      <div class="home-life-stat"><span class="hint" data-i18n="home.life.dd">最大回撤</span><b id="home-life-dd"></b></div>
+    </div>
+  </section>
+
+  <!-- 资产曲线: 10 万起步逐局滚动结转; 不足 2 局时显示解锁引导 -->
+  <section class="academy-panel" id="home-life-curve-section" hidden>
+    <h2><span data-i18n="home.life.curveTitle">资产曲线</span> <span class="sub" data-i18n="home.life.curveSub">从 10 万起步，每局滚动结转</span></h2>
+    <div class="card home-life-curve-card">
+      <div id="home-life-curve" class="home-life-curve"></div>
+      <p id="home-life-curve-lock" class="hint" hidden></p>
+    </div>
+  </section>
+
   <!-- 首屏横幅: 主张 + 双主按钮 -->
-  <section class="home-hero">
+  <section class="home-hero" id="home-hero">
     <div class="home-hero-text">
       <div class="home-hero-title" data-i18n="home.hero.title">QuantSim 虚拟炒股游戏</div>
       <p class="home-hero-sub" data-i18n="home.hero.sub">先回测验证策略，再开启模拟交易。</p>
@@ -1456,8 +1484,8 @@
     </div>
   </section>
 
-  <!-- 三大核心功能 -->
-  <section class="academy-panel">
+  <!-- 三大核心功能 (仪表盘态折叠: 入口已被 CTA 与功能总览覆盖) -->
+  <section class="academy-panel" id="home-core-section">
     <div class="home-core-grid">
       <button class="home-core" data-goto="game">
         <span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M5 8h4v8H5zM17 2v20M15 6h4v9h-4z"/></svg></span>
@@ -1518,6 +1546,16 @@
 
   <section class="academy-panel">
     <div class="home-duo">
+      <div class="card home-recent-card" id="home-recent-card" hidden>
+        <div class="tasks-head"><b data-i18n="home.recent.title">最近对局</b>
+          <button id="btn-home-recent-all" class="small" data-i18n="home.recent.all">查看全部</button></div>
+        <ul id="home-recent-list" class="home-rank-list"></ul>
+        <!-- 偏差摘要: 嵌在最近对局卡尾部, 触发率最高的一条 + 档案入口 -->
+        <div id="home-bias-box" class="home-bias-box" hidden>
+          <p><b id="home-bias-top"></b> <span class="hint" id="home-bias-stat"></span></p>
+          <button id="btn-home-bias-all" class="small" data-i18n="home.bias.go">行为偏差档案</button>
+        </div>
+      </div>
       <div class="card tasks-card">
         <div class="tasks-head"><b data-i18n="todo.title">今日任务</b><span class="hint" id="tasks-streak"></span></div>
         <button id="btn-task-signin" class="task-row"></button>
@@ -1533,7 +1571,8 @@
     </div>
   </section>
   <section class="academy-panel" id="home-all-section">
-    <h2><span data-i18n="home.title">功能总览</span> <span class="sub" data-i18n="home.sub">所有玩法一目了然，点卡片直达</span></h2>
+    <h2><span data-i18n="home.title">功能总览</span> <span class="sub" data-i18n="home.sub">所有玩法一目了然，点卡片直达</span>
+      <button id="btn-home-all-toggle" class="small home-all-toggle"></button></h2>
     <div id="home-cards" class="home-cards"></div>
   </section>
 
@@ -1734,10 +1773,10 @@
       </div>
       <div class="guess-actions">
         <button id="btn-guess-start" class="primary" data-i18n="guess.start">开始</button>
-        <button id="btn-guess-daily" class="ghost" data-i18n="guess.daily">📅 每日一猜</button>
-        <button id="btn-guess-rich" class="ghost" data-i18n="rich.enter">💰 富豪场（高倍杠杆）</button>
+        <button id="btn-guess-daily" class="ghost" data-i18n="guess.daily">每日一猜</button>
+        <button id="btn-guess-rich" class="ghost" data-i18n="rich.enter">富豪场（高倍杠杆）</button>
         <button id="btn-rich-exit" class="ghost" hidden data-i18n="rich.exit">收手离场</button>
-        <button id="btn-rich-reborn" class="primary" hidden data-i18n="rich.reborn">💸 破产重生</button>
+        <button id="btn-rich-reborn" class="primary" hidden data-i18n="rich.reborn">破产重生</button>
         <button id="btn-guess-up" class="buy" hidden data-i18n="guess.up">看涨</button>
         <button id="btn-guess-down" class="sell" hidden data-i18n="guess.down">看跌</button>
       </div>
@@ -1793,7 +1832,7 @@
 
   <!-- 明日快讯决策卡: 推进前弹出, 给玩家"先调仓还是直接推进"的选择 -->
   <!-- 对局右下角悬浮: 结算后一键复盘 -->
-  <button id="btn-recap-fab" class="primary recap-fab" hidden data-i18n="gs.recapFab">📋 本局复盘</button>
+  <button id="btn-recap-fab" class="primary recap-fab" hidden data-i18n="gs.recapFab">本局复盘</button>
 
   <!-- 从研究所导入策略 -->
   <div id="strat-modal" class="modal-mask" hidden>
@@ -1993,7 +2032,7 @@
         <div class="wheel-box">
           <div class="wheel-pointer">▼</div>
           <div id="wheel" class="wheel"></div>
-          <button id="btn-wheel-spin" class="primary" data-i18n="wheel.spin">🎡 每日免费转一次</button>
+          <button id="btn-wheel-spin" class="primary" data-i18n="wheel.spin">每日免费转一次</button>
         </div>
         <h3 data-i18n="tasks.title">今日任务</h3>
         <ul class="orders-list task-list">
@@ -2548,12 +2587,12 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261025216f"></script>
+  <script src="i18n.js?v=20261026a42e"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=202610258fa6"></script>
-  <script src="play.js?v=20261025ca63"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
+  <script src="app.js?v=20261025b571"></script>
+  <script src="play.js?v=20261025dd95"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
-  <script src="arena.js?v=20261025b51f"></script>
+  <script src="arena.js?v=202610253339"></script>
   <script src="replay.js?v=20261025bda6"></script>
   <script src="auth.js?v=202610252658"></script>
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
@@ -2575,7 +2614,7 @@
   <script src="heatmap.js?v=202610256ee4"></script>
   <script src="news.js?v=2026102553a0"></script>
   <script src="history.js?v=20261025bcf3"></script>
-  <script src="home.js?v=20261025719b"></script>
+  <script src="home.js?v=20261026c167"></script>
   <script src="points.js?v=20261025c358"></script>
   <script src="reborn.js?v=202610257b00"></script>
   <script src="bubble.js?v=20261025d32e"></script>
@@ -2585,11 +2624,11 @@
   <script src="stratbox.js?v=202610255d84"></script>
   <script src="qdetect.js?v=20261025cbe8"></script>
   <script src="tasks.js?v=20261025543d"></script>
-  <script src="pet.js?v=2026102581d4"></script>
+  <script src="pet.js?v=2026102523c4"></script>
   <script src="career.js?v=202610258c7d"></script>
   <script src="relics.js?v=202610253759"></script>
   <script src="walker.js?v=202610255fa3"></script>
-  <script src="duel.js?v=20261025d2c1"></script>
+  <script src="duel.js?v=2026102515b4"></script>
   <script src="wiki.js?v=202610252f2e"></script>
   <script src="games.js?v=20261025f87a"></script>
   <script src="mine.js?v=20261025965a"></script>

@@ -260,6 +260,64 @@ def main():
             elif ratio < need:
                 warns.append(f"W8 [{tname}] --{fg} 在 --{bg} 上对比度 {ratio:.2f}:1 (建议 ≥ {need}:1)")
 
+    # ---------- E10 按钮禁 emoji 功能图标 (设计禁止清单, ticket 25 机械化) ----------
+    # 只拦彩色 pictograph; 单色字形 (✕ ➜ ♪ ＋ ↩ ▶) 与文案内容/装饰 emoji 不在禁令内。
+    EMOJI_BAN = re.compile("[\U0001F000-\U0001FAFF⚔⚖➖⭐⚠-⛿]")
+    btn_i18n_keys = set()
+    for m in re.finditer(r"<button[^>]*>(.*?)</button>", html, re.S):
+        btn_i18n_keys.update(re.findall(r'data-i18n="([^"]+)"', m.group(0)))
+        text_only = re.sub(r"<svg.*?</svg>", "", m.group(1), flags=re.S)
+        text_only = re.sub(r"<[^>]+>", "", text_only)
+        if EMOJI_BAN.search(text_only):
+            errors.append(f"E10 按钮含 emoji 功能图标 (设计禁令, 换单色 SVG 或纯文字) @ index.html:{line_of(html, m.start())}")
+    for ln, line in enumerate(i18n_src.splitlines(), 1):
+        km = re.match(r'\s*"((?:[^"\\]|\\.)+)":\s*\[', line)
+        if km and km.group(1) in btn_i18n_keys and EMOJI_BAN.search(line):
+            errors.append(f'E10 按钮文案键 "{km.group(1)}" 含 emoji (该键挂在 <button> 上) @ i18n.js:{ln}')
+
+    # ---------- E11/E12/E13 设计禁令机械化 (2026-10-25: 把禁止清单里能确定性判定的三条变成 lint) ----------
+    # E11 禁 ease-in-out 时序 (设计禁令: 动画一律显式 cubic-bezier); E12 禁紫/蓝紫色;
+    # E13 冻结区: .header-tools 基础规则必须保持 flex-wrap: nowrap (窄屏换行只许在 @media 里)。
+    def hex_hue(hexstr):
+        r, g, b = (int(hexstr[i:i + 2], 16) / 255 for i in (1, 3, 5))
+        mx, mn = max(r, g, b), min(r, g, b)
+        if mx == mn:
+            return None  # 无彩色, 无色相
+        d = mx - mn
+        if (mx - mn) / (mx + 1e-9) < 0.15:
+            return None  # 饱和度过低, 视为灰
+        h = (60 * ((g - b) / d) % 360 if mx == r else
+             60 * ((b - r) / d) + 120 if mx == g else 60 * ((r - g) / d) + 240)
+        return h % 360
+    for fname in sorted(os.listdir(FRONTEND)):
+        if not fname.endswith(".css") or fname.startswith("prototype-"):
+            continue
+        src = read(os.path.join(FRONTEND, fname))
+        # 掩掉块注释再扫 (保留换行, 行号不漂移), 否则注释里提"禁 ease-in-out"会自我误伤
+        src = re.sub(r"/\*.*?\*/", lambda m: re.sub(r"[^\n]", " ", m.group(0)), src, flags=re.S)
+        for ln, line in enumerate(src.splitlines(), 1):
+            if re.search(r"\bease-in-out\b", line):
+                errors.append(f"E11 禁用 ease-in-out 时序 (换显式 cubic-bezier) @ {fname}:{ln}")
+            for hm in re.finditer(r"hsla?\(\s*(\d+)", line):
+                if 250 <= int(hm.group(1)) <= 289:
+                    errors.append(f"E12 紫/蓝紫色相 hsl({hm.group(1)}…) (设计禁令: 全站无紫) @ {fname}:{ln}")
+            for xm in re.finditer(r"#[0-9a-fA-F]{6}\b", line):
+                hue = hex_hue(xm.group(0))
+                if hue is not None and 250 <= hue <= 289:
+                    errors.append(f"E12 紫/蓝紫色 {xm.group(0)} (设计禁令: 全站无紫) @ {fname}:{ln}")
+    ht = re.search(r"\.header-tools\s*{([^}]*)}", css)
+    if not ht or "flex-wrap: nowrap" not in ht.group(1):
+        errors.append("E13 布局冻结区: style.css 的 .header-tools 基础规则必须保持 flex-wrap: nowrap (桌面端单行横排是用户钦定)")
+
+    # ---------- E14 宠物视觉锁暖色 (用户多次纠正"宠物发灰", 2026-10-25 机械化) ----------
+    # 宠物相关选择器 (pav-*/pet-*) 的规则行里: 禁 grayscale/冷滤镜, 取色禁 var(--accent 系 (走 --pet-warm)。
+    wsrc = read(os.path.join(FRONTEND, "widgets.css"))
+    wsrc = re.sub(r"/\*.*?\*/", lambda m: re.sub(r"[^\n]", " ", m.group(0)), wsrc, flags=re.S)
+    for ln, line in enumerate(wsrc.splitlines(), 1):
+        if re.search(r"\.(pav-|pet-sprite|pet-hat|pet-avatar)", line):
+            if "grayscale" in line or "var(--accent" in line:
+                errors.append(f"E14 宠物视觉禁灰/禁跟主题 accent, 一律 --pet-warm @ widgets.css:{ln}")
+
     # ---------- W3 版本号 ----------
     for m in re.finditer(r'(?:src|href)="([\w./]+\.(?:js|css))\?v=([\w]+)"', html):
         fname, ver = m.group(1), m.group(2)
@@ -278,11 +336,18 @@ def main():
             changed = True
         if not changed:
             continue
-        mtime = datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y%m%d")
-        # 版本号约定以日期开头 (如 20261001a); 文件修改日期晚于版本日期 => 忘 bump
-        vm = re.match(r"(\d{8})", ver)
-        if vm and mtime > vm.group(1):
-            warns.append(f"W3 {fname} 改于 {mtime}, 但 index.html 版本号还是 ?v={ver} (缓存不会刷新)")
+        # 用内容指纹判定 (复用 bump_assets 算法): 旧的"文件日期>版本日期"启发式在同一天内
+        # 改文件是盲区 (2026-10-25 两次把旧指纹带上线都没叫), 指纹对比无此死角
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            from bump_assets import fingerprint
+            if not ver.endswith(fingerprint(path)):
+                warns.append(f"W3 {fname} 内容已变, 但 index.html 版本号还是 ?v={ver} (缓存不会刷新, 跑 tools/bump_assets.py)")
+        except Exception:
+            mtime = datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y%m%d")
+            vm = re.match(r"(\d{8})", ver)
+            if vm and mtime > vm.group(1):
+                warns.append(f"W3 {fname} 改于 {mtime}, 但 index.html 版本号还是 ?v={ver} (缓存不会刷新)")
 
     # ---------- 输出 ----------
     for e in errors:

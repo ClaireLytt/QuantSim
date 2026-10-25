@@ -55,7 +55,7 @@
   /* 茶室材质三件套 + 三字体 (原 widgets.css 作用域块, ticket 06 升为全局) */
   --tr-serif: "Noto Serif SC", "Songti SC", "SimSun", serif;
   --tr-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
-  --tr-hand: "STKaiti", "Kaiti SC", "KaiTi", "FangSong", cursive;
+  --tr-hand: "Kaiti SC", "STKaiti", "KaiTi", "楷体", "DFKai-SB", "FangSong", "仿宋", cursive;
   --tr-rain: hsla(35, 12%, 60%, .07);
   --tr-fiber: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0.72  0 0 0 0 0.62  0 0 0 0 0.45  0 0 0 0.4 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>");
   --tr-blend: soft-light;
@@ -199,7 +199,7 @@
   letter-spacing: .06em;
 }
 
-/* 衬线标题 + 等宽数字：茶室气质的两根支柱 */
+/* 衬线标题 + 等宽数字（茶室三字体之一/之二） */
 #view-home .home-hero-title,
 #view-home .academy-panel h2,
 #view-home .home-core strong,
@@ -239,8 +239,7 @@
   background: color-mix(in srgb, var(--surface-2) 72%, transparent);
   border-color: var(--border);
 }
-/* 纸面材质（craft 转正）：纤维噪点与纸底渐变叠在同一 background 栈里（免用伪元素，
-   按钮卡片都适用），内阴影做边缘压暗 + 顶部受光 */
+/* 纸面材质：噪点与渐变叠同一 background 栈——免用伪元素，button 和 div 通吃 */
 #view-home .home-core,
 #view-home .home-reco,
 #view-home .home-hero,

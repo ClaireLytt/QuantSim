@@ -33,6 +33,61 @@
 
 /* ---------- 首页改版: 横幅 / 核心功能 / 新手推荐 / 榜单预览 / 页脚 ---------- */
 
+/* 我的交易人生仪表盘 (2026-10-25): 有战绩的登录用户首屏, 结构同 hero 卡, 数字走 tr-mono */
+.home-life {
+  margin: 24px auto 0;
+  max-width: 980px;
+  padding: 24px 32px;
+  background: color-mix(in srgb, var(--lab-blue) 5%, var(--lab-card));
+  border: 1px solid var(--lab-line);
+  border-radius: var(--radius);
+}
+.home-life-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.home-life-title-wrap { flex: 1 1 260px; min-width: 0; }
+.home-life-title {
+  margin: 0;
+  font-family: var(--tr-serif);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -.3px;
+}
+.home-life-streak { margin: 4px 0 0; font-size: 13px; color: var(--text-muted); }
+/* 连续 3 天点亮荣誉位: 茶色强调 (印章式) */
+.home-life-streak.lit { color: var(--accent); font-weight: 600; }
+.home-life-head button { flex: 0 0 auto; }
+.home-life-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+.home-life-stat {
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.home-life-stat b {
+  font-family: var(--tr-mono);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.home-life-curve-card { max-width: 980px; margin: 0 auto; }
+.home-life-curve { height: 280px; }
+@media (max-width: 720px) {
+  .home-life { padding: 18px 16px; }
+  .home-life-curve { height: 220px; }
+}
+.home-recent-card .home-rank-list { margin-top: 4px; }
+/* 偏差摘要: 最近对局卡尾部的细分隔区 */
+.home-bias-box { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.home-bias-box p { margin: 0 0 8px; font-size: 13px; }
+.home-life-stat .hint { font-size: 11px; }
+.home-all-toggle { margin-left: 10px; vertical-align: 3px; }
+
 .home-hero {
   display: flex;
   align-items: center;
@@ -109,7 +164,7 @@
   border-radius: var(--radius-sm);
   background: linear-gradient(100deg, var(--surface-2) 40%, color-mix(in srgb, var(--surface-2) 55%, var(--panel)) 50%, var(--surface-2) 60%);
   background-size: 200% 100%;
-  animation: senti-skeleton 1.6s ease-in-out infinite;
+  animation: senti-skeleton 1.6s cubic-bezier(.45,.05,.55,.95) infinite;
 }
 @keyframes senti-skeleton {
   from { background-position: 120% 0; }
@@ -658,7 +713,7 @@
   font-size: 78px;
   line-height: 1;
   display: block;
-  animation: pet-bob 1.6s ease-in-out infinite;
+  animation: pet-bob 1.6s cubic-bezier(.45,.05,.55,.95) infinite;
   /* 保持 emoji 原色: 曾按评审意见做过冷色化滤镜, 用户要求还原 */
   transition: font-size .3s var(--ease-out);
 }
@@ -690,7 +745,7 @@
   z-index: 59;
   font-size: 26px;
   pointer-events: none;
-  animation: pet-flutter 1s ease-in-out infinite;
+  animation: pet-flutter 1s cubic-bezier(.45,.05,.55,.95) infinite;
 }
 @keyframes pet-flutter {
   0%, 100% { translate: 0 0; rotate: -8deg; }
@@ -734,9 +789,12 @@
   max-width: 220px;
   margin: 0;
   padding: 7px 10px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text);
+  /* 手写体对话: 宠物发言的角色感 (craft 原型钦定三字体之三) */
+  font-family: var(--tr-hand);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--accent);
+  transform: rotate(-.4deg);
   background: color-mix(in srgb, var(--panel-raised) 86%, transparent);
   -webkit-backdrop-filter: var(--blur-material);
   backdrop-filter: var(--blur-material);
@@ -754,10 +812,12 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--panel);
+  /* 纸面材质: 与首页卡片共用同一套 --tr-* 变量, 换主题自动跟随 */
+  background: var(--tr-fiber), var(--tr-paper-grad);
+  background-blend-mode: var(--tr-blend), normal;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--tr-paper-shadow);
 }
 /* 指向宠物的小尾巴, 让气泡和本体建立从属关系 */
 .pet-bubble::before {
@@ -792,7 +852,7 @@
   animation: pet-cursor-blink 1s steps(1, end) infinite;
 }
 @keyframes pet-cursor-blink { 50% { opacity: 0; } }
-/* 思考键帽: 只在等 /pet/chat 回复时出现, 三颗轮流下沉 */
+/* 思考键帽: 只在等 /pet/chat 真实回复时出现, 本地台词不装思考 */
 .pet-thinking-caps { display: flex; gap: 5px; }
 .pet-thinking-caps i {
   width: 20px;
@@ -825,13 +885,26 @@
 .pet-bubble:not([hidden]) ~ .pet-pop:not([hidden]) { margin-top: 6px; translate: 0 64px; }
 .pet-pop-up .pet-bubble:not([hidden]) ~ .pet-pop:not([hidden]) { translate: 0 -64px; }
 .pet-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-#pet-name { cursor: pointer; font-size: 14px; }
+#pet-name { cursor: pointer; font-size: 15px; font-family: var(--tr-serif); font-weight: 600; letter-spacing: .08em; }
 #pet-name-input { width: 110px; }
 .pet-xp-track { height: 6px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
 .pet-xp-track i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s; }
 .pet-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .pet-ask-row { display: flex; gap: 6px; }
-.pet-ask-row input { flex: 1; min-width: 0; font-size: 12px; }
+/* 输入框 = 用户发言, 同走手写体 */
+.pet-ask-row input { flex: 1; min-width: 0; font-size: 14px; font-family: var(--tr-hand); color: var(--accent); }
+.pet-ask-row input::placeholder { color: color-mix(in srgb, var(--accent) 55%, transparent); }
+#btn-pet-ask {
+  background: var(--accent-strong);
+  color: var(--on-accent);
+  border-color: transparent;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--accent-strong) 60%, black);
+  transition: transform .08s cubic-bezier(.3, .7, .4, 1), box-shadow .08s cubic-bezier(.3, .7, .4, 1);
+}
+#btn-pet-ask:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent-strong) 60%, black);
+}
 .pet-pop .hint { margin: 0; font-size: 11px; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -849,7 +922,7 @@
 .pet-head-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .pet-avatar { width: 38px; height: 38px; flex: none; }
 .pet-avatar svg { width: 100%; height: 100%; }
-/* 宠物头像走专属暖色 --pet-warm (用户多次反馈"宠物发灰", 原因是灰底灰边只靠一点主色混色撑不起颜色) */
+/* 宠物视觉一律 --pet-warm, 不跟主题 accent (ui_check E14 机械拦) */
 .pav-face { fill: color-mix(in srgb, var(--pet-warm) 26%, var(--surface-2)); stroke: color-mix(in srgb, var(--pet-warm) 70%, var(--border-strong)); stroke-width: 1.6; }
 .pav-body { fill: color-mix(in srgb, var(--pet-warm) 14%, var(--surface-2)); stroke: color-mix(in srgb, var(--pet-warm) 50%, var(--border-strong)); stroke-width: 1.4; }
 .pav-line { stroke: color-mix(in srgb, var(--pet-warm) 55%, var(--border-strong)); stroke-width: 1.6; }
@@ -876,9 +949,11 @@
 .pet-sec-title {
   margin: 10px 0 0;
   padding-top: 10px;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-  font-weight: 700;
+  border-top: 1px dashed var(--border);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .24em;
+  font-family: var(--tr-mono);
   color: var(--text-muted);
 }
 .pet-xp-text { margin: 6px 0 0; font-size: 12px; }
@@ -1121,8 +1196,8 @@
 
 /* 头像即档案入口: 可点 + hover 提亮 */
 button.pet-avatar { padding: 0; background: transparent; border: none; cursor: pointer; }
-button.pet-avatar:hover .pav-face { stroke: var(--accent); }
-button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+button.pet-avatar:hover .pav-face { stroke: var(--pet-warm); }
+button.pet-avatar:focus-visible { outline: none; border-radius: 12px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--pet-warm) 25%, transparent); }
 #pet-profile-modal .pet-attrs { margin-top: 0; }
 #pet-profile-modal .pet-actions { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
 

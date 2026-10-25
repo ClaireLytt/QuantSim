@@ -198,16 +198,8 @@ function buildChartOption() {
     ],
     dataZoom: [
       { type: "inside", xAxisIndex: [0, 1, 2], start: 0, end: 100 },
-      { type: "slider", xAxisIndex: [0, 1, 2], bottom: 0, height: 18,
-        // 滑块不给默认蓝: 填充/选区/手柄全部跟随主题色 (茶室换装 ticket 01)
-        borderColor: COLORS.border, textStyle: { color: COLORS.muted },
-        backgroundColor: "transparent",
-        fillerColor: hexA(COLORS.accent, 0.14),
-        handleStyle: { color: COLORS.panel, borderColor: COLORS.border },
-        moveHandleStyle: { color: COLORS.border },
-        emphasis: { handleStyle: { borderColor: COLORS.accent }, moveHandleStyle: { color: COLORS.accent } },
-        dataBackground: { lineStyle: { color: COLORS.border }, areaStyle: { color: hexA(COLORS.muted, 0.1) } },
-        selectedDataBackground: { lineStyle: { color: COLORS.accent }, areaStyle: { color: hexA(COLORS.accent, 0.12) } } },
+      // 滑块主题化走共享口径 qsSliderZoom (app.js), 不再手搓 token 组合
+      { ...qsSliderZoom(COLORS), xAxisIndex: [0, 1, 2], bottom: 0, height: 18 },
     ],
     series: [
       {
