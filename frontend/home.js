@@ -237,8 +237,10 @@
   function buildLifeCurveOption() {
     const s = lifeSummary;
     if (!s || s.curve.length < 1) return null;
-    const points = [[t("home.life.start"), 100000]]
-      .concat(s.curve.map((p) => [p.date, Number(p.value)]));
+    // x 轴用交易日序号而非日期: 各局玩的是不同历史窗口, 直排日期会非单调且重复;
+    // 局内真实日期保留在第三列, 只进 tooltip
+    const points = [[t("home.life.start"), 100000, ""]]
+      .concat(s.curve.map((p, i) => [t("home.life.dayN", i + 1), Number(p.value), p.date]));
     // 最大回撤区间: 净值序列里"峰 → 之后最深谷"那一段, 茶红底标注
     let peakI = 0; let troughI = 0; let worst = 0; let curPeak = 0;
     points.forEach((p, i) => {
@@ -249,7 +251,14 @@
     return {
       grid: { left: 70, right: 16, top: 20, bottom: 28 },
       tooltip: { trigger: "axis", backgroundColor: cssVar("--panel-raised"),
-        borderColor: cssVar("--border"), textStyle: { color: cssVar("--text") } },
+        borderColor: cssVar("--border"), textStyle: { color: cssVar("--text") },
+        // 序号轴补回局内真实日期 (值与日期都是本地数值/后端日期串, 无用户输入)
+        formatter: (ps) => {
+          const i = ps[0].dataIndex;
+          const date = points[i][2];
+          return ps[0].name + (date ? " · " + date : "") + "<br/>"
+            + Number(points[i][1]).toLocaleString();
+        } },
       xAxis: { type: "category", data: points.map((p) => p[0]),
         axisLine: { lineStyle: { color: cssVar("--border") } },
         axisLabel: { color: cssVar("--text-muted") } },

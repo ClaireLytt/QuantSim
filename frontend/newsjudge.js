@@ -99,9 +99,23 @@
     if (b.best) $("nj-best").textContent = t("nj.best", b.best);
   }
 
-  function start() {
-    // 洗牌抽 ROUNDS 条, 一轮内不重复
-    g.deck = qsShuffle(NEWS).slice(0, ROUNDS);
+  // 实战题 (M2): 真实历史新闻, 答案由事件日后 5 个交易日实际涨跌推导 (服务端 /game/news-quiz)。
+  // 游客可用; 拉取失败/题池为空时整轮回退纯静态题库, 玩法不受影响。
+  function toRealItem(q) {
+    return {
+      text: { zh: q.titleZh + "——" + q.bodyZh, en: q.titleEn + " — " + q.bodyEn },
+      ans: q.ans,
+      real: q, // 判后揭晓用: 标的/实际涨跌/6 个收盘
+    };
+  }
+
+  async function start() {
+    let real = [];
+    try {
+      real = (await api("/game/news-quiz")).map(toRealItem);
+    } catch (e) { /* 后端不可达 → 纯题库轮 */ }
+    // 洗牌混题, 一轮内不重复: 实战题最多 5 条, 其余用静态题库补满
+    g.deck = qsShuffle(qsShuffle(NEWS).slice(0, ROUNDS - real.length).concat(real)).slice(0, ROUNDS);
     g.idx = 0;
     g.score = 0;
     g.hit = 0;
@@ -116,6 +130,7 @@
   function showRound() {
     g.answered = false;
     const item = g.deck[g.idx];
+    $("nj-real-tag").hidden = !item.real; // 实战题徽标: 这条是真实历史新闻
     $("nj-text").textContent = pick(item.text);
     $("nj-verdict").hidden = true;
     $("btn-nj-next").hidden = true;
@@ -156,12 +171,35 @@
       else if (k === choice) btn.classList.add("nj-wrong");
     });
     const v = $("nj-verdict");
-    v.textContent = (right ? t("nj.right", gain) : t("nj.wrong", t("nj." + item.ans))) + " " + pick(item.why);
+    const head = right ? t("nj.right", gain) : t("nj.wrong", t("nj." + item.ans));
+    if (item.real) {
+      // 实战题判后揭晓: 标的 + 后 5 日实际涨跌 + mini 走势 (数据全来自后端数值, 无用户输入)
+      const q = item.real;
+      v.textContent = head + " " + t("nj.realWhy", q.name, q.code, qsSignedPct(q.pct));
+      v.insertAdjacentHTML("beforeend", sparkline(q.closes));
+    } else {
+      v.textContent = head + " " + pick(item.why);
+    }
     v.hidden = false;
     const last = g.idx >= ROUNDS - 1;
     $("btn-nj-next").textContent = t(last ? "nj.finish" : "nj.next");
     $("btn-nj-next").hidden = false;
     renderStats();
+  }
+
+  /** 6 个收盘 → 内联 mini 走势折线 (纯数值拼接, 色取语义涨跌变量) */
+  function sparkline(closes) {
+    const w = 120;
+    const h = 28;
+    const min = Math.min(...closes);
+    const max = Math.max(...closes);
+    const span = max - min || 1;
+    const pts = closes.map((c, i) =>
+      `${(i / (closes.length - 1)) * (w - 4) + 2},${h - 3 - ((c - min) / span) * (h - 6)}`).join(" ");
+    const color = closes[closes.length - 1] >= closes[0] ? "var(--up)" : "var(--down)";
+    return ` <svg class="nj-spark" viewBox="0 0 ${w} ${h}" aria-hidden="true">`
+      + `<polyline points="${pts}" fill="none" style="stroke:${color}" stroke-width="2" `
+      + `stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   }
 
   function next() {

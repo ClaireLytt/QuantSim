@@ -28,6 +28,7 @@ import com.quantsim.config.RateLimiter;
 import com.quantsim.service.AdvisorService;
 import com.quantsim.service.GameService;
 import com.quantsim.service.GameStartService;
+import com.quantsim.service.MiniGameService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -47,6 +48,8 @@ public class GameController {
 
     private final GameService gameService;
     private final GameStartService gameStart;
+    private final MiniGameService miniGameService;
+    private final com.quantsim.service.RecapService recapService;
     private final AdvisorService advisorService;
     private final RateLimiter rateLimiter;
     private final GameProperties gameProps;
@@ -71,6 +74,19 @@ public class GameController {
     @GetMapping("/industries")
     public List<com.quantsim.dto.GameDtos.IndustryOption> industries() {
         return gameStart.listIndustries();
+    }
+
+    /** 猜涨跌·真实历史模式窗口 (游客可用, 只读缓存; M1, 见 MiniGameService) */
+    @GetMapping("/guess-window")
+    public MiniGameService.GuessWindow guessWindow() {
+        return miniGameService.guessWindow();
+    }
+
+    /** 新闻多空·实战题池 (游客可用, 只读; M2, 见 MiniGameService)。
+     *  挂在 /api/game 而非 /api/event: 后者整段被 AuthFilter 保护, 小游戏对游客开放。 */
+    @GetMapping("/news-quiz")
+    public List<MiniGameService.QuizItem> newsQuiz() {
+        return miniGameService.newsQuiz();
     }
 
     @PostMapping("/start")
@@ -131,6 +147,12 @@ public class GameController {
     }
 
     /** 行为偏差诊断报告 (已结算对局; 结算时已落库, 这里只读) */
+    /** 赛后复盘: 盈亏四分解 + 逐笔配对 + 卖后走势事实 (属主校验由 GameAccessInterceptor 统一过) */
+    @GetMapping("/{sessionId}/recap")
+    public com.quantsim.service.RecapService.RecapResponse recap(@PathVariable Long sessionId) {
+        return recapService.recap(sessionId);
+    }
+
     @GetMapping("/{sessionId}/bias")
     public com.quantsim.dto.GameDtos.BiasReport bias(@PathVariable Long sessionId) {
         return gameService.getBiasReport(sessionId);
