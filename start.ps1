@@ -3,6 +3,16 @@
 $backend = Join-Path $PSScriptRoot "backend"
 $url = "http://localhost:8080"
 
+# 日常开发固定走专用 dev 库 (3308, 容器 quantsim-mysql-dev, 数据在 named volume 里持久化)。
+# 为什么: 3306 常被其他项目容器占用; 3307 是集成测试库, mvn test 会清库——曾把真实账号清掉 (见 issue_recode/1.md)。
+$env:QUANTSIM_DB_PORT = "3308"
+$devDb = docker ps --filter "name=quantsim-mysql-dev" --format "{{.Names}}"
+if (-not $devDb) {
+    Write-Host "Starting dev database container (quantsim-mysql-dev on 3308)..."
+    docker start quantsim-mysql-dev | Out-Null
+    Start-Sleep -Seconds 8
+}
+
 function Test-Backend {
     try {
         $null = Invoke-WebRequest "$url/api/leaderboard" -UseBasicParsing -TimeoutSec 2

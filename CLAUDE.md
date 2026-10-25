@@ -11,7 +11,9 @@ cd backend && mvn -B test
 #   docker start quantsim-mysql-test && QUANTSIM_DB_PORT=3307 mvn -B test
 
 # 后端运行 (静态资源直接指向 ../frontend, 改前端刷新即生效)
-cd backend && mvn spring-boot:run     # 或仓库根目录 .\start.ps1 一键启动
+#   本地三套库严格分工 (2026-10-25 测试清库吞过真实账号, 勿再混用):
+#   3306=其他项目占用 · 3307=集成测试库 (mvn test 会清库, 禁止日常开发连它) · 3308=开发库 (quantsim-mysql-dev, named volume 持久化)
+cd backend && QUANTSIM_DB_PORT=3308 mvn spring-boot:run   # 或仓库根目录 .\start.ps1 一键启动 (自动起 dev 库并指向 3308)
 
 # Docker 全家桶
 docker compose up -d                              # MySQL + 后端
