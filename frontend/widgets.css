@@ -82,6 +82,10 @@
   .home-life-curve { height: 220px; }
 }
 .home-recent-card .home-rank-list { margin-top: 4px; }
+/* 偏差摘要: 最近对局卡尾部的细分隔区 */
+.home-bias-box { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.home-bias-box p { margin: 0 0 8px; font-size: 13px; }
+.home-life-stat .hint { font-size: 11px; }
 .home-all-toggle { margin-left: 10px; vertical-align: 3px; }
 
 .home-hero {

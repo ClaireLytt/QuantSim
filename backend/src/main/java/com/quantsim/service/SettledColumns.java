@@ -24,14 +24,22 @@ import com.quantsim.entity.GameSession;
  * @param finalReturnRate 最终收益率
  * @param finalSharpe     最终夏普 (权益曲线不可得时为 null)
  * @param biasReportJson  行为偏差诊断 JSON (序列化失败/无报告时为 null)
+ * @param equityCurveJson 逐日净值曲线 JSON [[date,value]...] (曲线不可得/序列化失败时为 null)
  */
 public record SettledColumns(
         GameSession.Status status,
         BigDecimal finalReturnRate,
         BigDecimal finalSharpe,
-        String biasReportJson) {
+        String biasReportJson,
+        String equityCurveJson) {
 
     private static final Logger log = LoggerFactory.getLogger(SettledColumns.class);
+
+    /** 曲线落库上限: 超出按步长降采样 (末点恒保留), 同 BacktestService 的 150 点先例 */
+    private static final int CURVE_MAX_POINTS = 150;
+
+    /** 逐日净值点 (日期 + 当日收盘后净值) */
+    public record DayValue(java.time.LocalDate date, BigDecimal value) {}
 
     /**
      * 工厂产物: 落库列 + 响应侧应携带的报告, 配套返回。
@@ -47,7 +55,8 @@ public record SettledColumns(
      * 诊断是增值信息, JSON 转换抛异常只记 warn, 结算照常落库其余三列。
      */
     public static Prepared of(GameSession.Status status, BigDecimal finalReturnRate,
-            BigDecimal finalSharpe, BiasReport report, ObjectMapper objectMapper) {
+            BigDecimal finalSharpe, BiasReport report, java.util.List<DayValue> equityCurve,
+            ObjectMapper objectMapper) {
         String json = null;
         if (report != null) {
             try {
@@ -56,8 +65,33 @@ public record SettledColumns(
                 log.warn("偏差诊断报告序列化失败, 降级为 null", e);
             }
         }
-        return new Prepared(new SettledColumns(status, finalReturnRate, finalSharpe, json),
-                json == null ? null : report);
+        return new Prepared(new SettledColumns(status, finalReturnRate, finalSharpe, json,
+                curveJson(equityCurve, objectMapper)), json == null ? null : report);
+    }
+
+    /**
+     * 曲线"降采样 ≤150 点、日期转字符串、失败降级 null"的唯一政策实现:
+     * 日期以 toString (ISO) 存字符串, 不依赖 ObjectMapper 是否装了 JavaTimeModule。
+     */
+    private static String curveJson(java.util.List<DayValue> curve, ObjectMapper objectMapper) {
+        if (curve == null || curve.isEmpty()) {
+            return null;
+        }
+        try {
+            int step = Math.max(1, (int) Math.ceil(curve.size() / (double) CURVE_MAX_POINTS));
+            java.util.List<java.util.List<Object>> pts = new java.util.ArrayList<>();
+            for (int i = 0; i < curve.size(); i += step) {
+                pts.add(java.util.List.of(curve.get(i).date().toString(), curve.get(i).value()));
+            }
+            DayValue last = curve.get(curve.size() - 1);
+            if ((curve.size() - 1) % step != 0) { // 末点是结算日净值, 恒保留
+                pts.add(java.util.List.of(last.date().toString(), last.value()));
+            }
+            return objectMapper.writeValueAsString(pts);
+        } catch (Exception e) {
+            log.warn("逐日净值曲线序列化失败, 降级为 null", e);
+            return null;
+        }
     }
 
     /** 把全部结算列写到实体上——调用方只调这一个方法, 回填知识不外泄。 */
@@ -66,5 +100,6 @@ public record SettledColumns(
         session.setFinalReturnRate(finalReturnRate);
         session.setFinalSharpe(finalSharpe);
         session.setBiasReport(biasReportJson);
+        session.setEquityCurve(equityCurveJson);
     }
 }

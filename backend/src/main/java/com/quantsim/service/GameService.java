@@ -414,10 +414,20 @@ public class GameService {
         // 事件回放: 结算揭晓场景与大事记 (进行中绝不下发, 文本会暴露真实时间)
         GameDtos.EventReveal eventReveal = eventReveal(session);
 
+        // 逐日净值点: curve 首点是初始资金 (无日期), 第 i+1 点对应窗口内第 i 个交易日
+        List<SettledColumns.DayValue> dayValues = null;
+        if (curve != null && startIdx != null && endIdx != null) {
+            List<LocalDate> days = sd.prices().subList(startIdx, endIdx + 1).stream()
+                    .map(DailyPrice::getTradeDate).toList();
+            dayValues = new ArrayList<>(days.size());
+            for (int i = 0; i < days.size() && i + 1 < curve.size(); i++) {
+                dayValues.add(new SettledColumns.DayValue(days.get(i), curve.get(i + 1)));
+            }
+        }
         // 结算写回 game_session 的列统一经 SettledColumns 收口 (含 bias JSON 序列化-或-null 政策),
         // 新增结算列只改 SettledColumns, 别在这里散写 setter
         SettledColumns.Prepared prepared = SettledColumns.of(GameSession.Status.SETTLED, returnRate,
-                risk == null ? null : risk.sharpe(), biasReport, objectMapper);
+                risk == null ? null : risk.sharpe(), biasReport, dayValues, objectMapper);
         prepared.columns().applyTo(session);
         orderService.cancelOpenOnSettle(session.getSessionId()); // 残留 OPEN 挂单随对局一并了结
 

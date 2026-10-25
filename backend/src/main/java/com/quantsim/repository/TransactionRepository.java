@@ -20,4 +20,14 @@ public interface TransactionRepository extends JpaRepository<TradeTransaction, L
 
     @Query("select coalesce(sum(t.fee), 0) from TradeTransaction t where t.sessionId = :sessionId")
     BigDecimal sumFeesBySessionId(Long sessionId);
+
+    /** 我的交易人生: 某用户全部已结算对局的流水 (按局分组、局内时间升序), 逐笔配对胜率用 */
+    @Query("""
+            select t from TradeTransaction t
+            join GameSession s on s.sessionId = t.sessionId
+            where s.userId = :userId and s.status = :status
+            order by t.sessionId asc, t.createdAt asc, t.txId asc
+            """)
+    List<TradeTransaction> findByUserAndSessionStatus(Long userId,
+            com.quantsim.entity.GameSession.Status status);
 }

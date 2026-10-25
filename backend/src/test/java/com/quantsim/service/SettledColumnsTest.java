@@ -44,7 +44,8 @@ class SettledColumnsTest {
             "status", "getStatus",
             "finalReturnRate", "getFinalReturnRate",
             "finalSharpe", "getFinalSharpe",
-            "biasReportJson", "getBiasReport");
+            "biasReportJson", "getBiasReport",
+            "equityCurveJson", "getEquityCurve");
 
     @Test
     void applyToWritesEveryRecordComponent() throws Exception {
@@ -85,7 +86,7 @@ class SettledColumnsTest {
             }
         };
         SettledColumns.Prepared prepared = SettledColumns.of(
-                GameSession.Status.SETTLED, BigDecimal.ONE, null, report, broken);
+                GameSession.Status.SETTLED, BigDecimal.ONE, null, report, null, broken);
         assertThat(prepared.columns().biasReportJson()).isNull();
         assertThat(prepared.columns().status()).isEqualTo(GameSession.Status.SETTLED);
         // 响应侧口径与落库由构造绑定: JSON 为 null 时响应侧一起为 null (否则刷新后报告消失)
@@ -95,7 +96,7 @@ class SettledColumnsTest {
     @Test
     void factoryNullReportYieldsNullJson() {
         SettledColumns.Prepared prepared = SettledColumns.of(
-                GameSession.Status.SETTLED, BigDecimal.ONE, null, null, new ObjectMapper());
+                GameSession.Status.SETTLED, BigDecimal.ONE, null, null, null, new ObjectMapper());
         assertThat(prepared.columns().biasReportJson()).isNull();
         assertThat(prepared.responseReport()).isNull();
     }
@@ -105,9 +106,32 @@ class SettledColumnsTest {
         BiasReport report = new BiasReport(3, List.of());
         SettledColumns.Prepared prepared = SettledColumns.of(
                 GameSession.Status.SETTLED, BigDecimal.ONE, BigDecimal.TEN,
-                report, new ObjectMapper());
+                report, null, new ObjectMapper());
         assertThat(prepared.columns().biasReportJson()).contains("\"totalTrades\":3");
         // 序列化成功时响应侧携带的就是被序列化的那份报告
         assertThat(prepared.responseReport()).isSameAs(report);
+    }
+
+    @Test
+    void 曲线降采样不超150点且首末点恒保留() {
+        List<SettledColumns.DayValue> curve = new java.util.ArrayList<>();
+        for (int i = 0; i < 300; i++) {
+            curve.add(new SettledColumns.DayValue(
+                    java.time.LocalDate.of(2026, 1, 1).plusDays(i), new BigDecimal(100000 + i)));
+        }
+        SettledColumns.Prepared prepared = SettledColumns.of(
+                GameSession.Status.SETTLED, BigDecimal.ONE, null, null, curve, new ObjectMapper());
+        String json = prepared.columns().equityCurveJson();
+        assertThat(json).contains("\"2026-01-01\"").contains("100299"); // 首点 + 结算日末点
+        // 每个点以 [" 开头, 计数即点数 (150 + 补末点 ≤ 151)
+        assertThat(json.split("\\[\"").length - 1).isLessThanOrEqualTo(151);
+    }
+
+    @Test
+    void 空曲线或null曲线落库为null() {
+        assertThat(SettledColumns.of(GameSession.Status.SETTLED, BigDecimal.ONE, null, null,
+                List.of(), new ObjectMapper()).columns().equityCurveJson()).isNull();
+        assertThat(SettledColumns.of(GameSession.Status.SETTLED, BigDecimal.ONE, null, null,
+                null, new ObjectMapper()).columns().equityCurveJson()).isNull();
     }
 }

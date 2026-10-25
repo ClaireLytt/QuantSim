@@ -285,6 +285,12 @@
     const dd = $("home-life-dd");
     dd.textContent = (Number(s.maxDrawdown) * 100).toFixed(1) + "%";
     dd.className = Number(s.maxDrawdown) > 0 ? "neg" : "";
+    const tw = $("home-life-tradewr");
+    tw.hidden = !(s.closedTrades > 0); // 无平仓流水不显示, 不造 0% 假数据
+    if (s.closedTrades > 0) {
+      tw.textContent = t("home.life.tradeWr",
+        (Number(s.tradeWinRate) * 100).toFixed(0) + "%", s.closedTrades);
+    }
     const streakEl = $("home-life-streak");
     streakEl.hidden = s.signInStreak < 1;
     streakEl.textContent = t("home.life.streakN", s.signInStreak);
@@ -315,6 +321,21 @@
     });
   }
 
+  // 偏差摘要: 触发率最高的一条上首页, 全未触发/无档案则整块隐藏
+  async function renderBias() {
+    const box = $("home-bias-box");
+    box.hidden = true;
+    let profile = null;
+    try { profile = await api("/me/bias-profile"); } catch (e) { return; }
+    const top = (profile && profile.trends || [])
+      .filter((tr) => tr.triggered > 0)
+      .sort((a, b) => b.triggered / b.games - a.triggered / a.games)[0];
+    if (!top) return;
+    $("home-bias-top").textContent = t("recap.bias." + top.key);
+    $("home-bias-stat").textContent = t("home.bias.stat", top.triggered, top.games);
+    box.hidden = false;
+  }
+
   async function renderLife() {
     if (!window.Auth || !Auth.user) { setDashboardMode(false); $("home-life").hidden = true; $("home-life-curve-section").hidden = true; $("home-recent-card").hidden = true; return; }
     let s = null; let games = [];
@@ -328,6 +349,7 @@
     if (!active) { $("home-recent-card").hidden = true; return; }
     renderLifeNumbers(s);
     renderRecent(games);
+    renderBias();
     // CTA: 有进行中对局 → 继续; 否则开新局
     $("btn-home-life-cta").textContent =
       games.some((g) => g.status === "IN_PROGRESS") ? t("home.life.resume") : t("home.hero.play");
@@ -342,6 +364,7 @@
 
   $("btn-home-life-cta").addEventListener("click", () => switchView("game"));
   $("btn-home-recent-all").addEventListener("click", () => switchView("mine"));
+  $("btn-home-bias-all").addEventListener("click", () => switchView("profile"));
   // 登录/登出即时切换首页形态 (auth.js 在 home.js 之前加载, 文件头声明的加载序)
   if (window.Auth) Auth.onChange(() => renderLife());
 

@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="game.css?v=2026102541c8">
   <link rel="stylesheet" href="academy.css?v=202610251f7e">
   <link rel="stylesheet" href="lab-games.css?v=20261025e839">
-  <link rel="stylesheet" href="widgets.css?v=202610258e7f">
+  <link rel="stylesheet" href="widgets.css?v=2026102616e0">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
 <body>
@@ -1431,7 +1431,8 @@
     <div class="home-life-stats">
       <div class="home-life-stat"><span class="hint" data-i18n="home.life.assets">虚拟资产</span><b id="home-life-assets"></b></div>
       <div class="home-life-stat"><span class="hint" data-i18n="home.life.ret">累计收益率</span><b id="home-life-ret"></b></div>
-      <div class="home-life-stat"><span class="hint" data-i18n="home.life.winrate">对局胜率</span><b id="home-life-winrate"></b></div>
+      <div class="home-life-stat"><span class="hint" data-i18n="home.life.winrate">对局胜率</span><b id="home-life-winrate"></b>
+        <span class="hint" id="home-life-tradewr" hidden></span></div>
       <div class="home-life-stat"><span class="hint" data-i18n="home.life.dd">最大回撤</span><b id="home-life-dd"></b></div>
     </div>
   </section>
@@ -1549,6 +1550,11 @@
         <div class="tasks-head"><b data-i18n="home.recent.title">最近对局</b>
           <button id="btn-home-recent-all" class="small" data-i18n="home.recent.all">查看全部</button></div>
         <ul id="home-recent-list" class="home-rank-list"></ul>
+        <!-- 偏差摘要: 嵌在最近对局卡尾部, 触发率最高的一条 + 档案入口 -->
+        <div id="home-bias-box" class="home-bias-box" hidden>
+          <p><b id="home-bias-top"></b> <span class="hint" id="home-bias-stat"></span></p>
+          <button id="btn-home-bias-all" class="small" data-i18n="home.bias.go">行为偏差档案</button>
+        </div>
       </div>
       <div class="card tasks-card">
         <div class="tasks-head"><b data-i18n="todo.title">今日任务</b><span class="hint" id="tasks-streak"></span></div>
@@ -2581,7 +2587,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610251e96"></script>
+  <script src="i18n.js?v=20261026a42e"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=20261025b571"></script>
   <script src="play.js?v=20261025dd95"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
@@ -2608,7 +2614,7 @@
   <script src="heatmap.js?v=202610256ee4"></script>
   <script src="news.js?v=2026102553a0"></script>
   <script src="history.js?v=20261025bcf3"></script>
-  <script src="home.js?v=20261025f9eb"></script>
+  <script src="home.js?v=202610263fb2"></script>
   <script src="points.js?v=20261025c358"></script>
   <script src="reborn.js?v=202610257b00"></script>
   <script src="bubble.js?v=20261025d32e"></script>
