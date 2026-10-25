@@ -7,7 +7,8 @@
 const GUESS_WINDOW = 30;
 const DAILY_GUESSES = 10;
 const guessChartH = qsChart("guess-chart", () => buildGuessOption());
-const guess = { data: [], visible: 0, score: 0, streak: 0, lossStreak: 0, playing: false, waiting: false, mode: "free", dailyLeft: 0, shieldUsed: false };
+const guess = { data: [], visible: 0, score: 0, streak: 0, lossStreak: 0, playing: false, waiting: false, mode: "free", dailyLeft: 0, shieldUsed: false,
+  realBars: null, realIdx: 0, realReveal: null }; // 真实历史模式 (M1): 服务端盲抽窗口, 结算揭晓标的
 
 const todayStr = qsTodayStr; // 共享实现在 app.js
 
@@ -197,12 +198,73 @@ function startGuess() {
   $("btn-guess-start").hidden = true;
   $("btn-guess-daily").hidden = true; // 对局中只留看涨/看跌一行, 别和大按钮挤在一起
   $("btn-guess-rich").hidden = true;
+  $("btn-guess-real").hidden = true;
   $("rich-bar").hidden = true;
   $("rich-wealth-wrap").hidden = true;
   $("rich-best-wrap").hidden = true;
   $("btn-guess-up").hidden = false;
   $("btn-guess-down").hidden = false;
   $("guess-msg").textContent = t("guess.prompt");
+}
+
+// ---------- 真实历史模式 (M1): 行情来自 /game/guess-window 盲抽的 40 根真实 K 线 ----------
+// 不走均衡引擎: 没有胜率修正与极端抑制, 市场长什么样就是什么样 —— 与事件回放同款"盲打→揭晓"叙事
+
+async function startReal() {
+  let w;
+  try { w = await api("/game/guess-window"); } catch (e) { toast(e.message); return; }
+  guess.playing = true;
+  guess.waiting = false;
+  guess.mode = "real";
+  guess.score = 0;
+  guess.streak = 0;
+  guess.lossStreak = 0;
+  guess.shieldUsed = false;
+  guess.realBars = w.bars.map((b) => ({ open: +b.open, high: +b.high, low: +b.low, close: +b.close }));
+  guess.realReveal = w.reveal;
+  guess.realIdx = GUESS_WINDOW;
+  guess.data = guess.realBars.slice(0, GUESS_WINDOW).map((b, i) => ({ day: i + 1, ...b }));
+  guess.visible = GUESS_WINDOW;
+  refreshGuessChart();
+  refreshGuessStats();
+  $("btn-guess-start").hidden = true;
+  $("btn-guess-daily").hidden = true;
+  $("btn-guess-rich").hidden = true;
+  $("btn-guess-real").hidden = true;
+  $("rich-bar").hidden = true;
+  $("rich-wealth-wrap").hidden = true;
+  $("rich-best-wrap").hidden = true;
+  $("btn-guess-up").hidden = false;
+  $("btn-guess-down").hidden = false;
+  $("guess-msg").textContent = t("guess.realPrompt", GUESS_REVEAL_LEFT());
+}
+
+function GUESS_REVEAL_LEFT() { return guess.realBars.length - guess.realIdx; }
+
+/** 真实模式的下一根: 直接揭真实 K 线, kind 仅用于解说选池 */
+function realNext() {
+  const bar = guess.realBars[guess.realIdx++];
+  const last = guess.data[guess.data.length - 1];
+  const candle = { day: last.day + 1, ...bar,
+    kind: Math.abs(bar.close - last.close) / last.close < 0.006 ? "chop"
+      : bar.close > last.close ? "up" : "down" };
+  guess.data.push(candle);
+  return candle;
+}
+
+function finishReal(prefix) {
+  guess.playing = false;
+  guess.waiting = false;
+  guess.mode = "free";
+  const r = guess.realReveal;
+  $("guess-msg").textContent = prefix + " "
+    + t("guess.realDone", guess.score, r.name, r.code, r.startDate, r.endDate);
+  $("btn-guess-up").hidden = true;
+  $("btn-guess-down").hidden = true;
+  $("btn-guess-start").hidden = false;
+  $("btn-guess-daily").hidden = false;
+  $("btn-guess-rich").hidden = false;
+  $("btn-guess-real").hidden = false;
 }
 
 // 每日挑战: 按日期定种子, 所有人同一走势, 固定 10 次, 每天限一局
@@ -231,6 +293,7 @@ function startDaily() {
   $("btn-guess-start").hidden = true;
   $("btn-guess-daily").hidden = true;
   $("btn-guess-rich").hidden = true;
+  $("btn-guess-real").hidden = true;
   $("rich-bar").hidden = true;
   $("btn-guess-up").hidden = false;
   $("btn-guess-down").hidden = false;
@@ -256,6 +319,7 @@ function finishDaily(prefix) {
   $("btn-guess-start").hidden = false;
   $("btn-guess-daily").hidden = false;
   $("btn-guess-rich").hidden = false;
+  $("btn-guess-real").hidden = false;
 }
 
 function makeGuess(up) {
@@ -263,7 +327,8 @@ function makeGuess(up) {
   if (guess.mode === "rich" && !richStakeOk()) return; // 保证金不足, 不开这一注
   guess.waiting = true;
   const prev = guess.data[guess.visible - 1].close;
-  const next = engineNext(up); // 猜完才生成下一根 (引擎含胜率回中与极端抑制)
+  // 真实模式直接揭下一根真实 K 线; 合成模式猜完才生成 (引擎含胜率回中与极端抑制)
+  const next = guess.mode === "real" ? realNext() : engineNext(up);
   guess.visible++;
   refreshGuessChart();
   const wentUp = next.close > prev;
@@ -330,12 +395,20 @@ function makeGuess(up) {
     }
     msg += " " + t("guess.dailyLeft", guess.dailyLeft);
   }
+  if (guess.mode === "real") {
+    if (GUESS_REVEAL_LEFT() <= 0) {
+      finishReal(msg); // 10 根揭完: 结算并揭晓真实标的与区间
+      return;
+    }
+    msg += " " + t("guess.realLeft", GUESS_REVEAL_LEFT());
+  }
   $("guess-msg").textContent = msg;
   guess.waiting = false;
 }
 
 $("btn-guess-start").addEventListener("click", startGuess);
 $("btn-guess-daily").addEventListener("click", startDaily);
+$("btn-guess-real").addEventListener("click", startReal);
 $("btn-guess-up").addEventListener("click", () => makeGuess(true));
 $("btn-guess-down").addEventListener("click", () => makeGuess(false));
 
@@ -378,6 +451,7 @@ function startRich() {
   $("btn-guess-start").hidden = true;
   $("btn-guess-daily").hidden = true;
   $("btn-guess-rich").hidden = true;
+  $("btn-guess-real").hidden = true;
   $("btn-rich-exit").hidden = false;
   $("btn-guess-up").hidden = false;
   $("btn-guess-down").hidden = false;
@@ -395,6 +469,7 @@ function exitRich() {
   $("btn-guess-start").hidden = false;
   $("btn-guess-daily").hidden = false;
   $("btn-guess-rich").hidden = false;
+  $("btn-guess-real").hidden = false;
   $("guess-msg").textContent = t("rich.exited", fmtWan(prog.wealth));
 }
 

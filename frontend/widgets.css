@@ -517,6 +517,9 @@
   line-height: 1.7;
 }
 
+/* 新闻多空实战题: 判后揭晓里的 mini 走势线 (M2) */
+.nj-spark { width: 120px; height: 28px; vertical-align: -8px; margin-left: 6px; }
+
 .lab-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
