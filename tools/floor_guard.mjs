@@ -156,6 +156,17 @@ for (const r of removedRules) {
   if (verdict) flag(verdict, r.file, r.text + '  ->  ' + a.text);
 }
 
+// 指纹闸门: 前端资源内容已变但 index.html ?v= 未盖 → 阻断。
+// 为什么挂在这里: 2026-10-25 两次 commit 把旧指纹带上线 (bump hook 未落盘 + W3 同日盲区),
+// 用户命中缓存看不到改动; bump_assets --check 是精确判定, floor_guard 是任务收尾必跑的阻断位。
+const py = process.platform === 'win32' ? 'python' : 'python3';
+try {
+  execFileSync(py, ['tools/bump_assets.py', '--check'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+} catch (e) {
+  if (e.status === 1) flag('stale-asset-fingerprint', 'frontend/index.html', String(e.stderr || '').trim() || 'bump_assets --check failed');
+  else bail('bump_assets --check could not run: ' + (e.message || e));
+}
+
 if (findings.length === 0) { console.log('floor-guard: clean'); process.exit(0); }
 console.error('floor-guard: ' + findings.length + ' floor violation(s):');
 for (const f of findings) console.error(`  [${f.rule}] ${f.file}: ${f.text}`);

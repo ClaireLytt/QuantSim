@@ -293,11 +293,18 @@ def main():
             changed = True
         if not changed:
             continue
-        mtime = datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y%m%d")
-        # 版本号约定以日期开头 (如 20261001a); 文件修改日期晚于版本日期 => 忘 bump
-        vm = re.match(r"(\d{8})", ver)
-        if vm and mtime > vm.group(1):
-            warns.append(f"W3 {fname} 改于 {mtime}, 但 index.html 版本号还是 ?v={ver} (缓存不会刷新)")
+        # 用内容指纹判定 (复用 bump_assets 算法): 旧的"文件日期>版本日期"启发式在同一天内
+        # 改文件是盲区 (2026-10-25 两次把旧指纹带上线都没叫), 指纹对比无此死角
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            from bump_assets import fingerprint
+            if not ver.endswith(fingerprint(path)):
+                warns.append(f"W3 {fname} 内容已变, 但 index.html 版本号还是 ?v={ver} (缓存不会刷新, 跑 tools/bump_assets.py)")
+        except Exception:
+            mtime = datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y%m%d")
+            vm = re.match(r"(\d{8})", ver)
+            if vm and mtime > vm.group(1):
+                warns.append(f"W3 {fname} 改于 {mtime}, 但 index.html 版本号还是 ?v={ver} (缓存不会刷新)")
 
     # ---------- 输出 ----------
     for e in errors:
