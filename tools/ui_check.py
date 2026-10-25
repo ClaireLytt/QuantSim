@@ -275,6 +275,40 @@ def main():
         if km and km.group(1) in btn_i18n_keys and EMOJI_BAN.search(line):
             errors.append(f'E10 按钮文案键 "{km.group(1)}" 含 emoji (该键挂在 <button> 上) @ i18n.js:{ln}')
 
+    # ---------- E11/E12/E13 设计禁令机械化 (2026-10-25: 把禁止清单里能确定性判定的三条变成 lint) ----------
+    # E11 禁 ease-in-out 时序 (设计禁令: 动画一律显式 cubic-bezier); E12 禁紫/蓝紫色;
+    # E13 冻结区: .header-tools 基础规则必须保持 flex-wrap: nowrap (窄屏换行只许在 @media 里)。
+    def hex_hue(hexstr):
+        r, g, b = (int(hexstr[i:i + 2], 16) / 255 for i in (1, 3, 5))
+        mx, mn = max(r, g, b), min(r, g, b)
+        if mx == mn:
+            return None  # 无彩色, 无色相
+        d = mx - mn
+        if (mx - mn) / (mx + 1e-9) < 0.15:
+            return None  # 饱和度过低, 视为灰
+        h = (60 * ((g - b) / d) % 360 if mx == r else
+             60 * ((b - r) / d) + 120 if mx == g else 60 * ((r - g) / d) + 240)
+        return h % 360
+    for fname in sorted(os.listdir(FRONTEND)):
+        if not fname.endswith(".css") or fname.startswith("prototype-"):
+            continue
+        src = read(os.path.join(FRONTEND, fname))
+        # 掩掉块注释再扫 (保留换行, 行号不漂移), 否则注释里提"禁 ease-in-out"会自我误伤
+        src = re.sub(r"/\*.*?\*/", lambda m: re.sub(r"[^\n]", " ", m.group(0)), src, flags=re.S)
+        for ln, line in enumerate(src.splitlines(), 1):
+            if re.search(r"\bease-in-out\b", line):
+                errors.append(f"E11 禁用 ease-in-out 时序 (换显式 cubic-bezier) @ {fname}:{ln}")
+            for hm in re.finditer(r"hsla?\(\s*(\d+)", line):
+                if 250 <= int(hm.group(1)) <= 289:
+                    errors.append(f"E12 紫/蓝紫色相 hsl({hm.group(1)}…) (设计禁令: 全站无紫) @ {fname}:{ln}")
+            for xm in re.finditer(r"#[0-9a-fA-F]{6}\b", line):
+                hue = hex_hue(xm.group(0))
+                if hue is not None and 250 <= hue <= 289:
+                    errors.append(f"E12 紫/蓝紫色 {xm.group(0)} (设计禁令: 全站无紫) @ {fname}:{ln}")
+    ht = re.search(r"\.header-tools\s*{([^}]*)}", css)
+    if not ht or "flex-wrap: nowrap" not in ht.group(1):
+        errors.append("E13 布局冻结区: style.css 的 .header-tools 基础规则必须保持 flex-wrap: nowrap (桌面端单行横排是用户钦定)")
+
     # ---------- W3 版本号 ----------
     for m in re.finditer(r'(?:src|href)="([\w./]+\.(?:js|css))\?v=([\w]+)"', html):
         fname, ver = m.group(1), m.group(2)

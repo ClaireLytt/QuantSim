@@ -109,7 +109,7 @@
   border-radius: var(--radius-sm);
   background: linear-gradient(100deg, var(--surface-2) 40%, color-mix(in srgb, var(--surface-2) 55%, var(--panel)) 50%, var(--surface-2) 60%);
   background-size: 200% 100%;
-  animation: senti-skeleton 1.6s ease-in-out infinite;
+  animation: senti-skeleton 1.6s cubic-bezier(.45,.05,.55,.95) infinite;
 }
 @keyframes senti-skeleton {
   from { background-position: 120% 0; }
@@ -658,7 +658,7 @@
   font-size: 78px;
   line-height: 1;
   display: block;
-  animation: pet-bob 1.6s ease-in-out infinite;
+  animation: pet-bob 1.6s cubic-bezier(.45,.05,.55,.95) infinite;
   /* 保持 emoji 原色: 曾按评审意见做过冷色化滤镜, 用户要求还原 */
   transition: font-size .3s var(--ease-out);
 }
@@ -690,7 +690,7 @@
   z-index: 59;
   font-size: 26px;
   pointer-events: none;
-  animation: pet-flutter 1s ease-in-out infinite;
+  animation: pet-flutter 1s cubic-bezier(.45,.05,.55,.95) infinite;
 }
 @keyframes pet-flutter {
   0%, 100% { translate: 0 0; rotate: -8deg; }

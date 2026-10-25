@@ -296,7 +296,7 @@
 .rb-trade .tag-hot { color: var(--bad); }
 .rb-trade .tag-cold { color: var(--accent); }
 /* 行动点耗尽/出狱: 「过年」脉冲引导下一步 */
-.rb-urge { animation: rbUrge 1.2s ease-in-out infinite; }
+.rb-urge { animation: rbUrge 1.2s cubic-bezier(.45,.05,.55,.95) infinite; }
 @keyframes rbUrge {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
   50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent); }
@@ -433,7 +433,7 @@
   color: var(--on-accent);
   background: linear-gradient(120deg, var(--warn), color-mix(in srgb, var(--warn) 45%, var(--accent)));
   box-shadow: 0 0 14px color-mix(in srgb, var(--warn) 40%, transparent);
-  animation: rich-glow 2.4s ease-in-out infinite;
+  animation: rich-glow 2.4s cubic-bezier(.45,.05,.55,.95) infinite;
 }
 #btn-guess-rich:hover:not(:disabled) { filter: brightness(1.1); }
 @keyframes rich-glow {
@@ -1482,7 +1482,7 @@ body.screen-flash::after {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent),
               0 0 14px color-mix(in srgb, var(--accent-2) 35%, transparent);
   pointer-events: none;
-  animation: walker-pulse 2s ease-in-out infinite;
+  animation: walker-pulse 2s cubic-bezier(.45,.05,.55,.95) infinite;
 }
 @keyframes walker-pulse {
   0%, 100% { opacity: 0; }
