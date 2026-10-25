@@ -88,7 +88,7 @@ CORS/认证/会话、游客可写库入口（IP 限频）、唯一约束冲突�
 | 死按钮 / 重复 id / i18n 缺键漏键 / 对比度 | `ui_check.py` E1–E7 + PostToolUse hook | lint+hook |
 | 改资源必须失效缓存 (?v=) | `bump_assets.py` 自动盖 + W3 指纹对比 + `floor_guard` 跑 `--check` 阻断 | 机制 |
 | 按钮禁 emoji 功能图标 | `ui_check.py` E10 | lint+hook |
-| 禁 ease-in-out / 禁紫色 / 工具簇单行冻结 | `ui_check.py` E11 / E12 / E13（2026-10-25 禁止清单机械化） | lint+hook |
+| 禁 ease-in-out / 禁紫色 / 工具簇单行冻结 / 宠物禁冷灰 | `ui_check.py` E11 / E12 / E13 / E14（2026-10-25 禁止清单机械化） | lint+hook |
 | 源码行尾恒 LF（指纹/告警稳定） | `.gitattributes` eol=lf | 机制 |
 | 集成测试永不触碰真实数据库 | test classpath 强制专名库 `quantsim_test`（端口指错也免疫） | 机制 |
 | dataZoom 滑块主题化口径唯一 | `app.js qsSliderZoom` 共享 helper | 架构 |

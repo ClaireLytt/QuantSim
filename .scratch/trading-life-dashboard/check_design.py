@@ -1,6 +1,6 @@
-# spot-check: values quoted in DESIGN.md must exist in theme.css
+# spot-check: values quoted in design.md must exist in theme.css
 theme = open('frontend/theme.css', encoding='utf-8').read()
-design = open('DESIGN.md', encoding='utf-8').read()
+design = open('design.md', encoding='utf-8').read()
 checks = ["hsl(30, 12%, 9%)", "hsl(38, 14%, 91%)", "hsl(28, 45%, 66%)", "hsl(22, 38%, 40%)",
           "hsl(18, 62%, 64%)", "hsl(150, 26%, 60%)", "hsl(14, 55%, 40%)", "#d98a52", "#c06a35",
           "cubic-bezier(.25, 1, .5, 1)"]

@@ -203,9 +203,10 @@ box-shadow: var(--tr-paper-shadow);
 ## 5. 动效与可访问性
 
 - 过渡时长统一 **.15s–.22s**；进场 .25–.4s；位移幅度小（1–3px、16px 以内）。
-- 缓动只用三枚 token：`--ease-out`（交互反馈）、`--ease-sheet`（弹窗进场）、
-  `--ease-bounce`（toast 轻回弹）。**禁 ease-in-out**（E11 拦截），
-  其余一律显式 cubic-bezier。
+- 缓动只用三枚 token：`--ease-out`（交互反馈 `cubic-bezier(.25, 1, .5, 1)`）、
+  `--ease-sheet`（弹窗进场 `cubic-bezier(.32, .72, 0, 1)`）、
+  `--ease-bounce`（toast 轻回弹 `cubic-bezier(.34, 1.3, .64, 1)`）。
+  **禁 ease-in-out**（E11 拦截），其余一律显式 cubic-bezier。
 - 按压反馈统一 `scale(.97)`（卡片 `.98`），走 transition 而非 keyframes。
 - 装饰性动画（雨丝、颗粒）必须进 `@media (prefers-reduced-motion: reduce)` 豁免清单；
   功能性进场在该查询下折叠为 `.01s`。

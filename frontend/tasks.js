@@ -47,8 +47,11 @@
   }
 
   function render() {
-    // 登录态以服务端签到 streak 为准 (跨设备一致, 与首页生活条同源); 游客用本地计数
-    $("tasks-streak").textContent = t("todo.streak", serverStreak > 0 ? serverStreak : (st.streakCount || 1));
+    // 登录态只认服务端签到 streak (跨设备一致, 与首页生活条同源, 从未签到显示 1 而非本地旧值);
+    // 游客用本地计数
+    const loggedIn = window.Auth && Auth.user;
+    $("tasks-streak").textContent = t("todo.streak",
+      loggedIn ? (serverStreak || 1) : (st.streakCount || 1));
     $("btn-task-signin").textContent = rowText(signedToday, t("todo.signin"));
     $("btn-task-guess").textContent = rowText(st.guessWins >= 3, t("todo.guess", Math.min(3, st.guessWins || 0)));
     $("btn-task-settle").textContent = rowText(!!st.settled, t("todo.settle"));
