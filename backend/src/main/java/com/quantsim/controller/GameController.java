@@ -49,6 +49,7 @@ public class GameController {
     private final GameService gameService;
     private final GameStartService gameStart;
     private final MiniGameService miniGameService;
+    private final com.quantsim.service.RecapService recapService;
     private final AdvisorService advisorService;
     private final RateLimiter rateLimiter;
     private final GameProperties gameProps;
@@ -146,6 +147,12 @@ public class GameController {
     }
 
     /** 行为偏差诊断报告 (已结算对局; 结算时已落库, 这里只读) */
+    /** 赛后复盘: 盈亏四分解 + 逐笔配对 + 卖后走势事实 (属主校验由 GameAccessInterceptor 统一过) */
+    @GetMapping("/{sessionId}/recap")
+    public com.quantsim.service.RecapService.RecapResponse recap(@PathVariable Long sessionId) {
+        return recapService.recap(sessionId);
+    }
+
     @GetMapping("/{sessionId}/bias")
     public com.quantsim.dto.GameDtos.BiasReport bias(@PathVariable Long sessionId) {
         return gameService.getBiasReport(sessionId);

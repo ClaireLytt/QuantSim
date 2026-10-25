@@ -242,11 +242,117 @@ function renderJournal(journal) {
   });
 }
 
+// ---------- 赛后复盘扩展区 (P1/P2): 四分解 + 逐笔配对 + 事实区, 数据来自 /game/{id}/recap ----------
+
+// 带符号整数金额 (app.js 的全局 fmtMoney 是两位小数无符号版, 顶层同名会撞声明炸掉整个脚本)
+const fmtSignedMoney = (v) => (Number(v) >= 0 ? "+" : "") + Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+function renderBreakdown(r) {
+  $("recap-breakdown").hidden = false;
+  const segs = [
+    ["bd-real", Number(r.realizedPnl)], ["bd-unreal", Number(r.unrealizedPnl)],
+    ["bd-fee", -Number(r.feesTotal)], ["bd-int", Number(r.interestTotal)],
+  ];
+  // 四段彩条: 宽度 ∝ |金额| (全零则隐藏条, 只留数字)
+  const total = segs.reduce((a, [, v]) => a + Math.abs(v), 0);
+  const bar = $("recap-bd-bar");
+  bar.innerHTML = "";
+  bar.hidden = total <= 0;
+  segs.forEach(([cls, v]) => {
+    if (Math.abs(v) <= 0) return;
+    const seg = document.createElement("i");
+    seg.className = "bd-seg " + cls;
+    seg.style.width = ((Math.abs(v) / total) * 100).toFixed(1) + "%";
+    bar.appendChild(seg);
+  });
+  const set = (id, v) => {
+    const el = $(id);
+    el.textContent = fmtSignedMoney(v);
+    el.className = Number(v) >= 0 ? "pos" : "neg";
+  };
+  set("recap-bd-realized", r.realizedPnl);
+  set("recap-bd-unrealized", r.unrealizedPnl);
+  set("recap-bd-fees", -Number(r.feesTotal)); // 费用恒为支出, 展示为负
+  set("recap-bd-interest", r.interestTotal);
+  $("recap-bd-conc").hidden = r.concentration == null;
+  if (r.concentration != null) {
+    $("recap-bd-conc-v").textContent = (Number(r.concentration) * 100).toFixed(0) + "%";
+  }
+}
+
+function renderTradePairs(r) {
+  const box = $("recap-trades-box");
+  box.hidden = false;
+  const statsEl = $("recap-tq-stats");
+  if (!r.closedCount) {
+    statsEl.textContent = t("recap.tq.none");
+    $("recap-trades-table").hidden = true;
+    return;
+  }
+  // 胜率/盈亏比 + 样本护栏: 不足 5 笔明说, 无亏损样本明说, 不编数字
+  const plr = r.profitLossRatio != null ? Number(r.profitLossRatio).toFixed(2)
+    : r.noLossSample ? t("recap.tq.noLoss") : "--";
+  statsEl.textContent = t("recap.tq.line",
+    (Number(r.tradeWinRate) * 100).toFixed(0) + "%", r.winCount, r.closedCount, plr)
+    + (r.insufficientSample ? " " + t("recap.tq.insufficient", r.closedCount) : "");
+  const table = $("recap-trades-table");
+  table.hidden = false;
+  const tbody = table.querySelector("tbody");
+  tbody.innerHTML = "";
+  r.trades.forEach((ct) => {
+    const tr = document.createElement("tr");
+    const cls = Number(ct.pnl) >= 0 ? "pos" : "neg";
+    tr.innerHTML = `<td></td><td></td><td></td><td></td><td></td><td class="${cls}"></td>`;
+    tr.children[0].textContent = t(ct.isLong ? "recap.tq.long" : "recap.tq.short");
+    tr.children[1].textContent = String(ct.qty);
+    tr.children[2].textContent = Number(ct.entryAvg).toFixed(2);
+    tr.children[3].textContent = Number(ct.exitPrice).toFixed(2);
+    tr.children[4].textContent = String(ct.holdDays);
+    tr.children[5].textContent = fmtSignedMoney(ct.pnl);
+    tbody.appendChild(tr);
+  });
+}
+
+function renderFacts(r) {
+  const box = $("recap-facts");
+  const ul = $("recap-facts-list");
+  ul.innerHTML = "";
+  const facts = [];
+  // 事实只陈述可复算数字 + 样本数; 样本 <3 降级为"样本不足"
+  if (r.sellSamples >= 3) {
+    facts.push(t("recap.fact.sellAfter", qsSignedPct(r.sellAfterAvgPct), r.sellSamples));
+  } else if (r.sellSamples > 0) {
+    facts.push(t("recap.fact.sellFew", r.sellSamples));
+  }
+  if (!facts.length) { box.hidden = true; return; }
+  box.hidden = false;
+  facts.forEach((f) => {
+    const li = document.createElement("li");
+    li.textContent = f;
+    ul.appendChild(li);
+  });
+}
+
+async function renderRecapServer() {
+  // 扩展区先藏后取: 旧局/接口失败时弹窗退回原有区块, 不留半截 UI
+  $("recap-breakdown").hidden = true;
+  $("recap-trades-box").hidden = true;
+  $("recap-facts").hidden = true;
+  const s = state.lastSettle;
+  if (!s || !s.sessionId) return;
+  let r;
+  try { r = await api(`/game/${s.sessionId}/recap`); } catch (e) { return; }
+  renderBreakdown(r);
+  renderTradePairs(r);
+  renderFacts(r);
+}
+
 function openRecap() {
   if (!state.lastSettle) return;
   $("recap-modal").hidden = false;
   document.body.style.overflow = "hidden";
   renderRecap();
+  renderRecapServer();
 }
 
 function closeRecap() {

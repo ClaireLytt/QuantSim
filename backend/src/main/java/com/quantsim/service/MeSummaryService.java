@@ -96,7 +96,7 @@ public class MeSummaryService {
         BigDecimal winRate = n == 0 ? BigDecimal.ZERO.setScale(4)
                 : BigDecimal.valueOf(wins).divide(BigDecimal.valueOf(n), 4, RoundingMode.HALF_UP);
         int streak = pointsRepository.findById(userId).map(UserPoints::getSignInStreak).orElse(0);
-        TradeStats trades = n == 0 ? new TradeStats(0, 0)
+        TradeStats trades = n == 0 ? new TradeStats(List.of(), List.of())
                 : pairTrades(transactionRepository.findByUserAndSessionStatus(
                         userId, GameSession.Status.SETTLED));
         BigDecimal tradeWinRate = trades.closed() == 0 ? BigDecimal.ZERO.setScale(4)
@@ -143,20 +143,33 @@ public class MeSummaryService {
         return pts;
     }
 
-    record TradeStats(int closed, int wins) {}
+    /** 一次平仓明细 (赛后复盘用): 开仓均价含买入费摊入, pnl 含平仓费摊入 */
+    public record ClosedTrade(Long stockId, boolean isLong, int qty, BigDecimal entryAvg,
+            BigDecimal exitPrice, LocalDate exitDate, long holdDays, BigDecimal pnl) {}
+
+    /** 结算时仍未平的持仓 (均价含费; qty 带符号: 正=多, 负=空) */
+    public record OpenLot(Long stockId, int qty, BigDecimal avg) {}
+
+    public record TradeStats(List<ClosedTrade> trades, List<OpenLot> open) {
+        public int closed() { return trades.size(); }
+
+        public int wins() { return (int) trades.stream().filter(ct -> ct.pnl().signum() > 0).count(); }
+    }
 
     /**
      * 均价法逐笔配对: 按 (局, 标的) 维持带符号持仓与均价 (手续费摊进成本/平仓损益),
      * 每笔减仓流水记一次平仓, 实现盈亏 > 0 记胜; 反手时剩余量按本笔价开新仓。
+     * 返回平仓明细与期末敞口 —— 已实现/未实现的分解恒等式建立在"买入费入均价、
+     * 平仓费入当笔 pnl"这一个口径上 (RecapServiceTest 以现金流对拍钉死)。
      */
     static TradeStats pairTrades(List<TradeTransaction> txs) {
-        record Pos(int qty, BigDecimal avg) {} // qty 带符号: 正=多, 负=空
+        // qty 带符号: 正=多, 负=空; stockId 随 Pos 携带 (旧组合流水可能为 null, 不能从 key 反解析)
+        record Pos(Long stockId, int qty, BigDecimal avg, LocalDate opened) {}
         Map<String, Pos> book = new HashMap<>();
-        int closed = 0;
-        int wins = 0;
+        List<ClosedTrade> closedTrades = new ArrayList<>();
         for (TradeTransaction tx : txs) {
             String key = tx.getSessionId() + ":" + tx.getStockId();
-            Pos pos = book.getOrDefault(key, new Pos(0, BigDecimal.ZERO));
+            Pos pos = book.getOrDefault(key, new Pos(tx.getStockId(), 0, BigDecimal.ZERO, tx.getTradeDate()));
             int signed = tx.getDirection() == TradeTransaction.Direction.BUY
                     ? tx.getShares() : -tx.getShares();
             BigDecimal fee = tx.getFee() == null ? BigDecimal.ZERO : tx.getFee();
@@ -166,8 +179,9 @@ public class MeSummaryService {
                         .add(tx.getPrice().multiply(BigDecimal.valueOf(Math.abs(signed))))
                         .add(fee);
                 int newQty = pos.qty() + signed;
-                book.put(key, new Pos(newQty,
-                        cost.divide(BigDecimal.valueOf(Math.abs(newQty)), 8, RoundingMode.HALF_UP)));
+                book.put(key, new Pos(pos.stockId(), newQty,
+                        cost.divide(BigDecimal.valueOf(Math.abs(newQty)), 8, RoundingMode.HALF_UP),
+                        pos.qty() == 0 ? tx.getTradeDate() : pos.opened()));
                 continue;
             }
             // 减仓/平仓: 实现盈亏 = (价差 × 平仓量) - 本笔手续费按量分摊
@@ -178,13 +192,14 @@ public class MeSummaryService {
             BigDecimal feeShare = fee.multiply(BigDecimal.valueOf(closeQty))
                     .divide(BigDecimal.valueOf(Math.abs(signed)), 8, RoundingMode.HALF_UP);
             BigDecimal pnl = diff.multiply(BigDecimal.valueOf(closeQty)).subtract(feeShare);
-            closed++;
-            if (pnl.signum() > 0) {
-                wins++;
-            }
+            long holdDays = pos.opened() == null || tx.getTradeDate() == null ? 0
+                    : java.time.temporal.ChronoUnit.DAYS.between(pos.opened(), tx.getTradeDate());
+            closedTrades.add(new ClosedTrade(tx.getStockId(), pos.qty() > 0, closeQty,
+                    pos.avg().setScale(4, RoundingMode.HALF_UP), tx.getPrice(), tx.getTradeDate(),
+                    holdDays, pnl.setScale(2, RoundingMode.HALF_UP)));
             int remainder = pos.qty() + signed;
             if ((remainder > 0) == (pos.qty() > 0) && remainder != 0) {
-                book.put(key, new Pos(remainder, pos.avg())); // 部分平仓: 均价不变
+                book.put(key, new Pos(pos.stockId(), remainder, pos.avg(), pos.opened())); // 部分平仓: 均价不变
             } else if (remainder == 0) {
                 book.remove(key);
             } else {
@@ -193,9 +208,12 @@ public class MeSummaryService {
                 BigDecimal avg = tx.getPrice()
                         .add(restFee.divide(BigDecimal.valueOf(Math.abs(remainder)),
                                 8, RoundingMode.HALF_UP));
-                book.put(key, new Pos(remainder, avg));
+                book.put(key, new Pos(pos.stockId(), remainder, avg, tx.getTradeDate()));
             }
         }
-        return new TradeStats(closed, wins);
+        List<OpenLot> open = book.values().stream()
+                .map(p -> new OpenLot(p.stockId(), p.qty(), p.avg()))
+                .toList();
+        return new TradeStats(closedTrades, open);
     }
 }

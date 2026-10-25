@@ -19,7 +19,7 @@
   <!-- 样式分层 (2026-10-25 架构评审①): theme.css 皮肤单属主必须第一个加载, style.css 是布局框架层, 其余按视图域拆分 -->
   <link rel="stylesheet" href="theme.css?v=2026102584aa"><!-- 皮肤单属主, 必须第一个加载 (架构评审①) -->
   <link rel="stylesheet" href="style.css?v=20261025de84">
-  <link rel="stylesheet" href="game.css?v=2026102541c8">
+  <link rel="stylesheet" href="game.css?v=20261026620e">
   <link rel="stylesheet" href="academy.css?v=202610251f7e">
   <link rel="stylesheet" href="lab-games.css?v=20261025e839">
   <link rel="stylesheet" href="widgets.css?v=202610268eb7">
@@ -2354,6 +2354,34 @@
           <div class="recap-stat"><span class="hint" data-i18n="recap.stat.you">你的收益</span><strong id="recap-you">--</strong></div>
           <div class="recap-stat"><span class="hint" data-i18n="recap.stat.hold">买入持有</span><strong id="recap-hold">--</strong></div>
         </div>
+        <!-- 收益四分解 (赛后复盘系统 P1): 已实现/未实现/费用/利息, 数据来自 /game/{id}/recap -->
+        <div id="recap-breakdown" class="recap-breakdown" hidden>
+          <h3 data-i18n="recap.bd.title">收益分解</h3>
+          <div id="recap-bd-bar" class="recap-bd-bar" aria-hidden="true"></div>
+          <div class="recap-bd-legend">
+            <span><i class="bd-dot bd-real"></i><span data-i18n="recap.bd.realized">已实现</span> <b id="recap-bd-realized"></b></span>
+            <span><i class="bd-dot bd-unreal"></i><span data-i18n="recap.bd.unrealized">未实现</span> <b id="recap-bd-unrealized"></b></span>
+            <span><i class="bd-dot bd-fee"></i><span data-i18n="recap.bd.fees">费用</span> <b id="recap-bd-fees"></b></span>
+            <span><i class="bd-dot bd-int"></i><span data-i18n="recap.bd.interest">利息</span> <b id="recap-bd-interest"></b></span>
+            <span id="recap-bd-conc" hidden><span data-i18n="recap.bd.conc">持仓集中度</span> <b id="recap-bd-conc-v"></b></span>
+          </div>
+          <p class="hint" data-i18n="recap.bd.note">口径：手续费已计入已实现盈亏；本模拟按收盘价成交，规则内不存在滑点。</p>
+        </div>
+        <!-- 逐笔配对表: 均价法, 开仓均价含费摊入 -->
+        <div id="recap-trades-box" class="recap-journal" hidden>
+          <h3 data-i18n="recap.tq.title">交易质量：逐笔配对</h3>
+          <p id="recap-tq-stats" class="recap-tq-stats"></p>
+          <table id="recap-trades-table">
+            <thead><tr><th data-i18n="recap.tq.dir">方向</th><th data-i18n="recap.tq.qty">数量</th><th data-i18n="recap.tq.entry">开仓均价</th><th data-i18n="recap.tq.exit">平仓价</th><th data-i18n="recap.tq.hold">持有天数</th><th data-i18n="recap.tq.pnl">盈亏</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <!-- 结论区 (P2): 只陈述可复算的事实, 归因留给 bias 报告 -->
+        <div id="recap-facts" class="recap-bias" hidden>
+          <h3 data-i18n="recap.facts.title">数据支持的事实</h3>
+          <ul id="recap-facts-list" class="recap-verdicts"></ul>
+          <p class="hint" data-i18n="recap.facts.unknown">无法由单局数据确定：这次结果里运气与水平的占比、以及没有走出来的另一条路。把它交给更多对局与人生曲线。</p>
+        </div>
         <div id="recap-bias" class="recap-bias" hidden>
           <h3 data-i18n="recap.bias.title">行为偏差诊断</h3>
           <ul id="recap-bias-list" class="recap-verdicts"></ul>
@@ -2588,13 +2616,13 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261026ed2d"></script>
+  <script src="i18n.js?v=202610261b97"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=20261025b571"></script>
   <script src="play.js?v=20261025dd95"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
-  <script src="replay.js?v=20261025bda6"></script>
+  <script src="replay.js?v=20261026b9db"></script>
   <script src="auth.js?v=202610252658"></script>
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
   <script src="data/levels.js?v=20261025e7d0"></script>
