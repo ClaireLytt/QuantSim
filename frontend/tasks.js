@@ -31,12 +31,14 @@
   })();
 
   let signedToday = false; // 服务端积分态 (登录后拉取)
+  let serverStreak = 0; // 服务端连续签到天数: 登录态与生活条同源, 游客回退本地 st.streakCount
 
   async function pullPoints() {
-    if (!window.Auth || !Auth.user) { signedToday = false; return; }
+    if (!window.Auth || !Auth.user) { signedToday = false; serverStreak = 0; return; }
     try {
       const res = await api("/me/points");
       signedToday = !!res.signedToday;
+      serverStreak = res.signInStreak || 0;
     } catch (e) { /* 拉不到不挡渲染 */ }
   }
 
@@ -45,7 +47,8 @@
   }
 
   function render() {
-    $("tasks-streak").textContent = t("todo.streak", st.streakCount || 1);
+    // 登录态以服务端签到 streak 为准 (跨设备一致, 与首页生活条同源); 游客用本地计数
+    $("tasks-streak").textContent = t("todo.streak", serverStreak > 0 ? serverStreak : (st.streakCount || 1));
     $("btn-task-signin").textContent = rowText(signedToday, t("todo.signin"));
     $("btn-task-guess").textContent = rowText(st.guessWins >= 3, t("todo.guess", Math.min(3, st.guessWins || 0)));
     $("btn-task-settle").textContent = rowText(!!st.settled, t("todo.settle"));
@@ -85,7 +88,12 @@
     if (signedToday) return;
     if (!window.Auth || !Auth.user) { toast(t("auth.needLogin")); return; }
     api("/me/points/signin", { method: "POST", body: "{}" })
-      .then(() => { signedToday = true; render(); toast(t("todo.signedToast")); })
+      .then((res) => {
+        signedToday = true;
+        serverStreak = res.signInStreak || serverStreak; // 响应即新 streak, 免二次拉取
+        render();
+        toast(t("todo.signedToast"));
+      })
       .catch((e) => toast(e.message));
   });
   $("btn-task-guess").addEventListener("click", () => {
