@@ -218,6 +218,57 @@
       ],
       reward: { xp: 200, badge: "career_end" },
     },
+    {
+      // 第六章 (成长系统改版): 从"打一局"转向"验证一个想法"。判定全部走既有事件/接口。
+      id: "ch6", icon: "🔭",
+      title: { zh: "第六章 · 策略研究者", en: "Ch.6 · The Strategy Researcher" },
+      steps: [
+        {
+          id: "c6s1", kind: "dialog",
+          lines: [
+            { zh: "传奇之后呢？老K把研究部的钥匙放在你桌上：『赚过钱的人很多，讲得清为什么赚钱的人很少。』", en: "What comes after legend? Master K leaves the research-desk key on your table: 'Many have made money. Few can explain why.'" },
+            { zh: "从今天起，别再问『这局赢了吗』，去问『这个想法站得住吗』。", en: "From today, stop asking 'did I win this run' - ask 'does this idea hold up'." },
+          ],
+        },
+        {
+          id: "c6s2", kind: "task", go: "game",
+          // 纪律考核: bias 全绿 (过度交易也是 bias 之一, 天然反刷单); 诊断样本不足 (无报告) 不算过
+          goal: { zh: "纪律考核：结算一局行为偏差零触发（≥3 笔交易）", en: "Discipline exam: settle a game with zero bias triggers (3+ trades)" },
+          event: "qs:settled", count: 1,
+          when: (d) => d.biasReport && (d.biasReport.verdicts || []).length > 0
+            && d.biasReport.totalTrades >= 3
+            && d.biasReport.verdicts.every((v) => !v.triggered),
+          reward: { xp: 80, badge: "discipline" },
+        },
+        {
+          id: "c6s3", kind: "task", go: "lab",
+          goal: { zh: "校准之眼：在研究所跑一次 AI 预测校准", en: "The calibration eye: run the AI calibration check in the Lab" },
+          event: "qs:labRun", count: 1, when: (d) => d.tool === "calibration",
+          reward: { xp: 40 },
+        },
+        {
+          id: "c6s4", kind: "task", go: "arena",
+          goal: { zh: "过拟合防线：用自定义策略跑出正收益回测，且不被判过拟合", en: "The overfit line: a positive custom-strategy backtest that isn't flagged as overfit" },
+          event: "qs:backtest", count: 1,
+          when: (d) => d.strategy === "CUSTOM" && Number(d.totalReturn) > 0 && !d.overfit,
+          reward: { xp: 80 },
+        },
+        {
+          id: "c6s5", kind: "task", go: "duel",
+          goal: { zh: "擂台亮剑：把一个策略提交上策略擂台", en: "Enter the ring: submit a strategy to the Strategy Ring" },
+          event: "qs:duelSubmit", count: 1,
+          reward: { xp: 60 },
+        },
+        {
+          id: "c6s6", kind: "task", go: "mine",
+          goal: { zh: "深读复盘：打开任意一局复盘报告（逐笔配对会说话）", en: "Read the tape: open any post-game recap (the paired trades will talk)" },
+          event: "qs:recapOpen", count: 1,
+          reward: { xp: 40 },
+        },
+        { id: "c6s7", kind: "ending" },
+      ],
+      reward: { xp: 240, badge: "career_res" },
+    },
   ];
 
   // 结局: 由 path+fund 两个 flag 决定
@@ -234,7 +285,12 @@
       title: { zh: "市场传奇", en: "A Market Legend" },
       recap: { zh: "既懂进攻也懂防守，路线在你脚下只是工具。市场为你改写了教科书。", en: "Offense and defense alike are mere tools under your feet. The market rewrote its textbook for you." },
     },
+    researcher: {
+      title: { zh: "策略研究者", en: "The Strategy Researcher" },
+      recap: { zh: "你不再追逐某一局的输赢——你验证想法、提防过拟合、读得懂自己的每一笔。市场之上，你有了方法。", en: "You no longer chase a single run - you test ideas, guard against overfitting, and can read your own every trade. Above the market, you now have a method." },
+    },
   };
+  // ch6 结局固定为研究者 (身份晋升, 覆盖 ch5 结局); ch5 仍按 path+fund 三选一
   const resolveEnding = (f) => (f.path === "aggressive" && f.fund === "growth" ? "wolf"
     : f.path === "steady" && f.fund === "stable" ? "helmsman" : "legend");
   // 称号墙聚合 (academy renderProfile 读取, 防加载顺序用 window 挂载)
@@ -297,6 +353,7 @@
     delete car.cnt[step.id];
     const eff = effective(step);
     if (eff.reward && eff.reward.xp) addXp(eff.reward.xp);
+    if (eff.reward && eff.reward.badge) awardBadge(eff.reward.badge); // 步级徽章 (纪律考核等)
     // 本章最后一步完成 → 章奖励
     const ch = step.chapter;
     if (ch.steps.every((s) => car.done.includes(s.id))) {
@@ -307,20 +364,49 @@
     }
   }
 
+  // ---------- 考核判定与失败重试回路 (成长系统改版) ----------
+  // settleExam: 本局是否用于当前生涯考核及其判定 (结算弹窗读取, 每局结算时重置);
+  // lastExamFail: 最近一次考核失败的现场 (指路卡用, 内存态即可——刷新后重打一局自然重建)
+  let settleExam = null;
+  let lastExamFail = null;
+  window.qsCareerSettleExam = () => settleExam;
+
+  /** 当前章进度摘要 (首页生活条/「我的」/任务卡读取) */
+  window.qsCareerStatus = () => {
+    const cur = currentStep();
+    const chapters = window.qsCareerChapters();
+    if (!cur) {
+      const e = ENDINGS[car.ending] || ENDINGS.legend;
+      return { chapters, title: pick(e.title), goal: null, done: true };
+    }
+    const eff = effective(cur);
+    return { chapters, title: pick(cur.chapter.title),
+      goal: cur.kind === "task" ? pick(eff.goal) : t("career.dialogGoal"), done: false };
+  };
+
   // 事件接线: 只有当前步消费事件 (线性任务链)
   function handle(name, detail) {
+    if (name === "qs:settled") settleExam = null; // 新一局结算: 先清上局判定
     const step = currentStep();
     if (!step || step.kind !== "task") return;
     const eff = effective(step);
     if (eff.event !== name) return;
-    if (eff.when && !eff.when(detail || {})) return;
+    const pass = !eff.when || !!eff.when(detail || {});
+    if (name === "qs:settled") {
+      settleExam = { goal: pick(eff.goal), passed: pass };
+      lastExamFail = pass ? null : { stepId: step.id, detail: detail || {} };
+    }
+    if (!pass) {
+      if (name === "qs:settled") renderCareer(); // 失败也刷新: 生涯页立刻出指路卡
+      return;
+    }
     car.cnt[step.id] = (car.cnt[step.id] || 0) + 1;
     evaluate();
   }
 
   ["qs:settled", "qs:backtest", "qs:quizDone", "qs:labRun", "qs:bubbleEnd", "qs:optionEnd",
     "qs:tapeEnd", "qs:newsEnd", "qs:richmanEnd", "qs:buydipEnd", "qs:stratboxEnd",
-    "qs:dailyStreak", "qs:aiStreak", "qs:rebornTier"].forEach((name) => {
+    "qs:dailyStreak", "qs:aiStreak", "qs:rebornTier", "qs:duelSubmit", "qs:recapOpen"].forEach((name) => {
     document.addEventListener(name, (e) => handle(name, e.detail));
   });
   document.addEventListener("qs:progress", () => {
@@ -348,7 +434,7 @@
   }
 
   function finishEnding(step) {
-    const id = resolveEnding(car.flags);
+    const id = step.chapter.id === "ch6" ? "researcher" : resolveEnding(car.flags);
     car.ending = id;
     completeStep(step);
     awardTitle(ENDINGS[id].title);
@@ -445,8 +531,35 @@
       $("career-step-progress").textContent = t("career.progress", Math.min(curN, needN), needN);
       $("btn-career-go").textContent = t("career.go");
       $("btn-career-go").onclick = () => switchView(eff.go || "home");
+      renderFailCard(cur);
     }
   }
+
+  /** 考核失败指路卡: 本局关键数 + 偏差指路 (学习↔交易↔复盘回路的粘合点), 重试即主按钮 */
+  function renderFailCard(cur) {
+    const box = $("career-fail");
+    const show = !!(lastExamFail && lastExamFail.stepId === cur.id);
+    box.hidden = !show;
+    if (!show) return;
+    const d = lastExamFail.detail;
+    const parts = [];
+    if (d.returnRate != null) parts.push(t("career.fail.ret", fmtPct(Number(d.returnRate))));
+    if (d.risk && d.risk.maxDrawdown != null) {
+      parts.push(t("career.fail.dd", (Number(d.risk.maxDrawdown) * 100).toFixed(1) + "%"));
+    }
+    $("career-fail-nums").textContent = t("career.fail.head") + (parts.length ? " " + parts.join(" · ") : "");
+    const ul = $("career-fail-hints");
+    ul.innerHTML = "";
+    const triggered = ((d.biasReport && d.biasReport.verdicts) || []).filter((v) => v.triggered);
+    ul.hidden = !triggered.length;
+    triggered.slice(0, 3).forEach((v) => {
+      const li = document.createElement("li");
+      li.textContent = t("recap.bias." + v.key) + " — " + t("career.fix." + v.key);
+      ul.appendChild(li);
+    });
+  }
+  $("btn-career-fail-academy").addEventListener("click", () => switchView("academy"));
+  $("btn-career-fail-wiki").addEventListener("click", () => switchView("wiki"));
 
   document.addEventListener("qs:view", (e) => {
     if (e.detail === "career") {

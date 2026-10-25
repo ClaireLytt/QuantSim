@@ -854,6 +854,18 @@ body.screen-flash::after {
 .career-node.done { opacity: .75; }
 .career-node.done .career-node-ico { color: var(--good); }
 .career-step { display: flex; flex-direction: column; gap: 10px; }
+/* 考核失败指路卡 (成长系统): 语义 bad 左边框, 同 AI 文本块文法 */
+.career-fail {
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--bad);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.career-fail p { margin: 0 0 6px; }
+.career-fail ul { margin: 0 0 8px; padding-left: 18px; color: var(--text-muted); }
+.career-fail-actions { display: flex; gap: 8px; }
 .career-step b { font-size: 15px; }
 .career-step .hint { margin: 0; }
 .career-choice-opts { display: flex; gap: 10px; margin-top: 4px; }

@@ -93,6 +93,19 @@
 
   $("btn-home-game").addEventListener("click", () => switchView("game"));
   $("btn-home-lab").addEventListener("click", () => switchView("lab"));
+  $("btn-home-career").addEventListener("click", () => switchView("career"));
+  $("home-life-career").addEventListener("click", () => switchView("career"));
+
+  // 生涯身份外显 (成长系统): career.js 在本文件之后加载, 用 qs:progress 事件兜初始渲染
+  function renderCareerLine() {
+    const el = $("home-life-career");
+    if (!window.qsCareerStatus) { el.hidden = true; return; }
+    const st = qsCareerStatus();
+    el.hidden = false;
+    el.textContent = st.done ? t("home.life.careerDone", st.title)
+      : t("home.life.career", st.title, st.goal);
+  }
+  document.addEventListener("qs:progress", renderCareerLine);
   document.querySelectorAll(".home-core").forEach((btn) => {
     btn.addEventListener("click", () => {
       switchView(btn.dataset.goto); // 含小游戏专区聚合页 (view-games)
@@ -359,6 +372,7 @@
     renderLifeNumbers(s);
     renderRecent(games);
     renderBias();
+    renderCareerLine();
     // CTA: 有进行中对局 → 继续; 否则开新局
     $("btn-home-life-cta").textContent =
       games.some((g) => g.status === "IN_PROGRESS") ? t("home.life.resume") : t("home.hero.play");

@@ -46,7 +46,19 @@
     return `${done ? "✓" : "○"} ${label}`; // 线性字符替代 emoji (设计评审)
   }
 
+  // 成长日任务 (P2 最小版): 展示当前生涯步目标, 点击直达生涯页; 完成态由主线自己推进
+  function renderCareerRow() {
+    const btn = $("btn-task-career");
+    if (!window.qsCareerStatus) { btn.hidden = true; return; }
+    const st = qsCareerStatus();
+    btn.hidden = !!st.done;
+    if (!st.done) btn.textContent = rowText(false, t("todo.career", st.goal));
+  }
+  $("btn-task-career").addEventListener("click", () => switchView("career"));
+  document.addEventListener("qs:progress", renderCareerRow);
+
   function render() {
+    renderCareerRow();
     // 登录态只认服务端签到 streak (跨设备一致, 与首页生活条同源, 从未签到显示 1 而非本地旧值);
     // 游客用本地计数
     const loggedIn = window.Auth && Auth.user;

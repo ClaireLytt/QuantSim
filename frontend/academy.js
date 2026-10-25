@@ -107,6 +107,9 @@ const BADGES = [
   { id: "career_ch3", name: { zh: "交易工牌", en: "The Trading Badge" }, desc: { zh: "生涯第三章：通过交易员考核", en: "Career Ch.3: pass the trader exam" } },
   { id: "career_ch4", name: { zh: "基金牌照", en: "The Fund License" }, desc: { zh: "生涯第四章：执掌自己的基金", en: "Career Ch.4: run your own fund" } },
   { id: "career_end", name: { zh: "生涯圆满", en: "Career Complete" }, desc: { zh: "走完整条生涯主线并迎来结局", en: "Finish the career storyline and meet your ending" } },
+  { id: "discipline", name: { zh: "纪律之证", en: "Proof of Discipline" }, desc: { zh: "结算一局行为偏差零触发（≥3 笔交易）", en: "Settle a game with zero bias triggers (3+ trades)" } },
+  { id: "career_res", name: { zh: "研究者徽记", en: "The Researcher's Seal" }, desc: { zh: "生涯第六章：成为策略研究者", en: "Career Ch.6: become a strategy researcher" } },
+  { id: "recap_reader", name: { zh: "复盘常客", en: "Recap Regular" }, desc: { zh: "累计阅读 10 份复盘报告", en: "Read 10 post-game recaps" } },
 ];
 
 // 未解锁徽章的进度提示 [当前, 目标]

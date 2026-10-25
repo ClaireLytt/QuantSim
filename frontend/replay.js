@@ -345,6 +345,13 @@ async function renderRecapServer() {
   renderBreakdown(r);
   renderTradePairs(r);
   renderFacts(r);
+  // 生涯 ch6「深读复盘」信号 + 复盘阅读徽章 (prog 来自 academy.js, 运行时已加载)
+  document.dispatchEvent(new CustomEvent("qs:recapOpen"));
+  if (typeof prog !== "undefined") {
+    prog.recapSeen = (prog.recapSeen || 0) + 1;
+    if (prog.recapSeen >= 10) awardBadge("recap_reader");
+    saveProg();
+  }
 }
 
 function openRecap() {

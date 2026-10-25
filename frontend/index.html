@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="theme.css?v=2026102584aa"><!-- 皮肤单属主, 必须第一个加载 (架构评审①) -->
   <link rel="stylesheet" href="style.css?v=20261025de84">
   <link rel="stylesheet" href="game.css?v=20261026620e">
-  <link rel="stylesheet" href="academy.css?v=202610251f7e">
+  <link rel="stylesheet" href="academy.css?v=202610261536">
   <link rel="stylesheet" href="lab-games.css?v=20261025e839">
   <link rel="stylesheet" href="widgets.css?v=202610268eb7">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
@@ -809,6 +809,7 @@
       <span id="mine-avatar" class="mine-avatar">?</span>
       <div class="mine-user-main">
         <b id="mine-name">--</b>
+        <span class="hint" id="mine-career-title" hidden></span>
         <span class="hint" id="mine-guest" data-i18n="mine.guestHint" hidden>游客身份 · 登录后战绩与积分云端同步</span>
       </div>
       <div class="mine-points">
@@ -1014,6 +1015,15 @@
       <p class="hint" id="career-step-ch"></p>
       <b id="career-step-goal"></b>
       <p class="hint" id="career-step-progress"></p>
+      <!-- 考核失败指路卡: 复盘关键数 + 偏差→学习资源指路, 重试走下方主按钮 -->
+      <div id="career-fail" class="career-fail" hidden>
+        <p id="career-fail-nums"></p>
+        <ul id="career-fail-hints"></ul>
+        <div class="career-fail-actions">
+          <button id="btn-career-fail-academy" class="small" data-i18n="career.fail.academy">去学堂补课</button>
+          <button id="btn-career-fail-wiki" class="small" data-i18n="career.fail.wiki">翻知识库</button>
+        </div>
+      </div>
       <button id="btn-career-go" class="primary big"></button>
     </div>
 
@@ -1425,6 +1435,8 @@
       <div class="home-life-title-wrap">
         <p class="home-life-title" data-i18n="home.life.hello">我的交易人生</p>
         <p class="home-life-streak" id="home-life-streak" hidden></p>
+        <!-- 生涯身份外显: 当前章 + 下一任务一句话, 点击直达生涯页 -->
+        <button id="home-life-career" class="qs-textlink home-life-career" hidden></button>
       </div>
       <button id="btn-home-life-cta" class="primary big"></button>
     </div>
@@ -1481,6 +1493,7 @@
     <div class="home-hero-actions">
       <button id="btn-home-game" class="primary big" data-i18n="home.hero.play">开始对局</button>
       <button id="btn-home-lab" class="big" data-i18n="home.hero.lab">进入研究所</button>
+      <button id="btn-home-career" class="big" data-i18n="home.hero.career">从生涯第一章开始</button>
     </div>
   </section>
 
@@ -1558,6 +1571,7 @@
       </div>
       <div class="card tasks-card">
         <div class="tasks-head"><b data-i18n="todo.title">今日任务</b><span class="hint" id="tasks-streak"></span></div>
+        <button id="btn-task-career" class="task-row" hidden></button>
         <button id="btn-task-signin" class="task-row"></button>
         <button id="btn-task-guess" class="task-row"></button>
         <button id="btn-task-settle" class="task-row"></button>
@@ -2332,6 +2346,7 @@
         <p id="settle-pop-verdict" class="verdict"></p>
         <p id="settle-pop-stock" class="hint"></p>
         <p id="settle-pop-points" class="settle-pop-points" hidden></p>
+        <p id="settle-pop-exam" class="hint" hidden></p>
         <div class="settle-pop-actions">
           <button id="btn-settle-pop-detail" class="primary" data-i18n="settle.pop.detail">查看完整结算</button>
           <button id="btn-settle-pop-recap" class="ghost" data-i18n="recap.btn">复盘报告</button>
@@ -2616,21 +2631,21 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610261b97"></script>
+  <script src="i18n.js?v=2026102603db"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=20261025b571"></script>
-  <script src="play.js?v=20261025dd95"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
+  <script src="play.js?v=20261026fae1"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
-  <script src="replay.js?v=20261026b9db"></script>
+  <script src="replay.js?v=20261026025d"></script>
   <script src="auth.js?v=202610252658"></script>
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
   <script src="data/levels.js?v=20261025e7d0"></script>
   <script src="data/cases.js?v=202610255824"></script>
-  <script src="academy.js?v=20261025213c"></script>
+  <script src="academy.js?v=2026102667ff"></script>
   <script src="guessgame.js?v=202610261cf8"></script>
   <script src="optsandbox.js?v=2026102556f9"></script>
-  <script src="lab.js?v=20261025fbc7"></script>
+  <script src="lab.js?v=20261026e7e8"></script>
   <script src="daily.js?v=20261025ebe1"></script>
   <script src="event.js?v=202610250b8a"></script>
   <script src="option.js?v=2026102531c6"></script>
@@ -2643,7 +2658,7 @@
   <script src="heatmap.js?v=202610256ee4"></script>
   <script src="news.js?v=2026102553a0"></script>
   <script src="history.js?v=20261025bcf3"></script>
-  <script src="home.js?v=20261026e831"></script>
+  <script src="home.js?v=202610263969"></script>
   <script src="points.js?v=20261025c358"></script>
   <script src="reborn.js?v=202610257b00"></script>
   <script src="bubble.js?v=20261025d32e"></script>
@@ -2652,14 +2667,14 @@
   <script src="buydip.js?v=2026102531f2"></script>
   <script src="stratbox.js?v=202610255d84"></script>
   <script src="qdetect.js?v=20261025cbe8"></script>
-  <script src="tasks.js?v=20261026a3f3"></script>
+  <script src="tasks.js?v=202610267667"></script>
   <script src="pet.js?v=2026102523c4"></script>
-  <script src="career.js?v=202610258c7d"></script>
+  <script src="career.js?v=20261026bb9e"></script>
   <script src="relics.js?v=202610253759"></script>
   <script src="walker.js?v=202610255fa3"></script>
   <script src="duel.js?v=2026102515b4"></script>
   <script src="wiki.js?v=202610252f2e"></script>
   <script src="games.js?v=20261025f87a"></script>
-  <script src="mine.js?v=20261025965a"></script>
+  <script src="mine.js?v=20261026a03a"></script>
 </body>
 </html>

@@ -1081,6 +1081,17 @@ function showSettle(result) {
   // 开局配置卡已下沉进对局页: 结算后把它请回来, 否则"再来一局"无门 (之前它常驻页头不存在这个问题)
   $("game-intro").hidden = false;
   document.dispatchEvent(new CustomEvent("qs:settled", { detail: result }));
+  // 生涯考核判定行: 事件先分发 (career 在 handle 里记录本局判定), 再回读展示 ✓/✗
+  if (window.qsCareerSettleExam) {
+    const ex = qsCareerSettleExam();
+    const el = $("settle-pop-exam");
+    el.hidden = !ex;
+    if (ex) {
+      el.textContent = t(ex.passed ? "career.examPass" : "career.examFail", ex.goal);
+      el.classList.toggle("pos", ex.passed);
+      el.classList.toggle("neg", !ex.passed);
+    }
+  }
 }
 
 // PWA: 注册极简 Service Worker (网络优先, 不缓存 API), 让站点可安装

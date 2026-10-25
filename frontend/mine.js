@@ -11,6 +11,15 @@
     const name = (window.Auth && Auth.user) ? Auth.user.username : currentUsername();
     $("mine-name").textContent = name;
     $("mine-avatar").textContent = (name || "?").charAt(0).toUpperCase();
+    // 生涯章称号作为对外身份 (成长系统): 替代裸等级数字
+    const ct = $("mine-career-title");
+    if (window.qsCareerStatus) {
+      const st = qsCareerStatus();
+      ct.hidden = false;
+      ct.textContent = st.title;
+    } else {
+      ct.hidden = true;
+    }
     $("mine-guest").hidden = !!(window.Auth && Auth.user);
     const ptsEl = $("mine-points");
     if (window.Auth && Auth.user) {
