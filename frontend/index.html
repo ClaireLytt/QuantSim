@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="game.css?v=2026102541c8">
   <link rel="stylesheet" href="academy.css?v=202610251f7e">
   <link rel="stylesheet" href="lab-games.css?v=20261025e839">
-  <link rel="stylesheet" href="widgets.css?v=20261025f684">
+  <link rel="stylesheet" href="widgets.css?v=202610258e7f">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
 <body>
@@ -1419,8 +1419,34 @@
   </div>
 
   <div id="view-home" class="tearoom" hidden>
+  <!-- 我的交易人生仪表盘 (2026-10-25 改版): 登录且有已结算对局时替代 hero, 三状态切换在 home.js -->
+  <section class="home-life" id="home-life" hidden>
+    <div class="home-life-head">
+      <div class="home-life-title-wrap">
+        <p class="home-life-title" data-i18n="home.life.hello">我的交易人生</p>
+        <p class="home-life-streak" id="home-life-streak" hidden></p>
+      </div>
+      <button id="btn-home-life-cta" class="primary big"></button>
+    </div>
+    <div class="home-life-stats">
+      <div class="home-life-stat"><span class="hint" data-i18n="home.life.assets">虚拟资产</span><b id="home-life-assets"></b></div>
+      <div class="home-life-stat"><span class="hint" data-i18n="home.life.ret">累计收益率</span><b id="home-life-ret"></b></div>
+      <div class="home-life-stat"><span class="hint" data-i18n="home.life.winrate">对局胜率</span><b id="home-life-winrate"></b></div>
+      <div class="home-life-stat"><span class="hint" data-i18n="home.life.dd">最大回撤</span><b id="home-life-dd"></b></div>
+    </div>
+  </section>
+
+  <!-- 资产曲线: 10 万起步逐局滚动结转; 不足 2 局时显示解锁引导 -->
+  <section class="academy-panel" id="home-life-curve-section" hidden>
+    <h2><span data-i18n="home.life.curveTitle">资产曲线</span> <span class="sub" data-i18n="home.life.curveSub">从 10 万起步，每局滚动结转</span></h2>
+    <div class="card home-life-curve-card">
+      <div id="home-life-curve" class="home-life-curve"></div>
+      <p id="home-life-curve-lock" class="hint" hidden></p>
+    </div>
+  </section>
+
   <!-- 首屏横幅: 主张 + 双主按钮 -->
-  <section class="home-hero">
+  <section class="home-hero" id="home-hero">
     <div class="home-hero-text">
       <div class="home-hero-title" data-i18n="home.hero.title">QuantSim 虚拟炒股游戏</div>
       <p class="home-hero-sub" data-i18n="home.hero.sub">先回测验证策略，再开启模拟交易。</p>
@@ -1457,8 +1483,8 @@
     </div>
   </section>
 
-  <!-- 三大核心功能 -->
-  <section class="academy-panel">
+  <!-- 三大核心功能 (仪表盘态折叠: 入口已被 CTA 与功能总览覆盖) -->
+  <section class="academy-panel" id="home-core-section">
     <div class="home-core-grid">
       <button class="home-core" data-goto="game">
         <span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M5 8h4v8H5zM17 2v20M15 6h4v9h-4z"/></svg></span>
@@ -1519,6 +1545,11 @@
 
   <section class="academy-panel">
     <div class="home-duo">
+      <div class="card home-recent-card" id="home-recent-card" hidden>
+        <div class="tasks-head"><b data-i18n="home.recent.title">最近对局</b>
+          <button id="btn-home-recent-all" class="small" data-i18n="home.recent.all">查看全部</button></div>
+        <ul id="home-recent-list" class="home-rank-list"></ul>
+      </div>
       <div class="card tasks-card">
         <div class="tasks-head"><b data-i18n="todo.title">今日任务</b><span class="hint" id="tasks-streak"></span></div>
         <button id="btn-task-signin" class="task-row"></button>
@@ -1534,7 +1565,8 @@
     </div>
   </section>
   <section class="academy-panel" id="home-all-section">
-    <h2><span data-i18n="home.title">功能总览</span> <span class="sub" data-i18n="home.sub">所有玩法一目了然，点卡片直达</span></h2>
+    <h2><span data-i18n="home.title">功能总览</span> <span class="sub" data-i18n="home.sub">所有玩法一目了然，点卡片直达</span>
+      <button id="btn-home-all-toggle" class="small home-all-toggle"></button></h2>
     <div id="home-cards" class="home-cards"></div>
   </section>
 
@@ -2549,7 +2581,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261025794a"></script>
+  <script src="i18n.js?v=202610251e96"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=20261025b571"></script>
   <script src="play.js?v=20261025dd95"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
@@ -2576,7 +2608,7 @@
   <script src="heatmap.js?v=202610256ee4"></script>
   <script src="news.js?v=2026102553a0"></script>
   <script src="history.js?v=20261025bcf3"></script>
-  <script src="home.js?v=20261025719b"></script>
+  <script src="home.js?v=20261025f9eb"></script>
   <script src="points.js?v=20261025c358"></script>
   <script src="reborn.js?v=202610257b00"></script>
   <script src="bubble.js?v=20261025d32e"></script>

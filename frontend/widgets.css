@@ -33,6 +33,57 @@
 
 /* ---------- 首页改版: 横幅 / 核心功能 / 新手推荐 / 榜单预览 / 页脚 ---------- */
 
+/* 我的交易人生仪表盘 (2026-10-25): 有战绩的登录用户首屏, 结构同 hero 卡, 数字走 tr-mono */
+.home-life {
+  margin: 24px auto 0;
+  max-width: 980px;
+  padding: 24px 32px;
+  background: color-mix(in srgb, var(--lab-blue) 5%, var(--lab-card));
+  border: 1px solid var(--lab-line);
+  border-radius: var(--radius);
+}
+.home-life-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.home-life-title-wrap { flex: 1 1 260px; min-width: 0; }
+.home-life-title {
+  margin: 0;
+  font-family: var(--tr-serif);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -.3px;
+}
+.home-life-streak { margin: 4px 0 0; font-size: 13px; color: var(--text-muted); }
+/* 连续 3 天点亮荣誉位: 茶色强调 (印章式) */
+.home-life-streak.lit { color: var(--accent); font-weight: 600; }
+.home-life-head button { flex: 0 0 auto; }
+.home-life-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+.home-life-stat {
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.home-life-stat b {
+  font-family: var(--tr-mono);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.home-life-curve-card { max-width: 980px; margin: 0 auto; }
+.home-life-curve { height: 280px; }
+@media (max-width: 720px) {
+  .home-life { padding: 18px 16px; }
+  .home-life-curve { height: 220px; }
+}
+.home-recent-card .home-rank-list { margin-top: 4px; }
+.home-all-toggle { margin-left: 10px; vertical-align: 3px; }
+
 .home-hero {
   display: flex;
   align-items: center;
