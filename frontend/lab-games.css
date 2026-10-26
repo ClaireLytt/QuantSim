@@ -974,3 +974,7 @@ button.mk-yield:hover { border-style: solid; filter: none; }
   border-color: var(--lab-blue);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--lab-blue) 30%, transparent);
 }
+
+/* ---- loopweek: time-loop reflexivity ---- */
+.lw-fracs { margin-bottom: 0; }
+.lw-fracs button { font-size: 13px; }

@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="style.css?v=20261025de84">
   <link rel="stylesheet" href="game.css?v=20261026620e">
   <link rel="stylesheet" href="academy.css?v=202610261536">
-  <link rel="stylesheet" href="lab-games.css?v=20261026d605">
+  <link rel="stylesheet" href="lab-games.css?v=20261026949b">
   <link rel="stylesheet" href="widgets.css?v=202610268eb7">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
@@ -875,6 +875,7 @@
       <button class="gz-card" data-goto="tamer"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a7 7 0 0 1 7 7c0 5-3 8-7 11-4-3-7-6-7-11a7 7 0 0 1 7-7z"/><circle cx="9.5" cy="10" r="0.5"/><circle cx="14.5" cy="10" r="0.5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g10.t">算法驯兽师</strong><span class="sub" data-i18n="gz.g10.d">组装交易宠物放生，全程只许救它一次</span></button>
       <button class="gz-card" data-goto="fool"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18c2-8 5-13 8-13s6 5 8 13"/><path d="M3 18h18M12 5v-2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g11.t">最后一个接盘侠</strong><span class="sub" data-i18n="gz.g11.d">音乐停止前逃离妖股，别当最后那个人</span></button>
       <button class="gz-card" data-goto="maze"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h18v18H3zM3 9h12M9 9v6M15 9v12M9 15h6M15 3v3"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g12.t">平仓迷宫</strong><span class="sub" data-i18n="gz.g12.d">大仓位出逃，每扇交易通道的门都有脾气</span></button>
+      <button class="gz-card" data-goto="loopweek"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/><path d="M12 7v5l3 2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g13.t">周一的一千次</strong><span class="sub" data-i18n="gz.g13.d">循环同一个交易周——仓位越大，答案越不见</span></button>
       <!-- 预留位: 不可点的"即将开放"占位卡, 暗示训练场还在扩建 -->
       <div class="gz-card gz-card-soon" aria-hidden="true"><strong data-i18n="gz.soon">即将开放</strong><span class="sub" data-i18n="gz.soonHint">新的训练项目正在打磨中</span></div>
     </div>
@@ -1448,6 +1449,61 @@
       <div class="qd-actions">
         <button id="btn-mzr-again" class="primary big" data-i18n="mz.again">再闯一次</button>
         <button id="btn-mzr-games" class="big" data-i18n="mz.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-loopweek" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="lw.title">🔁 周一的一千次</span> <span class="sub" data-i18n="lw.sub">同一个交易周无限重放——但你的仓位越大，记忆里的顶就越不会出现</span></h2>
+
+    <div id="lw-select">
+      <p class="hint" data-i18n="lw.selectHint">你被困在同一个交易周里。行情每次重放都完全相同——除了被你自己改变的部分：买单会推高之后的价格再狠狠回吐，卖单反之。小仓位搬运记忆里的答案很有效，大仓位会亲手毁掉那个答案。每循环一买一卖，7 次循环内做到单周 +8% 即可破环；用的循环越少，评级越高。</p>
+      <p class="hint" id="lw-best" hidden></p>
+      <button id="btn-lw-start" class="primary big" data-i18n="lw.start">进入循环</button>
+    </div>
+
+    <div id="lw-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="lw-head"></h3>
+        <span class="qd-credits-pill"><i data-i18n="lw.loopsLeftLabel">剩余循环</i><b id="lw-loops-left">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="lw.priceLabel">现价</i><b id="lw-price">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="lw.equityLabel">净值</i><b id="lw-equity">--</b></span>
+      </div>
+      <p id="lw-memory" class="qd-claim"></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="lw.chartTitle">蓝实线 = 本次循环，虚线 = 你记忆中的剧本，灰影 = 历史循环</p>
+          <div id="lw-chart" class="au-chart"></div>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="lw.actTitle">本循环一买一卖（规模决定你对剧本的破坏力）</p>
+          <div id="lw-frac-row" class="qd-actions lw-fracs">
+            <button id="btn-lw-buy0" class="big" data-i18n="lw.buy25">买入 25% 仓</button>
+            <button id="btn-lw-buy1" class="big" data-i18n="lw.buy50">买入 50% 仓</button>
+            <button id="btn-lw-buy2" class="big" data-i18n="lw.buy100">全仓买入</button>
+          </div>
+          <div class="qd-actions">
+            <button id="btn-lw-sell" class="big" data-i18n="lw.sellBtn">卖出全部</button>
+          </div>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-lw-next" class="primary big" data-i18n="lw.next">下一天</button>
+      </div>
+      <button id="btn-lw-back" class="ghost" data-i18n="lw.back">放弃循环</button>
+    </div>
+
+    <div id="lw-report" hidden>
+      <h3 data-i18n="lw.reportTitle">循环档案</h3>
+      <p id="lwr-conclusion" class="qdr-conclusion"></p>
+      <p class="hint" data-i18n="lw.loopsTitle">每次循环的轨迹</p>
+      <ul id="lwr-loops" class="qd-notes"></ul>
+      <p id="lwr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-lwr-again" class="primary big" data-i18n="lw.again">换一个星期重困一次</button>
+        <button id="btn-lwr-games" class="big" data-i18n="lw.toGames">返回训练场</button>
       </div>
     </div>
   </section>
@@ -2968,9 +3024,9 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610262a97"></script>
+  <script src="i18n.js?v=20261026418c"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=20261026b5b0"></script>
+  <script src="app.js?v=2026102638f8"></script>
   <script src="play.js?v=20261026fae1"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
@@ -3010,6 +3066,7 @@
   <script src="tamer.js?v=202610262ca3"></script>
   <script src="fool.js?v=202610265728"></script>
   <script src="maze.js?v=20261026afd3"></script>
+  <script src="loopweek.js?v=2026102625cf"></script>
   <script src="tasks.js?v=202610267667"></script>
   <script src="pet.js?v=2026102523c4"></script>
   <script src="career.js?v=20261026bb9e"></script>
