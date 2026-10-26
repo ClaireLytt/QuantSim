@@ -36,7 +36,6 @@
   };
 
   const chartH = qsChart("mz-chart", () => buildChartOption());
-  const fmtMoney = (v) => Math.round(v).toLocaleString();
 
   function startGame() {
     g.rng = mulberry32(Math.floor(Math.random() * 1e9));

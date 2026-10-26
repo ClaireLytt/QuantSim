@@ -408,7 +408,7 @@
     const rng = () => { a = (a * 1103515245 + 12345) & 0x7fffffff; return a / 0x7fffffff; };
     const c = [100];
     for (let i = 1; i < 220; i++) {
-      let drift = 0;
+      let drift;
       let vol = 0.015;
       if (kind === "trend") drift = 0.0012;
       else if (kind === "chop") { drift = (100 - c[i - 1]) * 0.0004; vol = 0.02; }
@@ -993,7 +993,7 @@
   }
 
   // ---------- 12 失败博物馆 (QSM2 展品 / QSM3 受教回执, 全码交换) ----------
-  const FAIL_TAGS = ["chase", "noStop", "overtrade", "allin", "fomo", "stubborn"];
+  // 败因标签清单维护在 markup 的 rq12-tag 选项里 (i18n 键 rq.c12.tag.*)
 
   function curateExhibit() {
     const r = state.lastSettle;
@@ -1397,7 +1397,7 @@
     const m20 = Q().ma(c, 20);
     const picks = [];
     for (let i = 21; i < c.length - 5; i++) {
-      let hit = false;
+      let hit;
       if (sig === "bounce") hit = r[i] < -0.03;
       else if (sig === "crossweek") hit = m5[i] > m20[i] && m5[i - 1] <= m20[i - 1];
       else if (sig === "monday") hit = new Date(dates[i]).getDay() === 1;
