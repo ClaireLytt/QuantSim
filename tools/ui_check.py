@@ -34,7 +34,8 @@ I18N = os.path.join(FRONTEND, "i18n.js")
 DYNAMIC_KEY_PREFIXES = ("strat.", "room.status.", "me.mode.", "orders.",
                         "ailevel.", "nav.", "style.", "ai.persona.", "settle.taunt.",
                         "walker.ch",  # walker.ch{N}.t/.d: 前缀+变量+后缀拼接 (walker.js 章节)
-                        "mk.temptation.")  # mk.temptation.{stop|tp|avg}: 诱惑类型拼键 (monk.js)
+                        "mk.temptation.",  # mk.temptation.{stop|tp|avg}: 诱惑类型拼键 (monk.js)
+                        "tm.cond.", "tm.act.")  # tm.cond./tm.act.{id}: 积木条件/动作拼键 (tamer.js)
 
 
 def read(path):

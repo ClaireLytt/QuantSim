@@ -949,3 +949,9 @@ button.mk-yield:hover { border-style: solid; filter: none; }
   border-radius: var(--radius-sm);
   margin-bottom: 8px;
 }
+
+/* ---- tamer: block-built trading pet ---- */
+.tm-rules { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.tm-rule-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.tm-rule-row select { flex: 1; min-width: 0; }
+.tm-rule-row span { color: var(--text-muted); }

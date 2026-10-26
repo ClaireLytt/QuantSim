@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="style.css?v=20261025de84">
   <link rel="stylesheet" href="game.css?v=20261026620e">
   <link rel="stylesheet" href="academy.css?v=202610261536">
-  <link rel="stylesheet" href="lab-games.css?v=20261026ab59">
+  <link rel="stylesheet" href="lab-games.css?v=20261026be58">
   <link rel="stylesheet" href="widgets.css?v=202610268eb7">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
@@ -872,6 +872,7 @@
       <button class="gz-card" data-goto="autopsy"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g7.t">爆仓倒推</strong><span class="sub" data-i18n="gz.g7.d">给爆仓账户验尸，指认那笔致命的交易</span></button>
       <button class="gz-card" data-goto="monk"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21c1.5-4 4-6 7-6s5.5 2 7 6"/><path d="M12 4v-2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g8.t">止损僧侣</strong><span class="sub" data-i18n="gz.g8.d">立下军令状，在贪婪弹窗的轰炸里守住纪律</span></button>
       <button class="gz-card" data-goto="alchemy"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4M12 3v6l6 10a1.5 1.5 0 0 1-1.3 2.3H7.3A1.5 1.5 0 0 1 6 19L12 9"/><path d="M8.5 15h7"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g9.t">仓位炼金术</strong><span class="sub" data-i18n="gz.g9.d">未来全公开也赢不了——用组合数学过风险关</span></button>
+      <button class="gz-card" data-goto="tamer"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a7 7 0 0 1 7 7c0 5-3 8-7 11-4-3-7-6-7-11a7 7 0 0 1 7-7z"/><circle cx="9.5" cy="10" r="0.5"/><circle cx="14.5" cy="10" r="0.5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g10.t">算法驯兽师</strong><span class="sub" data-i18n="gz.g10.d">组装交易宠物放生，全程只许救它一次</span></button>
       <!-- 预留位: 不可点的"即将开放"占位卡, 暗示训练场还在扩建 -->
       <div class="gz-card gz-card-soon" aria-hidden="true"><strong data-i18n="gz.soon">即将开放</strong><span class="sub" data-i18n="gz.soonHint">新的训练项目正在打磨中</span></div>
     </div>
@@ -1296,6 +1297,52 @@
       <div class="qd-actions">
         <button id="btn-alr-again" class="primary big" data-i18n="al.again">再炼一炉</button>
         <button id="btn-alr-games" class="big" data-i18n="al.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-tamer" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="tm.title">🐣 算法驯兽师</span> <span class="sub" data-i18n="tm.sub">组装一只交易宠物放生进市场——规则不可改，救场只有一次</span></h2>
+
+    <div id="tm-select">
+      <p class="hint" data-i18n="tm.selectHint">用「条件 → 动作」积木组装最多 3 条规则，然后把宠物放生进 60 天未知行情。放生后规则不可修改，你只能旁观它自己买卖；全程只有一次「出手相救」（立刻清仓）的机会——什么时候按下去，是这局全部的悬念。净值跌破 70% 宠物死亡；活到最后按收益计分，没动用救场另有加分。</p>
+      <div id="tm-rules" class="tm-rules"></div>
+      <p class="hint" id="tm-best" hidden></p>
+      <button id="btn-tm-release" class="primary big" data-i18n="tm.release">放生</button>
+    </div>
+
+    <div id="tm-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="tm-day"></h3>
+        <span class="qd-credits-pill"><i data-i18n="tm.equityLabel">宠物净值</i><b id="tm-equity">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="tm.tradesLabel">自主交易</i><b id="tm-trades">0</b></span>
+      </div>
+      <p id="tm-pos" class="qd-claim"></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="tm.chartTitle">灰线 = 行情，蓝线 = 宠物净值（圆点 = 它的买卖，菱形 = 你的救场）</p>
+          <div id="tm-chart" class="au-chart"></div>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="tm.rulesTitle">它体内的规则（已锁定）</p>
+          <ul id="tm-rule-list" class="qd-notes"></ul>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-tm-save" class="primary big" data-i18n="tm.rescue">出手相救（立刻清仓，仅一次）</button>
+      </div>
+      <button id="btn-tm-back" class="ghost" data-i18n="tm.back">放弃观察</button>
+    </div>
+
+    <div id="tm-report" hidden>
+      <h3 data-i18n="tm.reportTitle">放生结算</h3>
+      <p id="tmr-conclusion" class="qdr-conclusion"></p>
+      <p id="tmr-save" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-tmr-again" class="primary big" data-i18n="tm.again">再养一只</button>
+        <button id="btn-tmr-games" class="big" data-i18n="tm.toGames">返回训练场</button>
       </div>
     </div>
   </section>
@@ -2816,9 +2863,9 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610261e95"></script>
+  <script src="i18n.js?v=2026102660d8"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=202610261e25"></script>
+  <script src="app.js?v=20261026266e"></script>
   <script src="play.js?v=20261026fae1"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
@@ -2855,6 +2902,7 @@
   <script src="autopsy.js?v=202610267ebf"></script>
   <script src="monk.js?v=20261026f32e"></script>
   <script src="alchemy.js?v=20261026af7f"></script>
+  <script src="tamer.js?v=202610262ca3"></script>
   <script src="tasks.js?v=202610267667"></script>
   <script src="pet.js?v=2026102523c4"></script>
   <script src="career.js?v=20261026bb9e"></script>
