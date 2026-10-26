@@ -71,6 +71,7 @@ public class GameService {
     private final PositionRepository positionRepository;
     private final PendingOrderRepository orderRepository;
     private final PointsService pointsService;
+    private final CoachService coachService;
     private final TradeEngine tradeEngine;
     private final OrderService orderService;
     private final NewsService newsService;
@@ -484,7 +485,9 @@ public class GameService {
                 award.earned(), award.winStreak(),
                 // 响应与落库口径一致由 Prepared 构造保证: 序列化失败时两侧一起为 null
                 prepared.responseReport(), journal, eventReveal,
-                dailyRuleResult(session, returnRate, holdReturn, risk, allTxs, journal, sd, startIdx, endIdx)),
+                dailyRuleResult(session, returnRate, holdReturn, risk, allTxs, journal, sd, startIdx, endIdx),
+                coachService.findings(session, sd, allTxs, initial, finalAssets,
+                        account.getInterestTotal(), returnRate, holdReturn, maCrossReturn, dcaReturn, aiReturn)),
                 prepared.columns());
     }
 

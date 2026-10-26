@@ -19,7 +19,7 @@
   <!-- 样式分层 (2026-10-25 架构评审①): theme.css 皮肤单属主必须第一个加载, style.css 是布局框架层, 其余按视图域拆分 -->
   <link rel="stylesheet" href="theme.css?v=2026102584aa"><!-- 皮肤单属主, 必须第一个加载 (架构评审①) -->
   <link rel="stylesheet" href="style.css?v=20261025de84">
-  <link rel="stylesheet" href="game.css?v=202610261018">
+  <link rel="stylesheet" href="game.css?v=20261026653e">
   <link rel="stylesheet" href="academy.css?v=20261026ea55">
   <link rel="stylesheet" href="lab-games.css?v=20261026fbf9">
   <link rel="stylesheet" href="widgets.css?v=202610261442">
@@ -231,6 +231,11 @@
         <p class="settle-return"><span class="term" data-term="returnrate" data-i18n="settle.return">收益率: </span><span id="settle-return">--</span></p>
         <p id="settle-verdict" class="verdict"></p>
         <p id="settle-daily-rule" class="hint" hidden></p>
+        <!-- 复盘教练 (C9/C11/C1): 结论卡按置信度实线/虚线/点线描边, 证据随卡 -->
+        <div id="settle-coach" hidden>
+          <p class="hint" data-i18n="coach.title">教练复盘</p>
+          <div id="settle-coach-list"></div>
+        </div>
         <p id="settle-taunt" class="settle-style" hidden></p>
         <p id="settle-style" class="settle-style" hidden></p>
         <div id="settle-pred" hidden>
@@ -3417,10 +3422,10 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610262d84"></script>
+  <script src="i18n.js?v=202610267943"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=202610260a64"></script>
-  <script src="play.js?v=202610267d3d"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
+  <script src="play.js?v=202610267b78"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
   <script src="replay.js?v=20261026025d"></script>

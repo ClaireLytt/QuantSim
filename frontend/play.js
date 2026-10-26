@@ -1223,6 +1223,7 @@ function renderSettleExtras(result) {
 
   renderRiskPanel(result);
   renderEventReveal(result);
+  renderCoach(result);
 
   $("btn-review").hidden = false;
   $("btn-recap").hidden = false;
@@ -1278,6 +1279,43 @@ async function startChallenge() {
 
 // 结算风险指标表: 你 vs 买入持有。回撤/波动率/日胜率是正分数 → 百分比,
 // 夏普/索提诺/盈亏比是纯数 → 两位小数; 后端算不出 (样本不足等) 的字段为 null → "--"
+// 复盘教练 (首发三卡 C9/C11/C1): 结论卡 + STAT 证据行。
+// args 里以 coach. 开头的参数是 i18n 键, 先翻译再插值 (如象限名/基准名);
+// TX 锚 v1 只随 payload 保留 (图表定位锚留给教练页签阶段), 不在此渲染。
+function renderCoach(result) {
+  const box = $("settle-coach");
+  const list = $("settle-coach-list");
+  const findings = result.coach || [];
+  box.hidden = !findings.length;
+  if (!findings.length) return;
+  list.innerHTML = "";
+  findings.forEach((f) => {
+    const card = document.createElement("div");
+    card.className = "coach-card conf-" + (f.confidence || "WEAK").toLowerCase();
+    const head = document.createElement("p");
+    const args = (f.args || []).map((a) => (String(a).startsWith("coach.") ? t(a) : a));
+    head.textContent = t(f.verdictKey, ...args);
+    card.appendChild(head);
+    if (f.hindsight) {
+      const hb = document.createElement("i");
+      hb.className = "coach-hindsight";
+      hb.textContent = t("coach.hindsight");
+      card.appendChild(hb);
+    }
+    (f.anchors || []).filter((a) => a.type === "STAT").forEach((a) => {
+      const ev = document.createElement("span");
+      ev.className = "hint coach-ev";
+      ev.textContent = t(a.statKey) + ": " + a.statValue;
+      card.appendChild(ev);
+    });
+    const conf = document.createElement("i");
+    conf.className = "coach-conf";
+    conf.textContent = t("coach.conf." + (f.confidence || "WEAK"));
+    card.appendChild(conf);
+    list.appendChild(card);
+  });
+}
+
 function renderRiskPanel(result) {
   const box = $("settle-risk");
   const risk = result.risk;

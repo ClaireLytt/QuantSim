@@ -44,7 +44,8 @@ DYNAMIC_KEY_PREFIXES = ("strat.", "room.status.", "me.mode.", "orders.",
                         "pulse.",  # pulse.{SURGE_HOT|...}: 今日播报 regime 拼键 (home.js)
                         "gw.dim.", "gw.reward.", "gw.style.",  # 六维/奖励位/九宫风格拼键 (growth.js)
                         "dc.",  # dc.{FIVE|BELT|...}.t/.d: 每日规则拼键 (daily.js / play.js)
-                        "fp.quad.", "fp.motive.", "fp.cmp.")  # 盲猜象限/动机/对比指标拼键 (mates.js)
+                        "fp.quad.", "fp.motive.", "fp.cmp.",  # 盲猜象限/动机/对比指标拼键 (mates.js)
+                        "coach.")  # coach.*: 教练发现的 verdictKey/象限/基准/证据全部由后端拼键 (play.js)
 
 
 def read(path):
