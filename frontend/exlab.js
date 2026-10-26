@@ -760,6 +760,281 @@
     e12Chart.refresh();
   }
 
+  // ---------- E13 仓位公式竞技场 (预设三种市况的确定性合成行情) ----------
+  const mulberry32 = (a) => () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let x = Math.imul(a ^ (a >>> 15), 1 | a);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+
+  /** 合成行情: 固定种子 = 全员同题; 三种市况的参数明示在 trap 文案。 */
+  function synthPath(kind) {
+    const rng = mulberry32(kind === "trend" ? 7 : kind === "chop" ? 13 : 42);
+    const c = [100];
+    for (let i = 1; i < 250; i++) {
+      let drift = 0;
+      let vol = 0.015;
+      if (kind === "trend") drift = 0.0012;
+      if (kind === "chop") { drift = (100 - c[i - 1]) * 0.0004; vol = 0.02; } // 均值回归
+      if (kind === "crash") {
+        if (i >= 80 && i < 115) drift = -0.012;
+        else if (i >= 115) drift = 0.002;
+        vol = i >= 80 && i < 115 ? 0.03 : 0.012;
+      }
+      c.push(Math.max(5, c[i - 1] * (1 + drift + (rng() * 2 - 1) * vol)));
+    }
+    return c;
+  }
+
+  const e13 = { regime: "trend", perturb: 1 };
+
+  /** 四种仓位算法 (参数明示): 固定 60% / 凯利(滚动 60 日估计×扰动) / 波动目标 20% / 金字塔。 */
+  function e13Pos(c, algo) {
+    const r = rets(c);
+    const vol = rollVol(r, 20);
+    const pos = [];
+    let pyramid = 0.3;
+    let entry = c[0];
+    for (let i = 0; i < c.length; i++) {
+      if (algo === "fixed") { pos.push(0.6); continue; }
+      if (algo === "vt") { pos.push(vol[i] ? Math.min(1, 0.2 / vol[i]) : 0.3); continue; }
+      if (algo === "kelly") {
+        if (i < 60) { pos.push(0.3); continue; }
+        const seg = r.slice(i - 59, i + 1);
+        const mu = seg.reduce((a, b) => a + b, 0) / 60 * e13.perturb; // 扰动只动均值估计
+        const va = seg.reduce((a, b) => a + (b - mu) ** 2, 0) / 60;
+        pos.push(va > 0 ? Math.min(1, Math.max(0, mu / va / 50)) : 0.3); // /50: 缩到可比区间
+        continue;
+      }
+      // pyramid: 每涨 5% 加 0.2, 距峰回撤 8% 重置回 0.3
+      if (c[i] >= entry * 1.05) { pyramid = Math.min(1, pyramid + 0.2); entry = c[i]; }
+      if (c[i] <= entry * 0.92) { pyramid = 0.3; entry = c[i]; }
+      pos.push(pyramid);
+    }
+    return pos;
+  }
+
+  const E13_ALGOS = ["fixed", "kelly", "vt", "pyramid"];
+  const e13Chart = qsChart("ex13-chart", () => {
+    const c = synthPath(e13.regime);
+    const colors = [cssVar("--text-muted"), cssVar("--bad"), cssVar("--ma5"), cssVar("--ma20")];
+    const series = E13_ALGOS.map((a, i) => (
+      { name: t("ex.e13.a." + a), data: simulate(c, e13Pos(c, a)), color: colors[i] }));
+    const lines = series.map((s) => t("ex.e13.row", s.name,
+      fmtPct(lastRet(s.data)), fmtPct(maxDD(s.data))));
+    $("ex13-out").textContent = lines.join("　‖　");
+    return lineOption(c.map((_, i) => i + 1), series);
+  });
+
+  function runE13() { e13Chart.refresh(); }
+
+  // ---------- E14 相关性的雨天失灵 ----------
+  let e14Data = null;
+  const e14Chart = qsChart("ex14-chart", () => {
+    if (!e14Data) return null;
+    const opt = lineOption(e14Data.corr.map((_, i) => i + 1),
+      [{ name: t("ex.e14.roll"), data: e14Data.corr, color: cssVar("--ma5") }]);
+    opt.yAxis.min = -1;
+    opt.yAxis.max = 1;
+    opt.series.push({ name: t("ex.e14.crashDay"), type: "scatter",
+      data: e14Data.crashPts, symbolSize: 6, itemStyle: { color: cssVar("--bad") } });
+    return opt;
+  });
+
+  async function runE14() {
+    const codeB = $("ex14-stock").value;
+    if (!closes.length || !codeB || codeB === code) { toast(t("ex.e6.needTwo")); return; }
+    let hb;
+    try { hb = await labHistory(codeB); } catch (err) { toast(err.message); return; }
+    const mapB = new Map(hb.dates.map((d, i) => [d, Number(hb.close[i])]));
+    const ca = [];
+    const cb = [];
+    dates.forEach((d, i) => { if (mapB.has(d)) { ca.push(closes[i]); cb.push(mapB.get(d)); } });
+    if (ca.length < 80) { toast(t("ex.e6.noOverlap")); return; }
+    const ra = rets(ca);
+    const rb = rets(cb);
+    const corrOf = (xs, ys) => {
+      const n = xs.length;
+      if (n < 3) return null;
+      const mx = xs.reduce((a, b) => a + b, 0) / n;
+      const my = ys.reduce((a, b) => a + b, 0) / n;
+      let sxy = 0;
+      let sx = 0;
+      let sy = 0;
+      for (let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (ys[i] - my); sx += (xs[i] - mx) ** 2; sy += (ys[i] - my) ** 2; }
+      return sx > 0 && sy > 0 ? sxy / Math.sqrt(sx * sy) : null;
+    };
+    const W = 60;
+    const corr = [];
+    const crashPts = [];
+    for (let i = 0; i < ra.length; i++) {
+      corr.push(i < W ? null : +corrOf(ra.slice(i - W + 1, i + 1), rb.slice(i - W + 1, i + 1)).toFixed(3));
+      if (ra[i] < -0.03 || rb[i] < -0.03) crashPts.push([i + 1, corr[i]]);
+    }
+    const crashIdx = ra.map((_, i) => i).filter((i) => ra[i] < -0.03 || rb[i] < -0.03);
+    const corrAll = corrOf(ra.slice(1), rb.slice(1));
+    const corrCrash = corrOf(crashIdx.map((i) => ra[i]), crashIdx.map((i) => rb[i]));
+    e14Data = { corr, crashPts: crashPts.filter((p) => p[1] != null) };
+    $("ex14-out").textContent = t("ex.e14.out",
+      corrAll == null ? "--" : corrAll.toFixed(2),
+      corrCrash == null ? "--" : corrCrash.toFixed(2), crashIdx.length);
+    e14Chart.refresh();
+  }
+
+  // ---------- E15 定投的数学与玄学 ----------
+  let e15Data = null;
+  const e15Chart = qsChart("ex15-chart", () => {
+    if (!e15Data) return null;
+    const box = (arr) => {
+      const s = [...arr].sort((a, b) => a - b);
+      const q = (p) => s[Math.floor(s.length * p)];
+      return [q(0.05), q(0.25), q(0.5), q(0.75), q(0.95)].map((v) => +(v * 100).toFixed(1));
+    };
+    return {
+      animation: false,
+      grid: { left: 48, right: 16, top: 16, bottom: 30 },
+      xAxis: { type: "category", data: [t("ex.e15.lump"), t("ex.e15.dca")],
+        axisLabel: { color: cssVar("--text-muted"), fontSize: 11 } },
+      yAxis: { type: "value", axisLabel: { color: cssVar("--text-muted"), fontSize: 10, formatter: "{value}%" },
+        splitLine: { lineStyle: { color: cssVar("--border") } } },
+      series: [{ type: "boxplot", data: [box(e15Data.lump), box(e15Data.dca)],
+        itemStyle: { color: cssVar("--surface-2"), borderColor: cssVar("--ma5") } }],
+    };
+  });
+
+  function runE15() {
+    if (closes.length < 160) return;
+    const H = 120;
+    const STEP = 10;
+    const rng = mulberry32(99); // 固定种子: 结论可复现
+    const lump = [];
+    const dca = [];
+    for (let k = 0; k < 100; k++) {
+      const e = Math.floor(rng() * (closes.length - H - 1));
+      lump.push(closes[e + H] / closes[e] - 1);
+      let sharesAcc = 0;
+      let invested = 0;
+      for (let j = 0; j < H; j += STEP) { sharesAcc += 1 / closes[e + j]; invested += 1; }
+      dca.push((sharesAcc * closes[e + H]) / invested - 1);
+    }
+    e15Data = { lump, dca };
+    const med = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
+    const spread = (a) => {
+      const s = [...a].sort((x, y) => x - y);
+      return s[Math.floor(a.length * 0.75)] - s[Math.floor(a.length * 0.25)];
+    };
+    $("ex15-out").textContent = t("ex.e15.out",
+      fmtPct(med(lump)), fmtPct(spread(lump)), fmtPct(med(dca)), fmtPct(spread(dca)));
+    e15Chart.refresh();
+  }
+
+  // ---------- E16 交易日记回放器 (玩家自己的局, hindsight 常驻横幅) ----------
+  const e16Chart = qsChart("ex16-chart", () => {
+    const d = e16Calc();
+    if (!d) return null;
+    return lineOption(d.actual.map((_, i) => i + 1), [
+      { name: t("ex.e16.actual"), data: d.actual, color: cssVar("--text-muted") },
+      { name: t("ex.e16.rule"), data: d.rule, color: cssVar("--ma5") },
+    ]);
+  });
+
+  function e16Calc() {
+    if (!state.lastSettle || !state.klines || !state.klines.length || !(state.trades || []).length) return null;
+    const r = state.lastSettle;
+    const start = Math.max(0, state.klines.length - (r.equityCurve.length - 1));
+    const c = state.klines.slice(start).map((k) => Number(k.close));
+    const m20 = ma(c, 20);
+    const txs = (state.trades || []).slice().sort((x, y) => x.idx - y.idx);
+    // 真实仓位 (0/1 简化: 有持股=1) 与 规则出场仓位 (入场沿用你的买点, 出场换成 跌破MA20 或 距峰-8%)
+    let shares = 0;
+    let ti = 0;
+    const actualPos = [];
+    const buyTicks = new Set();
+    for (let i = 0; i < c.length; i++) {
+      while (ti < txs.length && txs[ti].idx <= start + i) {
+        if (txs[ti].dir === "BUY") buyTicks.add(i);
+        shares += (txs[ti].dir === "BUY" ? 1 : -1) * txs[ti].shares;
+        ti++;
+      }
+      actualPos.push(shares > 0 ? 1 : 0);
+    }
+    let holding = false;
+    let peak = 0;
+    const rulePos = c.map((v, i) => {
+      if (!holding && buyTicks.has(i)) { holding = true; peak = v; }
+      else if (holding) {
+        peak = Math.max(peak, v);
+        if ((m20[i] != null && v < m20[i]) || v <= peak * 0.92) holding = false;
+      }
+      return holding ? 1 : 0;
+    });
+    return { actual: simulate(c, actualPos), rule: simulate(c, rulePos) };
+  }
+
+  function runE16() {
+    const d = e16Calc();
+    $("ex16-noGame").hidden = !!d;
+    $("ex16-out").hidden = !d;
+    if (!d) return;
+    $("ex16-out").textContent = t("ex.e16.out", fmtPct(lastRet(d.actual)), fmtPct(lastRet(d.rule)));
+    e16Chart.refresh();
+  }
+
+  // ---------- E17 预测市场的自我实现 (玩具模型, 假设清单在 trap) ----------
+  const e17Chart = qsChart("ex17-chart", () => {
+    if (!closes.length) return null;
+    const hold = lastRet(simulate(closes, closes.map(() => 1)));
+    const pts = [];
+    let flip = null;
+    for (let ratio = 0; ratio <= 80.1; ratio += 4) {
+      const v = e17Net(ratio / 100);
+      pts.push([ratio, +(v * 100).toFixed(2)]);
+      if (flip == null && v < hold) flip = ratio;
+    }
+    $("ex17-out").textContent = t("ex.e17.out",
+      fmtPct(e17Net(0)), fmtPct(e17Net(Number($("ex17-ratio").value) / 100)),
+      flip == null ? "--" : flip + "%");
+    return {
+      animation: false,
+      grid: { left: 48, right: 16, top: 16, bottom: 32 },
+      xAxis: { type: "value", name: t("ex.e17.x"), min: 0, max: 80,
+        axisLabel: { color: cssVar("--text-muted"), fontSize: 10, formatter: "{value}%" } },
+      yAxis: { type: "value", axisLabel: { color: cssVar("--text-muted"), fontSize: 10, formatter: "{value}%" },
+        splitLine: { lineStyle: { color: cssVar("--border") } } },
+      series: [
+        { type: "line", data: pts, showSymbol: false, lineStyle: { width: 2, color: cssVar("--ma5") } },
+        { type: "line", data: [[0, hold * 100], [80, hold * 100]], showSymbol: false,
+          lineStyle: { type: "dashed", width: 1, color: cssVar("--text-muted") } },
+        { type: "scatter", symbolSize: 10, itemStyle: { color: cssVar("--accent") },
+          data: [[Number($("ex17-ratio").value), +(e17Net(Number($("ex17-ratio").value) / 100) * 100).toFixed(2)]] },
+      ],
+    };
+  });
+
+  /** 拥挤玩具模型: 跟随比例 → 换仓冲击 +ratio×40bp/边, 信号日超额 ×(1-ratio)。 */
+  function e17Net(ratio) {
+    const m5 = ma(closes, 5);
+    const m20 = ma(closes, 20);
+    const pos = closes.map((_, i) => (m5[i] != null && m20[i] != null && m5[i] > m20[i] ? 1 : 0));
+    const r = rets(closes);
+    let eq = 1;
+    for (let i = 1; i < closes.length; i++) {
+      let ri = r[i];
+      if (pos[i - 1] === 1) ri *= 1 - ratio; // 拥挤稀释信号日收益 (玩具假设 1)
+      eq *= 1 + pos[i - 1] * ri;
+      const turnover = Math.abs(pos[i] - pos[i - 1]);
+      if (turnover > 0) eq *= 1 - turnover * (ratio * 40) / 10000 - frictionCost(turnover, pos[i - 1] > pos[i] ? 1 : 0);
+    }
+    return eq - 1;
+  }
+
+  function runE17() {
+    if (!closes.length) return;
+    $("ex17-ratio-v").textContent = $("ex17-ratio").value + "%";
+    e17Chart.refresh();
+  }
+
   // ---------- 共享图表 option ----------
   function lineOption(xs, series) {
     return {
@@ -786,6 +1061,8 @@
     if (e6Res) runE6();
     runE7(); runE8(); runE9(false); runE10(); runE12();
     if (e11Data) e11Chart.refresh();
+    runE13(); runE15(); runE16(); runE17();
+    if (e14Data) e14Chart.refresh();
   }
 
   async function fillStocks() {
@@ -793,7 +1070,7 @@
     if (!Array.isArray(labStocks) || !labStocks.length) {
       try { labStocks = await api("/backtest/stocks"); } catch (e) { return; }
     }
-    [["ex-stock", 0], ["ex6-stock", 1]].forEach(([id, defIdx]) => {
+    [["ex-stock", 0], ["ex6-stock", 1], ["ex14-stock", 1]].forEach(([id, defIdx]) => {
       const sel = $(id);
       if (sel.options.length) return;
       labStocks.forEach((s) => {
@@ -858,6 +1135,23 @@
   });
   $("btn-ex11-run").addEventListener("click", runE11);
   $("ex12-signal").addEventListener("change", runE12);
+  // 三市况按钮显式绑定 (拼接 id 会被 ui_check E3 判死按钮)
+  const setE13Regime = (k) => {
+    e13.regime = k;
+    ["trend", "chop", "crash"].forEach((x) => $("ex13-r-" + x).classList.toggle("primary", x === k));
+    runE13();
+  };
+  $("ex13-r-trend").addEventListener("click", () => setE13Regime("trend"));
+  $("ex13-r-chop").addEventListener("click", () => setE13Regime("chop"));
+  $("ex13-r-crash").addEventListener("click", () => setE13Regime("crash"));
+  $("btn-ex13-perturb").addEventListener("click", () => {
+    // 凯利的致命弱点: 均值估计 ±20% 的扰动 (估计误差是常态, 不是意外)
+    e13.perturb = e13.perturb === 1 ? 1.2 : e13.perturb === 1.2 ? 0.8 : 1;
+    $("btn-ex13-perturb").textContent = t("ex.e13.perturb", e13.perturb === 1 ? "±0" : e13.perturb === 1.2 ? "+20" : "-20");
+    runE13();
+  });
+  $("ex14-stock").addEventListener("change", runE14);
+  $("ex17-ratio").addEventListener("input", runE17);
   $("btn-exlab-open").addEventListener("click", () => switchView("exlab"));
 
   // details 展开时补画 (hidden 容器里 ECharts 尺寸为 0)
@@ -872,5 +1166,9 @@
   });
   document.addEventListener("qs:lang", () => {
     if (!$("view-exlab").hidden) renderAll();
+  });
+  // E16 吃的是"最近一局": 新结算后若实验台可见, 即时换素材
+  document.addEventListener("qs:settled", () => {
+    if (!$("view-exlab").hidden) runE16();
   });
 })();

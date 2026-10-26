@@ -1920,6 +1920,55 @@
       <p class="hint ex-trap" data-i18n="ex.e12.trap">误区：只看均值路径——25/75 分位带常宽到让均值失去意义，带宽本身就是结论。</p>
     </details>
 
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e13.t">E13 · 仓位公式竞技场</b><span class="hint" data-i18n="ex.e13.q">固定仓位、凯利、波动目标、金字塔——谁扛得住三种市况？</span></summary>
+      <div class="ex-controls">
+        <button id="ex13-r-trend" class="small primary" data-i18n="ex.e13.r.trend">趋势市</button>
+        <button id="ex13-r-chop" class="small" data-i18n="ex.e13.r.chop">震荡市</button>
+        <button id="ex13-r-crash" class="small" data-i18n="ex.e13.r.crash">崩盘市</button>
+        <button id="btn-ex13-perturb" class="small" data-i18n="ex.e13.perturb0">扰动凯利估计（±0）</button>
+      </div>
+      <p id="ex13-out" class="ex-out"></p>
+      <div id="ex13-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e13.trap">误区：用历史均值喂凯利——按「扰动凯利估计」把均值估错 ±20%，看它的曲线怎么变形。行情为固定种子合成（趋势 +0.12%/日、震荡均值回归、崩盘 -30% 段），参数即假设。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e14.t">E14 · 相关性的雨天失灵</b><span class="hint" data-i18n="ex.e14.q">「分散投资」在你最需要它的那天还在吗？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e14.b">配对标的</span><select id="ex14-stock"></select></label>
+      </div>
+      <p id="ex14-out" class="ex-out"></p>
+      <div id="ex14-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e14.trap">误区：用全期平均相关做组合决策——红点（任一标的单日跌超 3% 的日子）上的相关性普遍更高：分散在危机日集体失效是结构性的。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e15.t">E15 · 定投的数学与玄学</b><span class="hint" data-i18n="ex.e15.q">「摊低成本」到底在什么行情里成立？</span></summary>
+      <p id="ex15-out" class="ex-out"></p>
+      <div id="ex15-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e15.trap">误区：拿单次回测说「定投更好/更差」。上图是 100 个随机入场点的收益分布（120 日持有、每 10 日定投一次）——定投交换的是收益期望与路径风险，它是心理工程不是收益魔法。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e16.t">E16 · 交易日记回放器</b><span class="hint" data-i18n="ex.e16.q">你自己的上一局，换成机械出场会怎样？</span></summary>
+      <p class="hint ex-hindsight" data-i18n="ex.e16.banner">事后视角：这是思想实验，不是「当时应该这么做」的证明。</p>
+      <p id="ex16-noGame" class="hint" data-i18n="ex.e16.noGame">需要一局已结算的对局——先去打一局再来。</p>
+      <p id="ex16-out" class="ex-out" hidden></p>
+      <div id="ex16-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e16.trap">口径：入场沿用你的真实买点，出场替换为「跌破 MA20 或距持有期高点 -8%」。对多数人，机械出场跑赢情绪出场——用自己的数据得出的结论才扎心。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e17.t">E17 · 预测市场的自我实现</b><span class="hint" data-i18n="ex.e17.q">如果所有人都用同一个信号，信号还有效吗？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e17.ratio">跟随者比例</span><input type="range" id="ex17-ratio" min="0" max="80" step="4" value="20"><b id="ex17-ratio-v">20%</b></label>
+      </div>
+      <p id="ex17-out" class="ex-out"></p>
+      <div id="ex17-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e17.trap">这是玩具模型，假设清单：① 拥挤按比例稀释信号日收益；② 换仓冲击 = 比例 × 40bp/边；③ 跟随者与你同刻进出。模型可换，教的是「看结论先看假设」——虚线是买入持有基准，曲线跌破它的那一点就是拥挤反噬的反转点。</p>
+    </details>
+
     <p class="hint ex-iron" data-i18n="ex.iron">历史回测收益 ≠ 未来收益；本页全部结论只在所用数据与假设内成立。</p>
   </section>
   </div>
@@ -3593,7 +3642,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610261b5b"></script>
+  <script src="i18n.js?v=202610263be9"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=202610268754"></script>
   <script src="play.js?v=202610267b78"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
@@ -3608,7 +3657,7 @@
   <script src="guessgame.js?v=202610261cf8"></script>
   <script src="optsandbox.js?v=2026102556f9"></script>
   <script src="lab.js?v=20261026e7e8"></script>
-  <script src="exlab.js?v=202610266443"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
+  <script src="exlab.js?v=2026102664fe"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
   <script src="daily.js?v=2026102675d2"></script>
   <script src="event.js?v=202610250b8a"></script>
   <script src="option.js?v=2026102531c6"></script>
