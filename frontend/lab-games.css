@@ -1052,3 +1052,37 @@ button.mk-yield:hover { border-style: solid; filter: none; }
 .sw-posrow { display: flex; align-items: center; gap: 10px; font-size: 13px; margin-bottom: 8px; }
 .sw-posrow input[type="range"] { flex: 1; min-width: 0; }
 .sw-posrow b { width: 44px; text-align: right; font-family: var(--tr-mono); font-variant-numeric: tabular-nums; }
+
+/* ---- sleuth: evidence-board detective cases ---- */
+.dtc-board { display: flex; flex-direction: column; gap: 8px; }
+.dtc-clue {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  background: var(--lab-card);
+  border: 1px dashed var(--lab-line);
+}
+.dtc-clue:hover:not(:disabled) { border-color: var(--lab-blue); filter: none; }
+.dtc-clue.pinned {
+  border-style: solid;
+  border-color: var(--lab-blue);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--lab-blue) 30%, transparent);
+}
+.dtc-clue i {
+  flex: none;
+  font-style: normal;
+  font-size: 10px;
+  font-family: var(--tr-mono);
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-top: 1px;
+}
+.dtc-clue.pinned i { color: var(--lab-blue); border-color: var(--lab-blue); }
+.dtc-jrow { margin-bottom: 10px; }
+.dtc-jrow .hint { margin-bottom: 4px; }

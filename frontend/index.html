@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="style.css?v=20261025de84">
   <link rel="stylesheet" href="game.css?v=20261026620e">
   <link rel="stylesheet" href="academy.css?v=202610261536">
-  <link rel="stylesheet" href="lab-games.css?v=20261026a629">
+  <link rel="stylesheet" href="lab-games.css?v=20261026978f">
   <link rel="stylesheet" href="widgets.css?v=202610261442">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
@@ -880,6 +880,7 @@
       <button class="gz-card" data-goto="soup"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M9 7c0-2 2-2 2-4M14 7c0-2 2-2 2-4"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g15.t">抢同一口汤</strong><span class="sub" data-i18n="gz.g15.d">三人共享一个订单簿，重仓者终局砸自己的价</span></button>
       <button class="gz-card" data-goto="taste"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2h8l-1 9a3 3 0 0 1-6 0zM12 14v7M8 21h8"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g16.t">财报盲品会</strong><span class="sub" data-i18n="gz.g16.d">匿名财报四选一行业，线索里混着粉饰干扰</span></button>
       <button class="gz-card" data-goto="swan"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16c3 0 4-2 4-5a4 4 0 0 1 8 0c0 5-3 8-8 8H3zM15 7l4-2"/><circle cx="14" cy="6" r=".5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g17.t">黑天鹅轮盘</strong><span class="sub" data-i18n="gz.g17.d">三件大事必然发生，保险越恐慌越贵</span></button>
+      <button class="gz-card" data-goto="sleuth"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l5.5 5.5M7.5 10h5M10 7.5v5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g18.t">市场侦探</strong><span class="sub" data-i18n="gz.g18.d">证据板上拼真相，钉错误导线索会被点名</span></button>
       <!-- 预留位: 不可点的"即将开放"占位卡, 暗示训练场还在扩建 -->
       <div class="gz-card gz-card-soon" aria-hidden="true"><strong data-i18n="gz.soon">即将开放</strong><span class="sub" data-i18n="gz.soonHint">新的训练项目正在打磨中</span></div>
     </div>
@@ -1725,6 +1726,61 @@
       <div class="qd-actions">
         <button id="btn-swr-again" class="primary big" data-i18n="sw.again">再转一轮</button>
         <button id="btn-swr-games" class="big" data-i18n="sw.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-sleuth" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="dtc.title">🔍 市场侦探</span> <span class="sub" data-i18n="dtc.sub">新闻、报表、价量、席位都是线索——钉上证据板，推理出市场正在发生什么</span></h2>
+
+    <div id="dtc-select">
+      <p class="hint" data-i18n="dtc.selectHint">每桩案件给 10 个调查点数：公开线索免费摆在桌上，隐藏线索要花点调查——其中混着误导线索。把你信的线索钉上证据板（至少 2 条），再提交复合判断：结论对但论据里钉了误导线索照样扣分并被点名。拿不准时可以花 1 点做假设检验，系统只告诉你「该假设与已揭示线索矛盾几条」。每案埋了两条独立证据链，钉全一条 +2 分，两条全钉就是交叉验证。</p>
+      <div id="dtc-cases" class="mz-doors"></div>
+    </div>
+
+    <div id="dtc-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="dtc-title"></h3>
+        <span class="qd-credits-pill"><i data-i18n="dtc.pointsLabel">调查点数</i><b id="dtc-points">--</b></span>
+      </div>
+      <p id="dtc-brief" class="qd-claim"></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="dtc.boardTitle">证据板（点一下 = 钉为论据 / 取下）</p>
+          <p id="dtc-pin-hint" class="hint"></p>
+          <div id="dtc-board" class="dtc-board"></div>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="dtc.probesTitle">可调查对象（花点换线索）</p>
+          <p id="dtc-probes-empty" class="hint" data-i18n="dtc.probesEmpty" hidden>能查的都查完了——该下结论了。</p>
+          <div id="dtc-probes" class="mz-doors"></div>
+          <label class="qd-verdict-row"><span data-i18n="dtc.hypoLabel">假设检验</span>
+            <select id="dtc-hypo-opt"></select>
+          </label>
+          <button id="btn-dtc-hypo" class="big"></button>
+        </div>
+      </div>
+      <p class="hint" data-i18n="dtc.judgeTitle">提交判断（全部选完且钉够论据才能结案）</p>
+      <div id="dtc-judge"></div>
+      <div class="qd-actions">
+        <button id="btn-dtc-submit" class="primary big" data-i18n="dtc.submit">结案陈词</button>
+      </div>
+      <button id="btn-dtc-abort" class="ghost" data-i18n="dtc.abort">放弃本案</button>
+    </div>
+
+    <div id="dtc-report" hidden>
+      <h3 data-i18n="dtc.reportTitle">结案报告</h3>
+      <p id="dtcr-conclusion" class="qdr-conclusion"></p>
+      <ul id="dtcr-judge" class="qd-notes"></ul>
+      <p id="dtcr-chain" class="hint"></p>
+      <ul id="dtcr-mislead" class="qd-notes" hidden></ul>
+      <p id="dtcr-explain" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-dtcr-again" class="primary big" data-i18n="dtc.again">重查本案</button>
+        <button id="btn-dtcr-cases" class="big" data-i18n="dtc.toCases">换一桩案子</button>
+        <button id="btn-dtcr-games" class="big" data-i18n="dtc.toGames">返回训练场</button>
       </div>
     </div>
   </section>
@@ -3253,9 +3309,9 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261026d34d"></script>
+  <script src="i18n.js?v=20261026eb08"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=202610267e68"></script>
+  <script src="app.js?v=20261026b3cc"></script>
   <script src="play.js?v=20261026119d"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
@@ -3299,6 +3355,7 @@
   <script src="supply.js?v=2026102665c6"></script>
   <script src="soup.js?v=20261026c231"></script>
   <script src="taste.js?v=20261026c5ad"></script>
+  <script src="sleuth.js?v=202610262a6a"></script>
   <script src="swan.js?v=202610262cd8"></script>
   <script src="tasks.js?v=202610267667"></script>
   <script src="pet.js?v=2026102523c4"></script>
