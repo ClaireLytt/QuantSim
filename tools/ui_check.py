@@ -48,7 +48,7 @@ DYNAMIC_KEY_PREFIXES = ("strat.", "room.status.", "me.mode.", "orders.",
                         "coach.",  # coach.*: 教练发现的 verdictKey/象限/基准/证据全部由后端拼键 (play.js)
                         "ex.e6.p.", "ex.e7.en.", "ex.e7.ex.", "ex.e12.s.", "ex.e13.a.",
                         "ex.e18.f.", "ex.e18.x.", "ex.e20.",  # 实验台拼键 (exlab.js)
-                        "rq.c9.", "rq.c5.")  # 道场证词/复现拼键 (dojo.js)
+                        "rq.c9.", "rq.c5.", "rq.c8.", "rq.c4.", "rq.c14.")  # 道场拼键 (dojo.js)
 
 
 def read(path):

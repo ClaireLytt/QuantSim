@@ -2087,6 +2087,57 @@
       </div>
     </section>
 
+    <section class="card">
+      <h3 data-i18n="rq.c8.t">鲁棒性保险箱</h3>
+      <p class="hint" data-i18n="rq.c8.hint">把一组双均线参数放进保险箱（用的就是上面「参数考古」的那段行情），系统做五重扰动：参数 ±20%、窗口平移、费率翻倍、数据抖动、更换标的——五项全部为正才开箱。训练段最优几乎必死于扰动：你愿意放弃多少账面最优去换鲁棒？</p>
+      <div class="ex-controls">
+        <label><span data-i18n="rq.c7.f">快线</span><input type="range" id="rq8-f" min="2" max="14" value="5"><b>⇄</b></label>
+        <label><span data-i18n="rq.c7.s">慢线</span><input type="range" id="rq8-s" min="16" max="40" value="20"></label>
+        <button id="btn-rq8-vault" class="primary small" data-i18n="rq.c8.go">入箱压测</button>
+      </div>
+      <p id="rq8-out" class="qdr-conclusion"></p>
+      <ul id="rq8-items" class="qd-notes"></ul>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c4.t">研究委托书</h3>
+      <p id="rq4-brief" class="ex18-report"></p>
+      <p id="rq4-hope" class="hint"></p>
+      <p class="hint" data-i18n="rq.c4.how">去实验台 E19 完成研究并导出研究卡（QSR1 码），粘贴到这里交付。验收看方法不看结论方向——顶着委托人期望交出否定结论，反而有「风骨」加成。</p>
+      <textarea id="rq4-in" class="fp-code"></textarea>
+      <div class="qd-actions"><button id="btn-rq4-review" class="primary" data-i18n="rq.c4.submit">交付研究卡</button></div>
+      <div id="rq4-review" hidden>
+        <ul id="rq4-checks" class="qd-notes"></ul>
+        <p id="rq4-verdict" class="qdr-conclusion"></p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c14.t">市况轮盘压力测试</h3>
+      <p class="hint" data-i18n="rq.c14.hint">配好策略，转动轮盘：随机抽三种合成市况连续压测（中途不许改）。存活 = 回撤 &lt; 25%。每种市况原型存活过一次就点亮雷达的一角——集齐六角拿「全天候」徽记。防御件必然损失顺风收益，代价列在每行末尾。</p>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e19.entry">入场</span><select id="rq14-entry">
+          <option value="cross" data-i18n="ex.e7.en.cross">金叉入场</option>
+          <option value="breakout" data-i18n="ex.e7.en.breakout">突破入场</option>
+          <option value="pullback" data-i18n="ex.e7.en.pullback">回踩入场</option>
+        </select></label>
+        <label><span data-i18n="ex.e19.exit">出场</span><select id="rq14-exit">
+          <option value="death" data-i18n="ex.e7.ex.death">死叉出场</option>
+          <option value="fixed" data-i18n="ex.e7.ex.fixed">持有 10 日</option>
+          <option value="trail" data-i18n="ex.e7.ex.trail">移动止盈 8%</option>
+        </select></label>
+        <label><span data-i18n="rq.c14.def">防御件</span><select id="rq14-def">
+          <option value="none" data-i18n="rq.c14.d.none">无（裸奔）</option>
+          <option value="cap" data-i18n="rq.c14.d.cap">仓位帽 60%</option>
+          <option value="volfilter" data-i18n="rq.c14.d.volfilter">波动过滤（年化 &gt;45% 离场）</option>
+        </select></label>
+        <button id="btn-rq14-spin" class="primary small" data-i18n="rq.c14.spin">转动轮盘</button>
+      </div>
+      <p id="rq14-out" class="ex-out"></p>
+      <ul id="rq14-rows" class="qd-notes"></ul>
+      <div id="rq14-radar" class="lab-chart ex-chart"></div>
+    </section>
+
     <p class="hint ex-iron" data-i18n="ex.iron">历史回测收益 ≠ 未来收益；本页全部结论只在所用数据与假设内成立。</p>
   </section>
   </div>
@@ -3760,7 +3811,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261026af77"></script>
+  <script src="i18n.js?v=20261026a047"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=20261026f977"></script>
   <script src="play.js?v=202610267b78"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
@@ -3776,7 +3827,7 @@
   <script src="optsandbox.js?v=2026102556f9"></script>
   <script src="lab.js?v=20261026e7e8"></script>
   <script src="exlab.js?v=202610265e71"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
-  <script src="dojo.js?v=20261026d4df"></script><!-- 依赖 exlab.js 的 window.qsQuant 计算件, 必须在其后 -->
+  <script src="dojo.js?v=202610263fab"></script><!-- 依赖 exlab.js 的 window.qsQuant 计算件, 必须在其后 -->
   <script src="daily.js?v=2026102675d2"></script>
   <script src="event.js?v=202610250b8a"></script>
   <script src="option.js?v=2026102531c6"></script>

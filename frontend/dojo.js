@@ -273,6 +273,232 @@
     playSound("win");
   }
 
+  // ---------- 8 鲁棒性保险箱 ----------
+  const vault = { attempts: 0, opened: false, bestBase: null, givenUp: null };
+
+  function vaultRun(closes, f, s, frMul, shift) {
+    const c = shift ? closes.slice(shift) : closes;
+    const fr0 = Q().frictionDefault();
+    const frx = { on: true, comm: fr0.comm * frMul, stamp: fr0.stamp, slip: fr0.slip * frMul };
+    return Q().lastRet(Q().simulate(c, crossPos(c, f, s), frx));
+  }
+
+  function jitter(closes, seed) {
+    // 数据抖动: 固定种子 ±0.3% 噪声 (结论可复现)
+    let a = seed | 0;
+    return closes.map((v) => {
+      a = (a * 1103515245 + 12345) & 0x7fffffff;
+      return v * (1 + ((a / 0x7fffffff) * 2 - 1) * 0.003);
+    });
+  }
+
+  async function tryVault() {
+    if (!closes7()) { toast(t("rq.c7.idle")); return; }
+    const f = Number($("rq8-f").value);
+    const s = Number($("rq8-s").value);
+    if (f >= s) { toast(t("rq.c7.badParam")); return; }
+    vault.attempts++;
+    const c = dig.closes;
+    const base = vaultRun(c, f, s, 1, 0);
+    if (vault.bestBase == null || base > vault.bestBase) vault.bestBase = base;
+    // 五重扰动: 参数±20% 取最差 / 窗口平移 20 根 / 费率×2 / 数据抖动 / 换标的
+    let other = null;
+    if (await ensureStocks()) {
+      try {
+        const h = await labHistory(stocks[(f + s + vault.attempts) % stocks.length].code);
+        other = h.close.map(Number);
+      } catch (e) { /* 换标的项取不到数据时记为未测 */ }
+    }
+    const pf = (v) => v != null && v > 0;
+    const items = [
+      { k: "param", v: Math.min(
+        vaultRun(c, Math.max(2, Math.round(f * 0.8)), Math.round(s * 0.8), 1, 0),
+        vaultRun(c, Math.round(f * 1.2), Math.round(s * 1.2), 1, 0)) },
+      { k: "shift", v: vaultRun(c, f, s, 1, 20) },
+      { k: "fee", v: vaultRun(c, f, s, 2, 0) },
+      { k: "noise", v: Q().lastRet(Q().simulate(jitter(c, f * 100 + s), crossPos(jitter(c, f * 100 + s), f, s), Q().frictionDefault())) },
+      { k: "stock", v: other ? Q().lastRet(Q().simulate(other, crossPos(other, f, s), Q().frictionDefault())) : null },
+    ];
+    const passed = items.every((i) => pf(i.v));
+    const ul = $("rq8-items");
+    ul.innerHTML = "";
+    items.forEach((i) => {
+      const li = document.createElement("li");
+      const tt = document.createElement("b");
+      tt.textContent = (pf(i.v) ? "✓ " : "✗ ") + t("rq.c8.i." + i.k);
+      const dd = document.createElement("span");
+      dd.textContent = i.v == null ? t("rq.c8.na") : fmtPct(i.v);
+      if (i.v != null) dd.className = pf(i.v) ? "pos" : "neg";
+      li.append(tt, dd);
+      ul.appendChild(li);
+    });
+    const out = $("rq8-out");
+    if (passed) {
+      vault.opened = true;
+      vault.givenUp = vault.bestBase - base;
+      out.textContent = t("rq.c8.opened", vault.attempts, fmtPct(base), fmtPct(Math.max(0, vault.givenUp)));
+      out.className = "qdr-conclusion win";
+      playSound("win");
+      const b = qsLoadBest(BEST_KEY);
+      if (!b.vault || vault.attempts < b.vault) qsSaveBest(BEST_KEY, { vault: vault.attempts });
+    } else {
+      out.textContent = t("rq.c8.failed", vault.attempts, fmtPct(base));
+      out.className = "qdr-conclusion lose";
+      playSound("fill");
+    }
+  }
+
+  const closes7 = () => dig.closes && dig.closes.length > 100;
+
+  // ---------- 4 研究委托书 ----------
+  const BRIEFS = [
+    { id: "breakout", hope: 1 }, { id: "dca", hope: 1 },
+    { id: "cross", hope: 1 }, { id: "chase", hope: 0 },
+  ];
+  function renderBrief() {
+    const b = BRIEFS[Math.abs(Math.floor(Date.now() / 86400000)) % BRIEFS.length];
+    $("rq4-brief").textContent = t("rq.c4.b." + b.id);
+    $("rq4-hope").textContent = t("rq.c4.hope", t(b.hope ? "rq.c4.hopeYes" : "rq.c4.hopeNo"));
+    return b;
+  }
+
+  function acceptBrief() {
+    const card = qsCodec.decode("QSR1", $("rq4-in").value);
+    const box = $("rq4-review");
+    if (!card || !card.m) { toast(t("fp.badCode")); return; }
+    const b = renderBrief();
+    // 验收清单 (规则引擎): 分区声明 / 摩擦口径 / 至少做过比较 / 结论非空
+    const checks = [
+      { k: "split", ok: Number(card.m.split) >= 60 },
+      { k: "friction", ok: card.fr === true },
+      { k: "explored", ok: Number(card.n) >= 2 },
+      { k: "concl", ok: !!(card.c && card.c.length >= 5) },
+    ];
+    const allOk = checks.every((c) => c.ok);
+    // 风骨: 测试段结果与委托人期望相悖仍如实交付 (数字由 E19 诚实计算, 伪造无门)
+    const contradicts = b.hope ? Number(card.res.te) <= 0 : Number(card.res.te) > 0;
+    box.hidden = false;
+    const ul = $("rq4-checks");
+    ul.innerHTML = "";
+    checks.forEach((c) => {
+      const li = document.createElement("li");
+      const tt = document.createElement("b");
+      tt.textContent = (c.ok ? "✓ " : "✗ ") + t("rq.c4.k." + c.k);
+      li.appendChild(tt);
+      ul.appendChild(li);
+    });
+    $("rq4-verdict").textContent = allOk
+      ? (contradicts ? t("rq.c4.passSpine") : t("rq.c4.pass"))
+      : t("rq.c4.fail");
+    $("rq4-verdict").className = "qdr-conclusion " + (allOk ? "win" : "lose");
+    playSound(allOk ? "win" : "lose");
+    if (allOk) {
+      const st = qsLoadBest(BEST_KEY);
+      qsSaveBest(BEST_KEY, { briefs: (st.briefs || 0) + 1, spine: (st.spine || 0) + (contradicts ? 1 : 0) });
+    }
+  }
+
+  // ---------- 14 市况轮盘压力测试 ----------
+  const ARCHETYPES = ["trend", "chop", "crash", "bleed", "fakeout", "squeeze"];
+  const wheel = { last: null };
+
+  /** 六种市况原型 (参数即假设, 文案明示); seed 每次旋转随机但局内固定。 */
+  function synth14(kind, seed) {
+    let a = seed | 0;
+    const rng = () => { a = (a * 1103515245 + 12345) & 0x7fffffff; return a / 0x7fffffff; };
+    const c = [100];
+    for (let i = 1; i < 220; i++) {
+      let drift = 0;
+      let vol = 0.015;
+      if (kind === "trend") drift = 0.0012;
+      else if (kind === "chop") { drift = (100 - c[i - 1]) * 0.0004; vol = 0.02; }
+      else if (kind === "crash") { drift = i >= 70 && i < 100 ? -0.014 : 0.001; vol = i >= 70 && i < 100 ? 0.03 : 0.012; }
+      else if (kind === "bleed") { drift = -0.0025; vol = 0.009; }
+      else if (kind === "fakeout") { drift = (i % 30 < 8 ? 0.004 : -0.0015); vol = 0.018; }
+      else { drift = 0; vol = 0.032; } // squeeze: 横盘高波
+      c.push(Math.max(5, c[i - 1] * (1 + drift + (rng() * 2 - 1) * vol)));
+    }
+    return c;
+  }
+
+  function wheelPos(c, entry, exit, defense) {
+    let pos = Q().rulePos(c, entry, exit);
+    if (defense === "cap") pos = pos.map((p) => p * 0.6);
+    if (defense === "volfilter") {
+      const vol = [];
+      const r = Q().rets(c);
+      for (let i = 0; i < c.length; i++) {
+        if (i < 10) { vol.push(0); continue; }
+        const seg = r.slice(i - 9, i + 1);
+        const m = seg.reduce((x, y) => x + y, 0) / 10;
+        vol.push(Math.sqrt(seg.reduce((x, y) => x + (y - m) ** 2, 0) / 10) * Math.sqrt(250));
+      }
+      pos = pos.map((p, i) => (vol[i] > 0.45 ? 0 : p)); // 年化波动 >45% 离场
+    }
+    return pos;
+  }
+
+  function spinWheel() {
+    const entry = $("rq14-entry").value;
+    const exit = $("rq14-exit").value;
+    const defense = $("rq14-def").value;
+    const picked = [...ARCHETYPES].sort(() => Math.random() - 0.5).slice(0, 3);
+    const rows = picked.map((k) => {
+      const c = synth14(k, Math.floor(Math.random() * 1e9));
+      const fr0 = Q().frictionDefault();
+      const eq = Q().simulate(c, wheelPos(c, entry, exit, defense), fr0);
+      const eqBare = Q().simulate(c, wheelPos(c, entry, exit, "none"), fr0);
+      const dd = Q().maxDD(eq);
+      return { k, ret: Q().lastRet(eq), dd, survived: dd < 0.25, bareRet: Q().lastRet(eqBare) };
+    });
+    const ul = $("rq14-rows");
+    ul.innerHTML = "";
+    rows.forEach((r) => {
+      const li = document.createElement("li");
+      const tt = document.createElement("b");
+      tt.textContent = (r.survived ? "✓ " : "✗ ") + t("rq.c14.a." + r.k);
+      const dd = document.createElement("span");
+      dd.textContent = t("rq.c14.row", fmtPct(r.ret), fmtPct(r.dd),
+        defense === "none" ? "--" : fmtPct(r.ret - r.bareRet));
+      li.append(tt, dd);
+      ul.appendChild(li);
+    });
+    // 适应谱累计: 某原型存活过一次即点亮 (跨次旋转积累, 集齐 6 原型发徽记)
+    const st = qsLoadBest(BEST_KEY);
+    const spectrum = st.spectrum || {};
+    rows.forEach((r) => { if (r.survived) spectrum[r.k] = 1; });
+    qsSaveBest(BEST_KEY, { spectrum });
+    const lit = ARCHETYPES.filter((k) => spectrum[k]).length;
+    if (lit === ARCHETYPES.length && !st.wheelBadge) {
+      qsSaveBest(BEST_KEY, { wheelBadge: 1 });
+      toast(t("rq.c14.badge"));
+      playSound("win");
+    }
+    wheel.last = rows;
+    $("rq14-out").textContent = t("rq.c14.out", rows.filter((r) => r.survived).length, lit, ARCHETYPES.length);
+    radarChart.refresh();
+  }
+
+  const radarChart = qsChart("rq14-radar", () => {
+    const spectrum = (qsLoadBest(BEST_KEY).spectrum) || {};
+    return {
+      animation: false,
+      radar: {
+        indicator: ARCHETYPES.map((k) => ({ name: t("rq.c14.a." + k), max: 1 })),
+        radius: "65%",
+        axisName: { color: cssVar("--text-muted"), fontSize: 10 },
+        splitLine: { lineStyle: { color: cssVar("--border") } },
+        axisLine: { lineStyle: { color: cssVar("--border") } },
+        splitArea: { show: false },
+      },
+      series: [{ type: "radar",
+        data: [{ value: ARCHETYPES.map((k) => (spectrum[k] ? 1 : 0)) }],
+        areaStyle: { color: cssVar("--ma5"), opacity: 0.25 },
+        lineStyle: { color: cssVar("--ma5") },
+        itemStyle: { color: cssVar("--ma5") } }],
+    };
+  });
+
   // ---------- 共享 ----------
   function lineOpt(xs, series) {
     return {
@@ -300,13 +526,18 @@
   $("btn-rq5-load").addEventListener("click", loadRepCard);
   $("btn-rq5-run").addEventListener("click", runReplication);
   $("btn-rq5-export").addEventListener("click", exportRepReport);
+  $("btn-rq8-vault").addEventListener("click", tryVault);
+  $("btn-rq4-review").addEventListener("click", acceptBrief);
+  $("btn-rq14-spin").addEventListener("click", spinWheel);
 
   document.addEventListener("qs:view", (e) => {
     if (e.detail !== "dojo") return;
     if (!dig.targetEq) newDig();
     if (!jury.closes) newJury();
+    renderBrief();
     digChart.refresh();
     juryChart.refresh();
+    radarChart.refresh();
   });
   document.addEventListener("qs:lang", () => {
     if ($("view-dojo").hidden) return;
