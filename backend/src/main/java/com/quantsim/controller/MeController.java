@@ -39,6 +39,7 @@ public class MeController {
     private final BacktestResultRepository backtestRepository;
     private final com.quantsim.service.BiasAnalysisService biasAnalysisService;
     private final com.quantsim.service.MeSummaryService meSummaryService;
+    private final com.quantsim.service.StyleCompassService styleCompassService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public record GameRecord(
@@ -95,6 +96,12 @@ public class MeController {
                 .filter(java.util.Objects::nonNull)
                 .toList();
         return biasAnalysisService.profile(reports);
+    }
+
+    /** 风格罗盘 (成长系统 A1): 从流水派生的两轴风格坐标, ≥10 局且 ≥10 配对样本才 ready。 */
+    @GetMapping("/style-compass")
+    public com.quantsim.service.StyleCompassService.StyleCompass styleCompass(HttpServletRequest request) {
+        return styleCompassService.compass(CurrentUser.idOrNull(request));
     }
 
     /** 「我的交易人生」首页聚合: 净值/累计收益/胜率/回撤/签到连续天数 + 净值曲线。口径见 MeSummaryService。 */

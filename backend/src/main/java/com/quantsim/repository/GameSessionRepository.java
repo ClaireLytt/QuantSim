@@ -56,6 +56,10 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
     List<GameSession> findTop60ByUserIdAndStatusAndBiasReportIsNotNullOrderByCreatedAtDesc(
             Long userId, GameSession.Status status);
 
+    /** 风格罗盘: 最近 30 局已结算对局 (排除 INTRO 新手局——两笔教学局不代表风格)。 */
+    List<GameSession> findTop30ByUserIdAndStatusAndModeNotOrderByCreatedAtDesc(
+            Long userId, GameSession.Status status, String mode);
+
     /** 某用户玩过的全部每日挑战日期 (降序), 用于计算连续挑战 streak。 */
     @Query("""
             select s.challengeDate
