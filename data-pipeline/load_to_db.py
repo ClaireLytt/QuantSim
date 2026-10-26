@@ -9,7 +9,7 @@ import os
 import pandas as pd
 import pymysql
 
-from config import DB_CONFIG, INDICATOR_DIR, PREDICTION_DIR, RAW_DIR, STOCK_POOL
+from config import DB_CONFIG, DELISTED_POOL, INDICATOR_DIR, PREDICTION_DIR, RAW_DIR, STOCK_POOL
 
 
 def get_conn():
@@ -24,8 +24,26 @@ def upsert_stocks(cursor) -> dict:
             "market=VALUES(market)",
             (code, name, industry, market),
         )
+    # 退市标的 (E11): hidden=1 隔离对局/榜单, delisted=1 供实验室调取
+    for code, name, industry, market in DELISTED_POOL:
+        cursor.execute(
+            "INSERT INTO stocks (code, name, industry, market, hidden, delisted) "
+            "VALUES (%s, %s, %s, %s, 1, 1) "
+            "ON DUPLICATE KEY UPDATE name=VALUES(name), industry=VALUES(industry), "
+            "market=VALUES(market), hidden=1, delisted=1",
+            (code, name, industry, market),
+        )
     cursor.execute("SELECT code, stock_id FROM stocks")
     return {row[0]: row[1] for row in cursor.fetchall()}
+
+
+def mark_delist_dates(cursor):
+    """退市日 = 该标的行情末行日期 (mock 与真实源同口径, 幂等)。"""
+    cursor.execute(
+        "UPDATE stocks s JOIN (SELECT stock_id, MAX(trade_date) d FROM daily_price "
+        "GROUP BY stock_id) p ON p.stock_id = s.stock_id "
+        "SET s.delist_date = p.d WHERE s.delisted = 1"
+    )
 
 
 def load_prices(cursor, code_to_id: dict):
@@ -104,6 +122,7 @@ def main():
         with conn.cursor() as cursor:
             code_to_id = upsert_stocks(cursor)
             load_prices(cursor, code_to_id)
+            mark_delist_dates(cursor)
             load_indicators(cursor, code_to_id)
             load_predictions(cursor, code_to_id)
         conn.commit()

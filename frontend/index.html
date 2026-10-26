@@ -2016,7 +2016,15 @@
       </div>
       <div class="qd-actions"><button id="ex20-s3-btn" class="primary small" data-i18n="ex.e20.toS3" hidden>第三步：分区验证</button></div>
       <p id="ex20-s3" class="ex-out ex-test" hidden></p>
-      <p class="hint ex-trap" data-i18n="ex.e20.trap">课题按周轮换（全服同题）；全服结论投票分布待后端落地后加入。每期课题自带一个指定误区，第三步末尾揭晓。</p>
+      <div id="ex20-vote-box" hidden>
+        <p class="hint" data-i18n="ex.e20.voteQ">投下你的本周结论（每人一票，可改票）：</p>
+        <div class="lw-fracs qd-actions">
+          <button id="btn-ex20-hold" class="small" data-i18n="ex.e20.vHold">效应或有其物</button>
+          <button id="btn-ex20-break" class="small" data-i18n="ex.e20.vBreak">更像噪声</button>
+        </div>
+        <p id="ex20-vote-dist" class="hint"></p>
+      </div>
+      <p class="hint ex-trap" data-i18n="ex.e20.trap">课题按周轮换（全服同题）；每期课题自带一个指定误区，第三步末尾揭晓。投票是你对数据的表态，不是对未来的下注。</p>
     </details>
 
     <p class="hint ex-iron" data-i18n="ex.iron">历史回测收益 ≠ 未来收益；本页全部结论只在所用数据与假设内成立。</p>
@@ -3692,7 +3700,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610268940"></script>
+  <script src="i18n.js?v=20261026c921"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=202610268754"></script>
   <script src="play.js?v=202610267b78"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
@@ -3707,7 +3715,7 @@
   <script src="guessgame.js?v=202610261cf8"></script>
   <script src="optsandbox.js?v=2026102556f9"></script>
   <script src="lab.js?v=20261026e7e8"></script>
-  <script src="exlab.js?v=202610260003"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
+  <script src="exlab.js?v=20261026e25e"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
   <script src="daily.js?v=2026102675d2"></script>
   <script src="event.js?v=202610250b8a"></script>
   <script src="option.js?v=2026102531c6"></script>

@@ -648,40 +648,47 @@
 
   async function runE11() {
     if (!Array.isArray(labStocks) || labStocks.length < 4) return;
-    const codes = labStocks.slice(0, 8).map((s) => s.code);
-    let hists;
-    try { hists = await Promise.all(codes.map((c) => labHistory(c))); } catch (e) { return; }
-    // 共同交易日对齐
+    // 真退市表版: 幸存池 = 今天还活着的标的 (labStocks 本来就只含现存——这正是偏差的日常形态),
+    // 全池 = 现存 + 退市。退市标的死后价值按末价冻结 (口径声明在 trap 文案)。
+    let graves = [];
+    try { graves = await api("/lab/delisted"); } catch (e) { /* 老后端无此接口: 走下方空池提示 */ }
+    const liveCodes = labStocks.filter((s) => s.market === "STOCK").slice(0, 6).map((s) => s.code);
+    if (!graves.length) { $("ex11-out").textContent = t("ex.e11.noData"); return; }
+    let liveH;
+    let deadH;
+    try {
+      liveH = await Promise.all(liveCodes.map((c) => labHistory(c)));
+      deadH = await Promise.all(graves.map((g) => labHistory(g.code)));
+    } catch (err) { toast(err.message); return; }
+    // 时间轴 = 现存标的共同交易日; 退市标的缺日即冻结在末个已知价
     let common = null;
-    hists.forEach((h) => {
+    liveH.forEach((h) => {
       const set = new Set(h.dates);
       common = common ? common.filter((d) => set.has(d)) : h.dates.slice();
     });
     if (!common || common.length < 60) { $("ex11-out").textContent = t("ex.e6.noOverlap"); return; }
-    const series = hists.map((h) => {
+    const toSeries = (h) => {
       const map = new Map(h.dates.map((d, i) => [d, Number(h.close[i])]));
-      return common.map((d) => map.get(d));
-    });
-    const totalRet = (c) => c[c.length - 1] / c[0] - 1;
-    // "幸存池" = 用整段(未来)收益挑出的前一半 —— 事后筛选即幸存者偏差的机制本体
-    const ranked = series.map((c, i) => ({ i, r: totalRet(c) })).sort((a, b) => b.r - a.r);
-    const survIdx = new Set(ranked.slice(0, Math.ceil(series.length / 2)).map((x) => x.i));
-    const port = (idxs) => {
+      let last = Number(h.close[0]);
+      return common.map((d) => { if (map.has(d)) last = map.get(d); return last; });
+    };
+    const live = liveH.map(toSeries);
+    const dead = deadH.map(toSeries);
+    const port = (arrs) => {
       const eq = [1];
       for (let d = 1; d < common.length; d++) {
         let rr = 0;
-        idxs.forEach((i) => { rr += series[i][d] / series[i][d - 1] - 1; });
-        eq.push(eq[d - 1] * (1 + rr / idxs.size));
+        arrs.forEach((c) => { rr += c[d] / c[d - 1] - 1; });
+        eq.push(eq[d - 1] * (1 + rr / arrs.length));
       }
       return eq;
     };
-    const allIdx = new Set(series.map((_, i) => i));
-    e11Data = { all: port(allIdx), surv: port(survIdx) };
+    e11Data = { surv: port(live), all: port(live.concat(dead)) };
     const gap = lastRet(e11Data.surv) - lastRet(e11Data.all);
-    const dropped = hists.filter((_, i) => !survIdx.has(i))
-      .map((h) => stockName(h.name, h.code)).join(" / ");
+    const tombstones = graves.map((g, i) => stockName(deadH[i].name, g.code)
+      + (g.delistDate ? "(" + g.delistDate + ")" : "")).join(" / ");
     $("ex11-out").textContent = t("ex.e11.out", fmtPct(lastRet(e11Data.surv)),
-      fmtPct(lastRet(e11Data.all)), fmtPct(gap), dropped);
+      fmtPct(lastRet(e11Data.all)), fmtPct(gap), tombstones);
     e11Chart.refresh();
   }
 
@@ -1191,7 +1198,31 @@
       $("ex20-s3").textContent = t("ex.e20.s3out",
         a.mean.toFixed(3), b.mean.toFixed(3), t(consistent ? "ex.e20.hold" : "ex.e20.break"))
         + " " + t("ex.e20.myth." + topic);
+      $("ex20-vote-box").hidden = false;
+      loadVoteBoard();
     }
+  }
+
+  // ---------- E20 全服投票 (服务端周序号与前端 qsWeekIndex 同口径) ----------
+  async function loadVoteBoard() {
+    try {
+      const b = await api("/lab/weekly-vote");
+      const total = b.hold + b.brk;
+      $("ex20-vote-dist").textContent = total
+        ? t("ex.e20.dist", b.hold, b.brk, Math.round((b.hold / total) * 100))
+        : t("ex.e20.distEmpty");
+      $("btn-ex20-hold").classList.toggle("primary", b.mine === "HOLD");
+      $("btn-ex20-break").classList.toggle("primary", b.mine === "BREAK");
+    } catch (e) { $("ex20-vote-dist").textContent = t("ex.e20.distEmpty"); }
+  }
+
+  async function castVote(choice) {
+    if (!window.Auth || !Auth.user) { toast(t("ex.e20.voteLogin")); return; }
+    try {
+      await api("/lab/weekly-vote", { method: "POST", body: JSON.stringify({ choice }) });
+      playSound("fill");
+      loadVoteBoard();
+    } catch (e) { toast(e.message); }
   }
 
   // ---------- 共享图表 option ----------
@@ -1319,6 +1350,8 @@
   $("ex20-param").addEventListener("input", runE20);
   $("btn-ex20-s2").addEventListener("click", () => { e20.step = 2; runE20(); });
   $("ex20-s3-btn").addEventListener("click", () => { e20.step = 3; playSound("flip"); runE20(); });
+  $("btn-ex20-hold").addEventListener("click", () => castVote("HOLD"));
+  $("btn-ex20-break").addEventListener("click", () => castVote("BREAK"));
   $("btn-exlab-open").addEventListener("click", () => switchView("exlab"));
 
   // details 展开时补画 (hidden 容器里 ECharts 尺寸为 0)

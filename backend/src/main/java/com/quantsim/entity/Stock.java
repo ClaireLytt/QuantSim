@@ -37,4 +37,11 @@ public class Stock {
     /** 事件回放场景专用标的: 不进研究所/回测/随机开局等任何公开列表 (防比对泄题) */
     @Column(nullable = false)
     private boolean hidden = false;
+
+    /** 退市标的 (E11 幸存者实验专用): 恒与 hidden=1 搭配——出所有对局/榜单, 只供实验室调取 */
+    @Column(nullable = false)
+    private boolean delisted = false;
+
+    @Column(name = "delist_date")
+    private java.time.LocalDate delistDate;
 }

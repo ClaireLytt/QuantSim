@@ -10,6 +10,7 @@ import java.util.TreeMap;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,6 +32,7 @@ public class LabController {
 
     private final StockRepository stockRepository;
     private final MarketDataService marketDataService;
+    private final com.quantsim.repository.WeeklyVoteRepository weeklyVoteRepository;
 
     public record LabHistory(
             String code,
@@ -136,6 +138,64 @@ public class LabController {
         return pulse;
     }
 
+    /** E11 真退市表: 退市标的清单 (历史行情经 /history/{code} 正常取, 对局与榜单不可见)。 */
+    public record DelistedStock(String code, String name, java.time.LocalDate delistDate) {}
+
+    @GetMapping("/delisted")
+    public List<DelistedStock> delisted() {
+        return stockRepository.findAll().stream()
+                .filter(Stock::isDelisted)
+                .map(s -> new DelistedStock(s.getCode(), s.getName(), s.getDelistDate()))
+                .sorted(java.util.Comparator.comparing(DelistedStock::code))
+                .toList();
+    }
+
+    /** E20 周报投票: 每人每周一票可改票; 周序号服务端按日期算, 防客户端伪造跨周刷票。 */
+    public record WeeklyVoteBoard(int week, long hold, long brk, String mine) {}
+
+    public record VoteRequest(String choice) {}
+
+    /** 与前端 qsWeekIndex 同口径: 1970-01-05 (周一) 起算的周序号。 */
+    static int weekIdx(java.time.LocalDate d) {
+        return (int) Math.floorDiv(d.toEpochDay() - 4, 7);
+    }
+
+    @GetMapping("/weekly-vote")
+    public WeeklyVoteBoard weeklyVote(jakarta.servlet.http.HttpServletRequest request) {
+        int week = weekIdx(java.time.LocalDate.now(com.quantsim.service.GameService.GAME_ZONE));
+        Long userId = com.quantsim.config.CurrentUser.idOrNull(request);
+        String mine = userId == null ? null : weeklyVoteRepository
+                .findByWeekIdxAndUserId(week, userId).map(com.quantsim.entity.WeeklyVote::getChoice).orElse(null);
+        return new WeeklyVoteBoard(week,
+                weeklyVoteRepository.countByWeekIdxAndChoice(week, "HOLD"),
+                weeklyVoteRepository.countByWeekIdxAndChoice(week, "BREAK"), mine);
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/weekly-vote")
+    @org.springframework.transaction.annotation.Transactional
+    public WeeklyVoteBoard vote(@RequestBody VoteRequest req,
+                                jakarta.servlet.http.HttpServletRequest request) {
+        Long userId = com.quantsim.config.CurrentUser.idOrNull(request);
+        if (userId == null) {
+            throw new com.quantsim.exception.BusinessException("投票需要登录（一周一票要记在名下）");
+        }
+        String choice = req.choice() == null ? "" : req.choice().trim().toUpperCase();
+        if (!choice.equals("HOLD") && !choice.equals("BREAK")) {
+            throw new com.quantsim.exception.BusinessException("无效选项（可选 HOLD / BREAK）");
+        }
+        int week = weekIdx(java.time.LocalDate.now(com.quantsim.service.GameService.GAME_ZONE));
+        com.quantsim.entity.WeeklyVote vote = weeklyVoteRepository
+                .findByWeekIdxAndUserId(week, userId).orElseGet(() -> {
+                    com.quantsim.entity.WeeklyVote v = new com.quantsim.entity.WeeklyVote();
+                    v.setWeekIdx(week);
+                    v.setUserId(userId);
+                    return v;
+                });
+        vote.setChoice(choice); // 改票 = 覆盖 (每周一票的唯一键兜底并发)
+        weeklyVoteRepository.save(vote);
+        return weeklyVote(request);
+    }
+
     /** probUp 分桶 vs 实际次日上涨频率: 校准好的模型两者应接近 (全部标的聚合)。 */
     public record CalibrationBucket(double probFrom, double probTo, int samples, double actualUpRate) {}
 
@@ -227,8 +287,9 @@ public class LabController {
 
     @GetMapping("/history/{code}")
     public LabHistory history(@PathVariable String code) {
+        // 场景行情不对公开接口暴露 (防比对泄题); 退市标的虽 hidden 但属公开历史, 放行给 E11
         Stock stock = stockRepository.findByCode(code)
-                .filter(st -> !st.isHidden()) // 场景行情不对公开接口暴露 (防比对泄题)
+                .filter(st -> !st.isHidden() || st.isDelisted())
                 .orElseThrow(() -> new NotFoundException("股票不存在: " + code));
         MarketDataService.StockData data = marketDataService.load(stock.getStockId());
         List<DailyPrice> prices = data.prices();

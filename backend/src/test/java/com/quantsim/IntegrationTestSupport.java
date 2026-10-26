@@ -81,6 +81,7 @@ abstract class IntegrationTestSupport {
     @Autowired protected RoomRepository roomRepository;
     @Autowired protected DailyChallengeRepository dailyChallengeRepository;
     @Autowired protected SeedChallengeEntryRepository seedChallengeEntryRepository;
+    @Autowired protected com.quantsim.repository.WeeklyVoteRepository weeklyVoteRepository;
     @Autowired protected SeedChallengeRepository seedChallengeRepository;
     @Autowired protected UserProgressRepository userProgressRepository;
     @Autowired protected TransactionRepository transactionRepository;
@@ -106,6 +107,7 @@ abstract class IntegrationTestSupport {
     }
 
     protected void clean() {
+        weeklyVoteRepository.deleteAll();
         seedChallengeEntryRepository.deleteAll();
         seedChallengeRepository.deleteAll();
         backtestRepository.deleteAll();
