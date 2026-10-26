@@ -955,3 +955,22 @@ button.mk-yield:hover { border-style: solid; filter: none; }
 .tm-rule-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .tm-rule-row select { flex: 1; min-width: 0; }
 .tm-rule-row span { color: var(--text-muted); }
+
+/* ---- maze: execution-venue doors ---- */
+.mz-doors { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.mz-door {
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  background: var(--lab-card);
+  border: 1px dashed var(--lab-line);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mz-door:hover:not(:disabled) { border-color: var(--lab-blue); filter: none; }
+.mz-door.active {
+  border-style: solid;
+  border-color: var(--lab-blue);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--lab-blue) 30%, transparent);
+}

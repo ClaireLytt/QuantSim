@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="style.css?v=20261025de84">
   <link rel="stylesheet" href="game.css?v=20261026620e">
   <link rel="stylesheet" href="academy.css?v=202610261536">
-  <link rel="stylesheet" href="lab-games.css?v=20261026be58">
+  <link rel="stylesheet" href="lab-games.css?v=20261026d605">
   <link rel="stylesheet" href="widgets.css?v=202610268eb7">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
@@ -874,6 +874,7 @@
       <button class="gz-card" data-goto="alchemy"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4M12 3v6l6 10a1.5 1.5 0 0 1-1.3 2.3H7.3A1.5 1.5 0 0 1 6 19L12 9"/><path d="M8.5 15h7"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g9.t">仓位炼金术</strong><span class="sub" data-i18n="gz.g9.d">未来全公开也赢不了——用组合数学过风险关</span></button>
       <button class="gz-card" data-goto="tamer"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a7 7 0 0 1 7 7c0 5-3 8-7 11-4-3-7-6-7-11a7 7 0 0 1 7-7z"/><circle cx="9.5" cy="10" r="0.5"/><circle cx="14.5" cy="10" r="0.5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g10.t">算法驯兽师</strong><span class="sub" data-i18n="gz.g10.d">组装交易宠物放生，全程只许救它一次</span></button>
       <button class="gz-card" data-goto="fool"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18c2-8 5-13 8-13s6 5 8 13"/><path d="M3 18h18M12 5v-2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g11.t">最后一个接盘侠</strong><span class="sub" data-i18n="gz.g11.d">音乐停止前逃离妖股，别当最后那个人</span></button>
+      <button class="gz-card" data-goto="maze"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h18v18H3zM3 9h12M9 9v6M15 9v12M9 15h6M15 3v3"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g12.t">平仓迷宫</strong><span class="sub" data-i18n="gz.g12.d">大仓位出逃，每扇交易通道的门都有脾气</span></button>
       <!-- 预留位: 不可点的"即将开放"占位卡, 暗示训练场还在扩建 -->
       <div class="gz-card gz-card-soon" aria-hidden="true"><strong data-i18n="gz.soon">即将开放</strong><span class="sub" data-i18n="gz.soonHint">新的训练项目正在打磨中</span></div>
     </div>
@@ -1394,6 +1395,59 @@
       <div class="qd-actions">
         <button id="btn-flr-again" class="primary big" data-i18n="fl.again">再来一局</button>
         <button id="btn-flr-games" class="big" data-i18n="fl.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-maze" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="mz.title">🚪 平仓迷宫</span> <span class="sub" data-i18n="mz.sub">十万股大仓位，八个时段，每扇门都有脾气——卖得太急，迷宫会塌在你身上</span></h2>
+
+    <div id="mz-select">
+      <p class="hint" data-i18n="mz.selectHint">你持有 100,000 股（现价 20.00），收盘前只有 8 个时段。四种通道各有脾气：集合竞价只在头尾开门、冲击小；盘中连续常开但卖多砸价狠，连走同一扇门还会「变窄」；大宗固定折价 3% 但不砸盘；暗池零冲击但容量和成交率看缘分。你的每一笔卖出都永久改写后面的价格。目标：全部卖完且均价守住 19.20（开盘价的 96%）。</p>
+      <p class="hint" id="mz-best" hidden></p>
+      <button id="btn-mz-start" class="primary big" data-i18n="mz.start">背上仓位，进入迷宫</button>
+    </div>
+
+    <div id="mz-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="mz-round"></h3>
+        <span class="qd-credits-pill"><i data-i18n="mz.leftLabel">待卖股数</i><b id="mz-left">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="mz.priceLabel">现价</i><b id="mz-price">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="mz.avgLabel">已卖均价</i><b id="mz-avg">--</b></span>
+      </div>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="mz.chartTitle">价格轨迹（圆点大小 = 你的卖出量，绿虚线 = 均价及格线）</p>
+          <div id="mz-chart" class="au-chart"></div>
+          <p class="hint" data-i18n="mz.ledgerTitle">成交回执</p>
+          <p id="mz-ledger-empty" class="hint" data-i18n="mz.ledgerEmptyText">还没卖出一股——时段在流逝。</p>
+          <ul id="mz-ledger" class="qd-notes"></ul>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="mz.doorsTitle">本时段开着的门（选一扇）</p>
+          <div id="mz-doors" class="mz-doors"></div>
+          <label class="qd-verdict-row"><span data-i18n="mz.volLabel">本笔卖出量</span>
+            <input id="mz-vol" type="number" min="1000" step="1000" value="10000">
+          </label>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-mz-sell" class="primary big" data-i18n="mz.sell">走这扇门（卖出）</button>
+        <button id="btn-mz-wait" class="big" data-i18n="mz.wait">本时段按兵不动</button>
+      </div>
+      <button id="btn-mz-back" class="ghost" data-i18n="mz.back">放弃任务</button>
+    </div>
+
+    <div id="mz-report" hidden>
+      <h3 data-i18n="mz.reportTitle">执行结算</h3>
+      <p id="mzr-conclusion" class="qdr-conclusion"></p>
+      <p id="mzr-base" class="au-fatal"></p>
+      <p id="mzr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-mzr-again" class="primary big" data-i18n="mz.again">再闯一次</button>
+        <button id="btn-mzr-games" class="big" data-i18n="mz.toGames">返回训练场</button>
       </div>
     </div>
   </section>
@@ -2914,9 +2968,9 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261026caa6"></script>
+  <script src="i18n.js?v=202610262a97"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=2026102666c2"></script>
+  <script src="app.js?v=20261026b5b0"></script>
   <script src="play.js?v=20261026fae1"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
@@ -2955,6 +3009,7 @@
   <script src="alchemy.js?v=20261026af7f"></script>
   <script src="tamer.js?v=202610262ca3"></script>
   <script src="fool.js?v=202610265728"></script>
+  <script src="maze.js?v=20261026afd3"></script>
   <script src="tasks.js?v=202610267667"></script>
   <script src="pet.js?v=2026102523c4"></script>
   <script src="career.js?v=20261026bb9e"></script>
