@@ -906,6 +906,7 @@
       <button class="gz-card" data-goto="swan"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16c3 0 4-2 4-5a4 4 0 0 1 8 0c0 5-3 8-8 8H3zM15 7l4-2"/><circle cx="14" cy="6" r=".5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g17.t">黑天鹅轮盘</strong><span class="sub" data-i18n="gz.g17.d">三件大事必然发生，保险越恐慌越贵</span></button>
       <button class="gz-card" data-goto="sleuth"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l5.5 5.5M7.5 10h5M10 7.5v5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g18.t">市场侦探</strong><span class="sub" data-i18n="gz.g18.d">证据板上拼真相，钉错误导线索会被点名</span></button>
       <button class="gz-card" data-goto="mates"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 9a3 3 0 1 0 0-6M17 14c2.8 0 5 2.2 5 5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.easy">轻松</i></span><strong data-i18n="gz.g19.t">好友茶会</strong><span class="sub" data-i18n="gz.g19.d">一串码就是一次邀约：战绩对比与策略盲猜</span></button>
+      <button class="gz-card" data-goto="dojo"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M6 7l1-3h10l1 3M7 7v13M17 7v13M7 12h10"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g20.t">研究道场</strong><span class="sub" data-i18n="gz.g20.d">参数考古、决策证词与复现挑战——练手艺不练运气</span></button>
       <!-- 预留位: 不可点的"即将开放"占位卡, 暗示训练场还在扩建 -->
       <div class="gz-card gz-card-soon" aria-hidden="true"><strong data-i18n="gz.soon">即将开放</strong><span class="sub" data-i18n="gz.soonHint">新的训练项目正在打磨中</span></div>
     </div>
@@ -2026,6 +2027,65 @@
       </div>
       <p class="hint ex-trap" data-i18n="ex.e20.trap">课题按周轮换（全服同题）；每期课题自带一个指定误区，第三步末尾揭晓。投票是你对数据的表态，不是对未来的下注。</p>
     </details>
+
+    <p class="hint ex-iron" data-i18n="ex.iron">历史回测收益 ≠ 未来收益；本页全部结论只在所用数据与假设内成立。</p>
+  </section>
+  </div>
+
+  <div id="view-dojo" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="rq.title">⛩️ 研究道场</span> <span class="sub" data-i18n="rq.sub">提假设、跑实验、认错、再来——分数衡量手艺，不衡量运气</span></h2>
+
+    <section class="card">
+      <h3 data-i18n="rq.c7.t">参数考古</h3>
+      <p class="hint" data-i18n="rq.c7.hint">一条匿名双均线策略的净值曲线摆在你面前——从它的行为指纹（交易频率、回撤形态）反推参数。5 次机会，评分看最佳贴合度：一次猜中与五次系统逼近同分。</p>
+      <p id="rq7-out" class="ex-out"></p>
+      <div class="ex-controls">
+        <label><span data-i18n="rq.c7.f">快线</span><input type="range" id="rq7-f" min="2" max="14" value="5"><b id="rq7-f-v">5</b></label>
+        <label><span data-i18n="rq.c7.s">慢线</span><input type="range" id="rq7-s" min="16" max="40" value="20"><b id="rq7-s-v">20</b></label>
+        <button id="btn-rq7-try" class="primary small" data-i18n="rq.c7.try">验证这组参数</button>
+        <button id="btn-rq7-new" class="small" data-i18n="rq.c7.new">换一条曲线</button>
+      </div>
+      <p id="rq7-reveal" class="qdr-conclusion" hidden></p>
+      <div id="rq7-chart" class="lab-chart ex-chart"></div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c9.t">一根 K 线的证词</h3>
+      <p class="hint" data-i18n="rq.c9.hint">只看截至今天的走势：三种决策哪个最有道理？选一个，并声明你的判断标准。未来五日揭晓后，系统记录的是「你的合理性判断 vs 结果」的长期一致率——多数人会发现它低得吓人，这正是要学的东西。</p>
+      <div id="rq9-chart" class="lab-chart ex-chart"></div>
+      <p class="hint" data-i18n="rq.c9.q1">哪个决策最有道理？</p>
+      <div id="rq9-acts" class="mz-doors"></div>
+      <p class="hint" data-i18n="rq.c9.q2">你的判断标准是？（只计自洽，不计对错）</p>
+      <div id="rq9-stds" class="lw-fracs qd-actions"></div>
+      <div class="qd-actions">
+        <button id="btn-rq9-submit" class="primary" data-i18n="rq.c9.submit">提交证词</button>
+        <button id="btn-rq9-new" class="big" data-i18n="rq.c9.new">下一桩</button>
+      </div>
+      <p id="rq9-reveal" class="qdr-conclusion" hidden></p>
+      <p id="rq9-stats" class="hint"></p>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c5.t">复现挑战</h3>
+      <p class="hint" data-i18n="rq.c5.hint">粘贴一张研究卡（实验台 E19 导出的 QSR1 码），在不同标的上复现它的方法。复现失败是常态也是成果——「不支持」的报告与「支持」的同等有效。</p>
+      <textarea id="rq5-in" class="fp-code"></textarea>
+      <div class="qd-actions"><button id="btn-rq5-load" class="big" data-i18n="rq.c5.load">解读研究卡</button></div>
+      <p id="rq5-orig" class="ex-out" hidden></p>
+      <div id="rq5-run-row" class="ex-controls" hidden>
+        <label><span data-i18n="rq.c5.stock">复现标的（须不同于原卡）</span><select id="rq5-stock"></select></label>
+        <button id="btn-rq5-run" class="primary small" data-i18n="rq.c5.run">按原方法复现</button>
+      </div>
+      <div id="rq5-report" hidden>
+        <p id="rq5-cmp" class="ex-out"></p>
+        <p class="hint" data-i18n="rq.c5.vq">你的复现结论：</p>
+        <div id="rq5-verdicts" class="lw-fracs qd-actions"></div>
+        <p class="hint" data-i18n="rq.c5.aq">若有出入，更可能归因于：</p>
+        <div id="rq5-attrs" class="lw-fracs qd-actions"></div>
+        <div class="qd-actions"><button id="btn-rq5-export" class="primary" data-i18n="rq.c5.export">生成复现报告码</button></div>
+        <pre id="rq5-out" class="fp-code ex19-card" hidden></pre>
+      </div>
+    </section>
 
     <p class="hint ex-iron" data-i18n="ex.iron">历史回测收益 ≠ 未来收益；本页全部结论只在所用数据与假设内成立。</p>
   </section>
@@ -3700,9 +3760,9 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261026c921"></script>
+  <script src="i18n.js?v=20261026af77"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=202610268754"></script>
+  <script src="app.js?v=20261026f977"></script>
   <script src="play.js?v=202610267b78"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
@@ -3715,7 +3775,8 @@
   <script src="guessgame.js?v=202610261cf8"></script>
   <script src="optsandbox.js?v=2026102556f9"></script>
   <script src="lab.js?v=20261026e7e8"></script>
-  <script src="exlab.js?v=20261026e25e"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
+  <script src="exlab.js?v=202610265e71"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
+  <script src="dojo.js?v=20261026d4df"></script><!-- 依赖 exlab.js 的 window.qsQuant 计算件, 必须在其后 -->
   <script src="daily.js?v=2026102675d2"></script>
   <script src="event.js?v=202610250b8a"></script>
   <script src="option.js?v=2026102531c6"></script>

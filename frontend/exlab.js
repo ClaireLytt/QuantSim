@@ -7,9 +7,10 @@
   // ---------- 摩擦面板 (全页共享) ----------
   const fr = { on: true, comm: 2.5, stamp: 5, slip: 2 }; // bp; A股真实档默认
 
-  function frictionCost(turnover, reduction) {
-    if (!fr.on) return 0;
-    return turnover * (fr.comm + fr.slip) / 10000 + reduction * fr.stamp / 10000;
+  function frictionCost(turnover, reduction, f) {
+    const x = f || fr;
+    if (!x.on) return 0;
+    return turnover * (x.comm + x.slip) / 10000 + reduction * x.stamp / 10000;
   }
 
   // ---------- 数值工具 ----------
@@ -26,14 +27,15 @@
     return out;
   }
 
-  /** 仓位序列 → 净值曲线 (pos[i] = 第 i 日收盘后的持仓比例, 吃第 i+1 日涨跌)。 */
-  function simulate(closes, pos) {
+  /** 仓位序列 → 净值曲线 (pos[i] = 第 i 日收盘后的持仓比例, 吃第 i+1 日涨跌)。
+      f 可覆盖摩擦口径 (研究道场等外部调用方传自己的; 本页默认吃共享面板)。 */
+  function simulate(closes, pos, f) {
     const r = rets(closes);
     const eq = [1];
     for (let i = 1; i < closes.length; i++) {
       let e = eq[i - 1] * (1 + pos[i - 1] * r[i]);
       const turnover = Math.abs(pos[i] - pos[i - 1]);
-      if (turnover > 1e-9) e *= 1 - frictionCost(turnover, Math.max(0, pos[i - 1] - pos[i]));
+      if (turnover > 1e-9) e *= 1 - frictionCost(turnover, Math.max(0, pos[i - 1] - pos[i]), f);
       eq.push(e);
     }
     return eq;
@@ -1371,4 +1373,13 @@
   document.addEventListener("qs:settled", () => {
     if (!$("view-exlab").hidden) runE16();
   });
+
+  // 对外计算件 (研究道场 dojo.js 复用, 别再手搓第二份): 全部纯函数,
+  // simulate/rulePos 的摩擦由调用方显式传入 (A股真实档默认)。
+  window.qsQuant = {
+    ma, rets, maxDD, lastRet,
+    frictionDefault: () => ({ on: true, comm: 2.5, stamp: 5, slip: 2 }),
+    simulate: (c, pos, f) => simulate(c, pos, f || { on: true, comm: 2.5, stamp: 5, slip: 2 }),
+    rulePos: e7Pos, // 入场×出场规则件 (cross/breakout/pullback × death/fixed/trail)
+  };
 })();
