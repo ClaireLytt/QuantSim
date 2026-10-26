@@ -54,26 +54,33 @@
 .home-life-streak { margin: 4px 0 0; font-size: 13px; color: var(--text-muted); }
 /* 连续 3 天点亮荣誉位: 茶色强调 (印章式) */
 .home-life-streak.lit { color: var(--accent); font-weight: 600; }
-.home-life-head button { flex: 0 0 auto; }
+/* CTA 收为定宽按钮与标题行并排 (视觉升级 A: 首屏按钮不再压过数字) */
+.home-life-head button.primary { flex: 0 0 auto; padding: 10px 28px; }
+/* 数字分主次 (视觉升级 A): 虚拟资产 = 唯一大数字, 其余三指标降为次级行内组,
+   去独立边框盒——同重四等分的 hero-metric 平铺是层级失败的典型 */
 .home-life-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 14px;
+  display: flex;
+  align-items: flex-start; /* 顶对齐: 带副行的胜率块不把邻居基线拽歪 */
+  gap: 28px;
+  flex-wrap: wrap;
   margin-top: 18px;
 }
 .home-life-stat {
-  padding: 12px 14px;
-  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 .home-life-stat b {
   font-family: var(--tr-mono);
-  font-size: 20px;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
+}
+/* 主数字: 虚拟资产 (首个 stat) */
+.home-life-stat:first-child b { font-size: 30px; line-height: 1.1; }
+/* 次级指标之间发丝线分隔, 替代四个同重边框盒 */
+.home-life-stat + .home-life-stat {
+  border-left: 1px solid var(--border);
+  padding-left: 28px;
 }
 .home-life-curve-card { max-width: 980px; margin: 0 auto; }
 .home-life-curve { height: 280px; }
@@ -87,6 +94,109 @@
 .home-bias-box p { margin: 0 0 8px; font-size: 13px; }
 .home-life-stat .hint { font-size: 11px; }
 .home-all-toggle { margin-left: 10px; vertical-align: 3px; }
+
+/* 今日市场天气播报 (A5): hero 上方一条可点横幅, 纸面质感 + 主色呼吸点 */
+.home-pulse {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font-size: 13px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--tr-fiber), var(--tr-paper-grad);
+  background-blend-mode: var(--tr-blend), normal;
+  box-shadow: var(--tr-paper-shadow);
+  color: var(--text);
+}
+.home-pulse:hover { border-color: var(--border-strong); filter: none; }
+.home-pulse-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: home-pulse-breathe 2.4s ease-out infinite;
+}
+@keyframes home-pulse-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  50% { box-shadow: 0 0 0 5px transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .home-pulse-dot { animation: none; } }
+.home-pulse b { margin-left: auto; flex: none; color: var(--accent); font-weight: 600; }
+@media (max-width: 720px) { .home-pulse { flex-wrap: wrap; } .home-pulse b { margin-left: 18px; } }
+
+/* ---- 研究实验台 (exlab): 摩擦面板 / 实验卡 / 铁句页脚 ---- */
+.ex-friction {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+.ex-friction label { display: flex; align-items: center; gap: 6px; }
+.ex-friction input[type="range"] { width: 90px; }
+.ex-friction b { font-family: var(--tr-mono); font-variant-numeric: tabular-nums; min-width: 42px; }
+.ex-fantasy {
+  font-size: 10px;
+  font-family: var(--tr-mono);
+  letter-spacing: .1em;
+  color: var(--warn);
+  border: 1px dashed color-mix(in srgb, var(--warn) 55%, transparent);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.ex-exp { margin-bottom: 12px; }
+.ex-exp summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+  padding: 2px 0;
+}
+.ex-exp summary::-webkit-details-marker { display: none; }
+.ex-exp summary b { font-family: var(--tr-serif); letter-spacing: .04em; }
+.ex-controls { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 12px; margin: 10px 0 6px; }
+.ex-controls label { display: flex; align-items: center; gap: 6px; }
+.ex-controls input[type="range"] { width: 120px; }
+.ex-controls b { font-family: var(--tr-mono); font-variant-numeric: tabular-nums; min-width: 38px; }
+.ex-out { font-size: 13px; margin: 6px 0; font-variant-numeric: tabular-nums; }
+.ex-test { color: var(--accent); font-weight: 600; }
+.ex-chart { height: 220px; }
+.ex-trap { border-left: 2px solid var(--warn); padding-left: 8px; margin-top: 8px; }
+.ex-iron { text-align: center; margin-top: 18px; letter-spacing: .04em; }
+.ex18-report {
+  font-family: var(--tr-serif);
+  font-size: 14px;
+  line-height: 1.8;
+  padding: 14px 16px;
+  margin: 10px 0;
+  border-left: 3px solid var(--warn);
+}
+.ex18-flaws { display: flex; flex-direction: column; gap: 6px; }
+.ex18-flaw {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  background: var(--lab-card);
+  border: 1px dashed var(--lab-line);
+}
+.ex18-flaw:hover:not(:disabled) { border-color: var(--lab-blue); filter: none; }
+.ex18-flaw.found { border-style: solid; border-color: var(--good); }
+.ex18-flaw.found b { color: var(--good); }
+.ex18-flaw i { font-style: normal; font-size: 11px; color: var(--accent); }
+.ex19-input { text-transform: none; letter-spacing: normal; font-family: inherit; }
+.ex19-card { white-space: pre-wrap; }
+.exlab-entry { margin-top: 10px; width: 100%; }
 
 .home-hero {
   display: flex;

@@ -416,6 +416,8 @@ async function enterGame(res) {
     }
 }
 window.qsEnterGame = enterGame;
+// 新手 90 秒浓缩局 (首页首访入口): 短局 + 温和股票 + 简单 AI + 买卖各一次的笔数预算
+window.qsStartIntro = () => startGame({ mode: "INTRO", aiLevel: "EASY", maxTrades: 2, market: "" });
 
 async function loadHistory() {
   const q = state.mode === "PORTFOLIO" && state.activeStock
@@ -1080,7 +1082,24 @@ function showSettle(result) {
   loadLeaderboard();
   // 开局配置卡已下沉进对局页: 结算后把它请回来, 否则"再来一局"无门 (之前它常驻页头不存在这个问题)
   $("game-intro").hidden = false;
+  // 新手浓缩局打完: 落标记 (首页据此收起 90 秒入口), 弹提示指回茶室全貌
+  if (state.mode === "INTRO") {
+    try { localStorage.setItem("qs_intro_done", "1"); } catch (e) { /* 隐私模式下忽略 */ }
+    toast(t("intro.done"));
+    document.dispatchEvent(new CustomEvent("qs:introdone"));
+  }
   document.dispatchEvent(new CustomEvent("qs:settled", { detail: result }));
+  // 生涯考核判定行: 事件先分发 (career 在 handle 里记录本局判定), 再回读展示 ✓/✗
+  if (window.qsCareerSettleExam) {
+    const ex = qsCareerSettleExam();
+    const el = $("settle-pop-exam");
+    el.hidden = !ex;
+    if (ex) {
+      el.textContent = t(ex.passed ? "career.examPass" : "career.examFail", ex.goal);
+      el.classList.toggle("pos", ex.passed);
+      el.classList.toggle("neg", !ex.passed);
+    }
+  }
 }
 
 // PWA: 注册极简 Service Worker (网络优先, 不缓存 API), 让站点可安装
@@ -1153,6 +1172,23 @@ function renderSettle(result) {
     verdict.textContent = t(win ? "survival.win" : "survival.lose");
     verdict.className = "verdict " + (win ? "win" : "lose");
   }
+  // 每日挑战规则判定 (D1~D8): 结算卡上亮当日规则的过/未过
+  const dcEl = $("settle-daily-rule");
+  dcEl.hidden = !result.dailyChallenge;
+  if (result.dailyChallenge) {
+    const dc = result.dailyChallenge;
+    dcEl.textContent = t(dc.passed ? "dc.passed" : "dc.failed", t("dc." + dc.rule + ".t"));
+    dcEl.className = "hint " + (dc.passed ? "pos" : "neg");
+    // 达成给学堂经验 (XP 体系在前端 prog, 与徽章同层); addXp 来自 academy.js
+    if (dc.passed && window.addXp) addXp(15);
+  }
+  // 新手浓缩局: 判词换成趣味称号 (不论盈亏都给正反馈——第一局的任务是留下来)
+  if (state.mode === "INTRO") {
+    const ret = Number(result.returnRate);
+    const verdict = $("settle-verdict");
+    verdict.textContent = t(ret >= 0.02 ? "intro.titleStar" : ret >= 0 ? "intro.titleSteady" : "intro.titleTuition");
+    verdict.className = "verdict win";
+  }
   renderSettleExtras(result);
   renderSettleCurve(result);
 }
@@ -1187,6 +1223,7 @@ function renderSettleExtras(result) {
 
   renderRiskPanel(result);
   renderEventReveal(result);
+  renderCoach(result);
 
   $("btn-review").hidden = false;
   $("btn-recap").hidden = false;
@@ -1242,6 +1279,43 @@ async function startChallenge() {
 
 // 结算风险指标表: 你 vs 买入持有。回撤/波动率/日胜率是正分数 → 百分比,
 // 夏普/索提诺/盈亏比是纯数 → 两位小数; 后端算不出 (样本不足等) 的字段为 null → "--"
+// 复盘教练 (首发三卡 C9/C11/C1): 结论卡 + STAT 证据行。
+// args 里以 coach. 开头的参数是 i18n 键, 先翻译再插值 (如象限名/基准名);
+// TX 锚 v1 只随 payload 保留 (图表定位锚留给教练页签阶段), 不在此渲染。
+function renderCoach(result) {
+  const box = $("settle-coach");
+  const list = $("settle-coach-list");
+  const findings = result.coach || [];
+  box.hidden = !findings.length;
+  if (!findings.length) return;
+  list.innerHTML = "";
+  findings.forEach((f) => {
+    const card = document.createElement("div");
+    card.className = "coach-card conf-" + (f.confidence || "WEAK").toLowerCase();
+    const head = document.createElement("p");
+    const args = (f.args || []).map((a) => (String(a).startsWith("coach.") ? t(a) : a));
+    head.textContent = t(f.verdictKey, ...args);
+    card.appendChild(head);
+    if (f.hindsight) {
+      const hb = document.createElement("i");
+      hb.className = "coach-hindsight";
+      hb.textContent = t("coach.hindsight");
+      card.appendChild(hb);
+    }
+    (f.anchors || []).filter((a) => a.type === "STAT").forEach((a) => {
+      const ev = document.createElement("span");
+      ev.className = "hint coach-ev";
+      ev.textContent = t(a.statKey) + ": " + a.statValue;
+      card.appendChild(ev);
+    });
+    const conf = document.createElement("i");
+    conf.className = "coach-conf";
+    conf.textContent = t("coach.conf." + (f.confidence || "WEAK"));
+    card.appendChild(conf);
+    list.appendChild(card);
+  });
+}
+
 function renderRiskPanel(result) {
   const box = $("settle-risk");
   const risk = result.risk;

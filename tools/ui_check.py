@@ -33,7 +33,24 @@ I18N = os.path.join(FRONTEND, "i18n.js")
 # t("strat." + x) 这类动态拼接键的合法前缀: 只要 zh 字典里存在该前缀的键即认为覆盖
 DYNAMIC_KEY_PREFIXES = ("strat.", "room.status.", "me.mode.", "orders.",
                         "ailevel.", "nav.", "style.", "ai.persona.", "settle.taunt.",
-                        "walker.ch")  # walker.ch{N}.t/.d: 前缀+变量+后缀拼接 (walker.js 章节)
+                        "walker.ch",  # walker.ch{N}.t/.d: 前缀+变量+后缀拼接 (walker.js 章节)
+                        "mk.temptation.",  # mk.temptation.{stop|tp|avg}: 诱惑类型拼键 (monk.js)
+                        "tm.cond.", "tm.act.",  # tm.cond./tm.act.{id}: 积木条件/动作拼键 (tamer.js)
+                        "mz.ch.",  # mz.ch.{auction|cont|block|dark|forced}: 通道拼键 (maze.js)
+                        "lw.dayName",  # lw.dayName{0..4}: 星期几拼键 (loopweek.js)
+                        "sp.order.",  # sp.order.{big|small|skip}: 订单档位拼键 (supply.js)
+                        "sop.name.", "sop.act.", "sop.actd.",  # 玩家名/动作拼键 (soup.js)
+                        "fbt.ind.", "fbt.m.", "fbt.dir.",  # 行业/指标/方向拼键 (taste.js)
+                        "pulse.",  # pulse.{SURGE_HOT|...}: 今日播报 regime 拼键 (home.js)
+                        "gw.dim.", "gw.reward.", "gw.style.",  # 六维/奖励位/九宫风格拼键 (growth.js)
+                        "dc.",  # dc.{FIVE|BELT|...}.t/.d: 每日规则拼键 (daily.js / play.js)
+                        "fp.quad.", "fp.motive.", "fp.cmp.",  # 盲猜象限/动机/对比指标拼键 (mates.js)
+                        "coach.",  # coach.*: 教练发现的 verdictKey/象限/基准/证据全部由后端拼键 (play.js)
+                        "ex.e6.p.", "ex.e7.en.", "ex.e7.ex.", "ex.e12.s.", "ex.e13.a.",
+                        "ex.e18.f.", "ex.e18.x.", "ex.e20.",  # 实验台拼键 (exlab.js)
+                        "rq.c9.", "rq.c5.", "rq.c8.", "rq.c4.", "rq.c14.",
+                        "rq.c2.", "rq.c6.", "rq.c10.", "rq.c11.", "rq.c12.", "rq.c15.",
+                        "rq.c1.", "rq.c3.")  # 道场拼键 (dojo.js)
 
 
 def read(path):

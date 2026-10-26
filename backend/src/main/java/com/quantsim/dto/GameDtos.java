@@ -248,7 +248,22 @@ public final class GameDtos {
             int winStreak,
             BiasReport biasReport,
             List<JournalEntry> journal,
-            EventReveal eventReveal) {}
+            EventReveal eventReveal,
+            DailyRuleResult dailyChallenge,
+            List<CoachFinding> coach) {}
+
+    /** 每日挑战规则结算判定 (非每日局为 null): rule = DailyRules.Rule 枚举名。 */
+    public record DailyRuleResult(String rule, boolean passed) {}
+
+    /** 复盘教练证据锚: TX=某笔交易 / STAT=统计值 (statKey 为 i18n 键)。 */
+    public record CoachAnchor(String type, Long txId, String statKey, String statValue) {}
+
+    /**
+     * 复盘教练发现: verdictKey 为文案模板 i18n 键, args 为插值;
+     * confidence = SOLID/LEAN/WEAK; hindsight = 用了未来信息的"结果复盘"(UI 强制角标)。
+     */
+    public record CoachFinding(String ability, String verdictKey, List<String> args,
+                               String confidence, boolean hindsight, List<CoachAnchor> anchors) {}
 
     /** LLM 交易顾问的解说与建议。 */
     public record AdvisorResponse(String advice, String model) {}

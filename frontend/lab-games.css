@@ -873,3 +873,250 @@ button.small { width: auto; margin-top: 8px; padding: 4px 12px; font-size: 12px;
 .arena-top3 button { font-size: 12px; }
 @media (max-width: 1280px) { .arena-top3 { display: none; } }
 @media (prefers-reduced-motion: reduce) { .arena-top3 { transition: none; } }
+
+/* ---- autopsy: liquidation forensics (reuses qd-* room/notes/actions scaffolding) ---- */
+.au-chart {
+  height: 240px;
+  background: var(--lab-card);
+  border: 1px solid var(--lab-line);
+  border-radius: var(--radius-sm);
+}
+.au-snapshot {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+.au-snapshot dt { color: var(--text-muted); }
+.au-snapshot dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.au-snapshot dd.neg { color: var(--down); }
+.au-ledger { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.au-trade {
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  background: var(--lab-card);
+  border: 1px dashed var(--lab-line);
+}
+.au-trade:hover:not(:disabled) { border-color: var(--lab-blue); filter: none; }
+.au-trade.active {
+  border-style: solid;
+  border-color: var(--lab-blue);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--lab-blue) 30%, transparent);
+}
+.au-trade.done { border-style: solid; color: var(--text-muted); }
+.au-fatal { font-weight: 600; margin: 10px 0 4px; }
+.au-why { line-height: 1.75; }
+@media (max-width: 720px) {
+  .au-chart { height: 190px; }
+}
+
+/* ---- monk: stop-loss discipline practice (reuses qd-*/au-* scaffolding) ---- */
+.mk-vow-row { display: flex; gap: 18px; margin: 12px 0; }
+.mk-vow-row label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+.mk-prompt {
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: color-mix(in srgb, var(--down) 6%, var(--lab-card));
+  border: 1px solid color-mix(in srgb, var(--down) 40%, var(--lab-line));
+  border-radius: var(--radius-sm);
+}
+.mk-prompt .hint { margin: 0 0 6px; }
+.mk-whisper { margin: 0 0 10px; font-size: 14px; line-height: 1.7; font-style: italic; }
+.mk-prompt-btns { display: flex; gap: 10px; }
+.mk-prompt-btns button { flex: 1; }
+button.mk-yield {
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--down) 55%, var(--lab-line));
+  color: var(--down);
+}
+button.mk-yield:hover { border-style: solid; filter: none; }
+.mk-settle { margin: 12px 0; }
+
+/* ---- alchemy: static-weights portfolio puzzle ---- */
+.al-weights { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.al-weight-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.al-weight-row span { flex: 1; }
+.al-weight-row input { width: 90px; text-align: right; }
+.al-weight-row i { font-style: normal; color: var(--text-muted); }
+#al-cash.neg { color: var(--down); }
+.al-nav-chart {
+  height: 140px;
+  background: var(--lab-card);
+  border: 1px solid var(--lab-line);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+
+/* ---- tamer: block-built trading pet ---- */
+.tm-rules { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.tm-rule-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.tm-rule-row select { flex: 1; min-width: 0; }
+.tm-rule-row span { color: var(--text-muted); }
+
+/* ---- maze: execution-venue doors ---- */
+.mz-doors { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.mz-door {
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  background: var(--lab-card);
+  border: 1px dashed var(--lab-line);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mz-door:hover:not(:disabled) { border-color: var(--lab-blue); filter: none; }
+.mz-door.active {
+  border-style: solid;
+  border-color: var(--lab-blue);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--lab-blue) 30%, transparent);
+}
+
+/* ---- loopweek: time-loop reflexivity ---- */
+.lw-fracs { margin-bottom: 0; }
+.lw-fracs button { font-size: 13px; }
+
+/* ---- soup: shared order-book ladder ---- */
+.sop-book { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; font-variant-numeric: tabular-nums; }
+.sop-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+.sop-row b { width: 32px; text-align: right; font-family: var(--tr-mono); }
+.sop-row i {
+  height: 8px;
+  border-radius: 3px;
+  transition: width .2s ease-out;
+}
+.sop-row.ask b { color: var(--down); }
+.sop-row.ask i { background: color-mix(in srgb, var(--down) 45%, transparent); }
+.sop-row.bid b { color: var(--up); }
+.sop-row.bid i { background: color-mix(in srgb, var(--up) 45%, transparent); }
+.sop-row span { margin-left: auto; color: var(--text-muted); font-size: 11px; }
+.sop-mid {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+  padding: 2px 0;
+}
+
+/* ---- taste: blind financial-statement tasting ---- */
+.fbt-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.fbt-cell {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fbt-cell i { font-style: normal; font-size: 11px; color: var(--text-muted); }
+.fbt-cell b { font-family: var(--tr-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* ---- swan: black-swan roulette calendar ---- */
+.sw-cal { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+.sw-cell {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-style: normal;
+  font-size: 11px;
+  font-family: var(--tr-mono);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+.sw-cell.today { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.sw-cell.up { background: color-mix(in srgb, var(--up) 18%, transparent); }
+.sw-cell.down { background: color-mix(in srgb, var(--down) 18%, transparent); }
+.sw-cell.ev { background: color-mix(in srgb, var(--warn) 24%, transparent); color: var(--text); font-weight: 700; }
+.sw-posrow { display: flex; align-items: center; gap: 10px; font-size: 13px; margin-bottom: 8px; }
+.sw-posrow input[type="range"] { flex: 1; min-width: 0; }
+.sw-posrow b { width: 44px; text-align: right; font-family: var(--tr-mono); font-variant-numeric: tabular-nums; }
+
+/* ---- sleuth: evidence-board detective cases ---- */
+.dtc-board { display: flex; flex-direction: column; gap: 8px; }
+.dtc-clue {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  background: var(--lab-card);
+  border: 1px dashed var(--lab-line);
+}
+.dtc-clue:hover:not(:disabled) { border-color: var(--lab-blue); filter: none; }
+.dtc-clue.pinned {
+  border-style: solid;
+  border-color: var(--lab-blue);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--lab-blue) 30%, transparent);
+}
+.dtc-clue i {
+  flex: none;
+  font-style: normal;
+  font-size: 10px;
+  font-family: var(--tr-mono);
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-top: 1px;
+}
+.dtc-clue.pinned i { color: var(--lab-blue); border-color: var(--lab-blue); }
+.dtc-jrow { margin-bottom: 10px; }
+.dtc-jrow .hint { margin-bottom: 4px; }
+
+/* ---- mates: friends' tea party (code-swap play) ---- */
+.fp-code {
+  width: 100%;
+  min-height: 52px;
+  resize: vertical;
+  font-family: var(--tr-mono);
+  font-size: 11px;
+  word-break: break-all;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px;
+  margin: 4px 0 10px;
+}
+.fp-code:focus { border-color: var(--accent); outline: none; }
+.fp-export-row { margin-bottom: 8px; }
+.fp-duel-in {
+  width: 100%;
+  font-family: var(--tr-mono);
+  font-size: 14px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 10px;
+  margin: 4px 0 10px;
+}
+.fp-duel-in:focus { border-color: var(--accent); outline: none; }
+#view-mates .card { margin-bottom: 16px; }
+#view-mates .card h3 { margin-top: 0; }

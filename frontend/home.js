@@ -93,6 +93,19 @@
 
   $("btn-home-game").addEventListener("click", () => switchView("game"));
   $("btn-home-lab").addEventListener("click", () => switchView("lab"));
+  $("btn-home-career").addEventListener("click", () => switchView("career"));
+  $("home-life-career").addEventListener("click", () => switchView("career"));
+
+  // 生涯身份外显 (成长系统): career.js 在本文件之后加载, 用 qs:progress 事件兜初始渲染
+  function renderCareerLine() {
+    const el = $("home-life-career");
+    if (!window.qsCareerStatus) { el.hidden = true; return; }
+    const st = qsCareerStatus();
+    el.hidden = false;
+    el.textContent = st.done ? t("home.life.careerDone", st.title)
+      : t("home.life.career", st.title, st.goal);
+  }
+  document.addEventListener("qs:progress", renderCareerLine);
   document.querySelectorAll(".home-core").forEach((btn) => {
     btn.addEventListener("click", () => {
       switchView(btn.dataset.goto); // 含小游戏专区聚合页 (view-games)
@@ -359,6 +372,7 @@
     renderLifeNumbers(s);
     renderRecent(games);
     renderBias();
+    renderCareerLine();
     // CTA: 有进行中对局 → 继续; 否则开新局
     $("btn-home-life-cta").textContent =
       games.some((g) => g.status === "IN_PROGRESS") ? t("home.life.resume") : t("home.hero.play");
@@ -386,12 +400,55 @@
   }
   $("btn-home-all-toggle").addEventListener("click", () => setOverviewCollapsed(!overviewCollapsed));
 
+  // ---------- 今日市场天气播报 (A5): 一句话市况 + 点击直达推荐玩法 ----------
+  // regime → 推荐玩法映射写死 (规则而非 LLM, 见 feature-audit A5 的风险栏)
+  const PULSE_GOTO = {
+    SURGE_HOT: { view: "monk", titleKey: "gz.g8.t" },
+    SURGE: { view: "guess", titleKey: "home.card.guess.t" },
+    SLUMP: { view: "buydip", titleKey: "home.card.buydip.t" },
+    WILD: { view: "swan", titleKey: "gz.g17.t" },
+    MIXED: { view: "taste", titleKey: "gz.g16.t" },
+  };
+  let pulse = null; // 同会话只拉一次, 服务端另有 10 分钟缓存
+
+  async function renderPulse() {
+    const btn = $("home-pulse");
+    try {
+      if (!pulse) pulse = await api("/lab/market-pulse");
+    } catch (e) { btn.hidden = true; return; } // 后端未起: 整条收起, 不留空壳
+    const reco = PULSE_GOTO[pulse.regime];
+    // THIN (样本太少/节假日无新数据) 走兜底文案, 不荐玩法
+    $("home-pulse-text").textContent = reco
+      ? t("pulse." + pulse.regime, pulse.upCount, pulse.downCount, pulse.avgChgPct)
+      : t("pulse.fallback");
+    $("home-pulse-cta").textContent = reco ? t("pulse.goto", t(reco.titleKey)) : "";
+    btn.dataset.goto = reco ? reco.view : "games";
+    btn.hidden = false;
+  }
+  $("home-pulse").addEventListener("click", () => switchView($("home-pulse").dataset.goto || "games"));
+
+  // ---------- 新手 90 秒浓缩局入口 (A1): 首访主推, 打完即收起 ----------
+  function renderIntroCta() {
+    let done = "1";
+    try { done = localStorage.getItem("qs_intro_done") || ""; } catch (e) { /* 隐私模式按已完成处理 */ }
+    const show = !done;
+    $("btn-home-intro").hidden = !show;
+    // 首访只留一个主按钮: 90 秒局是推荐路径, 完整对局降级为次按钮
+    $("btn-home-game").classList.toggle("primary", !show);
+  }
+  $("btn-home-intro").addEventListener("click", () => {
+    if (window.qsStartIntro) qsStartIntro();
+  });
+  document.addEventListener("qs:introdone", renderIntroCta);
+
   document.addEventListener("qs:view", (e) => {
     if (e.detail !== "home") return;
     if (sentiScore == null) renderSentiment();
     else drawSentiment(); // 隐藏容器里尺寸为 0, 回到首页重算
     renderRankPreview();
     renderLife();
+    renderPulse();
+    renderIntroCta();
   });
   // 仪表主题重绘由 qsChart 兜底; 语言切换要同步 senti-text 文案, 仍整体重画
   document.addEventListener("qs:lang", () => {
@@ -399,6 +456,7 @@
     setOverviewCollapsed(overviewCollapsed);
     if (lifeSummary && lifeSummary.settledCount > 0) { renderLifeNumbers(lifeSummary); lifeCurveH.refresh(); }
   });
+  document.addEventListener("qs:lang", () => { if (pulse) renderPulse(); }); // 数据语言无关, 只重渲染文案
   renderHome();
   renderReco();
   renderSentiPlaceholder();
@@ -406,4 +464,6 @@
   renderRankPreview();
   setOverviewCollapsed(false);
   renderLife();
+  renderPulse();
+  renderIntroCta();
 })();

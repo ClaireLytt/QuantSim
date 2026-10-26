@@ -64,6 +64,14 @@ STOCK_POOL = [
     ("AVAX", "雪崩协议", "加密货币", "CRYPTO"),
 ]
 
+# 退市标的池 (E11 幸存者实验): 真实退市 A 股案例。入库时 hidden=1 + delisted=1,
+# 只供实验室调取, 永不进对局/榜单/随机开局。delist_date 以行情 CSV 的末行日期为准。
+DELISTED_POOL = [
+    ("300104", "乐视退", "传媒", "STOCK"),
+    ("002450", "康得退", "材料", "STOCK"),
+    ("601558", "退市锐电", "风电", "STOCK"),
+]
+
 START_DATE = "20240101"
 # 结束日期取"今天": 定时增量刷新 (refresh.py) 才能一直拉到最新交易日, 不再写死过期日期
 END_DATE = date.today().strftime("%Y%m%d")

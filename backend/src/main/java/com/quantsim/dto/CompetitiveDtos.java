@@ -23,7 +23,8 @@ public final class CompetitiveDtos {
             boolean played,
             Long sessionId,
             boolean settled,
-            int streak) {}
+            int streak,
+            String dailyRule) {}
 
     public record DailyBoardEntry(
             String username,

@@ -761,6 +761,7 @@ async function runCalibration() {
     labCalibRows = await api("/lab/calibration");
     $("lab-calib-chart").hidden = false;
     labCalibH.refresh();
+    document.dispatchEvent(new CustomEvent("qs:labRun", { detail: { tool: "calibration" } })); // 生涯任务信号 (ch6)
   } catch (e) {
     toast(e.message);
   } finally {

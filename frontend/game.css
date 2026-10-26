@@ -506,6 +506,53 @@ header.collapsed h1 .sub { display: none; }
 
 /* ---------- 每日挑战 ---------- */
 
+/* 今日规则徽标 (D1~D8 轮换): 衬线标题体 + 主色描边胶囊 */
+.daily-rule {
+  align-self: center;
+  font-family: var(--tr-serif);
+  font-size: 15px;
+  letter-spacing: .06em;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 999px;
+  padding: 4px 16px;
+}
+
+/* 复盘教练卡: 置信度三级描边 (确凿实线/倾向虚线/存疑点线, 设计文档 recap-coach) */
+#settle-coach { margin-top: 10px; }
+.coach-card {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  background: var(--surface-2);
+}
+.coach-card.conf-lean { border-style: dashed; }
+.coach-card.conf-weak { border-style: dotted; color: var(--text-muted); }
+.coach-card p { margin: 0 0 4px; }
+.coach-ev { display: block; font-size: 11px; }
+.coach-conf {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-style: normal;
+  font-size: 10px;
+  font-family: var(--tr-mono);
+  color: var(--text-muted);
+}
+.coach-hindsight {
+  display: inline-block;
+  font-style: normal;
+  font-size: 10px;
+  color: var(--warn);
+  border: 1px solid color-mix(in srgb, var(--warn) 50%, transparent);
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-bottom: 4px;
+}
+
 /* 每日挑战卡: 窄栏内整体居中, 文案与按钮都走中轴 */
 .daily-card {
   display: flex;

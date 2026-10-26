@@ -19,10 +19,10 @@
   <!-- 样式分层 (2026-10-25 架构评审①): theme.css 皮肤单属主必须第一个加载, style.css 是布局框架层, 其余按视图域拆分 -->
   <link rel="stylesheet" href="theme.css?v=2026102584aa"><!-- 皮肤单属主, 必须第一个加载 (架构评审①) -->
   <link rel="stylesheet" href="style.css?v=20261025de84">
-  <link rel="stylesheet" href="game.css?v=20261026620e">
-  <link rel="stylesheet" href="academy.css?v=202610251f7e">
-  <link rel="stylesheet" href="lab-games.css?v=20261025e839">
-  <link rel="stylesheet" href="widgets.css?v=202610268eb7">
+  <link rel="stylesheet" href="game.css?v=20261026653e">
+  <link rel="stylesheet" href="academy.css?v=20261026ea55">
+  <link rel="stylesheet" href="lab-games.css?v=20261026fbf9">
+  <link rel="stylesheet" href="widgets.css?v=20261026b752">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
 <body>
@@ -230,6 +230,12 @@
         <p class="hint" id="settle-interest" hidden><span data-i18n="settle.interest">其中闲置现金利息: </span><span id="settle-interest-val">--</span></p>
         <p class="settle-return"><span class="term" data-term="returnrate" data-i18n="settle.return">收益率: </span><span id="settle-return">--</span></p>
         <p id="settle-verdict" class="verdict"></p>
+        <p id="settle-daily-rule" class="hint" hidden></p>
+        <!-- 复盘教练 (C9/C11/C1): 结论卡按置信度实线/虚线/点线描边, 证据随卡 -->
+        <div id="settle-coach" hidden>
+          <p class="hint" data-i18n="coach.title">教练复盘</p>
+          <div id="settle-coach-list"></div>
+        </div>
         <p id="settle-taunt" class="settle-style" hidden></p>
         <p id="settle-style" class="settle-style" hidden></p>
         <div id="settle-pred" hidden>
@@ -588,6 +594,21 @@
         <div id="gear-list" class="gear-list"></div>
       </div>
     </section>
+
+    <!-- 成长系统 (growth.js): 风格罗盘 + 六维技能树, 全部从既有进度派生 -->
+    <section class="profile-card">
+      <div class="card">
+        <span class="hint"><span data-i18n="gw.compassTitle">风格罗盘</span> <span class="hint" data-i18n="gw.compassSub">（从真实流水长出来的人格，演不出来）</span></span>
+        <p id="gw-compass-lock" class="hint" hidden></p>
+        <div id="gw-compass-grid" class="gw-compass" hidden></div>
+        <p id="gw-style-name" class="gw-style-name"></p>
+        <p id="gw-compass-stats" class="hint" hidden></p>
+      </div>
+      <div class="card">
+        <span class="hint"><span data-i18n="gw.treeTitle">六维技能树</span> <span class="hint" data-i18n="gw.treeSub">（质量过线才算数——刷次数没有用）</span></span>
+        <div id="gw-tree"></div>
+      </div>
+    </section>
   </section>
   </div>
 
@@ -646,6 +667,9 @@
       <button class="lab-tile" data-lab="lab-b-timing"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h10M7 21h10"/><path d="M8 3v2l4 5 4-5V3"/><path d="M8 21v-2l4-5 4 5v2"/></svg></span><i class="lab-tier" data-i18n="lab.tier.adv">进阶</i></span><strong data-i18n="lab.timing">择时的代价</strong><span class="sub" data-i18n="lab.timingHint">“等回调再买”听起来很聪明——但如果因此错过涨得最猛的 5 天，会发生什么？用整段历史算给你看。</span><span class="lab-time-row"><span class="lab-time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span data-i18n="lab.t2m">约 2 分钟</span></span><span class="lab-mini"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="10" rx="5"/><path d="M8 12h4M10 10v4M16 13h.01M18 11h.01"/></svg><span data-i18n="lab.minigame">配套小游戏</span></span></span></button>
       <button class="lab-tile" data-lab="lab-b-overview"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 20v-9h6v9"/><path d="M4 20v-5h5"/><path d="M15 15h5v5"/><path d="M3 20h18"/></svg></span><i class="lab-tier" data-i18n="lab.tier.ai">AI 专项</i></span><strong data-i18n="lab.overview">市场风云榜</strong><span class="sub" data-i18n="lab.overviewHint2">全部标的一键横评：近 30 日涨幅、波动与 AI 看多度。</span><span class="lab-time-row"><span class="lab-time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span data-i18n="lab.t1m">约 1 分钟</span></span></span></button>
     </div>
+
+    <!-- 实验台入口 (E1~E20 序列, 独立视图): 与上面的单点工具区分开 -->
+    <button id="btn-exlab-open" class="lab-tile exlab-entry"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v5l-5 9a2.5 2.5 0 0 0 2.2 3.8h9.6A2.5 2.5 0 0 0 19 17l-5-9V3M7.5 14h9"/></svg></span><i class="lab-tier" data-i18n="lab.tier.easy">入门</i></span><strong data-i18n="ex.entry">研究实验台</strong><span class="sub" data-i18n="ex.entryHint">六个可调参数的交互实验：均线滞后、波动仓位、费用滑点、止损与再平衡——每个都让你亲手踩一次经典坑。</span></button>
 
     <div class="lab-block" id="lab-b-compare" hidden>
       <h3 data-i18n="lab.compare">双股对比</h3>
@@ -809,6 +833,7 @@
       <span id="mine-avatar" class="mine-avatar">?</span>
       <div class="mine-user-main">
         <b id="mine-name">--</b>
+        <span class="hint" id="mine-career-title" hidden></span>
         <span class="hint" id="mine-guest" data-i18n="mine.guestHint" hidden>游客身份 · 登录后战绩与积分云端同步</span>
       </div>
       <div class="mine-points">
@@ -868,6 +893,20 @@
       <button class="gz-card" data-goto="qdetect"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g4.t">量化侦探</strong><span class="sub" data-i18n="gz.g4.d">办案式回测，找出策略盈利背后的真相</span></button>
       <button class="gz-card" data-goto="qdetect" data-case="survivor"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M8 20v-9a4 4 0 0 1 8 0v9"/><path d="M10 13h4"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g5.t">幸存者陷阱</strong><span class="sub" data-i18n="gz.g5.d">揭露幸存者偏差带来的选股幻觉</span></button>
       <button class="gz-card" data-goto="duel"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4l6 6M19 4l-6 6M7 14l-3 3 3 3 3-3M17 14l3 3-3 3-3-3"/><path d="M12 12l-5 5M12 12l5 5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g6.t">策略擂台战</strong><span class="sub" data-i18n="gz.g6.d">提交自定义策略，同台回测 PK</span></button>
+      <button class="gz-card" data-goto="autopsy"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g7.t">爆仓倒推</strong><span class="sub" data-i18n="gz.g7.d">给爆仓账户验尸，指认那笔致命的交易</span></button>
+      <button class="gz-card" data-goto="monk"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21c1.5-4 4-6 7-6s5.5 2 7 6"/><path d="M12 4v-2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g8.t">止损僧侣</strong><span class="sub" data-i18n="gz.g8.d">立下军令状，在贪婪弹窗的轰炸里守住纪律</span></button>
+      <button class="gz-card" data-goto="alchemy"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4M12 3v6l6 10a1.5 1.5 0 0 1-1.3 2.3H7.3A1.5 1.5 0 0 1 6 19L12 9"/><path d="M8.5 15h7"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g9.t">仓位炼金术</strong><span class="sub" data-i18n="gz.g9.d">未来全公开也赢不了——用组合数学过风险关</span></button>
+      <button class="gz-card" data-goto="tamer"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a7 7 0 0 1 7 7c0 5-3 8-7 11-4-3-7-6-7-11a7 7 0 0 1 7-7z"/><circle cx="9.5" cy="10" r="0.5"/><circle cx="14.5" cy="10" r="0.5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g10.t">算法驯兽师</strong><span class="sub" data-i18n="gz.g10.d">组装交易宠物放生，全程只许救它一次</span></button>
+      <button class="gz-card" data-goto="fool"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18c2-8 5-13 8-13s6 5 8 13"/><path d="M3 18h18M12 5v-2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g11.t">最后一个接盘侠</strong><span class="sub" data-i18n="gz.g11.d">音乐停止前逃离妖股，别当最后那个人</span></button>
+      <button class="gz-card" data-goto="maze"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h18v18H3zM3 9h12M9 9v6M15 9v12M9 15h6M15 3v3"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g12.t">平仓迷宫</strong><span class="sub" data-i18n="gz.g12.d">大仓位出逃，每扇交易通道的门都有脾气</span></button>
+      <button class="gz-card" data-goto="loopweek"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/><path d="M12 7v5l3 2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g13.t">周一的一千次</strong><span class="sub" data-i18n="gz.g13.d">循环同一个交易周——仓位越大，答案越不见</span></button>
+      <button class="gz-card" data-goto="supply"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V11l6 4v-4l6 4v-4l6 4v6z"/><path d="M3 21h18M7 7V3h4v4"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g14.t">供应链战争</strong><span class="sub" data-i18n="gz.g14.d">售价锁定成本漂移，套保比例决定工厂生死</span></button>
+      <button class="gz-card" data-goto="soup"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M9 7c0-2 2-2 2-4M14 7c0-2 2-2 2-4"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g15.t">抢同一口汤</strong><span class="sub" data-i18n="gz.g15.d">三人共享一个订单簿，重仓者终局砸自己的价</span></button>
+      <button class="gz-card" data-goto="taste"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2h8l-1 9a3 3 0 0 1-6 0zM12 14v7M8 21h8"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g16.t">财报盲品会</strong><span class="sub" data-i18n="gz.g16.d">匿名财报四选一行业，线索里混着粉饰干扰</span></button>
+      <button class="gz-card" data-goto="swan"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16c3 0 4-2 4-5a4 4 0 0 1 8 0c0 5-3 8-8 8H3zM15 7l4-2"/><circle cx="14" cy="6" r=".5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g17.t">黑天鹅轮盘</strong><span class="sub" data-i18n="gz.g17.d">三件大事必然发生，保险越恐慌越贵</span></button>
+      <button class="gz-card" data-goto="sleuth"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l5.5 5.5M7.5 10h5M10 7.5v5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g18.t">市场侦探</strong><span class="sub" data-i18n="gz.g18.d">证据板上拼真相，钉错误导线索会被点名</span></button>
+      <button class="gz-card" data-goto="mates"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 9a3 3 0 1 0 0-6M17 14c2.8 0 5 2.2 5 5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.easy">轻松</i></span><strong data-i18n="gz.g19.t">好友茶会</strong><span class="sub" data-i18n="gz.g19.d">一串码就是一次邀约：战绩对比与策略盲猜</span></button>
+      <button class="gz-card" data-goto="dojo"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M6 7l1-3h10l1 3M7 7v13M17 7v13M7 12h10"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g20.t">研究道场</strong><span class="sub" data-i18n="gz.g20.d">参数考古、决策证词与复现挑战——练手艺不练运气</span></button>
       <!-- 预留位: 不可点的"即将开放"占位卡, 暗示训练场还在扩建 -->
       <div class="gz-card gz-card-soon" aria-hidden="true"><strong data-i18n="gz.soon">即将开放</strong><span class="sub" data-i18n="gz.soonHint">新的训练项目正在打磨中</span></div>
     </div>
@@ -1014,6 +1053,15 @@
       <p class="hint" id="career-step-ch"></p>
       <b id="career-step-goal"></b>
       <p class="hint" id="career-step-progress"></p>
+      <!-- 考核失败指路卡: 复盘关键数 + 偏差→学习资源指路, 重试走下方主按钮 -->
+      <div id="career-fail" class="career-fail" hidden>
+        <p id="career-fail-nums"></p>
+        <ul id="career-fail-hints"></ul>
+        <div class="career-fail-actions">
+          <button id="btn-career-fail-academy" class="small" data-i18n="career.fail.academy">去学堂补课</button>
+          <button id="btn-career-fail-wiki" class="small" data-i18n="career.fail.wiki">翻知识库</button>
+        </div>
+      </div>
       <button id="btn-career-go" class="primary big"></button>
     </div>
 
@@ -1101,6 +1149,1306 @@
       <div class="qd-actions">
         <button id="btn-qdr-next" class="primary big" data-i18n="qd.nextCase">▶ 下一个案件</button>
         <button id="btn-qdr-lab" class="big" data-i18n="qd.toLab">返回研究所亲手验证</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-autopsy" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="au.title">🩺 爆仓倒推</span> <span class="sub" data-i18n="au.sub">给爆仓账户做验尸：从流水和净值曲线里倒推出他死于哪一笔决策</span></h2>
+
+    <div id="au-select">
+      <p class="hint" data-i18n="au.selectHint">每宗案件都是随机生成的真实账目：一位投资者从 100 万做到强制平仓。质询次数有限（流水查不完）——先看净值曲线缩小嫌疑范围，再指认致命交易和死因。一次命中、质询剩得越多，得分越高。</p>
+      <p class="hint" id="au-best" hidden></p>
+      <button id="btn-au-start" class="primary big" data-i18n="au.start">受理一宗爆仓案</button>
+    </div>
+
+    <div id="au-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="au-case-title"></h3>
+        <span class="qd-credits-pill"><i data-i18n="au.creditsLabel">剩余质询次数</i><b id="au-credits">5</b></span>
+        <span class="qd-credits-pill"><i data-i18n="au.attemptsLabel">剩余指认机会</i><b id="au-attempts">2</b></span>
+      </div>
+      <p id="au-brief" class="qd-claim"></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="au.chartTitle">账户净值曲线（曲线上的编号 = 流水笔号）</p>
+          <div id="au-chart" class="au-chart"></div>
+          <p class="hint" data-i18n="au.snapTitle">强平日持仓快照</p>
+          <dl id="au-snapshot" class="au-snapshot"></dl>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="au.ledgerTitle">交易流水（点选一笔，质询或指认）</p>
+          <div id="au-ledger" class="au-ledger"></div>
+          <p class="hint" data-i18n="au.notesTitle">质询笔录</p>
+          <p id="au-notes-empty" class="hint" data-i18n="au.notesEmptyText">笔录还空着——选中一笔流水，调取它成交当日的账目事实。</p>
+          <ul id="au-notes" class="qd-notes"></ul>
+          <label class="qd-verdict-row"><span data-i18n="au.causeLabel">死因类别</span>
+            <select id="au-cause"></select>
+          </label>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-au-ask" class="big" data-i18n="au.ask">质询这笔交易（消耗 1 次）</button>
+        <button id="btn-au-accuse" class="primary big" data-i18n="au.accuse">指认致命交易</button>
+      </div>
+      <button id="btn-au-back" class="ghost" data-i18n="au.back">放弃本案</button>
+    </div>
+
+    <div id="au-report" hidden>
+      <h3 data-i18n="au.reportTitle">尸检结案报告</h3>
+      <p id="aur-conclusion" class="qdr-conclusion"></p>
+      <p id="aur-fatal" class="au-fatal"></p>
+      <p id="aur-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-aur-again" class="primary big" data-i18n="au.again">再验一宗</button>
+        <button id="btn-aur-games" class="big" data-i18n="au.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-monk" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="mk.title">📿 止损僧侣</span> <span class="sub" data-i18n="mk.sub">对抗的不是市场，是界面里的贪婪弹窗——立下军令状，守住你的纪律</span></h2>
+
+    <div id="mk-select">
+      <p class="hint" data-i18n="mk.selectHint">开局先立军令状：止损线和止盈线。之后 40 个交易日里，每逢止损位、止盈位和「黄金坑」，魔鬼都会弹出来劝你破戒。守戒得佛珠，从了诱惑记一罪——三罪破戒，本局即败。结算时和「每次都从了诱惑」的平行宇宙对账。</p>
+      <div class="mk-vow-row">
+        <label><span data-i18n="mk.stopLabel">止损线</span>
+          <select id="mk-stop"><option value="0">-6%</option><option value="1" selected>-10%</option><option value="2">-15%</option></select>
+        </label>
+        <label><span data-i18n="mk.tpLabel">止盈线</span>
+          <select id="mk-tp"><option value="0">+8%</option><option value="1" selected>+15%</option><option value="2">+25%</option></select>
+        </label>
+      </div>
+      <p class="hint" id="mk-best" hidden></p>
+      <button id="btn-mk-start" class="primary big" data-i18n="mk.start">签下军令状，入场</button>
+    </div>
+
+    <div id="mk-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="mk-day"></h3>
+        <span class="qd-credits-pill"><i data-i18n="mk.beadsLabel">佛珠</i><b id="mk-beads">—</b></span>
+        <span class="qd-credits-pill"><i data-i18n="mk.sinsLabel">罪业</i><b id="mk-sins">0 / 3</b></span>
+      </div>
+      <p id="mk-vow" class="qd-claim"></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="mk.chartTitle">行情逐日揭示（虚线 = 你的军令状）</p>
+          <div id="mk-chart" class="au-chart"></div>
+          <dl class="au-snapshot">
+            <dt data-i18n="mk.priceLabel">现价</dt><dd id="mk-price">--</dd>
+            <dt data-i18n="mk.equityLabel">账户净值</dt><dd id="mk-equity">--</dd>
+          </dl>
+        </div>
+        <div class="qd-right card">
+          <div id="mk-prompt" class="mk-prompt" hidden>
+            <p class="hint" data-i18n="mk.whisperTitle">魔鬼的耳语</p>
+            <p id="mk-whisper" class="mk-whisper"></p>
+            <div class="mk-prompt-btns">
+              <button id="btn-mk-yield" class="mk-yield" data-i18n="mk.yield">从了诱惑</button>
+              <button id="btn-mk-keep" class="primary">守戒</button>
+            </div>
+          </div>
+          <p class="hint" data-i18n="mk.logTitle">修行记录</p>
+          <p id="mk-log-empty" class="hint" data-i18n="mk.logEmptyText">还没有诱惑来敲门——往前走。</p>
+          <ul id="mk-log" class="qd-notes"></ul>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-mk-next" class="primary big" data-i18n="mk.next">下一交易日</button>
+      </div>
+      <button id="btn-mk-back" class="ghost" data-i18n="mk.back">放弃修行</button>
+    </div>
+
+    <div id="mk-report" hidden>
+      <h3 data-i18n="mk.reportTitle">修行结算</h3>
+      <p id="mkr-conclusion" class="qdr-conclusion"></p>
+      <dl class="au-snapshot mk-settle">
+        <dt data-i18n="mk.youLabel">守戒的你</dt><dd id="mkr-you">--</dd>
+        <dt data-i18n="mk.altLabel">平行宇宙（每次都从了诱惑）</dt><dd id="mkr-alt">--</dd>
+      </dl>
+      <p id="mkr-verdict" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-mkr-again" class="primary big" data-i18n="mk.again">再修一局</button>
+        <button id="btn-mkr-games" class="big" data-i18n="mk.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-alchemy" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="al.title">⚗️ 仓位炼金术</span> <span class="sub" data-i18n="al.sub">未来走势全部公开，你还是赢不了——除非你懂组合</span></h2>
+
+    <div id="al-select">
+      <p class="hint" data-i18n="al.selectHint">五只股票未来 120 天的走势全部摆在你眼前，没有任何信息被隐藏。但你只能提交一个静态权重向量，中途不许调仓——要通过的不是收益关，是夏普、回撤、波动这些风险约束。全押涨最多的那只？试试就知道。每关 3 次提交机会，三关通关，剩的机会越多分越高。</p>
+      <p class="hint" id="al-best" hidden></p>
+      <button id="btn-al-start" class="primary big" data-i18n="al.start">开炉炼金</button>
+    </div>
+
+    <div id="al-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="al-level-title"></h3>
+        <span class="qd-credits-pill"><i data-i18n="al.triesLabel">剩余提交机会</i><b id="al-tries">3</b></span>
+        <span class="qd-credits-pill"><i data-i18n="al.scoreLabel">累计得分</i><b id="al-score">0</b></span>
+      </div>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="al.chartTitle">五只股票的完整未来（无隐藏信息）</p>
+          <div id="al-chart" class="au-chart"></div>
+          <ul id="al-stats" class="qd-notes"></ul>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="al.weightsTitle">你的静态权重（其余留现金）</p>
+          <div id="al-weights" class="al-weights"></div>
+          <p class="hint"><span data-i18n="al.cashLabel">现金仓位：</span><b id="al-cash">100%</b></p>
+          <div id="al-metrics" hidden>
+            <p class="hint" data-i18n="al.metricsTitle">本次提交的组合体检</p>
+            <div id="al-nav-chart" class="al-nav-chart"></div>
+            <div class="qdr-stats">
+              <span><i data-i18n="al.mRet">总收益</i><b id="al-m-ret">--</b></span>
+              <span><i data-i18n="al.mVol">年化波动</i><b id="al-m-vol">--</b></span>
+              <span><i data-i18n="al.mSharpe">夏普</i><b id="al-m-sharpe">--</b></span>
+              <span><i data-i18n="al.mDd">最大回撤</i><b id="al-m-dd">--</b></span>
+            </div>
+            <p id="al-m-target" class="hint"></p>
+          </div>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-al-submit" class="primary big" data-i18n="al.submit">提交权重，封炉开炼</button>
+      </div>
+      <button id="btn-al-back" class="ghost" data-i18n="al.back">放弃本局</button>
+    </div>
+
+    <div id="al-report" hidden>
+      <h3 data-i18n="al.reportTitle">炼金结算</h3>
+      <p id="alr-conclusion" class="qdr-conclusion"></p>
+      <p id="alr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-alr-again" class="primary big" data-i18n="al.again">再炼一炉</button>
+        <button id="btn-alr-games" class="big" data-i18n="al.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-tamer" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="tm.title">🐣 算法驯兽师</span> <span class="sub" data-i18n="tm.sub">组装一只交易宠物放生进市场——规则不可改，救场只有一次</span></h2>
+
+    <div id="tm-select">
+      <p class="hint" data-i18n="tm.selectHint">用「条件 → 动作」积木组装最多 3 条规则，然后把宠物放生进 60 天未知行情。放生后规则不可修改，你只能旁观它自己买卖；全程只有一次「出手相救」（立刻清仓）的机会——什么时候按下去，是这局全部的悬念。净值跌破 70% 宠物死亡；活到最后按收益计分，没动用救场另有加分。</p>
+      <div id="tm-rules" class="tm-rules"></div>
+      <p class="hint" id="tm-best" hidden></p>
+      <button id="btn-tm-release" class="primary big" data-i18n="tm.release">放生</button>
+    </div>
+
+    <div id="tm-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="tm-day"></h3>
+        <span class="qd-credits-pill"><i data-i18n="tm.equityLabel">宠物净值</i><b id="tm-equity">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="tm.tradesLabel">自主交易</i><b id="tm-trades">0</b></span>
+      </div>
+      <p id="tm-pos" class="qd-claim"></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="tm.chartTitle">灰线 = 行情，蓝线 = 宠物净值（圆点 = 它的买卖，菱形 = 你的救场）</p>
+          <div id="tm-chart" class="au-chart"></div>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="tm.rulesTitle">它体内的规则（已锁定）</p>
+          <ul id="tm-rule-list" class="qd-notes"></ul>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-tm-save" class="primary big" data-i18n="tm.rescue">出手相救（立刻清仓，仅一次）</button>
+      </div>
+      <button id="btn-tm-back" class="ghost" data-i18n="tm.back">放弃观察</button>
+    </div>
+
+    <div id="tm-report" hidden>
+      <h3 data-i18n="tm.reportTitle">放生结算</h3>
+      <p id="tmr-conclusion" class="qdr-conclusion"></p>
+      <p id="tmr-save" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-tmr-again" class="primary big" data-i18n="tm.again">再养一只</button>
+        <button id="btn-tmr-games" class="big" data-i18n="tm.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-fool" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="fl.title">🎪 最后一个接盘侠</span> <span class="sub" data-i18n="fl.sub">妖股注定归零，价格由大家的逃跑行为决定——音乐停止前，别当最后那个人</span></h2>
+
+    <div id="fl-select">
+      <p class="hint" data-i18n="fl.selectHint">你和 5 位玩家同时持有同一只妖股（成本 100）。这只票没有基本面：没人跑它就涨，有人跑它就砸——而在某个隐藏回合，音乐会突然停止，还拿着的人接走全部亏损。跑得越晚卖价越高，但最后一个没跑掉的就是接盘侠。小心随机熔断假停牌锁死你的卖出按钮。</p>
+      <p class="hint" id="fl-best" hidden></p>
+      <button id="btn-fl-start" class="primary big" data-i18n="fl.start">入场（买入成本 100）</button>
+    </div>
+
+    <div id="fl-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="fl-round"></h3>
+        <span class="qd-credits-pill"><i data-i18n="fl.priceLabel">现价</i><b id="fl-price">100</b></span>
+        <span class="qd-credits-pill"><i data-i18n="fl.holdersLabel">还在场内</i><b id="fl-holders">6 / 6</b></span>
+      </div>
+      <p id="fl-halt-note" class="qd-claim" hidden data-i18n="fl.haltNote">⚠ 熔断假停牌：本轮所有人的卖出通道被锁死——是技术故障，还是有人不想让你走？</p>
+      <p id="fl-you-out" class="qd-claim" hidden></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="fl.chartTitle">价格由全场行为内生（圆点 = 逃跑者，金点 = 你）</p>
+          <div id="fl-chart" class="au-chart"></div>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="fl.playersTitle">场内玩家</p>
+          <ul id="fl-players" class="qd-notes"></ul>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-fl-sell" class="primary big" data-i18n="fl.sell">卖出逃命</button>
+        <button id="btn-fl-wait" class="big" data-i18n="fl.wait">再等一轮</button>
+      </div>
+      <button id="btn-fl-back" class="ghost" data-i18n="fl.back">离开牌桌</button>
+    </div>
+
+    <div id="fl-report" hidden>
+      <h3 data-i18n="fl.reportTitle">散场结算</h3>
+      <p id="flr-conclusion" class="qdr-conclusion"></p>
+      <p id="flr-doom" class="au-fatal"></p>
+      <p class="hint" data-i18n="fl.rankingTitle">逃生排行</p>
+      <ul id="flr-ranking" class="qd-notes"></ul>
+      <p id="flr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-flr-again" class="primary big" data-i18n="fl.again">再来一局</button>
+        <button id="btn-flr-games" class="big" data-i18n="fl.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-maze" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="mz.title">🚪 平仓迷宫</span> <span class="sub" data-i18n="mz.sub">十万股大仓位，八个时段，每扇门都有脾气——卖得太急，迷宫会塌在你身上</span></h2>
+
+    <div id="mz-select">
+      <p class="hint" data-i18n="mz.selectHint">你持有 100,000 股（现价 20.00），收盘前只有 8 个时段。四种通道各有脾气：集合竞价只在头尾开门、冲击小；盘中连续常开但卖多砸价狠，连走同一扇门还会「变窄」；大宗固定折价 3% 但不砸盘；暗池零冲击但容量和成交率看缘分。你的每一笔卖出都永久改写后面的价格。目标：全部卖完且均价守住 19.20（开盘价的 96%）。</p>
+      <p class="hint" id="mz-best" hidden></p>
+      <button id="btn-mz-start" class="primary big" data-i18n="mz.start">背上仓位，进入迷宫</button>
+    </div>
+
+    <div id="mz-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="mz-round"></h3>
+        <span class="qd-credits-pill"><i data-i18n="mz.leftLabel">待卖股数</i><b id="mz-left">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="mz.priceLabel">现价</i><b id="mz-price">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="mz.avgLabel">已卖均价</i><b id="mz-avg">--</b></span>
+      </div>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="mz.chartTitle">价格轨迹（圆点大小 = 你的卖出量，绿虚线 = 均价及格线）</p>
+          <div id="mz-chart" class="au-chart"></div>
+          <p class="hint" data-i18n="mz.ledgerTitle">成交回执</p>
+          <p id="mz-ledger-empty" class="hint" data-i18n="mz.ledgerEmptyText">还没卖出一股——时段在流逝。</p>
+          <ul id="mz-ledger" class="qd-notes"></ul>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="mz.doorsTitle">本时段开着的门（选一扇）</p>
+          <div id="mz-doors" class="mz-doors"></div>
+          <label class="qd-verdict-row"><span data-i18n="mz.volLabel">本笔卖出量</span>
+            <input id="mz-vol" type="number" min="1000" step="1000" value="10000">
+          </label>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-mz-sell" class="primary big" data-i18n="mz.sell">走这扇门（卖出）</button>
+        <button id="btn-mz-wait" class="big" data-i18n="mz.wait">本时段按兵不动</button>
+      </div>
+      <button id="btn-mz-back" class="ghost" data-i18n="mz.back">放弃任务</button>
+    </div>
+
+    <div id="mz-report" hidden>
+      <h3 data-i18n="mz.reportTitle">执行结算</h3>
+      <p id="mzr-conclusion" class="qdr-conclusion"></p>
+      <p id="mzr-base" class="au-fatal"></p>
+      <p id="mzr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-mzr-again" class="primary big" data-i18n="mz.again">再闯一次</button>
+        <button id="btn-mzr-games" class="big" data-i18n="mz.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-loopweek" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="lw.title">🔁 周一的一千次</span> <span class="sub" data-i18n="lw.sub">同一个交易周无限重放——但你的仓位越大，记忆里的顶就越不会出现</span></h2>
+
+    <div id="lw-select">
+      <p class="hint" data-i18n="lw.selectHint">你被困在同一个交易周里。行情每次重放都完全相同——除了被你自己改变的部分：买单会推高之后的价格再狠狠回吐，卖单反之。小仓位搬运记忆里的答案很有效，大仓位会亲手毁掉那个答案。每循环一买一卖，7 次循环内做到单周 +8% 即可破环；用的循环越少，评级越高。</p>
+      <p class="hint" id="lw-best" hidden></p>
+      <button id="btn-lw-start" class="primary big" data-i18n="lw.start">进入循环</button>
+    </div>
+
+    <div id="lw-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="lw-head"></h3>
+        <span class="qd-credits-pill"><i data-i18n="lw.loopsLeftLabel">剩余循环</i><b id="lw-loops-left">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="lw.priceLabel">现价</i><b id="lw-price">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="lw.equityLabel">净值</i><b id="lw-equity">--</b></span>
+      </div>
+      <p id="lw-memory" class="qd-claim"></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="lw.chartTitle">蓝实线 = 本次循环，虚线 = 你记忆中的剧本，灰影 = 历史循环</p>
+          <div id="lw-chart" class="au-chart"></div>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="lw.actTitle">本循环一买一卖（规模决定你对剧本的破坏力）</p>
+          <div id="lw-frac-row" class="qd-actions lw-fracs">
+            <button id="btn-lw-buy0" class="big" data-i18n="lw.buy25">买入 25% 仓</button>
+            <button id="btn-lw-buy1" class="big" data-i18n="lw.buy50">买入 50% 仓</button>
+            <button id="btn-lw-buy2" class="big" data-i18n="lw.buy100">全仓买入</button>
+          </div>
+          <div class="qd-actions">
+            <button id="btn-lw-sell" class="big" data-i18n="lw.sellBtn">卖出全部</button>
+          </div>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-lw-next" class="primary big" data-i18n="lw.next">下一天</button>
+      </div>
+      <button id="btn-lw-back" class="ghost" data-i18n="lw.back">放弃循环</button>
+    </div>
+
+    <div id="lw-report" hidden>
+      <h3 data-i18n="lw.reportTitle">循环档案</h3>
+      <p id="lwr-conclusion" class="qdr-conclusion"></p>
+      <p class="hint" data-i18n="lw.loopsTitle">每次循环的轨迹</p>
+      <ul id="lwr-loops" class="qd-notes"></ul>
+      <p id="lwr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-lwr-again" class="primary big" data-i18n="lw.again">换一个星期重困一次</button>
+        <button id="btn-lwr-games" class="big" data-i18n="lw.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-supply" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="sp.title">🏭 供应链战争</span> <span class="sub" data-i18n="sp.sub">售价今天锁定，成本下季才揭晓——套保不是副业，是工厂的呼吸</span></h2>
+
+    <div id="sp-select">
+      <p class="hint" data-i18n="sp.selectHint">你经营一家工厂，走 8 个季度。每季接一张订单（售价锁死、下季交付），但生产成本跟着铜价走——铜价有平静季（±6%）和风暴季（±28%），每季还有一条可靠度 75% 的市场传闻。核心决策只有两个：接大单还是小单，以及用期货把下季的原料成本锁住多少（锁 = 付 1% 保费、放弃铜价下跌的红利）。现金断裂当场破产——哪怕你账面是赚的。目标：8 季后现金 ≥ 150 万。</p>
+      <p class="hint" id="sp-best" hidden></p>
+      <button id="btn-sp-start" class="primary big" data-i18n="sp.start">接手工厂</button>
+    </div>
+
+    <div id="sp-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="sp-q"></h3>
+        <span class="qd-credits-pill"><i data-i18n="sp.cashLabel">账上现金</i><b id="sp-cash">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="sp.copperLabel">铜价（现货）</i><b id="sp-copper">--</b></span>
+      </div>
+      <p id="sp-rumor" class="qd-claim"></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="sp.chartTitle">铜价走势（你的成本线）</p>
+          <div id="sp-chart" class="au-chart"></div>
+          <p class="hint" data-i18n="sp.logTitle">近期经营台账</p>
+          <p id="sp-log-empty" class="hint" data-i18n="sp.logEmptyText">第一季——先接单，再决定锁多少成本。</p>
+          <ul id="sp-log" class="qd-notes"></ul>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="sp.ordersTitle">本季订单（售价锁定，下季按届时铜价生产交付）</p>
+          <div id="sp-orders" class="mz-doors"></div>
+          <label class="qd-verdict-row"><span data-i18n="sp.hedgeLabel">套保比例</span>
+            <select id="sp-hedge">
+              <option value="0" data-i18n="sp.hedge0">0%（裸奔，赌铜价不涨）</option>
+              <option value="1" selected data-i18n="sp.hedge50">50%（半锁）</option>
+              <option value="2" data-i18n="sp.hedge100">100%（全锁，付足保费）</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-sp-commit" class="primary big" data-i18n="sp.commit">签字画押，进入下一季</button>
+      </div>
+      <button id="btn-sp-back" class="ghost" data-i18n="sp.back">关厂走人</button>
+    </div>
+
+    <div id="sp-report" hidden>
+      <h3 data-i18n="sp.reportTitle">年终清算</h3>
+      <p id="spr-conclusion" class="qdr-conclusion"></p>
+      <p class="hint" data-i18n="sp.fullLogTitle">八季完整台账（传闻真伪已揭晓）</p>
+      <ul id="spr-log" class="qd-notes"></ul>
+      <p id="spr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-spr-again" class="primary big" data-i18n="sp.again">再开一厂</button>
+        <button id="btn-spr-games" class="big" data-i18n="sp.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-soup" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="sop.title">🍜 抢同一口汤</span> <span class="sub" data-i18n="sop.sub">三个人共享一个订单簿——你的每一笔都在抬价或砸价，对手看得见冲击，看不见你的仓位</span></h2>
+
+    <div id="sop-select">
+      <p class="hint" data-i18n="sop.selectHint">你和两个对手抢一只小盘股，共 12 回合。每回合三选一：市价买 / 市价卖 / 观望——买单从最低卖档往上吃，吃穿一档价格就顺延，盘子会被买上去、砸下来，所有人的成本都公开地在盘口上变化，但谁持多少仓只有自己知道。第 4、8 回合后掷外部行情骰（整体平移）。12 回合后强制平仓：按随机顺序把全部持仓市价卖出——重仓者要亲手把价格砸给自己看。现金最多者胜。</p>
+      <p class="hint" id="sop-best" hidden></p>
+      <button id="btn-sop-start" class="primary big" data-i18n="sop.start">入席开抢</button>
+    </div>
+
+    <div id="sop-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="sop-round"></h3>
+        <span class="qd-credits-pill"><i data-i18n="sop.cashLabel">现金</i><b id="sop-cash">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="sop.posLabel">持仓（手）</i><b id="sop-pos">--</b></span>
+      </div>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="sop.bookTitle">共享订单簿（五档，吃穿即顺延）</p>
+          <div id="sop-book" class="sop-book"></div>
+          <p class="hint" data-i18n="sop.rivalsTitle">对手动静（仓位保密）</p>
+          <ul id="sop-rivals" class="qd-notes"></ul>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="sop.actsTitle">本回合动作</p>
+          <div id="sop-acts" class="mz-doors"></div>
+          <p class="hint" data-i18n="sop.qtyLabel">下单手数</p>
+          <div id="sop-qtys" class="lw-fracs qd-actions"></div>
+          <p class="hint" data-i18n="sop.logTitle">成交流水（全场公开）</p>
+          <p id="sop-log-empty" class="hint" data-i18n="sop.logEmptyText">还没人出手——先手便宜，但会暴露意图。</p>
+          <ul id="sop-log" class="qd-notes"></ul>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-sop-commit" class="primary big" data-i18n="sop.commit">出手</button>
+      </div>
+      <button id="btn-sop-back" class="ghost" data-i18n="sop.back">离席</button>
+    </div>
+
+    <div id="sop-report" hidden>
+      <h3 data-i18n="sop.reportTitle">终局清算（仓位全部揭晓）</h3>
+      <p id="sopr-conclusion" class="qdr-conclusion"></p>
+      <ul id="sopr-rank" class="qd-notes"></ul>
+      <p class="hint" data-i18n="sop.liqTitle">强制平仓回放（随机顺序）</p>
+      <ul id="sopr-liq" class="qd-notes"></ul>
+      <p id="sopr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-sopr-again" class="primary big" data-i18n="sop.again">再抢一局</button>
+        <button id="btn-sopr-games" class="big" data-i18n="sop.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-taste" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="fbt.title">🍷 财报盲品会</span> <span class="sub" data-i18n="fbt.sub">抹掉公司名的一张报表——像盲品葡萄酒一样，从 12 项指标里尝出它是谁、往哪走</span></h2>
+
+    <div id="fbt-select">
+      <p class="hint" data-i18n="fbt.selectHint">每局盲品 4 张匿名财报（基于典型行业与案例改编）。每张先看 12 项核心指标，可以花 2 分买线索——但线索里混着粉饰性干扰；然后下两个判断：行业四选一（+3 分）、次年方向（+2 分），全对再 +2。揭晓时给出公司真身与「鉴别点」。题库里埋着舞弊财报，别形成机械套路。总分 ≥ 16 获胜。</p>
+      <p class="hint" id="fbt-best" hidden></p>
+      <button id="btn-fbt-start" class="primary big" data-i18n="fbt.start">开始盲品</button>
+    </div>
+
+    <div id="fbt-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="fbt-no"></h3>
+        <span class="qd-credits-pill"><i data-i18n="fbt.scoreLabel">累计得分</i><b id="fbt-score">0</b></span>
+      </div>
+      <div id="fbt-quiz">
+        <p class="hint" data-i18n="fbt.metricsTitle">这杯「酒」的 12 项指标</p>
+        <div id="fbt-metrics" class="fbt-metrics"></div>
+        <div id="fbt-clues"></div>
+        <div class="qd-actions">
+          <button id="btn-fbt-clue" class="big"></button>
+        </div>
+        <p class="hint" data-i18n="fbt.indTitle">它是哪个行业？（+3 分）</p>
+        <div id="fbt-inds" class="mz-doors"></div>
+        <p class="hint" data-i18n="fbt.dirTitle">它的次年方向？（+2 分，全对再 +2）</p>
+        <div id="fbt-dirs" class="lw-fracs qd-actions"></div>
+        <div class="qd-actions">
+          <button id="btn-fbt-submit" class="primary big" data-i18n="fbt.submit">提交判断</button>
+        </div>
+      </div>
+      <div id="fbt-reveal" hidden>
+        <h3 id="fbt-rv-name"></h3>
+        <p id="fbt-rv-verdict" class="qdr-conclusion"></p>
+        <p id="fbt-rv-explain" class="hint au-why"></p>
+        <p id="fbt-rv-fake" class="qd-claim"></p>
+        <div class="qd-actions">
+          <button id="btn-fbt-next" class="primary big"></button>
+        </div>
+      </div>
+      <button id="btn-fbt-back" class="ghost" data-i18n="fbt.back">退出品鉴</button>
+    </div>
+
+    <div id="fbt-report" hidden>
+      <h3 data-i18n="fbt.reportTitle">品鉴单</h3>
+      <p id="fbtr-conclusion" class="qdr-conclusion"></p>
+      <ul id="fbtr-log" class="qd-notes"></ul>
+      <p id="fbtr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-fbtr-again" class="primary big" data-i18n="fbt.again">再品一轮</button>
+        <button id="btn-fbtr-games" class="big" data-i18n="fbt.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-swan" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="sw.title">🦢 黑天鹅轮盘</span> <span class="sub" data-i18n="sw.sub">20 天里必然发生 3 件大事——不知道哪天、什么事、什么方向，保险越恐慌越贵</span></h2>
+
+    <div id="sw-select">
+      <p class="hint" data-i18n="sw.selectHint">一局 20 个交易日，开局已暗定 3 个事件日（利好利空各半，当日波动放大到 ±11%~18%）。每天两个决策：调仓位（每调 10% 收 0.5 点手续费——手越勤磨损越厚）、买不买当日保险（基础 2 点；昨天刚出过事降到 1 点，连续 5 天平静涨到 3 点——恐慌定价）。保险只在事件日生效、只对损失减半，方向受益不打折。胜利是双指标：终值 ≥ 115 且全程最低点 ≥ 75——只看收益会鼓励裸奔。</p>
+      <p class="hint" id="sw-best" hidden></p>
+      <button id="btn-sw-start" class="primary big" data-i18n="sw.start">转动轮盘</button>
+    </div>
+
+    <div id="sw-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="sw-day"></h3>
+        <span class="qd-credits-pill"><i data-i18n="sw.eqLabel">净值</i><b id="sw-eq">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="sw.minLabel">最低点</i><b id="sw-min">--</b></span>
+      </div>
+      <p id="sw-left" class="qd-claim"></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="sw.calTitle">日历（? = 未知，! = 事件已爆）</p>
+          <div id="sw-cal" class="sw-cal"></div>
+          <p class="hint" data-i18n="sw.chartTitle">净值曲线（虚线 = 胜利线 / 回撤线）</p>
+          <div id="sw-chart" class="au-chart"></div>
+        </div>
+        <div class="qd-right card">
+          <label class="sw-posrow"><span data-i18n="sw.posLabel">今日仓位</span><input type="range" id="sw-pos" min="0" max="100" step="10" value="0"><b id="sw-pos-v">0%</b></label>
+          <p id="sw-fee" class="hint"></p>
+          <label class="qd-verdict-row"><input type="checkbox" id="sw-ins"><span id="sw-insprice"></span></label>
+          <div class="qd-actions">
+            <button id="btn-sw-settle" class="primary big" data-i18n="sw.settle">收盘结算</button>
+          </div>
+        </div>
+      </div>
+      <button id="btn-sw-back" class="ghost" data-i18n="sw.back">离场</button>
+    </div>
+
+    <div id="sw-report" hidden>
+      <h3 data-i18n="sw.reportTitle">二十日复盘</h3>
+      <p id="swr-conclusion" class="qdr-conclusion"></p>
+      <p id="swr-stats" class="hint"></p>
+      <p class="hint" data-i18n="sw.evLogTitle">三只黑天鹅落点</p>
+      <ul id="swr-log" class="qd-notes"></ul>
+      <p id="swr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-swr-again" class="primary big" data-i18n="sw.again">再转一轮</button>
+        <button id="btn-swr-games" class="big" data-i18n="sw.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-exlab" class="tearoom" hidden>
+  <section class="academy-panel">
+    <h2><span data-i18n="ex.title">🧪 研究实验台</span> <span class="sub" data-i18n="ex.sub">调参数、看结果、亲手踩一次经典坑——第一阶梯六个实验</span></h2>
+
+    <!-- 公共摩擦面板: 全部实验共享, 关掉亮"幻想模式"角标 -->
+    <div class="card ex-friction">
+      <label><input type="checkbox" id="ex-fr-on" checked><span data-i18n="ex.frOn">计入交易摩擦</span></label>
+      <span id="ex-fr-fantasy" class="ex-fantasy" data-i18n="ex.fantasy" hidden>无摩擦幻想模式</span>
+      <label><span data-i18n="ex.frComm">佣金</span><input type="range" id="ex-fr-comm" min="0" max="20" step="0.5" value="2.5"><b id="ex-fr-comm-v">2.5bp</b></label>
+      <label><span data-i18n="ex.frStamp">印花税（卖出）</span><input type="range" id="ex-fr-stamp" min="0" max="20" step="1" value="5"><b id="ex-fr-stamp-v">5bp</b></label>
+      <label><span data-i18n="ex.frSlip">滑点</span><input type="range" id="ex-fr-slip" min="0" max="20" step="1" value="2"><b id="ex-fr-slip-v">2bp</b></label>
+      <label><span data-i18n="ex.stock">实验标的</span><select id="ex-stock"></select></label>
+    </div>
+
+    <details class="ex-exp card" open>
+      <summary><b data-i18n="ex.e1.t">E1 · 均线的滞后税</b><span class="hint" data-i18n="ex.e1.q">均线越平滑越稳，但滞后的代价是多少？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e1.ma">MA 窗口</span><input type="range" id="ex1-ma" min="2" max="60" value="20"><b id="ex1-ma-v">20</b></label>
+        <label><span data-i18n="ex.e1.seg">数据段</span><select id="ex1-seg">
+          <option value="all" data-i18n="ex.seg.all">全段</option>
+          <option value="front" data-i18n="ex.seg.front">前半段</option>
+          <option value="back" data-i18n="ex.seg.back">后半段</option>
+        </select></label>
+      </div>
+      <p id="ex1-out" class="ex-out"></p>
+      <div id="ex1-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e1.trap">误区：本段的最优窗口不是普适最优——切到另半段，看它漂到哪去了。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e2.t">E2 · 波动率的两张面孔</b><span class="hint" data-i18n="ex.e2.q">波动是风险还是机会？取决于你拿多少仓位。</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e2.win">波动窗口</span><select id="ex2-win"><option value="5">5</option><option value="10" selected>10</option><option value="20">20</option></select></label>
+        <label><span data-i18n="ex.e2.target">目标年化波动</span><input type="range" id="ex2-target" min="10" max="40" value="20"><b id="ex2-target-v">20%</b></label>
+      </div>
+      <p id="ex2-out" class="ex-out"></p>
+      <div id="ex2-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e2.trap">误区：色带里的波动永远是「昨天的波动」——极端日它必然慢半拍。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e3.t">E3 · 手续费显微镜</b><span class="hint" data-i18n="ex.e3.q">交易频率翻倍，费用吃掉多少？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e3.theta">信号阈值（越小越勤）</span><input type="range" id="ex3-theta" min="1" max="50" value="10"><b id="ex3-theta-v">1.0%</b></label>
+      </div>
+      <p id="ex3-out" class="ex-out"></p>
+      <div id="ex3-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e3.trap">误区：忽略滑点——把上面的滑点滑块拖到 10bp，看看多少「赚钱」策略当场死亡。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e4.t">E4 · 滑点的非线性</b><span class="hint" data-i18n="ex.e4.q">下单量越大成交越差——差多少？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e4.size">下单规模（%日均量）</span><input type="range" id="ex4-size" min="1" max="100" value="10"><b id="ex4-size-v">1.0%</b></label>
+        <label><span data-i18n="ex.e4.model">冲击模型</span><select id="ex4-model">
+          <option value="linear" data-i18n="ex.e4.linear">线性（8bp/1%）</option>
+          <option value="sqrt" data-i18n="ex.e4.sqrt">平方根（25bp·√）</option>
+        </select></label>
+      </div>
+      <p id="ex4-out" class="ex-out"></p>
+      <div id="ex4-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e4.trap">误区：冲击模型本身是假设——切换两种模型，看结论对假设有多敏感。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e5.t">E5 · 止损线的代价谱</b><span class="hint" data-i18n="ex.e5.q">止损保护了你，还是反复割你？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e5.stop">止损线</span><input type="range" id="ex5-stop" min="2" max="20" value="8"><b id="ex5-stop-v">8%</b></label>
+        <label><span data-i18n="ex.e5.cool">重入冷却</span><select id="ex5-cool"><option value="0">0</option><option value="3" selected>3</option><option value="5">5</option></select></label>
+        <button id="btn-ex5-reveal" class="primary" data-i18n="ex.e5.reveal">揭晓测试段（参数将锁死）</button>
+      </div>
+      <p id="ex5-out" class="ex-out"></p>
+      <p id="ex5-locked" class="hint neg" data-i18n="ex.e5.locked" hidden>测试段已揭晓，参数锁死——想再调？换一只标的重新开始。</p>
+      <p id="ex5-test-out" class="ex-out ex-test" hidden></p>
+      <div id="ex5-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e5.trap">误区：用全段数据挑「最优止损线」。本实验只许你在前 70% 训练段调参——测试段的审判只有一次。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e6.t">E6 · 再平衡节奏</b><span class="hint" data-i18n="ex.e6.q">两资产组合多久调一次仓合适？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e6.b">第二标的</span><select id="ex6-stock"></select></label>
+        <label><span data-i18n="ex.e6.w">标的 A 权重</span><input type="range" id="ex6-w" min="10" max="90" step="5" value="50"><b id="ex6-w-v">50%</b></label>
+      </div>
+      <p id="ex6-out" class="ex-out"></p>
+      <div id="ex6-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e6.trap">误区：「从不调仓跑赢」常是单边牛里强资产独大的幸存者叙事——换一段熊市数据再下结论。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e7.t">E7 · 买卖规则拼装台</b><span class="hint" data-i18n="ex.e7.q">同样的入场，不同的出场，差多少？</span></summary>
+      <div class="ex-controls">
+        <button id="ex7-m-ret" class="small primary" data-i18n="ex.mRet">看收益</button>
+        <button id="ex7-m-dd" class="small" data-i18n="ex.mDd">看回撤</button>
+      </div>
+      <p id="ex7-out" class="ex-out"></p>
+      <div id="ex7-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e7.trap">误区：九格里挑最好的当「我的策略」——9 组里挑 1 组，碰巧好看的概率本来就不低。出场规则的影响常大于入场。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e8.t">E8 · 参数敏感性地形图</b><span class="hint" data-i18n="ex.e8.q">好参数是一座山峰还是一根针？</span></summary>
+      <div class="ex-controls">
+        <button id="ex8-m-ret" class="small primary" data-i18n="ex.mRet">看收益</button>
+        <button id="ex8-m-dd" class="small" data-i18n="ex.mDd">看回撤</button>
+      </div>
+      <p id="ex8-out" class="ex-out"></p>
+      <div id="ex8-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e8.trap">误区：只看收益地形——切到回撤地形，两张图的高地常不重合。选参数要选高原，不选针尖。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e9.t">E9 · 样本外的审判</b><span class="hint" data-i18n="ex.e9.q">训练段冠军参数，测试段还剩几成功力？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e9.split">训练段占比</span><input type="range" id="ex9-split" min="50" max="85" step="5" value="70"><b id="ex9-split-v">70%</b></label>
+      </div>
+      <p id="ex9-out" class="ex-out"></p>
+      <div id="ex9-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e9.trap">误区：反复挪切分点直到测试段好看——这叫「测试集调参」，挪三次系统会当场给你点名。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e10.t">E10 · 过拟合制造机</b><span class="hint" data-i18n="ex.e10.q">亲手造一条完美曲线，看它死在明天。</span></summary>
+      <div class="ex-controls ex-conds">
+        <label><input type="checkbox" id="ex10-ma5" checked><span data-i18n="ex.e10.c.ma5">价在 MA5 上</span></label>
+        <label><input type="checkbox" id="ex10-ma20"><span data-i18n="ex.e10.c.ma20">价在 MA20 上</span></label>
+        <label><input type="checkbox" id="ex10-up1"><span data-i18n="ex.e10.c.up1">昨日收涨</span></label>
+        <label><input type="checkbox" id="ex10-up2"><span data-i18n="ex.e10.c.up2">连涨两日</span></label>
+        <label><input type="checkbox" id="ex10-mom5"><span data-i18n="ex.e10.c.mom5">5 日动量为正</span></label>
+        <label><input type="checkbox" id="ex10-lowvol"><span data-i18n="ex.e10.c.lowvol">低波动日</span></label>
+        <label><input type="checkbox" id="ex10-monTue"><span data-i18n="ex.e10.c.monTue">只做周一二</span></label>
+        <label><input type="checkbox" id="ex10-earlyMonth"><span data-i18n="ex.e10.c.earlyMonth">只做月上旬</span></label>
+        <button id="btn-ex10-reveal" class="primary small" data-i18n="ex.e10.reveal">揭晓测试段</button>
+      </div>
+      <p id="ex10-out" class="ex-out"></p>
+      <p id="ex10-test-note" class="hint neg" data-i18n="ex.e10.note" hidden>看见悬崖了吗？条件越多训练段越美、测试段越惨——复杂度是债。8 个条件在 250 个交易日上的自由度足够「解释」任何噪声。</p>
+      <div id="ex10-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e10.trap">本实验自身就是误区的解剖台：你刚才拼命勾条件抬训练收益的冲动，就是过拟合的手感。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e11.t">E11 · 幸存者名单</b><span class="hint" data-i18n="ex.e11.q">只回测「事后表现好的那批」，收益被高估多少？</span></summary>
+      <div class="ex-controls">
+        <button id="btn-ex11-run" class="primary small" data-i18n="ex.e11.run">构建两个池对比</button>
+      </div>
+      <p id="ex11-out" class="ex-out"></p>
+      <div id="ex11-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e11.trap">口径说明：本页的「幸存池」= 用整段（未来）收益挑出的前一半标的——这正是幸存者偏差的机制本体；真实世界里它以「只统计今天还活着的股票」的形式悄悄发生。接入真实退市标的库后本实验将升级。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e12.t">E12 · 信号的半衰期</b><span class="hint" data-i18n="ex.e12.q">一个技术信号的预测力能活几天？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e12.sig">信号</span><select id="ex12-signal">
+          <option value="cross" data-i18n="ex.e12.s.cross">MA5 上穿 MA20</option>
+          <option value="breakout" data-i18n="ex.e12.s.breakout">突破 20 日高</option>
+          <option value="oversold" data-i18n="ex.e12.s.oversold">单日大跌 ≥4%</option>
+        </select></label>
+      </div>
+      <p id="ex12-out" class="ex-out"></p>
+      <div id="ex12-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e12.trap">误区：只看均值路径——25/75 分位带常宽到让均值失去意义，带宽本身就是结论。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e13.t">E13 · 仓位公式竞技场</b><span class="hint" data-i18n="ex.e13.q">固定仓位、凯利、波动目标、金字塔——谁扛得住三种市况？</span></summary>
+      <div class="ex-controls">
+        <button id="ex13-r-trend" class="small primary" data-i18n="ex.e13.r.trend">趋势市</button>
+        <button id="ex13-r-chop" class="small" data-i18n="ex.e13.r.chop">震荡市</button>
+        <button id="ex13-r-crash" class="small" data-i18n="ex.e13.r.crash">崩盘市</button>
+        <button id="btn-ex13-perturb" class="small" data-i18n="ex.e13.perturb0">扰动凯利估计（±0）</button>
+      </div>
+      <p id="ex13-out" class="ex-out"></p>
+      <div id="ex13-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e13.trap">误区：用历史均值喂凯利——按「扰动凯利估计」把均值估错 ±20%，看它的曲线怎么变形。行情为固定种子合成（趋势 +0.12%/日、震荡均值回归、崩盘 -30% 段），参数即假设。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e14.t">E14 · 相关性的雨天失灵</b><span class="hint" data-i18n="ex.e14.q">「分散投资」在你最需要它的那天还在吗？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e14.b">配对标的</span><select id="ex14-stock"></select></label>
+      </div>
+      <p id="ex14-out" class="ex-out"></p>
+      <div id="ex14-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e14.trap">误区：用全期平均相关做组合决策——红点（任一标的单日跌超 3% 的日子）上的相关性普遍更高：分散在危机日集体失效是结构性的。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e15.t">E15 · 定投的数学与玄学</b><span class="hint" data-i18n="ex.e15.q">「摊低成本」到底在什么行情里成立？</span></summary>
+      <p id="ex15-out" class="ex-out"></p>
+      <div id="ex15-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e15.trap">误区：拿单次回测说「定投更好/更差」。上图是 100 个随机入场点的收益分布（120 日持有、每 10 日定投一次）——定投交换的是收益期望与路径风险，它是心理工程不是收益魔法。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e16.t">E16 · 交易日记回放器</b><span class="hint" data-i18n="ex.e16.q">你自己的上一局，换成机械出场会怎样？</span></summary>
+      <p class="hint ex-hindsight" data-i18n="ex.e16.banner">事后视角：这是思想实验，不是「当时应该这么做」的证明。</p>
+      <p id="ex16-noGame" class="hint" data-i18n="ex.e16.noGame">需要一局已结算的对局——先去打一局再来。</p>
+      <p id="ex16-out" class="ex-out" hidden></p>
+      <div id="ex16-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e16.trap">口径：入场沿用你的真实买点，出场替换为「跌破 MA20 或距持有期高点 -8%」。对多数人，机械出场跑赢情绪出场——用自己的数据得出的结论才扎心。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e17.t">E17 · 预测市场的自我实现</b><span class="hint" data-i18n="ex.e17.q">如果所有人都用同一个信号，信号还有效吗？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e17.ratio">跟随者比例</span><input type="range" id="ex17-ratio" min="0" max="80" step="4" value="20"><b id="ex17-ratio-v">20%</b></label>
+      </div>
+      <p id="ex17-out" class="ex-out"></p>
+      <div id="ex17-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e17.trap">这是玩具模型，假设清单：① 拥挤按比例稀释信号日收益；② 换仓冲击 = 比例 × 40bp/边；③ 跟随者与你同刻进出。模型可换，教的是「看结论先看假设」——虚线是买入持有基准，曲线跌破它的那一点就是拥挤反噬的反转点。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e18.t">E18 · 回测报告测谎仪（毕业考）</b><span class="hint" data-i18n="ex.e18.q">一份光鲜的回测报告——找出它的七个破绽。</span></summary>
+      <div class="card ex18-report">
+        <p data-i18n="ex.e18.report">「本策略近三个月收益 +47%，折合年化 +188%！胜率 83%，在全部 300 只现存成分股上回测有效。参数经充分优化（快线 7 / 慢线 23 为最优组合）。即刻跟投，复制成功！」</p>
+      </div>
+      <p id="ex18-out" class="ex-out"></p>
+      <div id="ex18-flaws" class="ex18-flaws"></div>
+      <p class="hint ex-trap" data-i18n="ex.e18.trap">点「?」质询一处破绽；已揭开的破绽再点一次可跳到对应实验亲手验证。七处全开 = 实验室毕业。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e19.t">E19 · 自由研究台</b><span class="hint" data-i18n="ex.e19.q">你自己的问题——但研究卡必须带探索次数与分区声明。</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e19.entry">入场</span><select id="ex19-entry">
+          <option value="cross" data-i18n="ex.e7.en.cross">金叉入场</option>
+          <option value="breakout" data-i18n="ex.e7.en.breakout">突破入场</option>
+          <option value="pullback" data-i18n="ex.e7.en.pullback">回踩入场</option>
+        </select></label>
+        <label><span data-i18n="ex.e19.exit">出场</span><select id="ex19-exit">
+          <option value="death" data-i18n="ex.e7.ex.death">死叉出场</option>
+          <option value="fixed" data-i18n="ex.e7.ex.fixed">持有 10 日</option>
+          <option value="trail" data-i18n="ex.e7.ex.trail">移动止盈 8%</option>
+        </select></label>
+        <label><span data-i18n="ex.e9.split">训练段占比</span><input type="range" id="ex19-split" min="50" max="85" step="5" value="70"><b id="ex19-split-v">70%</b></label>
+      </div>
+      <p id="ex19-out" class="ex-out"></p>
+      <label class="hint" data-i18n="ex.e19.qLabel">研究问题（必填）</label>
+      <input id="ex19-q" class="fp-duel-in ex19-input" maxlength="60">
+      <label class="hint" data-i18n="ex.e19.cLabel">你的结论（必填，诚实面对测试段）</label>
+      <input id="ex19-concl" class="fp-duel-in ex19-input" maxlength="80">
+      <div class="qd-actions">
+        <button id="btn-ex19-export" class="primary" data-i18n="ex.e19.export">导出研究卡</button>
+      </div>
+      <pre id="ex19-card" class="fp-code ex19-card" hidden></pre>
+      <p class="hint ex-trap" data-i18n="ex.e19.trap">自由度最大 = 过拟合风险最大——研究卡自动写入探索次数与训练/测试分区声明，这两个字段去不掉：方法论在这里是机械的。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e20.t">E20 · 实验室周报</b><span class="hint" data-i18n="ex.e20.q">每周一个带数据的真问题，三步走完。</span></summary>
+      <p class="ex-out"><b id="ex20-topic"></b></p>
+      <p id="ex20-s1" class="ex-out"></p>
+      <div class="qd-actions"><button id="btn-ex20-s2" class="small" data-i18n="ex.e20.toS2">第二步：调一个参数</button></div>
+      <div id="ex20-s2" class="ex-controls" hidden>
+        <label><span id="ex20-param-label"></span><input type="range" id="ex20-param" min="10" max="100" step="5" value="50"></label>
+      </div>
+      <div class="qd-actions"><button id="ex20-s3-btn" class="primary small" data-i18n="ex.e20.toS3" hidden>第三步：分区验证</button></div>
+      <p id="ex20-s3" class="ex-out ex-test" hidden></p>
+      <div id="ex20-vote-box" hidden>
+        <p class="hint" data-i18n="ex.e20.voteQ">投下你的本周结论（每人一票，可改票）：</p>
+        <div class="lw-fracs qd-actions">
+          <button id="btn-ex20-hold" class="small" data-i18n="ex.e20.vHold">效应或有其物</button>
+          <button id="btn-ex20-break" class="small" data-i18n="ex.e20.vBreak">更像噪声</button>
+        </div>
+        <p id="ex20-vote-dist" class="hint"></p>
+      </div>
+      <p class="hint ex-trap" data-i18n="ex.e20.trap">课题按周轮换（全服同题）；每期课题自带一个指定误区，第三步末尾揭晓。投票是你对数据的表态，不是对未来的下注。</p>
+    </details>
+
+    <p class="hint ex-iron" data-i18n="ex.iron">历史回测收益 ≠ 未来收益；本页全部结论只在所用数据与假设内成立。</p>
+  </section>
+  </div>
+
+  <div id="view-dojo" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="rq.title">⛩️ 研究道场</span> <span class="sub" data-i18n="rq.sub">提假设、跑实验、认错、再来——分数衡量手艺，不衡量运气</span></h2>
+
+    <section class="card">
+      <h3 data-i18n="rq.c7.t">参数考古</h3>
+      <p class="hint" data-i18n="rq.c7.hint">一条匿名双均线策略的净值曲线摆在你面前——从它的行为指纹（交易频率、回撤形态）反推参数。5 次机会，评分看最佳贴合度：一次猜中与五次系统逼近同分。</p>
+      <p id="rq7-out" class="ex-out"></p>
+      <div class="ex-controls">
+        <label><span data-i18n="rq.c7.f">快线</span><input type="range" id="rq7-f" min="2" max="14" value="5"><b id="rq7-f-v">5</b></label>
+        <label><span data-i18n="rq.c7.s">慢线</span><input type="range" id="rq7-s" min="16" max="40" value="20"><b id="rq7-s-v">20</b></label>
+        <button id="btn-rq7-try" class="primary small" data-i18n="rq.c7.try">验证这组参数</button>
+        <button id="btn-rq7-new" class="small" data-i18n="rq.c7.new">换一条曲线</button>
+      </div>
+      <p id="rq7-reveal" class="qdr-conclusion" hidden></p>
+      <div id="rq7-chart" class="lab-chart ex-chart"></div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c9.t">一根 K 线的证词</h3>
+      <p class="hint" data-i18n="rq.c9.hint">只看截至今天的走势：三种决策哪个最有道理？选一个，并声明你的判断标准。未来五日揭晓后，系统记录的是「你的合理性判断 vs 结果」的长期一致率——多数人会发现它低得吓人，这正是要学的东西。</p>
+      <div id="rq9-chart" class="lab-chart ex-chart"></div>
+      <p class="hint" data-i18n="rq.c9.q1">哪个决策最有道理？</p>
+      <div id="rq9-acts" class="mz-doors"></div>
+      <p class="hint" data-i18n="rq.c9.q2">你的判断标准是？（只计自洽，不计对错）</p>
+      <div id="rq9-stds" class="lw-fracs qd-actions"></div>
+      <div class="qd-actions">
+        <button id="btn-rq9-submit" class="primary" data-i18n="rq.c9.submit">提交证词</button>
+        <button id="btn-rq9-new" class="big" data-i18n="rq.c9.new">下一桩</button>
+      </div>
+      <p id="rq9-reveal" class="qdr-conclusion" hidden></p>
+      <p id="rq9-stats" class="hint"></p>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c5.t">复现挑战</h3>
+      <p class="hint" data-i18n="rq.c5.hint">粘贴一张研究卡（实验台 E19 导出的 QSR1 码），在不同标的上复现它的方法。复现失败是常态也是成果——「不支持」的报告与「支持」的同等有效。</p>
+      <textarea id="rq5-in" class="fp-code"></textarea>
+      <div class="qd-actions"><button id="btn-rq5-load" class="big" data-i18n="rq.c5.load">解读研究卡</button></div>
+      <p id="rq5-orig" class="ex-out" hidden></p>
+      <div id="rq5-run-row" class="ex-controls" hidden>
+        <label><span data-i18n="rq.c5.stock">复现标的（须不同于原卡）</span><select id="rq5-stock"></select></label>
+        <button id="btn-rq5-run" class="primary small" data-i18n="rq.c5.run">按原方法复现</button>
+      </div>
+      <div id="rq5-report" hidden>
+        <p id="rq5-cmp" class="ex-out"></p>
+        <p class="hint" data-i18n="rq.c5.vq">你的复现结论：</p>
+        <div id="rq5-verdicts" class="lw-fracs qd-actions"></div>
+        <p class="hint" data-i18n="rq.c5.aq">若有出入，更可能归因于：</p>
+        <div id="rq5-attrs" class="lw-fracs qd-actions"></div>
+        <div class="qd-actions"><button id="btn-rq5-export" class="primary" data-i18n="rq.c5.export">生成复现报告码</button></div>
+        <pre id="rq5-out" class="fp-code ex19-card" hidden></pre>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c8.t">鲁棒性保险箱</h3>
+      <p class="hint" data-i18n="rq.c8.hint">把一组双均线参数放进保险箱（用的就是上面「参数考古」的那段行情），系统做五重扰动：参数 ±20%、窗口平移、费率翻倍、数据抖动、更换标的——五项全部为正才开箱。训练段最优几乎必死于扰动：你愿意放弃多少账面最优去换鲁棒？</p>
+      <div class="ex-controls">
+        <label><span data-i18n="rq.c7.f">快线</span><input type="range" id="rq8-f" min="2" max="14" value="5"><b>⇄</b></label>
+        <label><span data-i18n="rq.c7.s">慢线</span><input type="range" id="rq8-s" min="16" max="40" value="20"></label>
+        <button id="btn-rq8-vault" class="primary small" data-i18n="rq.c8.go">入箱压测</button>
+      </div>
+      <p id="rq8-out" class="qdr-conclusion"></p>
+      <ul id="rq8-items" class="qd-notes"></ul>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c4.t">研究委托书</h3>
+      <p id="rq4-brief" class="ex18-report"></p>
+      <p id="rq4-hope" class="hint"></p>
+      <p class="hint" data-i18n="rq.c4.how">去实验台 E19 完成研究并导出研究卡（QSR1 码），粘贴到这里交付。验收看方法不看结论方向——顶着委托人期望交出否定结论，反而有「风骨」加成。</p>
+      <textarea id="rq4-in" class="fp-code"></textarea>
+      <div class="qd-actions"><button id="btn-rq4-review" class="primary" data-i18n="rq.c4.submit">交付研究卡</button></div>
+      <div id="rq4-review" hidden>
+        <ul id="rq4-checks" class="qd-notes"></ul>
+        <p id="rq4-verdict" class="qdr-conclusion"></p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c14.t">市况轮盘压力测试</h3>
+      <p class="hint" data-i18n="rq.c14.hint">配好策略，转动轮盘：随机抽三种合成市况连续压测（中途不许改）。存活 = 回撤 &lt; 25%。每种市况原型存活过一次就点亮雷达的一角——集齐六角拿「全天候」徽记。防御件必然损失顺风收益，代价列在每行末尾。</p>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e19.entry">入场</span><select id="rq14-entry">
+          <option value="cross" data-i18n="ex.e7.en.cross">金叉入场</option>
+          <option value="breakout" data-i18n="ex.e7.en.breakout">突破入场</option>
+          <option value="pullback" data-i18n="ex.e7.en.pullback">回踩入场</option>
+        </select></label>
+        <label><span data-i18n="ex.e19.exit">出场</span><select id="rq14-exit">
+          <option value="death" data-i18n="ex.e7.ex.death">死叉出场</option>
+          <option value="fixed" data-i18n="ex.e7.ex.fixed">持有 10 日</option>
+          <option value="trail" data-i18n="ex.e7.ex.trail">移动止盈 8%</option>
+        </select></label>
+        <label><span data-i18n="rq.c14.def">防御件</span><select id="rq14-def">
+          <option value="none" data-i18n="rq.c14.d.none">无（裸奔）</option>
+          <option value="cap" data-i18n="rq.c14.d.cap">仓位帽 60%</option>
+          <option value="volfilter" data-i18n="rq.c14.d.volfilter">波动过滤（年化 &gt;45% 离场）</option>
+        </select></label>
+        <button id="btn-rq14-spin" class="primary small" data-i18n="rq.c14.spin">转动轮盘</button>
+      </div>
+      <p id="rq14-out" class="ex-out"></p>
+      <ul id="rq14-rows" class="qd-notes"></ul>
+      <div id="rq14-radar" class="lab-chart ex-chart"></div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c2.t">残卡修复所</h3>
+      <p class="hint" data-i18n="rq.c2.hint">一张残缺策略卡：先看它在训练段的惨状，诊断病根，再从备件库选补件——注意：约四分之一的残卡根本不可修，正确答案是提交「放弃修复」。诊断正确性比修复后的收益更值钱。</p>
+      <p id="rq2-card" class="ex18-report"></p>
+      <p class="hint" data-i18n="rq.c2.dq">你的诊断：</p>
+      <div id="rq2-diags" class="lw-fracs qd-actions"></div>
+      <p class="hint" data-i18n="rq.c2.fq">你的处置（修复件或放弃）：</p>
+      <div id="rq2-fixes" class="lw-fracs qd-actions"></div>
+      <div class="qd-actions">
+        <button id="btn-rq2-submit" class="primary" data-i18n="rq.c2.submit">提交修复方案</button>
+        <button id="btn-rq2-new" class="big" data-i18n="rq.c2.new">换一张残卡</button>
+      </div>
+      <p id="rq2-reveal" class="qdr-conclusion" hidden></p>
+      <div id="rq2-chart" class="lab-chart ex-chart"></div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c13.t">历史爆仓重演</h3>
+      <p class="hint" data-i18n="rq.c13.hint">你接管一个已浮亏的重仓账户，后面还有 20 个交易日。任务不是赚钱——是比原主少死一点。流动性约束：单日最多减仓 20%。原主的剧本：死扛到净值 60% 被强平。</p>
+      <p id="rq13-day" class="ex-out"></p>
+      <p id="rq13-state" class="ex-out"></p>
+      <div class="qd-actions">
+        <button id="btn-rq13-hold" class="big" data-i18n="rq.c13.hold">按兵不动</button>
+        <button id="btn-rq13-s10" class="big" data-i18n="rq.c13.s10">减仓 10%</button>
+        <button id="btn-rq13-s20" class="primary big" data-i18n="rq.c13.s20">减仓 20%（限速顶格）</button>
+        <button id="btn-rq13-new" class="small ghost" data-i18n="rq.c13.new">换一桩案例</button>
+      </div>
+      <p id="rq13-reveal" class="qdr-conclusion" hidden></p>
+      <div id="rq13-chart" class="lab-chart ex-chart"></div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c6.t">异常侦查令</h3>
+      <p class="hint" data-i18n="rq.c6.hint">这段行情里被人为注入了一个 25 根左右的结构性异常。用滚动统计量扫描（窗口自选——开小了误报，开大了稀释，这就是检验功效的手感），圈定嫌疑区间并指认类型。圈定超过全长 40% 判无效：精确性是硬要求。</p>
+      <div class="ex-controls">
+        <label><span data-i18n="rq.c6.win">扫描窗口</span><input type="range" id="rq6-win" min="5" max="30" value="10"></label>
+        <label><span data-i18n="rq.c6.range">嫌疑区间</span><input type="range" id="rq6-from" min="0" max="250" value="80"><input type="range" id="rq6-to" min="0" max="250" value="120"><b id="rq6-range-v"></b></label>
+      </div>
+      <div id="rq6-chart" class="lab-chart ex-chart"></div>
+      <p class="hint" data-i18n="rq.c6.tq">异常类型：</p>
+      <div id="rq6-types" class="lw-fracs qd-actions"></div>
+      <div class="qd-actions">
+        <button id="btn-rq6-submit" class="primary" data-i18n="rq.c6.submit">指认</button>
+        <button id="btn-rq6-new" class="big" data-i18n="rq.c6.new">换一道侦查令</button>
+      </div>
+      <p id="rq6-reveal" class="qdr-conclusion" hidden></p>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c10.t">擂台盲测赛</h3>
+      <p class="hint" data-i18n="rq.c10.hint">把回测工坊调好的策略（QS1 策略码）投进本周擂台——报名即锁死。赛果在本周成为过去后，于三段保密历史窗口上统一计算：最差段占 50%、均值占 50%——短板定成败，面向分布做设计。</p>
+      <textarea id="rq10-in" class="fp-code"></textarea>
+      <div class="qd-actions">
+        <button id="btn-rq10-submit" class="primary" data-i18n="rq.c10.submit">投递策略（锁死）</button>
+        <button id="btn-rq10-board" class="big" data-i18n="rq.c10.cur">本周战况</button>
+        <button id="btn-rq10-last" class="big" data-i18n="rq.c10.last">上周赛果</button>
+      </div>
+      <div id="rq10-board" hidden>
+        <p id="rq10-status" class="ex-out"></p>
+        <ul id="rq10-rows" class="qd-notes"></ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c11.t">接力调参</h3>
+      <p class="hint" data-i18n="rq.c11.hint">三人异步接力调同一策略：三个旋钮（入场/出场/防御件），每人只许动一个、留 10~30 字理由，码传给下一棒。三步集齐自动在盲测段（该标的后 30%，接力期间不展示）结算，逐步拆解每人的边际贡献。</p>
+      <div class="qd-actions">
+        <button id="btn-rq11-start" class="primary" data-i18n="rq.c11.start">发起接力（我是第一棒）</button>
+      </div>
+      <label class="hint" data-i18n="rq.c11.paste">或粘贴接力码接棒：</label>
+      <textarea id="rq11-in" class="fp-code"></textarea>
+      <div class="qd-actions"><button id="btn-rq11-load" class="big" data-i18n="rq.c11.take">接棒</button></div>
+      <div id="rq11-stage" hidden>
+        <p id="rq11-head" class="ex-out"></p>
+        <ul id="rq11-log" class="qd-notes"></ul>
+        <div id="rq11-form" class="ex-controls">
+          <label><span data-i18n="rq.c11.knob">动哪个旋钮</span><select id="rq11-knob"></select></label>
+          <label><span data-i18n="rq.c11.toVal">调成</span><select id="rq11-val"></select></label>
+          <input id="rq11-why" class="fp-duel-in ex19-input" maxlength="30" data-i18n-placeholder="rq.c11.whyPh" placeholder="10~30 字：为什么这么调">
+          <button id="btn-rq11-commit" class="primary small" data-i18n="rq.c11.commit">落子并交棒</button>
+        </div>
+        <textarea id="rq11-out" class="fp-code" readonly hidden></textarea>
+        <p id="rq11-result" class="qdr-conclusion" hidden></p>
+        <div id="rq11-chart" class="lab-chart ex-chart"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c12.t">失败博物馆</h3>
+      <p class="hint" data-i18n="rq.c12.hint">用你最近一局的真实结果策展一件「失败展品」：选败因标签 + 写 ≥20 字展签，导出展品码给朋友参观。参观者可生成「受教了」回执码发回给你——回执计数挂在你的展位上。亏损金额不计分，归因质量才是策展水平。</p>
+      <div class="ex-controls">
+        <label><span data-i18n="rq.c12.tagLabel">败因标签</span><select id="rq12-tag">
+          <option value="chase" data-i18n="rq.c12.tag.chase">追高接最后一棒</option>
+          <option value="noStop" data-i18n="rq.c12.tag.noStop">没有止损纪律</option>
+          <option value="overtrade" data-i18n="rq.c12.tag.overtrade">过度交易磨损</option>
+          <option value="allin" data-i18n="rq.c12.tag.allin">仓位孤注一掷</option>
+          <option value="fomo" data-i18n="rq.c12.tag.fomo">怕错过而上头</option>
+          <option value="stubborn" data-i18n="rq.c12.tag.stubborn">死扛不认错</option>
+        </select></label>
+      </div>
+      <input id="rq12-cap" class="fp-duel-in ex19-input" maxlength="60" data-i18n-placeholder="rq.c12.capPh" placeholder="≥20 字的展签：这次败在哪、学到什么">
+      <div class="qd-actions"><button id="btn-rq12-curate" class="primary" data-i18n="rq.c12.curate">用最近一局策展</button></div>
+      <textarea id="rq12-out" class="fp-code" readonly hidden></textarea>
+      <p class="hint" data-i18n="rq.c12.mineTitle">我的展位（受教回执计数）：</p>
+      <p id="rq12-mine-empty" class="hint" data-i18n="rq.c12.mineEmpty">还没有展品——失败资产化，从策展第一件开始。</p>
+      <ul id="rq12-mine" class="qd-notes"></ul>
+      <label class="hint" data-i18n="rq.c12.viewLabel">参观展品 / 录入受教回执（粘贴 QSM2 或 QSM3 码）：</label>
+      <textarea id="rq12-in" class="fp-code"></textarea>
+      <div class="qd-actions"><button id="btn-rq12-view" class="big" data-i18n="rq.c12.view">参观 / 录入</button></div>
+      <div id="rq12-view" hidden>
+        <p id="rq12-plaque" class="ex18-report"></p>
+        <div class="qd-actions"><button id="btn-rq12-ack" class="primary small" data-i18n="rq.c12.ack">受教了（生成回执码）</button></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c15.t">假设法庭</h3>
+      <p class="hint" data-i18n="rq.c15.hint">一项研究主张开庭，系统随机指派你当控方或辩方——可能要为你不信的立场辩护，这是最锋利的学习装置。用三件证据出庭（分区证据的方法学分量最重），并逐件质询对方证据的破绽。立场胜负只占小头，方法学质量定输赢。</p>
+      <p id="rq15-case" class="ex18-report"></p>
+      <p class="hint" data-i18n="rq.c15.myEv">我方证据（三件，选取证方式）：</p>
+      <div id="rq15-slots"></div>
+      <p class="hint" data-i18n="rq.c15.oppEvTitle">对方证据（逐件质询其破绽）：</p>
+      <div id="rq15-opp"></div>
+      <div class="qd-actions">
+        <button id="btn-rq15-verdict" class="primary" data-i18n="rq.c15.close">请求判决</button>
+        <button id="btn-rq15-new" class="big" data-i18n="rq.c15.new">换一桩案子</button>
+      </div>
+      <p id="rq15-verdict" class="qdr-conclusion" hidden></p>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c1.t">因子卡组构筑</h3>
+      <p class="hint" data-i18n="rq.c1.hint">从七张因子卡里组一副 2~5 张的卡组（卡组仓位 = 所选信号等权合成）。训练段给每张卡的单卡成绩与卡间相关性——相似卡叠加是双倍暴露不是分散。写满 30 字的互补逻辑才能出征测试段，过三关：收益关（赢半仓躺平）、稳健关（回撤 ≤15% 且换手受限）、解释关。</p>
+      <div id="rq1-cards" class="dtc-board"></div>
+      <p id="rq1-corr" class="hint"></p>
+      <input id="rq1-why" class="fp-duel-in ex19-input" maxlength="80" data-i18n-placeholder="rq.c1.whyPh" placeholder="≥30 字：为什么这几张卡互补而不是重复">
+      <div class="qd-actions">
+        <button id="btn-rq1-march" class="primary" data-i18n="rq.c1.march">出征测试段</button>
+        <button id="btn-rq1-new" class="big" data-i18n="rq.c1.new">换一段行情</button>
+      </div>
+      <p id="rq1-out" class="qdr-conclusion"></p>
+      <ul id="rq1-gates" class="qd-notes" hidden></ul>
+      <div id="rq1-chart" class="lab-chart ex-chart"></div>
+      <p class="hint" data-i18n="rq.c1.albumTitle">卡册（通关卡组，带窗口标签——换窗口可能死，册子只记事实）：</p>
+      <p id="rq1-album-empty" class="hint" data-i18n="rq.c1.albumEmpty">还没有通关卡组。</p>
+      <ul id="rq1-album" class="qd-notes"></ul>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c3.t">卡牌拍卖行</h3>
+      <p class="hint" data-i18n="rq.c3.hint">预算 100 点，8 张线索卡逐张开拍（与隐身的 AI 竞拍者抢）。线索是隐藏标的训练半段上的真实统计——但约四成是「噪声卡」：同一统计算在洗牌后的收益序列上，货真价实的假信号。样本量公开：样本 10 的惊艳线索 vs 样本 200 的平庸线索值多少钱，是本玩法的灵魂。拍完选一张核心线索去测试半段验证——或者全弃权（如果你拍到的全是噪声，弃权是满分答案）。</p>
+      <p class="ex-out"><span data-i18n="rq.c3.budgetLabel">剩余预算</span>：<b id="rq3-budget">100</b></p>
+      <p id="rq3-lot" class="ex18-report"></p>
+      <div class="qd-actions">
+        <button id="btn-rq3-pass" class="big" data-i18n="rq.c3.pass">过（不出价）</button>
+        <button id="btn-rq3-b5" class="big" data-i18n="rq.c3.b5">出 5</button>
+        <button id="btn-rq3-b12" class="big" data-i18n="rq.c3.b12">出 12</button>
+        <button id="btn-rq3-b25" class="primary big" data-i18n="rq.c3.b25">出 25</button>
+        <button id="btn-rq3-new" class="small ghost" data-i18n="rq.c3.new">重开一场</button>
+      </div>
+      <ul id="rq3-owned" class="qd-notes"></ul>
+      <div id="rq3-verify" class="ex-controls" hidden>
+        <label><span data-i18n="rq.c3.coreLabel">核心线索</span><select id="rq3-core"></select></label>
+        <button id="btn-rq3-verify" class="primary small" data-i18n="rq.c3.go">去测试段验证</button>
+        <button id="btn-rq3-giveup" class="small" data-i18n="rq.c3.giveup">全是噪声，弃权</button>
+      </div>
+      <p id="rq3-result" class="qdr-conclusion" hidden></p>
+    </section>
+
+    <p class="hint ex-iron" data-i18n="ex.iron">历史回测收益 ≠ 未来收益；本页全部结论只在所用数据与假设内成立。</p>
+  </section>
+  </div>
+
+  <div id="view-mates" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="fp.title">🍵 好友茶会</span> <span class="sub" data-i18n="fp.sub">不用加好友、不用同时在线——一串码就是一次邀约</span></h2>
+    <p class="hint" data-i18n="fp.intro">这里的玩法全部走「码交换」：把生成的码用任何聊天工具发给朋友，对方粘贴即可参与。码带校验、无积分奖励——伪造只能骗朋友，骗不了排行榜。</p>
+
+    <section class="card">
+      <h3 data-i18n="fp.puzzleTitle">成绩拼图卡</h3>
+      <p class="hint" data-i18n="fp.puzzleHint">导出你的战绩码发给朋友；把两串码贴在下面，生成双人对比。样本量差 3 倍以上会标注「不可比」。</p>
+      <div class="qd-actions">
+        <button id="btn-fp-puzzle-export" class="primary" data-i18n="fp.export">导出我的战绩码</button>
+      </div>
+      <textarea id="fp-puzzle-out" class="fp-code" readonly hidden></textarea>
+      <label class="hint" data-i18n="fp.codeA">码 A（你或对方）</label>
+      <textarea id="fp-puzzle-a" class="fp-code"></textarea>
+      <label class="hint" data-i18n="fp.codeB">码 B</label>
+      <textarea id="fp-puzzle-b" class="fp-code"></textarea>
+      <div class="qd-actions">
+        <button id="btn-fp-puzzle-cmp" class="primary" data-i18n="fp.compare">生成对比</button>
+      </div>
+      <div id="fp-puzzle-cmp" hidden>
+        <table>
+          <thead><tr><th data-i18n="fp.cmp.metric">指标</th><th id="fp-cmp-ha">A</th><th id="fp-cmp-hb">B</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p id="fp-puzzle-warn" class="hint neg" data-i18n="fp.puzzleWarn" hidden>两人样本量差距过大，收益与胜率不具可比性——先打到局数接近再比。</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="fp.duelTitle">同局战书</h3>
+      <p class="hint" data-i18n="fp.duelHint">用你打完的一局立战书（码锁死同一标的同一窗口、标的匿名），朋友凭码打完全相同的一局。你自己没结算前看不到任何人的成绩——先交卷，后揭晓。≥4 人应战自动变成小锦标赛。</p>
+      <div class="qd-actions">
+        <button id="btn-fp-duel-create" class="primary" data-i18n="fp.duelCreate">用最近一局立战书</button>
+      </div>
+      <p id="fp-duel-noGame" class="hint" data-i18n="fp.duelNeedGame" hidden>立战书需要一局已结算的标准经典对局。</p>
+      <textarea id="fp-duel-out" class="fp-code" readonly hidden></textarea>
+      <label class="hint" data-i18n="fp.duelIn">粘贴战书码（应战或看榜）</label>
+      <input id="fp-duel-in" class="fp-duel-in" maxlength="12" autocomplete="off">
+      <div class="qd-actions">
+        <button id="btn-fp-duel-accept" class="primary" data-i18n="fp.duelAccept">应战（开打同一局）</button>
+        <button id="btn-fp-duel-board" class="big" data-i18n="fp.duelBoard">看榜</button>
+      </div>
+      <div id="fp-duel-board-box" hidden>
+        <p id="fp-duel-board-title" class="hint"></p>
+        <ul id="fp-duel-board" class="qd-notes"></ul>
+        <p id="fp-duel-sealed" class="hint" data-i18n="fp.duelSealed" hidden>成绩已封存——打完你自己的那局才能揭晓全场。</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="fp.guessTitle">策略盲猜</h3>
+      <p class="hint" data-i18n="fp.guessHint">出题：用你最近一局已结算对局生成「过程码」（只含仓位曲线，抹掉标的、日期与结果）。猜题：看曲线猜出题人的风格、盈亏与最大加仓时的动机——答案封存在码里，本地揭晓。</p>
+      <div id="fp-guess-export-row" class="fp-export-row">
+        <label class="qd-verdict-row"><span data-i18n="fp.motiveLabel">你最大那笔加仓时在想什么（真实答案，封存入码）</span>
+          <select id="fp-guess-motive">
+            <option value="0" data-i18n="fp.motive.0">趋势确认了，顺势加</option>
+            <option value="1" data-i18n="fp.motive.1">被套了，摊低成本</option>
+            <option value="2" data-i18n="fp.motive.2">凭感觉，上头了</option>
+          </select>
+        </label>
+        <div class="qd-actions">
+          <button id="btn-fp-guess-export" class="primary" data-i18n="fp.exportGuess">用最近一局出题</button>
+        </div>
+      </div>
+      <p id="fp-guess-noGame" class="hint" data-i18n="fp.guessNeedGame" hidden>出题需要一局已结算的对局——先去打一局再来。</p>
+      <textarea id="fp-guess-out" class="fp-code" readonly hidden></textarea>
+      <label class="hint" data-i18n="fp.guessIn">粘贴朋友的过程码</label>
+      <textarea id="fp-guess-in" class="fp-code"></textarea>
+      <div class="qd-actions">
+        <button id="btn-fp-guess-load" class="big" data-i18n="fp.loadGuess">展开题目</button>
+      </div>
+      <div id="fp-guess-quiz" hidden>
+        <div id="fp-guess-chart" class="au-chart"></div>
+        <p class="hint" data-i18n="fp.q1">TA 是什么风格？</p>
+        <div id="fp-guess-q" class="lw-fracs qd-actions"></div>
+        <p class="hint" data-i18n="fp.q2">这局 TA 赚了还是亏了？</p>
+        <div id="fp-guess-w" class="lw-fracs qd-actions"></div>
+        <p class="hint" data-i18n="fp.q3">TA 最大那笔加仓时在想什么？</p>
+        <div id="fp-guess-m" class="lw-fracs qd-actions"></div>
+        <div class="qd-actions">
+          <button id="btn-fp-guess-submit" class="primary big" data-i18n="fp.submitGuess">揭晓答案</button>
+        </div>
+        <p id="fp-guess-reveal" class="qdr-conclusion" hidden></p>
+      </div>
+    </section>
+  </section>
+  </div>
+
+  <div id="view-sleuth" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="dtc.title">🔍 市场侦探</span> <span class="sub" data-i18n="dtc.sub">新闻、报表、价量、席位都是线索——钉上证据板，推理出市场正在发生什么</span></h2>
+
+    <div id="dtc-select">
+      <p class="hint" data-i18n="dtc.selectHint">每桩案件给 10 个调查点数：公开线索免费摆在桌上，隐藏线索要花点调查——其中混着误导线索。把你信的线索钉上证据板（至少 2 条），再提交复合判断：结论对但论据里钉了误导线索照样扣分并被点名。拿不准时可以花 1 点做假设检验，系统只告诉你「该假设与已揭示线索矛盾几条」。每案埋了两条独立证据链，钉全一条 +2 分，两条全钉就是交叉验证。</p>
+      <div id="dtc-cases" class="mz-doors"></div>
+    </div>
+
+    <div id="dtc-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="dtc-title"></h3>
+        <span class="qd-credits-pill"><i data-i18n="dtc.pointsLabel">调查点数</i><b id="dtc-points">--</b></span>
+      </div>
+      <p id="dtc-brief" class="qd-claim"></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="dtc.boardTitle">证据板（点一下 = 钉为论据 / 取下）</p>
+          <p id="dtc-pin-hint" class="hint"></p>
+          <div id="dtc-board" class="dtc-board"></div>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="dtc.probesTitle">可调查对象（花点换线索）</p>
+          <p id="dtc-probes-empty" class="hint" data-i18n="dtc.probesEmpty" hidden>能查的都查完了——该下结论了。</p>
+          <div id="dtc-probes" class="mz-doors"></div>
+          <label class="qd-verdict-row"><span data-i18n="dtc.hypoLabel">假设检验</span>
+            <select id="dtc-hypo-opt"></select>
+          </label>
+          <button id="btn-dtc-hypo" class="big"></button>
+        </div>
+      </div>
+      <p class="hint" data-i18n="dtc.judgeTitle">提交判断（全部选完且钉够论据才能结案）</p>
+      <div id="dtc-judge"></div>
+      <div class="qd-actions">
+        <button id="btn-dtc-submit" class="primary big" data-i18n="dtc.submit">结案陈词</button>
+      </div>
+      <button id="btn-dtc-abort" class="ghost" data-i18n="dtc.abort">放弃本案</button>
+    </div>
+
+    <div id="dtc-report" hidden>
+      <h3 data-i18n="dtc.reportTitle">结案报告</h3>
+      <p id="dtcr-conclusion" class="qdr-conclusion"></p>
+      <ul id="dtcr-judge" class="qd-notes"></ul>
+      <p id="dtcr-chain" class="hint"></p>
+      <ul id="dtcr-mislead" class="qd-notes" hidden></ul>
+      <p id="dtcr-explain" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-dtcr-again" class="primary big" data-i18n="dtc.again">重查本案</button>
+        <button id="btn-dtcr-cases" class="big" data-i18n="dtc.toCases">换一桩案子</button>
+        <button id="btn-dtcr-games" class="big" data-i18n="dtc.toGames">返回训练场</button>
       </div>
     </div>
   </section>
@@ -1425,8 +2773,10 @@
       <div class="home-life-title-wrap">
         <p class="home-life-title" data-i18n="home.life.hello">我的交易人生</p>
         <p class="home-life-streak" id="home-life-streak" hidden></p>
+        <!-- 生涯身份外显: 当前章 + 下一任务一句话, 点击直达生涯页 -->
+        <button id="home-life-career" class="qs-textlink home-life-career" hidden></button>
       </div>
-      <button id="btn-home-life-cta" class="primary big"></button>
+      <button id="btn-home-life-cta" class="primary"></button>
     </div>
     <div class="home-life-stats">
       <div class="home-life-stat"><span class="hint" data-i18n="home.life.assets">虚拟资产</span><b id="home-life-assets"></b></div>
@@ -1445,6 +2795,13 @@
       <p id="home-life-curve-lock" class="hint" hidden></p>
     </div>
   </section>
+
+  <!-- 今日市场天气播报: 管道数据的当日聚合一句话, 点击直达推荐玩法 (A5) -->
+  <button id="home-pulse" class="home-pulse" hidden>
+    <span class="home-pulse-dot" aria-hidden="true"></span>
+    <span id="home-pulse-text"></span>
+    <b id="home-pulse-cta"></b>
+  </button>
 
   <!-- 首屏横幅: 主张 + 双主按钮 -->
   <section class="home-hero" id="home-hero">
@@ -1479,8 +2836,10 @@
       </svg>
     </div>
     <div class="home-hero-actions">
+      <button id="btn-home-intro" class="primary big" data-i18n="home.hero.intro" hidden>先来 90 秒</button>
       <button id="btn-home-game" class="primary big" data-i18n="home.hero.play">开始对局</button>
       <button id="btn-home-lab" class="big" data-i18n="home.hero.lab">进入研究所</button>
+      <button id="btn-home-career" class="big" data-i18n="home.hero.career">从生涯第一章开始</button>
     </div>
   </section>
 
@@ -1558,6 +2917,7 @@
       </div>
       <div class="card tasks-card">
         <div class="tasks-head"><b data-i18n="todo.title">今日任务</b><span class="hint" id="tasks-streak"></span></div>
+        <button id="btn-task-career" class="task-row" hidden></button>
         <button id="btn-task-signin" class="task-row"></button>
         <button id="btn-task-guess" class="task-row"></button>
         <button id="btn-task-settle" class="task-row"></button>
@@ -1618,6 +2978,9 @@
   <section class="academy-panel center-panel">
     <h2><span data-i18n="daily.title">每日挑战</span> <span class="sub" data-i18n="daily.sub">全服每天同一标的、同一隐藏区间，公平竞技，每人每天一局</span></h2>
     <section class="card daily-card">
+      <!-- 今日规则 (D1~D8 轮换): 全服同一天同一规则, 日期即种子 -->
+      <p id="daily-rule" class="daily-rule" hidden></p>
+      <p id="daily-rule-desc" class="hint" hidden></p>
       <p id="daily-info" class="hint" data-i18n="daily.loading">加载中…</p>
       <div class="daily-actions">
         <button id="btn-daily-start" class="primary" data-i18n="daily.start">开始今日挑战</button>
@@ -2332,6 +3695,7 @@
         <p id="settle-pop-verdict" class="verdict"></p>
         <p id="settle-pop-stock" class="hint"></p>
         <p id="settle-pop-points" class="settle-pop-points" hidden></p>
+        <p id="settle-pop-exam" class="hint" hidden></p>
         <div class="settle-pop-actions">
           <button id="btn-settle-pop-detail" class="primary" data-i18n="settle.pop.detail">查看完整结算</button>
           <button id="btn-settle-pop-recap" class="ghost" data-i18n="recap.btn">复盘报告</button>
@@ -2616,22 +3980,24 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610261b97"></script>
+  <script src="i18n.js?v=202610267131"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=20261025b571"></script>
-  <script src="play.js?v=20261025dd95"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
+  <script src="app.js?v=20261026f977"></script>
+  <script src="play.js?v=202610267b78"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
-  <script src="replay.js?v=20261026b9db"></script>
+  <script src="replay.js?v=20261026025d"></script>
   <script src="auth.js?v=202610252658"></script>
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
   <script src="data/levels.js?v=20261025e7d0"></script>
   <script src="data/cases.js?v=202610255824"></script>
-  <script src="academy.js?v=20261025213c"></script>
+  <script src="academy.js?v=2026102667ff"></script>
   <script src="guessgame.js?v=202610261cf8"></script>
   <script src="optsandbox.js?v=2026102556f9"></script>
-  <script src="lab.js?v=20261025fbc7"></script>
-  <script src="daily.js?v=20261025ebe1"></script>
+  <script src="lab.js?v=20261026e7e8"></script>
+  <script src="exlab.js?v=202610265e71"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
+  <script src="dojo.js?v=20261026ee2e"></script><!-- 依赖 exlab.js 的 window.qsQuant 计算件, 必须在其后 -->
+  <script src="daily.js?v=2026102675d2"></script>
   <script src="event.js?v=202610250b8a"></script>
   <script src="option.js?v=2026102531c6"></script>
   <script src="biasprofile.js?v=2026102581cc"></script>
@@ -2640,10 +4006,11 @@
   <script src="ranking.js?v=2026102585f6"></script>
   <script src="sharecard.js?v=202610258b6c"></script>
   <script src="sharecode.js?v=202610256297"></script>
+  <script src="mates.js?v=202610261ce4"></script><!-- 依赖 app.js 的 qsCodec/state 与 auth.js 的 Auth -->
   <script src="heatmap.js?v=202610256ee4"></script>
   <script src="news.js?v=2026102553a0"></script>
   <script src="history.js?v=20261025bcf3"></script>
-  <script src="home.js?v=20261026e831"></script>
+  <script src="home.js?v=2026102639e1"></script>
   <script src="points.js?v=20261025c358"></script>
   <script src="reborn.js?v=202610257b00"></script>
   <script src="bubble.js?v=20261025d32e"></script>
@@ -2652,14 +4019,27 @@
   <script src="buydip.js?v=2026102531f2"></script>
   <script src="stratbox.js?v=202610255d84"></script>
   <script src="qdetect.js?v=20261025cbe8"></script>
-  <script src="tasks.js?v=20261026a3f3"></script>
+  <script src="autopsy.js?v=202610267ebf"></script>
+  <script src="monk.js?v=20261026f32e"></script>
+  <script src="alchemy.js?v=20261026af7f"></script>
+  <script src="tamer.js?v=202610262ca3"></script>
+  <script src="fool.js?v=202610265728"></script>
+  <script src="maze.js?v=202610260f5e"></script>
+  <script src="loopweek.js?v=2026102625cf"></script>
+  <script src="supply.js?v=2026102665c6"></script>
+  <script src="soup.js?v=20261026c231"></script>
+  <script src="taste.js?v=20261026c5ad"></script>
+  <script src="sleuth.js?v=202610262a6a"></script>
+  <script src="swan.js?v=202610262cd8"></script>
+  <script src="tasks.js?v=202610267667"></script>
   <script src="pet.js?v=2026102523c4"></script>
-  <script src="career.js?v=202610258c7d"></script>
+  <script src="career.js?v=20261026bb9e"></script>
+  <script src="growth.js?v=20261026acfb"></script><!-- 依赖 academy 的 prog / career 的 prog.career / auth 的 Auth, 必须在三者之后 -->
   <script src="relics.js?v=202610253759"></script>
   <script src="walker.js?v=202610255fa3"></script>
   <script src="duel.js?v=2026102515b4"></script>
   <script src="wiki.js?v=202610252f2e"></script>
   <script src="games.js?v=20261025f87a"></script>
-  <script src="mine.js?v=20261025965a"></script>
+  <script src="mine.js?v=20261026a03a"></script>
 </body>
 </html>

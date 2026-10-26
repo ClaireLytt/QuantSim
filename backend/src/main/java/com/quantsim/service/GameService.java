@@ -71,6 +71,7 @@ public class GameService {
     private final PositionRepository positionRepository;
     private final PendingOrderRepository orderRepository;
     private final PointsService pointsService;
+    private final CoachService coachService;
     private final TradeEngine tradeEngine;
     private final OrderService orderService;
     private final NewsService newsService;
@@ -122,7 +123,7 @@ public class GameService {
                 BlindDates.maskName(session, stock.getName()),
                 stock.getMarket().name(), stock.getMarket().getLotSize(),
                 BlindDates.mask(session, session.getStartDate()),
-                session.getInitialCash(), props.getTotalTicks(),
+                session.getInitialCash(), props.ticksFor(session.getMode()),
                 levelName, session.getMode(), session.isAdvanced(), session.isRealRules(), stocks,
                 session.getStatus().name(), session.getMaxTrades(), session.isRequireReason());
     }
@@ -180,7 +181,7 @@ public class GameService {
         KlinePoint bar = toKlinePoint(session, sd, next, sd.indicators().get(next.getTradeDate()));
 
         SettleResponse settleResult = null;
-        boolean settled = liquidatedNow || daysElapsed >= props.getTotalTicks();
+        boolean settled = liquidatedNow || daysElapsed >= props.ticksFor(session.getMode());
         if (settled) {
             settleResult = doSettle(session).response();
         }
@@ -192,7 +193,7 @@ public class GameService {
         List<NewsItem> news = BlindDates.blind(session)
                 ? List.of() : newsService.eventsFor(sd.stock(), next.getTradeDate());
 
-        return new TickResponse(BlindDates.mask(session, next.getTradeDate()), daysElapsed, props.getTotalTicks(),
+        return new TickResponse(BlindDates.mask(session, next.getTradeDate()), daysElapsed, props.ticksFor(session.getMode()),
                 settled, bar, settleResult, status,
                 fills.filled(), fills.autoCancelled(), liquidatedNow, news, day.aiTradeShares());
     }
@@ -254,6 +255,32 @@ public class GameService {
         String reason = sanitizeReason(request.reason());
         TradeBudget.Snapshot budget = requireBudgetAndReason(session, reason, "下单"); // 只查一次, 剩余笔数由快照推出
 
+        // 每日挑战规则闸 (D1~D8 轮换): 观察期/半仓线/禁追高在下单时当场拒绝
+        if ("DAILY".equals(session.getMode()) && session.getChallengeDate() != null) {
+            DailyRules.Rule rule = DailyRules.ruleFor(session.getChallengeDate());
+            BigDecimal lastBuy = null;
+            if (rule == DailyRules.Rule.NOCHASE && direction == TradeTransaction.Direction.BUY) {
+                lastBuy = transactionRepository.findBySessionIdOrderByCreatedAtAsc(sessionId).stream()
+                        .filter(t -> t.getDirection() == TradeTransaction.Direction.BUY)
+                        .reduce((a, b) -> b).map(TradeTransaction::getPrice).orElse(null);
+            }
+            BigDecimal ratioAfterBuy = null;
+            if (rule == DailyRules.Rule.HALF && direction == TradeTransaction.Direction.BUY) {
+                // 买入后仓位估算: (持仓+新买)×现价 / (现金+持仓×现价), 费用忽略 (远小于 50% 线的判定粒度)
+                BigDecimal holdVal = price.multiply(BigDecimal.valueOf(account.getHoldingShares()));
+                BigDecimal afterVal = price.multiply(BigDecimal.valueOf(account.getHoldingShares() + shares));
+                BigDecimal assets = account.getCashBalance().add(holdVal);
+                if (assets.signum() > 0) {
+                    ratioAfterBuy = afterVal.divide(assets, 4, RoundingMode.HALF_UP);
+                }
+            }
+            String ruleError = DailyRules.guardError(rule, direction, session.getDaysElapsed(),
+                    price, lastBuy, ratioAfterBuy);
+            if (ruleError != null) {
+                throw new BusinessException(ruleError);
+            }
+        }
+
         String error = tradeEngine.validate(session, account, stockId, direction, price, shares);
         if (error != null) {
             throw new BusinessException(error);
@@ -304,6 +331,11 @@ public class GameService {
         // 已成交 + 在挂单一起占笔数预算; 强制理由随挂单落库, 成交时写进流水。
         String reason = sanitizeReason(request.reason());
         requireBudgetAndReason(session, reason, "挂单");
+        // 带交易时闸的每日规则禁用挂单: 次日 OHLC 成交会绕过观察期/半仓线/追高闸
+        if ("DAILY".equals(session.getMode()) && session.getChallengeDate() != null
+                && DailyRules.ordersBlocked(DailyRules.ruleFor(session.getChallengeDate()))) {
+            throw new BusinessException("今日挑战规则限用现价交易, 不开放挂单");
+        }
         return orderService.place(session, stockId, request.orderType(), request.price(), request.shares(),
                 request.trailPct(), reason);
     }
@@ -452,7 +484,25 @@ public class GameService {
                 predictionDays, styleTag, revealCode, sd.stock().getName(),
                 award.earned(), award.winStreak(),
                 // 响应与落库口径一致由 Prepared 构造保证: 序列化失败时两侧一起为 null
-                prepared.responseReport(), journal, eventReveal), prepared.columns());
+                prepared.responseReport(), journal, eventReveal,
+                dailyRuleResult(session, returnRate, holdReturn, risk, allTxs, journal, sd, startIdx, endIdx),
+                coachService.findings(session, sd, allTxs, initial, finalAssets,
+                        account.getInterestTotal(), returnRate, holdReturn, maCrossReturn, dcaReturn, aiReturn)),
+                prepared.columns());
+    }
+
+    /** 每日挑战规则判定 (D1~D8 轮换): 非每日局返回 null。判定口径见 DailyRules.evaluate。 */
+    private GameDtos.DailyRuleResult dailyRuleResult(GameSession session, BigDecimal returnRate,
+            BigDecimal holdReturn, GameDtos.RiskMetrics risk, List<TradeTransaction> allTxs,
+            List<GameDtos.JournalEntry> journal, StockData sd, Integer startIdx, Integer endIdx) {
+        if (!"DAILY".equals(session.getMode()) || session.getChallengeDate() == null) {
+            return null;
+        }
+        DailyRules.Rule rule = DailyRules.ruleFor(session.getChallengeDate());
+        List<DailyPrice> window = (startIdx == null || endIdx == null)
+                ? null : sd.prices().subList(startIdx, endIdx + 1);
+        return DailyRules.evaluate(rule, returnRate, holdReturn,
+                risk == null ? null : risk.maxDrawdown(), allTxs, journal, window);
     }
 
     /** 事件回放结算揭晓: 场景名 + 真实窗口 + 整段大事记 (给足上下文, 不只截对局窗口)。 */
@@ -702,7 +752,7 @@ public class GameService {
         return new StatusResponse(
                 session.getSessionId(), session.getStatus().name(),
                 BlindDates.mask(session, session.getCurrentTradeDate()),
-                session.getDaysElapsed(), props.getTotalTicks(),
+                session.getDaysElapsed(), props.ticksFor(session.getMode()),
                 account.getCashBalance(), account.getHoldingShares(), account.getHoldingCost(),
                 currentPrice, marketValue, totalAssets, floatingPnl, returnRate,
                 prediction, ai,
