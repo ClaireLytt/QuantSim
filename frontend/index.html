@@ -873,6 +873,7 @@
       <button class="gz-card" data-goto="monk"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21c1.5-4 4-6 7-6s5.5 2 7 6"/><path d="M12 4v-2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g8.t">止损僧侣</strong><span class="sub" data-i18n="gz.g8.d">立下军令状，在贪婪弹窗的轰炸里守住纪律</span></button>
       <button class="gz-card" data-goto="alchemy"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4M12 3v6l6 10a1.5 1.5 0 0 1-1.3 2.3H7.3A1.5 1.5 0 0 1 6 19L12 9"/><path d="M8.5 15h7"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g9.t">仓位炼金术</strong><span class="sub" data-i18n="gz.g9.d">未来全公开也赢不了——用组合数学过风险关</span></button>
       <button class="gz-card" data-goto="tamer"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a7 7 0 0 1 7 7c0 5-3 8-7 11-4-3-7-6-7-11a7 7 0 0 1 7-7z"/><circle cx="9.5" cy="10" r="0.5"/><circle cx="14.5" cy="10" r="0.5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g10.t">算法驯兽师</strong><span class="sub" data-i18n="gz.g10.d">组装交易宠物放生，全程只许救它一次</span></button>
+      <button class="gz-card" data-goto="fool"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18c2-8 5-13 8-13s6 5 8 13"/><path d="M3 18h18M12 5v-2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g11.t">最后一个接盘侠</strong><span class="sub" data-i18n="gz.g11.d">音乐停止前逃离妖股，别当最后那个人</span></button>
       <!-- 预留位: 不可点的"即将开放"占位卡, 暗示训练场还在扩建 -->
       <div class="gz-card gz-card-soon" aria-hidden="true"><strong data-i18n="gz.soon">即将开放</strong><span class="sub" data-i18n="gz.soonHint">新的训练项目正在打磨中</span></div>
     </div>
@@ -1343,6 +1344,56 @@
       <div class="qd-actions">
         <button id="btn-tmr-again" class="primary big" data-i18n="tm.again">再养一只</button>
         <button id="btn-tmr-games" class="big" data-i18n="tm.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-fool" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="fl.title">🎪 最后一个接盘侠</span> <span class="sub" data-i18n="fl.sub">妖股注定归零，价格由大家的逃跑行为决定——音乐停止前，别当最后那个人</span></h2>
+
+    <div id="fl-select">
+      <p class="hint" data-i18n="fl.selectHint">你和 5 位玩家同时持有同一只妖股（成本 100）。这只票没有基本面：没人跑它就涨，有人跑它就砸——而在某个隐藏回合，音乐会突然停止，还拿着的人接走全部亏损。跑得越晚卖价越高，但最后一个没跑掉的就是接盘侠。小心随机熔断假停牌锁死你的卖出按钮。</p>
+      <p class="hint" id="fl-best" hidden></p>
+      <button id="btn-fl-start" class="primary big" data-i18n="fl.start">入场（买入成本 100）</button>
+    </div>
+
+    <div id="fl-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="fl-round"></h3>
+        <span class="qd-credits-pill"><i data-i18n="fl.priceLabel">现价</i><b id="fl-price">100</b></span>
+        <span class="qd-credits-pill"><i data-i18n="fl.holdersLabel">还在场内</i><b id="fl-holders">6 / 6</b></span>
+      </div>
+      <p id="fl-halt-note" class="qd-claim" hidden data-i18n="fl.haltNote">⚠ 熔断假停牌：本轮所有人的卖出通道被锁死——是技术故障，还是有人不想让你走？</p>
+      <p id="fl-you-out" class="qd-claim" hidden></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="fl.chartTitle">价格由全场行为内生（圆点 = 逃跑者，金点 = 你）</p>
+          <div id="fl-chart" class="au-chart"></div>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="fl.playersTitle">场内玩家</p>
+          <ul id="fl-players" class="qd-notes"></ul>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-fl-sell" class="primary big" data-i18n="fl.sell">卖出逃命</button>
+        <button id="btn-fl-wait" class="big" data-i18n="fl.wait">再等一轮</button>
+      </div>
+      <button id="btn-fl-back" class="ghost" data-i18n="fl.back">离开牌桌</button>
+    </div>
+
+    <div id="fl-report" hidden>
+      <h3 data-i18n="fl.reportTitle">散场结算</h3>
+      <p id="flr-conclusion" class="qdr-conclusion"></p>
+      <p id="flr-doom" class="au-fatal"></p>
+      <p class="hint" data-i18n="fl.rankingTitle">逃生排行</p>
+      <ul id="flr-ranking" class="qd-notes"></ul>
+      <p id="flr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-flr-again" class="primary big" data-i18n="fl.again">再来一局</button>
+        <button id="btn-flr-games" class="big" data-i18n="fl.toGames">返回训练场</button>
       </div>
     </div>
   </section>
@@ -2863,9 +2914,9 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=2026102660d8"></script>
+  <script src="i18n.js?v=20261026caa6"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=20261026266e"></script>
+  <script src="app.js?v=2026102666c2"></script>
   <script src="play.js?v=20261026fae1"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
@@ -2903,6 +2954,7 @@
   <script src="monk.js?v=20261026f32e"></script>
   <script src="alchemy.js?v=20261026af7f"></script>
   <script src="tamer.js?v=202610262ca3"></script>
+  <script src="fool.js?v=202610265728"></script>
   <script src="tasks.js?v=202610267667"></script>
   <script src="pet.js?v=2026102523c4"></script>
   <script src="career.js?v=20261026bb9e"></script>
