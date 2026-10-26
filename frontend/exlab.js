@@ -1035,6 +1035,165 @@
     e17Chart.refresh();
   }
 
+  // ---------- E18 回测报告测谎仪 (毕业考: 七个破绽逐一质询) ----------
+  const E18_FLAWS = [
+    { id: "fee", exp: "ex3" }, { id: "insample", exp: "ex9" }, { id: "surv", exp: "ex11" },
+    { id: "capacity", exp: "ex4" }, { id: "explored", exp: "ex10" },
+    { id: "annualize", exp: null }, { id: "benchmark", exp: null },
+  ];
+  const e18Found = new Set();
+
+  function renderE18() {
+    const wrap = $("ex18-flaws");
+    wrap.innerHTML = "";
+    E18_FLAWS.forEach((f) => {
+      const btn = document.createElement("button");
+      btn.className = "ex18-flaw" + (e18Found.has(f.id) ? " found" : "");
+      const tt = document.createElement("b");
+      tt.textContent = (e18Found.has(f.id) ? "✓ " : "? ") + t("ex.e18.f." + f.id);
+      btn.appendChild(tt);
+      if (e18Found.has(f.id)) {
+        const dd = document.createElement("span");
+        dd.className = "hint";
+        dd.textContent = t("ex.e18.x." + f.id);
+        btn.appendChild(dd);
+        if (f.exp) {
+          const go = document.createElement("i");
+          go.textContent = t("ex.e18.go", f.exp.replace("ex", "E"));
+          btn.appendChild(go);
+        }
+      }
+      btn.addEventListener("click", () => {
+        if (!e18Found.has(f.id)) {
+          e18Found.add(f.id);
+          playSound("fill");
+        } else if (f.exp) {
+          // 二次点击跳转对应实验卡 (证据链接回实验序列)
+          const card = $(f.exp + "-chart").closest(".ex-exp");
+          card.open = true;
+          card.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+        renderE18();
+      });
+      wrap.appendChild(btn);
+    });
+    const done = e18Found.size === E18_FLAWS.length;
+    $("ex18-out").textContent = t(done ? "ex.e18.done" : "ex.e18.progress",
+      e18Found.size, E18_FLAWS.length);
+    if (done && !(qsLoadBest("qs_exlab").e18)) {
+      qsSaveBest("qs_exlab", { e18: 1 });
+      toast(t("ex.e18.grad"));
+      playSound("win");
+    }
+  }
+
+  // ---------- E19 自由研究台 (研究卡强制含 探索次数 + 分区声明) ----------
+  const e19 = { explored: 0 };
+
+  function e19Run() {
+    if (!closes.length) return null;
+    const entry = $("ex19-entry").value;
+    const exit = $("ex19-exit").value;
+    const splitPct = Number($("ex19-split").value);
+    const split = Math.floor(closes.length * splitPct / 100);
+    const pos = e7Pos(closes, entry, exit);
+    const train = simulate(closes.slice(0, split), pos.slice(0, split));
+    const test = simulate(closes.slice(split), pos.slice(split));
+    return { entry, exit, splitPct,
+      trainRet: lastRet(train), trainDd: maxDD(train),
+      testRet: lastRet(test), testDd: maxDD(test) };
+  }
+
+  function runE19(countExplore) {
+    const r = e19Run();
+    if (!r) return;
+    if (countExplore) e19.explored++;
+    $("ex19-split-v").textContent = r.splitPct + "%";
+    $("ex19-out").textContent = t("ex.e19.out",
+      fmtPct(r.trainRet), fmtPct(r.trainDd), fmtPct(r.testRet), fmtPct(r.testDd), e19.explored);
+  }
+
+  function exportResearchCard() {
+    const r = e19Run();
+    if (!r) return;
+    const q = $("ex19-q").value.trim();
+    const concl = $("ex19-concl").value.trim();
+    // 方法论机械化: 问题与结论不填 = 导不出卡; 探索次数与分区声明自动写入, 不可去除
+    if (q.length < 5 || concl.length < 5) { toast(t("ex.e19.needText")); return; }
+    const payload = {
+      v: 1, q: q.slice(0, 60), c: concl.slice(0, 80), code,
+      m: { en: r.entry, ex: r.exit, split: r.splitPct },
+      res: { tr: +(r.trainRet * 100).toFixed(2), te: +(r.testRet * 100).toFixed(2) },
+      n: e19.explored, fr: fr.on,
+    };
+    const out = qsCodec.encode("QSR1", payload);
+    $("ex19-card").hidden = false;
+    $("ex19-card").textContent = t("ex.e19.card", payload.q, t("ex.e7.en." + r.entry),
+      t("ex.e7.ex." + r.exit), r.splitPct + "%", fmtPct(r.trainRet), fmtPct(r.testRet),
+      e19.explored, payload.c) + "\n" + out;
+    navigator.clipboard?.writeText($("ex19-card").textContent).then(
+      () => toast(t("fp.copied")), () => toast(t("fp.copyManual")));
+  }
+
+  // ---------- E20 实验室周报 (课题轮换 + 三步引导 + 指定误区; 全服投票待后端) ----------
+  const E20_TOPICS = ["weekday", "monthStart", "bounce", "crossWeek"];
+  const e20 = { step: 1 };
+  const e20Topic = () => E20_TOPICS[(window.qsWeekIndex ? qsWeekIndex() : 0) % E20_TOPICS.length];
+
+  /** 课题统计: 对给定区间算 [命中样本均值%, 无条件均值%, 样本数]。param 含义随课题变。 */
+  function e20Stat(c, ds, param) {
+    const r = rets(c);
+    const picks = [];
+    const m5 = ma(c, 5);
+    const m20 = ma(c, 20);
+    for (let i = 1; i < c.length - 5; i++) {
+      const topic = e20Topic();
+      let hit = false;
+      if (topic === "weekday") hit = new Date(ds[i]).getDay() === param;
+      if (topic === "monthStart") hit = new Date(ds[i]).getDate() <= param;
+      if (topic === "bounce") hit = r[i] < -param / 100;
+      if (topic === "crossWeek") hit = m5[i] != null && m20[i] != null && m5[i] > m20[i] && m5[i - 1] <= m20[i - 1];
+      if (hit) {
+        // weekday/monthStart 看当日, bounce 看次日, crossWeek 看其后 5 日
+        const fwd = topic === "bounce" ? r[i + 1]
+          : topic === "crossWeek" ? c[i + 5] / c[i] - 1 : r[i];
+        picks.push(fwd);
+      }
+    }
+    const uncond = r.slice(1).reduce((a, b) => a + b, 0) / (r.length - 1);
+    const mean = picks.length ? picks.reduce((a, b) => a + b, 0) / picks.length : 0;
+    return { mean: mean * 100, uncond: uncond * 100, n: picks.length };
+  }
+
+  function e20Param() {
+    const topic = e20Topic();
+    const v = Number($("ex20-param").value);
+    if (topic === "weekday") return Math.min(5, Math.max(1, Math.round(v / 20))); // 1~5 = 周一~周五
+    if (topic === "monthStart") return Math.max(2, Math.round(v / 10)); // 2~10 日
+    return Math.max(1, Math.round(v / 15)); // bounce 阈值 1~6%; crossWeek 不用
+  }
+
+  function runE20() {
+    if (!closes.length) return;
+    const topic = e20Topic();
+    $("ex20-topic").textContent = t("ex.e20.topic." + topic);
+    $("ex20-param-label").textContent = t("ex.e20.param." + topic, e20Param());
+    const full = e20Stat(closes, dates, e20Param());
+    $("ex20-s1").textContent = t("ex.e20.s1out", full.n, full.mean.toFixed(3), full.uncond.toFixed(3));
+    $("ex20-s2").hidden = e20.step < 2;
+    $("ex20-s3-btn").hidden = e20.step < 2;
+    $("ex20-s3").hidden = e20.step < 3;
+    if (e20.step >= 3) {
+      const split = Math.floor(closes.length * 0.7);
+      const a = e20Stat(closes.slice(0, split), dates.slice(0, split), e20Param());
+      const b = e20Stat(closes.slice(split), dates.slice(split), e20Param());
+      const consistent = Math.sign(a.mean - a.uncond) === Math.sign(b.mean - b.uncond);
+      $("ex20-s3").textContent = t("ex.e20.s3out",
+        a.mean.toFixed(3), b.mean.toFixed(3), t(consistent ? "ex.e20.hold" : "ex.e20.break"))
+        + " " + t("ex.e20.myth." + topic);
+    }
+  }
+
   // ---------- 共享图表 option ----------
   function lineOption(xs, series) {
     return {
@@ -1063,6 +1222,7 @@
     if (e11Data) e11Chart.refresh();
     runE13(); runE15(); runE16(); runE17();
     if (e14Data) e14Chart.refresh();
+    renderE18(); runE19(false); runE20();
   }
 
   async function fillStocks() {
@@ -1152,6 +1312,13 @@
   });
   $("ex14-stock").addEventListener("change", runE14);
   $("ex17-ratio").addEventListener("input", runE17);
+  $("ex19-entry").addEventListener("change", () => runE19(true));
+  $("ex19-exit").addEventListener("change", () => runE19(true));
+  $("ex19-split").addEventListener("input", () => runE19(true));
+  $("btn-ex19-export").addEventListener("click", exportResearchCard);
+  $("ex20-param").addEventListener("input", runE20);
+  $("btn-ex20-s2").addEventListener("click", () => { e20.step = 2; runE20(); });
+  $("ex20-s3-btn").addEventListener("click", () => { e20.step = 3; playSound("flip"); runE20(); });
   $("btn-exlab-open").addEventListener("click", () => switchView("exlab"));
 
   // details 展开时补画 (hidden 容器里 ECharts 尺寸为 0)

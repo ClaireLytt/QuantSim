@@ -171,6 +171,31 @@
 .ex-chart { height: 220px; }
 .ex-trap { border-left: 2px solid var(--warn); padding-left: 8px; margin-top: 8px; }
 .ex-iron { text-align: center; margin-top: 18px; letter-spacing: .04em; }
+.ex18-report {
+  font-family: var(--tr-serif);
+  font-size: 14px;
+  line-height: 1.8;
+  padding: 14px 16px;
+  margin: 10px 0;
+  border-left: 3px solid var(--warn);
+}
+.ex18-flaws { display: flex; flex-direction: column; gap: 6px; }
+.ex18-flaw {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  background: var(--lab-card);
+  border: 1px dashed var(--lab-line);
+}
+.ex18-flaw:hover:not(:disabled) { border-color: var(--lab-blue); filter: none; }
+.ex18-flaw.found { border-style: solid; border-color: var(--good); }
+.ex18-flaw.found b { color: var(--good); }
+.ex18-flaw i { font-style: normal; font-size: 11px; color: var(--accent); }
+.ex19-input { text-transform: none; letter-spacing: normal; font-family: inherit; }
+.ex19-card { white-space: pre-wrap; }
 .exlab-entry { margin-top: 10px; width: 100%; }
 
 .home-hero {

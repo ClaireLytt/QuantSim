@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="game.css?v=20261026653e">
   <link rel="stylesheet" href="academy.css?v=20261026ea55">
   <link rel="stylesheet" href="lab-games.css?v=20261026fbf9">
-  <link rel="stylesheet" href="widgets.css?v=202610262bd7">
+  <link rel="stylesheet" href="widgets.css?v=20261026b752">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
 <body>
@@ -1969,6 +1969,56 @@
       <p class="hint ex-trap" data-i18n="ex.e17.trap">这是玩具模型，假设清单：① 拥挤按比例稀释信号日收益；② 换仓冲击 = 比例 × 40bp/边；③ 跟随者与你同刻进出。模型可换，教的是「看结论先看假设」——虚线是买入持有基准，曲线跌破它的那一点就是拥挤反噬的反转点。</p>
     </details>
 
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e18.t">E18 · 回测报告测谎仪（毕业考）</b><span class="hint" data-i18n="ex.e18.q">一份光鲜的回测报告——找出它的七个破绽。</span></summary>
+      <div class="card ex18-report">
+        <p data-i18n="ex.e18.report">「本策略近三个月收益 +47%，折合年化 +188%！胜率 83%，在全部 300 只现存成分股上回测有效。参数经充分优化（快线 7 / 慢线 23 为最优组合）。即刻跟投，复制成功！」</p>
+      </div>
+      <p id="ex18-out" class="ex-out"></p>
+      <div id="ex18-flaws" class="ex18-flaws"></div>
+      <p class="hint ex-trap" data-i18n="ex.e18.trap">点「?」质询一处破绽；已揭开的破绽再点一次可跳到对应实验亲手验证。七处全开 = 实验室毕业。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e19.t">E19 · 自由研究台</b><span class="hint" data-i18n="ex.e19.q">你自己的问题——但研究卡必须带探索次数与分区声明。</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e19.entry">入场</span><select id="ex19-entry">
+          <option value="cross" data-i18n="ex.e7.en.cross">金叉入场</option>
+          <option value="breakout" data-i18n="ex.e7.en.breakout">突破入场</option>
+          <option value="pullback" data-i18n="ex.e7.en.pullback">回踩入场</option>
+        </select></label>
+        <label><span data-i18n="ex.e19.exit">出场</span><select id="ex19-exit">
+          <option value="death" data-i18n="ex.e7.ex.death">死叉出场</option>
+          <option value="fixed" data-i18n="ex.e7.ex.fixed">持有 10 日</option>
+          <option value="trail" data-i18n="ex.e7.ex.trail">移动止盈 8%</option>
+        </select></label>
+        <label><span data-i18n="ex.e9.split">训练段占比</span><input type="range" id="ex19-split" min="50" max="85" step="5" value="70"><b id="ex19-split-v">70%</b></label>
+      </div>
+      <p id="ex19-out" class="ex-out"></p>
+      <label class="hint" data-i18n="ex.e19.qLabel">研究问题（必填）</label>
+      <input id="ex19-q" class="fp-duel-in ex19-input" maxlength="60">
+      <label class="hint" data-i18n="ex.e19.cLabel">你的结论（必填，诚实面对测试段）</label>
+      <input id="ex19-concl" class="fp-duel-in ex19-input" maxlength="80">
+      <div class="qd-actions">
+        <button id="btn-ex19-export" class="primary" data-i18n="ex.e19.export">导出研究卡</button>
+      </div>
+      <pre id="ex19-card" class="fp-code ex19-card" hidden></pre>
+      <p class="hint ex-trap" data-i18n="ex.e19.trap">自由度最大 = 过拟合风险最大——研究卡自动写入探索次数与训练/测试分区声明，这两个字段去不掉：方法论在这里是机械的。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e20.t">E20 · 实验室周报</b><span class="hint" data-i18n="ex.e20.q">每周一个带数据的真问题，三步走完。</span></summary>
+      <p class="ex-out"><b id="ex20-topic"></b></p>
+      <p id="ex20-s1" class="ex-out"></p>
+      <div class="qd-actions"><button id="btn-ex20-s2" class="small" data-i18n="ex.e20.toS2">第二步：调一个参数</button></div>
+      <div id="ex20-s2" class="ex-controls" hidden>
+        <label><span id="ex20-param-label"></span><input type="range" id="ex20-param" min="10" max="100" step="5" value="50"></label>
+      </div>
+      <div class="qd-actions"><button id="ex20-s3-btn" class="primary small" data-i18n="ex.e20.toS3" hidden>第三步：分区验证</button></div>
+      <p id="ex20-s3" class="ex-out ex-test" hidden></p>
+      <p class="hint ex-trap" data-i18n="ex.e20.trap">课题按周轮换（全服同题）；全服结论投票分布待后端落地后加入。每期课题自带一个指定误区，第三步末尾揭晓。</p>
+    </details>
+
     <p class="hint ex-iron" data-i18n="ex.iron">历史回测收益 ≠ 未来收益；本页全部结论只在所用数据与假设内成立。</p>
   </section>
   </div>
@@ -3642,7 +3692,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610263be9"></script>
+  <script src="i18n.js?v=202610268940"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=202610268754"></script>
   <script src="play.js?v=202610267b78"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
@@ -3657,7 +3707,7 @@
   <script src="guessgame.js?v=202610261cf8"></script>
   <script src="optsandbox.js?v=2026102556f9"></script>
   <script src="lab.js?v=20261026e7e8"></script>
-  <script src="exlab.js?v=2026102664fe"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
+  <script src="exlab.js?v=202610260003"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
   <script src="daily.js?v=2026102675d2"></script>
   <script src="event.js?v=202610250b8a"></script>
   <script src="option.js?v=2026102531c6"></script>
