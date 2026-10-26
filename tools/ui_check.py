@@ -46,7 +46,7 @@ DYNAMIC_KEY_PREFIXES = ("strat.", "room.status.", "me.mode.", "orders.",
                         "dc.",  # dc.{FIVE|BELT|...}.t/.d: 每日规则拼键 (daily.js / play.js)
                         "fp.quad.", "fp.motive.", "fp.cmp.",  # 盲猜象限/动机/对比指标拼键 (mates.js)
                         "coach.",  # coach.*: 教练发现的 verdictKey/象限/基准/证据全部由后端拼键 (play.js)
-                        "ex.e6.p.")  # 再平衡节奏拼键 (exlab.js)
+                        "ex.e6.p.", "ex.e7.en.", "ex.e7.ex.", "ex.e12.s.")  # 实验台拼键 (exlab.js)
 
 
 def read(path):

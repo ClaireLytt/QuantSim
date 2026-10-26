@@ -69,6 +69,10 @@
       e5.explored = 0;
       e5.revealed = false;
       setE5Locked(false);
+      e9.splitChanges = 0;
+      e9.warned = false;
+      e10.revealed = false;
+      $("ex10-test-note").hidden = true;
       renderAll();
     } catch (err) { toast(err.message); }
   }
@@ -392,6 +396,370 @@
     e6Chart.refresh();
   }
 
+  // ---------- E7 买卖规则拼装台 ----------
+  const E7_ENTRIES = ["cross", "breakout", "pullback"];
+  const E7_EXITS = ["death", "fixed", "trail"];
+
+  /** 入场×出场组合的仓位序列。规则全部只用当日及之前数据。 */
+  function e7Pos(c, entry, exit) {
+    const m5 = ma(c, 5);
+    const m20 = ma(c, 20);
+    const pos = [];
+    let holding = false;
+    let entryIdx = -1;
+    let peak = 0;
+    for (let i = 0; i < c.length; i++) {
+      if (m20[i] == null) { pos.push(0); continue; }
+      if (!holding) {
+        const hi20 = i >= 20 ? Math.max(...c.slice(i - 20, i)) : Infinity;
+        const enter = entry === "cross" ? (m5[i] != null && m5[i] > m20[i] && m5[i - 1] != null && m5[i - 1] <= m20[i - 1])
+          : entry === "breakout" ? c[i] > hi20
+            : (c[i] > m20[i] && m5[i] != null && c[i] < m5[i]); // pullback: 趋势内回踩
+        if (enter) { holding = true; entryIdx = i; peak = c[i]; }
+      } else {
+        peak = Math.max(peak, c[i]);
+        const leave = exit === "death" ? c[i] < m20[i]
+          : exit === "fixed" ? i - entryIdx >= 10
+            : c[i] <= peak * 0.92; // trail: 距持有期高点 -8%
+        if (leave) holding = false;
+      }
+      pos.push(holding ? 1 : 0);
+    }
+    return pos;
+  }
+
+  let e7Metric = "ret";
+  const e7Chart = qsChart("ex7-chart", () => {
+    if (!closes.length) return null;
+    const data = [];
+    let best = null;
+    E7_ENTRIES.forEach((en, x) => E7_EXITS.forEach((ex, y) => {
+      const eq = simulate(closes, e7Pos(closes, en, ex));
+      const v = e7Metric === "ret" ? lastRet(eq) * 100 : maxDD(eq) * 100;
+      data.push([x, y, v.toFixed(1)]);
+      if (!best || (e7Metric === "ret" ? v > best.v : v < best.v)) best = { en, ex, v };
+    }));
+    if (best) {
+      $("ex7-out").textContent = t("ex.e7.out",
+        t("ex.e7.en." + best.en), t("ex.e7.ex." + best.ex), best.v.toFixed(1) + "%");
+    }
+    return {
+      animation: false,
+      grid: { left: 90, right: 16, top: 10, bottom: 40 },
+      xAxis: { type: "category", data: E7_ENTRIES.map((k) => t("ex.e7.en." + k)),
+        axisLabel: { color: cssVar("--text-muted"), fontSize: 10 } },
+      yAxis: { type: "category", data: E7_EXITS.map((k) => t("ex.e7.ex." + k)),
+        axisLabel: { color: cssVar("--text-muted"), fontSize: 10 } },
+      visualMap: { show: false, min: Math.min(...data.map((d) => +d[2])), max: Math.max(...data.map((d) => +d[2])),
+        inRange: { color: [cssVar("--down"), cssVar("--surface-2"), cssVar("--up")] } },
+      series: [{ type: "heatmap", data, label: { show: true, fontSize: 11, color: cssVar("--text") } }],
+    };
+  });
+
+  function runE7() {
+    if (!closes.length) return;
+    e7Chart.refresh();
+  }
+
+  // ---------- E8 参数敏感性地形图 ----------
+  function e8Grid() {
+    const fasts = [];
+    for (let f = 2; f <= 14; f += 2) fasts.push(f);
+    const slows = [];
+    for (let s = 12; s <= 40; s += 4) slows.push(s);
+    const cells = [];
+    fasts.forEach((f, xi) => slows.forEach((s, yi) => {
+      if (f >= s) return;
+      const mf = ma(closes, f);
+      const ms = ma(closes, s);
+      const pos = closes.map((_, i) => (mf[i] != null && ms[i] != null && mf[i] > ms[i] ? 1 : 0));
+      cells.push({ f, s, xi, yi, pos });
+    }));
+    return { fasts, slows, cells };
+  }
+
+  let e8Metric = "ret";
+  const e8Chart = qsChart("ex8-chart", () => {
+    if (!closes.length) return null;
+    const { fasts, slows, cells } = e8Grid();
+    const vals = new Map();
+    let best = null;
+    cells.forEach((cell) => {
+      const eq = simulate(closes, cell.pos);
+      const v = e8Metric === "ret" ? lastRet(eq) * 100 : maxDD(eq) * 100;
+      vals.set(cell.xi + ":" + cell.yi, v);
+      if (!best || (e8Metric === "ret" ? v > best.v : v < best.v)) best = { ...cell, v };
+    });
+    // 针尖 vs 高原: 最优格的邻格均值衰减 >40% 判针尖
+    if (best) {
+      const neigh = [];
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+        const v = vals.get((best.xi + dx) + ":" + (best.yi + dy));
+        if (v != null) neigh.push(v);
+      });
+      const avgN = neigh.length ? neigh.reduce((a, b) => a + b, 0) / neigh.length : best.v;
+      const spike = e8Metric === "ret" && best.v > 0 && (best.v - avgN) / Math.abs(best.v) > 0.4;
+      $("ex8-out").textContent = t(spike ? "ex.e8.spike" : "ex.e8.plateau",
+        best.f, best.s, best.v.toFixed(1) + "%", avgN.toFixed(1) + "%");
+    }
+    return {
+      animation: false,
+      grid: { left: 44, right: 16, top: 10, bottom: 40 },
+      xAxis: { type: "category", name: "fast", data: fasts,
+        axisLabel: { color: cssVar("--text-muted"), fontSize: 10 } },
+      yAxis: { type: "category", name: "slow", data: slows,
+        axisLabel: { color: cssVar("--text-muted"), fontSize: 10 } },
+      visualMap: { show: false,
+        min: Math.min(...[...vals.values()]), max: Math.max(...[...vals.values()]),
+        inRange: { color: [cssVar("--down"), cssVar("--surface-2"), cssVar("--up")] } },
+      series: [{ type: "heatmap",
+        data: [...vals.entries()].map(([k, v]) => [...k.split(":").map(Number), v.toFixed(1)]) }],
+    };
+  });
+
+  function runE8() {
+    if (!closes.length) return;
+    e8Chart.refresh();
+  }
+
+  // ---------- E9 样本外的审判 ----------
+  const e9 = { splitChanges: 0, warned: false };
+  const e9Chart = qsChart("ex9-chart", () => {
+    if (!closes.length) return null;
+    const split = Math.floor(closes.length * Number($("ex9-split").value) / 100);
+    const { cells } = e8Grid();
+    const scored = cells.map((cell) => ({
+      cell,
+      train: lastRet(simulate(closes.slice(0, split), cell.pos.slice(0, split))),
+      test: lastRet(simulate(closes.slice(split), cell.pos.slice(split))),
+    }));
+    const byTrain = [...scored].sort((a, b) => b.train - a.train);
+    const byTest = [...scored].sort((a, b) => b.test - a.test);
+    const testRank = new Map(byTest.map((s, i) => [s.cell, i + 1]));
+    const top10 = byTrain.slice(0, 10);
+    const pts = top10.map((s, i) => [i + 1, testRank.get(s.cell)]);
+    const champTest = testRank.get(byTrain[0].cell);
+    $("ex9-out").textContent = t("ex.e9.out", scored.length, champTest, scored.length,
+      (top10.reduce((a, s) => a + testRank.get(s.cell), 0) / 10).toFixed(1));
+    return {
+      animation: false,
+      grid: { left: 48, right: 16, top: 16, bottom: 36 },
+      xAxis: { type: "value", name: t("ex.e9.xTrain"), min: 0, max: 11,
+        axisLabel: { color: cssVar("--text-muted"), fontSize: 10 } },
+      yAxis: { type: "value", name: t("ex.e9.yTest"), inverse: true, min: 1, max: scored.length,
+        axisLabel: { color: cssVar("--text-muted"), fontSize: 10 },
+        splitLine: { lineStyle: { color: cssVar("--border") } } },
+      series: [{ type: "scatter", data: pts, symbolSize: 10,
+        itemStyle: { color: cssVar("--ma5") } }],
+    };
+  });
+
+  function runE9(fromSplit) {
+    if (!closes.length) return;
+    $("ex9-split-v").textContent = $("ex9-split").value + "%";
+    if (fromSplit) {
+      e9.splitChanges++;
+      // 切分点改 ≥3 次 = 正在"测试集调参", 当场命名这个错误 (设计文档 E9)
+      if (e9.splitChanges >= 3 && !e9.warned) {
+        e9.warned = true;
+        toast(t("ex.e9.peekWarn"));
+      }
+    }
+    e9Chart.refresh();
+  }
+
+  // ---------- E10 过拟合制造机 ----------
+  const E10_CONDS = ["ma5", "ma20", "up1", "up2", "mom5", "lowvol", "monTue", "earlyMonth"];
+  const e10 = { revealed: false };
+
+  function e10Pos() {
+    const m5 = ma(closes, 5);
+    const m20 = ma(closes, 20);
+    const r = rets(closes);
+    const vol = rollVol(r, 10);
+    const volSorted = vol.filter((v) => v != null).sort((a, b) => a - b);
+    const volMed = volSorted[Math.floor(volSorted.length / 2)] ?? 0;
+    const checked = E10_CONDS.filter((k) => $("ex10-" + k).checked);
+    const pos = closes.map((c, i) => {
+      if (m20[i] == null) return 0;
+      const d = new Date(dates[i]);
+      const ok = checked.every((k) => {
+        switch (k) {
+          case "ma5": return c > m5[i];
+          case "ma20": return c > m20[i];
+          case "up1": return r[i] > 0;
+          case "up2": return i >= 2 && r[i] > 0 && r[i - 1] > 0;
+          case "mom5": return i >= 5 && c > closes[i - 5];
+          case "lowvol": return vol[i] != null && vol[i] < volMed;
+          case "monTue": return d.getDay() === 1 || d.getDay() === 2;
+          case "earlyMonth": return d.getDate() <= 10;
+          default: return true;
+        }
+      });
+      return ok ? 1 : 0;
+    });
+    return { pos, n: checked.length };
+  }
+
+  const e10Chart = qsChart("ex10-chart", () => {
+    if (!closes.length) return null;
+    const split = Math.floor(closes.length * 0.7);
+    const { pos } = e10Pos();
+    const train = simulate(closes.slice(0, split), pos.slice(0, split));
+    const series = [{ name: t("ex.e10.curve"), data: train, color: cssVar("--ma5") }];
+    let n = train.length;
+    if (e10.revealed) {
+      const test = simulate(closes.slice(split - 1), pos.slice(split - 1))
+        .map((v) => v * train[train.length - 1]);
+      series[0].data = train.concat(test.slice(1));
+      n = series[0].data.length;
+    }
+    const opt = lineOption(Array.from({ length: n }, (_, i) => i + 1), series);
+    if (e10.revealed) {
+      opt.series[0].markArea = { silent: true, itemStyle: { color: cssVar("--mask") },
+        data: [[{ xAxis: split }, { xAxis: n }]] };
+    }
+    return opt;
+  });
+
+  function runE10() {
+    if (!closes.length) return;
+    const split = Math.floor(closes.length * 0.7);
+    const { pos, n } = e10Pos();
+    const train = simulate(closes.slice(0, split), pos.slice(0, split));
+    let text = t("ex.e10.out", n, fmtPct(lastRet(train)));
+    if (e10.revealed) {
+      const test = simulate(closes.slice(split - 1), pos.slice(split - 1));
+      text += " " + t("ex.e10.testOut", fmtPct(lastRet(test)));
+    }
+    $("ex10-out").textContent = text;
+    e10Chart.refresh();
+  }
+
+  // ---------- E11 幸存者名单 (事后筛选池版; 真退市表是管道工程, 口径已在文案声明) ----------
+  let e11Data = null;
+  const e11Chart = qsChart("ex11-chart", () => {
+    if (!e11Data) return null;
+    return lineOption(e11Data.all.map((_, i) => i + 1), [
+      { name: t("ex.e11.all"), data: e11Data.all, color: cssVar("--text-muted") },
+      { name: t("ex.e11.surv"), data: e11Data.surv, color: cssVar("--up") },
+    ]);
+  });
+
+  async function runE11() {
+    if (!Array.isArray(labStocks) || labStocks.length < 4) return;
+    const codes = labStocks.slice(0, 8).map((s) => s.code);
+    let hists;
+    try { hists = await Promise.all(codes.map((c) => labHistory(c))); } catch (e) { return; }
+    // 共同交易日对齐
+    let common = null;
+    hists.forEach((h) => {
+      const set = new Set(h.dates);
+      common = common ? common.filter((d) => set.has(d)) : h.dates.slice();
+    });
+    if (!common || common.length < 60) { $("ex11-out").textContent = t("ex.e6.noOverlap"); return; }
+    const series = hists.map((h) => {
+      const map = new Map(h.dates.map((d, i) => [d, Number(h.close[i])]));
+      return common.map((d) => map.get(d));
+    });
+    const totalRet = (c) => c[c.length - 1] / c[0] - 1;
+    // "幸存池" = 用整段(未来)收益挑出的前一半 —— 事后筛选即幸存者偏差的机制本体
+    const ranked = series.map((c, i) => ({ i, r: totalRet(c) })).sort((a, b) => b.r - a.r);
+    const survIdx = new Set(ranked.slice(0, Math.ceil(series.length / 2)).map((x) => x.i));
+    const port = (idxs) => {
+      const eq = [1];
+      for (let d = 1; d < common.length; d++) {
+        let rr = 0;
+        idxs.forEach((i) => { rr += series[i][d] / series[i][d - 1] - 1; });
+        eq.push(eq[d - 1] * (1 + rr / idxs.size));
+      }
+      return eq;
+    };
+    const allIdx = new Set(series.map((_, i) => i));
+    e11Data = { all: port(allIdx), surv: port(survIdx) };
+    const gap = lastRet(e11Data.surv) - lastRet(e11Data.all);
+    const dropped = hists.filter((_, i) => !survIdx.has(i))
+      .map((h) => stockName(h.name, h.code)).join(" / ");
+    $("ex11-out").textContent = t("ex.e11.out", fmtPct(lastRet(e11Data.surv)),
+      fmtPct(lastRet(e11Data.all)), fmtPct(gap), dropped);
+    e11Chart.refresh();
+  }
+
+  // ---------- E12 信号的半衰期 ----------
+  const e12Chart = qsChart("ex12-chart", () => {
+    if (!closes.length) return null;
+    const res = e12Calc();
+    if (!res) return null;
+    const xs = Array.from({ length: 21 }, (_, i) => "T" + i);
+    return {
+      animation: false,
+      grid: { left: 48, right: 16, top: 26, bottom: 26 },
+      legend: { top: 0, textStyle: { color: cssVar("--text-muted"), fontSize: 10 } },
+      xAxis: { type: "category", data: xs, axisLabel: { color: cssVar("--text-muted"), fontSize: 10 } },
+      yAxis: { type: "value", axisLabel: { color: cssVar("--text-muted"), fontSize: 10, formatter: "{value}%" },
+        splitLine: { lineStyle: { color: cssVar("--border") } } },
+      series: [
+        // 分位带: 下轨透明堆底 + 带宽填色 (ECharts 面积带惯用法)
+        { name: "q25", type: "line", data: res.q25, stack: "band", showSymbol: false,
+          lineStyle: { opacity: 0 }, tooltip: { show: false } },
+        { name: t("ex.e12.band"), type: "line", data: res.q75.map((v, i) => (v - res.q25[i]).toFixed(2)),
+          stack: "band", showSymbol: false, lineStyle: { opacity: 0 },
+          areaStyle: { color: cssVar("--ma5"), opacity: 0.15 } },
+        { name: t("ex.e12.mean"), type: "line", data: res.mean, showSymbol: false,
+          lineStyle: { width: 2, color: cssVar("--ma5") } },
+      ],
+    };
+  });
+
+  function e12Calc() {
+    const kind = $("ex12-signal").value;
+    const m5 = ma(closes, 5);
+    const m20 = ma(closes, 20);
+    const r = rets(closes);
+    const hits = [];
+    for (let i = 21; i < closes.length - 21; i++) {
+      const hit = kind === "cross"
+        ? (m5[i] != null && m20[i] != null && m5[i] > m20[i] && m5[i - 1] <= m20[i - 1])
+        : kind === "breakout" ? closes[i] > Math.max(...closes.slice(i - 20, i))
+          : r[i] < -0.04; // oversold: 单日大跌
+      if (hit) hits.push(i);
+    }
+    if (hits.length < 5) {
+      $("ex12-out").textContent = t("ex.e12.tooFew", hits.length);
+      return null;
+    }
+    // 事件研究: T0 对齐的累计收益路径, 逐期均值与 25/75 分位
+    const paths = hits.map((i0) => {
+      const path = [0];
+      for (let k = 1; k <= 20; k++) path.push((closes[i0 + k] / closes[i0] - 1) * 100);
+      return path;
+    });
+    const col = (k) => paths.map((p) => p[k]).sort((a, b) => a - b);
+    const mean = [];
+    const q25 = [];
+    const q75 = [];
+    for (let k = 0; k <= 20; k++) {
+      const c = col(k);
+      mean.push((c.reduce((a, b) => a + b, 0) / c.length).toFixed(2));
+      q25.push(+c[Math.floor(c.length * 0.25)].toFixed(2));
+      q75.push(+c[Math.floor(c.length * 0.75)].toFixed(2));
+    }
+    // 半衰期: 均值路径的峰值衰减到一半的第一期
+    const peakK = mean.reduce((bi, v, i) => (Math.abs(+v) > Math.abs(+mean[bi]) ? i : bi), 0);
+    let half = "--";
+    for (let k = peakK + 1; k <= 20; k++) {
+      if (Math.abs(+mean[k]) <= Math.abs(+mean[peakK]) / 2) { half = String(k); break; }
+    }
+    $("ex12-out").textContent = t("ex.e12.out", hits.length, mean[peakK] + "%", peakK, half,
+      (q75[10] - q25[10]).toFixed(1) + "%");
+    return { mean, q25, q75 };
+  }
+
+  function runE12() {
+    if (!closes.length) return;
+    e12Chart.refresh();
+  }
+
   // ---------- 共享图表 option ----------
   function lineOption(xs, series) {
     return {
@@ -416,6 +784,8 @@
   function renderAll() {
     runE1(); runE2(); runE3(); runE4(); runE5(false);
     if (e6Res) runE6();
+    runE7(); runE8(); runE9(false); runE10(); runE12();
+    if (e11Data) e11Chart.refresh();
   }
 
   async function fillStocks() {
@@ -463,6 +833,31 @@
   $("btn-ex5-reveal").addEventListener("click", revealE5);
   $("ex6-stock").addEventListener("change", runE6);
   $("ex6-w").addEventListener("input", runE6);
+  ["ret", "dd"].forEach((m) => {
+    $("ex7-m-" + m).addEventListener("click", () => {
+      e7Metric = m;
+      $("ex7-m-ret").classList.toggle("primary", m === "ret");
+      $("ex7-m-dd").classList.toggle("primary", m === "dd");
+      runE7();
+    });
+    $("ex8-m-" + m).addEventListener("click", () => {
+      e8Metric = m;
+      $("ex8-m-ret").classList.toggle("primary", m === "ret");
+      $("ex8-m-dd").classList.toggle("primary", m === "dd");
+      runE8();
+    });
+  });
+  $("ex9-split").addEventListener("change", () => runE9(true));
+  E10_CONDS.forEach((k) => $("ex10-" + k).addEventListener("change", runE10));
+  $("btn-ex10-reveal").addEventListener("click", () => {
+    if (!closes.length) return;
+    e10.revealed = true;
+    $("ex10-test-note").hidden = false;
+    playSound("flip");
+    runE10();
+  });
+  $("btn-ex11-run").addEventListener("click", runE11);
+  $("ex12-signal").addEventListener("change", runE12);
   $("btn-exlab-open").addEventListener("click", () => switchView("exlab"));
 
   // details 展开时补画 (hidden 容器里 ECharts 尺寸为 0)

@@ -1845,6 +1845,81 @@
       <p class="hint ex-trap" data-i18n="ex.e6.trap">误区：「从不调仓跑赢」常是单边牛里强资产独大的幸存者叙事——换一段熊市数据再下结论。</p>
     </details>
 
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e7.t">E7 · 买卖规则拼装台</b><span class="hint" data-i18n="ex.e7.q">同样的入场，不同的出场，差多少？</span></summary>
+      <div class="ex-controls">
+        <button id="ex7-m-ret" class="small primary" data-i18n="ex.mRet">看收益</button>
+        <button id="ex7-m-dd" class="small" data-i18n="ex.mDd">看回撤</button>
+      </div>
+      <p id="ex7-out" class="ex-out"></p>
+      <div id="ex7-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e7.trap">误区：九格里挑最好的当「我的策略」——9 组里挑 1 组，碰巧好看的概率本来就不低。出场规则的影响常大于入场。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e8.t">E8 · 参数敏感性地形图</b><span class="hint" data-i18n="ex.e8.q">好参数是一座山峰还是一根针？</span></summary>
+      <div class="ex-controls">
+        <button id="ex8-m-ret" class="small primary" data-i18n="ex.mRet">看收益</button>
+        <button id="ex8-m-dd" class="small" data-i18n="ex.mDd">看回撤</button>
+      </div>
+      <p id="ex8-out" class="ex-out"></p>
+      <div id="ex8-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e8.trap">误区：只看收益地形——切到回撤地形，两张图的高地常不重合。选参数要选高原，不选针尖。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e9.t">E9 · 样本外的审判</b><span class="hint" data-i18n="ex.e9.q">训练段冠军参数，测试段还剩几成功力？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e9.split">训练段占比</span><input type="range" id="ex9-split" min="50" max="85" step="5" value="70"><b id="ex9-split-v">70%</b></label>
+      </div>
+      <p id="ex9-out" class="ex-out"></p>
+      <div id="ex9-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e9.trap">误区：反复挪切分点直到测试段好看——这叫「测试集调参」，挪三次系统会当场给你点名。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e10.t">E10 · 过拟合制造机</b><span class="hint" data-i18n="ex.e10.q">亲手造一条完美曲线，看它死在明天。</span></summary>
+      <div class="ex-controls ex-conds">
+        <label><input type="checkbox" id="ex10-ma5" checked><span data-i18n="ex.e10.c.ma5">价在 MA5 上</span></label>
+        <label><input type="checkbox" id="ex10-ma20"><span data-i18n="ex.e10.c.ma20">价在 MA20 上</span></label>
+        <label><input type="checkbox" id="ex10-up1"><span data-i18n="ex.e10.c.up1">昨日收涨</span></label>
+        <label><input type="checkbox" id="ex10-up2"><span data-i18n="ex.e10.c.up2">连涨两日</span></label>
+        <label><input type="checkbox" id="ex10-mom5"><span data-i18n="ex.e10.c.mom5">5 日动量为正</span></label>
+        <label><input type="checkbox" id="ex10-lowvol"><span data-i18n="ex.e10.c.lowvol">低波动日</span></label>
+        <label><input type="checkbox" id="ex10-monTue"><span data-i18n="ex.e10.c.monTue">只做周一二</span></label>
+        <label><input type="checkbox" id="ex10-earlyMonth"><span data-i18n="ex.e10.c.earlyMonth">只做月上旬</span></label>
+        <button id="btn-ex10-reveal" class="primary small" data-i18n="ex.e10.reveal">揭晓测试段</button>
+      </div>
+      <p id="ex10-out" class="ex-out"></p>
+      <p id="ex10-test-note" class="hint neg" data-i18n="ex.e10.note" hidden>看见悬崖了吗？条件越多训练段越美、测试段越惨——复杂度是债。8 个条件在 250 个交易日上的自由度足够「解释」任何噪声。</p>
+      <div id="ex10-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e10.trap">本实验自身就是误区的解剖台：你刚才拼命勾条件抬训练收益的冲动，就是过拟合的手感。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e11.t">E11 · 幸存者名单</b><span class="hint" data-i18n="ex.e11.q">只回测「事后表现好的那批」，收益被高估多少？</span></summary>
+      <div class="ex-controls">
+        <button id="btn-ex11-run" class="primary small" data-i18n="ex.e11.run">构建两个池对比</button>
+      </div>
+      <p id="ex11-out" class="ex-out"></p>
+      <div id="ex11-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e11.trap">口径说明：本页的「幸存池」= 用整段（未来）收益挑出的前一半标的——这正是幸存者偏差的机制本体；真实世界里它以「只统计今天还活着的股票」的形式悄悄发生。接入真实退市标的库后本实验将升级。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e12.t">E12 · 信号的半衰期</b><span class="hint" data-i18n="ex.e12.q">一个技术信号的预测力能活几天？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e12.sig">信号</span><select id="ex12-signal">
+          <option value="cross" data-i18n="ex.e12.s.cross">MA5 上穿 MA20</option>
+          <option value="breakout" data-i18n="ex.e12.s.breakout">突破 20 日高</option>
+          <option value="oversold" data-i18n="ex.e12.s.oversold">单日大跌 ≥4%</option>
+        </select></label>
+      </div>
+      <p id="ex12-out" class="ex-out"></p>
+      <div id="ex12-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e12.trap">误区：只看均值路径——25/75 分位带常宽到让均值失去意义，带宽本身就是结论。</p>
+    </details>
+
     <p class="hint ex-iron" data-i18n="ex.iron">历史回测收益 ≠ 未来收益；本页全部结论只在所用数据与假设内成立。</p>
   </section>
   </div>
@@ -3518,7 +3593,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610266a17"></script>
+  <script src="i18n.js?v=202610261b5b"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=202610268754"></script>
   <script src="play.js?v=202610267b78"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
@@ -3533,7 +3608,7 @@
   <script src="guessgame.js?v=202610261cf8"></script>
   <script src="optsandbox.js?v=2026102556f9"></script>
   <script src="lab.js?v=20261026e7e8"></script>
-  <script src="exlab.js?v=20261026b5b0"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
+  <script src="exlab.js?v=202610266443"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
   <script src="daily.js?v=2026102675d2"></script>
   <script src="event.js?v=202610250b8a"></script>
   <script src="option.js?v=2026102531c6"></script>
