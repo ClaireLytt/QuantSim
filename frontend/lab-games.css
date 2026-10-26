@@ -978,3 +978,77 @@ button.mk-yield:hover { border-style: solid; filter: none; }
 /* ---- loopweek: time-loop reflexivity ---- */
 .lw-fracs { margin-bottom: 0; }
 .lw-fracs button { font-size: 13px; }
+
+/* ---- soup: shared order-book ladder ---- */
+.sop-book { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; font-variant-numeric: tabular-nums; }
+.sop-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+.sop-row b { width: 32px; text-align: right; font-family: var(--tr-mono); }
+.sop-row i {
+  height: 8px;
+  border-radius: 3px;
+  transition: width .2s ease-out;
+}
+.sop-row.ask b { color: var(--down); }
+.sop-row.ask i { background: color-mix(in srgb, var(--down) 45%, transparent); }
+.sop-row.bid b { color: var(--up); }
+.sop-row.bid i { background: color-mix(in srgb, var(--up) 45%, transparent); }
+.sop-row span { margin-left: auto; color: var(--text-muted); font-size: 11px; }
+.sop-mid {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+  padding: 2px 0;
+}
+
+/* ---- taste: blind financial-statement tasting ---- */
+.fbt-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.fbt-cell {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fbt-cell i { font-style: normal; font-size: 11px; color: var(--text-muted); }
+.fbt-cell b { font-family: var(--tr-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* ---- swan: black-swan roulette calendar ---- */
+.sw-cal { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+.sw-cell {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-style: normal;
+  font-size: 11px;
+  font-family: var(--tr-mono);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+.sw-cell.today { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.sw-cell.up { background: color-mix(in srgb, var(--up) 18%, transparent); }
+.sw-cell.down { background: color-mix(in srgb, var(--down) 18%, transparent); }
+.sw-cell.ev { background: color-mix(in srgb, var(--warn) 24%, transparent); color: var(--text); font-weight: 700; }
+.sw-posrow { display: flex; align-items: center; gap: 10px; font-size: 13px; margin-bottom: 8px; }
+.sw-posrow input[type="range"] { flex: 1; min-width: 0; }
+.sw-posrow b { width: 44px; text-align: right; font-family: var(--tr-mono); font-variant-numeric: tabular-nums; }

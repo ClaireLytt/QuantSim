@@ -21,8 +21,8 @@
   <link rel="stylesheet" href="style.css?v=20261025de84">
   <link rel="stylesheet" href="game.css?v=20261026620e">
   <link rel="stylesheet" href="academy.css?v=202610261536">
-  <link rel="stylesheet" href="lab-games.css?v=20261026949b">
-  <link rel="stylesheet" href="widgets.css?v=202610268eb7">
+  <link rel="stylesheet" href="lab-games.css?v=20261026a629">
+  <link rel="stylesheet" href="widgets.css?v=20261026de34">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
 <body>
@@ -877,6 +877,9 @@
       <button class="gz-card" data-goto="maze"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h18v18H3zM3 9h12M9 9v6M15 9v12M9 15h6M15 3v3"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g12.t">平仓迷宫</strong><span class="sub" data-i18n="gz.g12.d">大仓位出逃，每扇交易通道的门都有脾气</span></button>
       <button class="gz-card" data-goto="loopweek"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/><path d="M12 7v5l3 2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g13.t">周一的一千次</strong><span class="sub" data-i18n="gz.g13.d">循环同一个交易周——仓位越大，答案越不见</span></button>
       <button class="gz-card" data-goto="supply"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V11l6 4v-4l6 4v-4l6 4v6z"/><path d="M3 21h18M7 7V3h4v4"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g14.t">供应链战争</strong><span class="sub" data-i18n="gz.g14.d">售价锁定成本漂移，套保比例决定工厂生死</span></button>
+      <button class="gz-card" data-goto="soup"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M9 7c0-2 2-2 2-4M14 7c0-2 2-2 2-4"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g15.t">抢同一口汤</strong><span class="sub" data-i18n="gz.g15.d">三人共享一个订单簿，重仓者终局砸自己的价</span></button>
+      <button class="gz-card" data-goto="taste"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2h8l-1 9a3 3 0 0 1-6 0zM12 14v7M8 21h8"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g16.t">财报盲品会</strong><span class="sub" data-i18n="gz.g16.d">匿名财报四选一行业，线索里混着粉饰干扰</span></button>
+      <button class="gz-card" data-goto="swan"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16c3 0 4-2 4-5a4 4 0 0 1 8 0c0 5-3 8-8 8H3zM15 7l4-2"/><circle cx="14" cy="6" r=".5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g17.t">黑天鹅轮盘</strong><span class="sub" data-i18n="gz.g17.d">三件大事必然发生，保险越恐慌越贵</span></button>
       <!-- 预留位: 不可点的"即将开放"占位卡, 暗示训练场还在扩建 -->
       <div class="gz-card gz-card-soon" aria-hidden="true"><strong data-i18n="gz.soon">即将开放</strong><span class="sub" data-i18n="gz.soonHint">新的训练项目正在打磨中</span></div>
     </div>
@@ -1567,6 +1570,166 @@
   </section>
   </div>
 
+  <div id="view-soup" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="sop.title">🍜 抢同一口汤</span> <span class="sub" data-i18n="sop.sub">三个人共享一个订单簿——你的每一笔都在抬价或砸价，对手看得见冲击，看不见你的仓位</span></h2>
+
+    <div id="sop-select">
+      <p class="hint" data-i18n="sop.selectHint">你和两个对手抢一只小盘股，共 12 回合。每回合三选一：市价买 / 市价卖 / 观望——买单从最低卖档往上吃，吃穿一档价格就顺延，盘子会被买上去、砸下来，所有人的成本都公开地在盘口上变化，但谁持多少仓只有自己知道。第 4、8 回合后掷外部行情骰（整体平移）。12 回合后强制平仓：按随机顺序把全部持仓市价卖出——重仓者要亲手把价格砸给自己看。现金最多者胜。</p>
+      <p class="hint" id="sop-best" hidden></p>
+      <button id="btn-sop-start" class="primary big" data-i18n="sop.start">入席开抢</button>
+    </div>
+
+    <div id="sop-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="sop-round"></h3>
+        <span class="qd-credits-pill"><i data-i18n="sop.cashLabel">现金</i><b id="sop-cash">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="sop.posLabel">持仓（手）</i><b id="sop-pos">--</b></span>
+      </div>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="sop.bookTitle">共享订单簿（五档，吃穿即顺延）</p>
+          <div id="sop-book" class="sop-book"></div>
+          <p class="hint" data-i18n="sop.rivalsTitle">对手动静（仓位保密）</p>
+          <ul id="sop-rivals" class="qd-notes"></ul>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="sop.actsTitle">本回合动作</p>
+          <div id="sop-acts" class="mz-doors"></div>
+          <p class="hint" data-i18n="sop.qtyLabel">下单手数</p>
+          <div id="sop-qtys" class="lw-fracs qd-actions"></div>
+          <p class="hint" data-i18n="sop.logTitle">成交流水（全场公开）</p>
+          <p id="sop-log-empty" class="hint" data-i18n="sop.logEmptyText">还没人出手——先手便宜，但会暴露意图。</p>
+          <ul id="sop-log" class="qd-notes"></ul>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-sop-commit" class="primary big" data-i18n="sop.commit">出手</button>
+      </div>
+      <button id="btn-sop-back" class="ghost" data-i18n="sop.back">离席</button>
+    </div>
+
+    <div id="sop-report" hidden>
+      <h3 data-i18n="sop.reportTitle">终局清算（仓位全部揭晓）</h3>
+      <p id="sopr-conclusion" class="qdr-conclusion"></p>
+      <ul id="sopr-rank" class="qd-notes"></ul>
+      <p class="hint" data-i18n="sop.liqTitle">强制平仓回放（随机顺序）</p>
+      <ul id="sopr-liq" class="qd-notes"></ul>
+      <p id="sopr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-sopr-again" class="primary big" data-i18n="sop.again">再抢一局</button>
+        <button id="btn-sopr-games" class="big" data-i18n="sop.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-taste" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="fbt.title">🍷 财报盲品会</span> <span class="sub" data-i18n="fbt.sub">抹掉公司名的一张报表——像盲品葡萄酒一样，从 12 项指标里尝出它是谁、往哪走</span></h2>
+
+    <div id="fbt-select">
+      <p class="hint" data-i18n="fbt.selectHint">每局盲品 4 张匿名财报（基于典型行业与案例改编）。每张先看 12 项核心指标，可以花 2 分买线索——但线索里混着粉饰性干扰；然后下两个判断：行业四选一（+3 分）、次年方向（+2 分），全对再 +2。揭晓时给出公司真身与「鉴别点」。题库里埋着舞弊财报，别形成机械套路。总分 ≥ 16 获胜。</p>
+      <p class="hint" id="fbt-best" hidden></p>
+      <button id="btn-fbt-start" class="primary big" data-i18n="fbt.start">开始盲品</button>
+    </div>
+
+    <div id="fbt-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="fbt-no"></h3>
+        <span class="qd-credits-pill"><i data-i18n="fbt.scoreLabel">累计得分</i><b id="fbt-score">0</b></span>
+      </div>
+      <div id="fbt-quiz">
+        <p class="hint" data-i18n="fbt.metricsTitle">这杯「酒」的 12 项指标</p>
+        <div id="fbt-metrics" class="fbt-metrics"></div>
+        <div id="fbt-clues"></div>
+        <div class="qd-actions">
+          <button id="btn-fbt-clue" class="big"></button>
+        </div>
+        <p class="hint" data-i18n="fbt.indTitle">它是哪个行业？（+3 分）</p>
+        <div id="fbt-inds" class="mz-doors"></div>
+        <p class="hint" data-i18n="fbt.dirTitle">它的次年方向？（+2 分，全对再 +2）</p>
+        <div id="fbt-dirs" class="lw-fracs qd-actions"></div>
+        <div class="qd-actions">
+          <button id="btn-fbt-submit" class="primary big" data-i18n="fbt.submit">提交判断</button>
+        </div>
+      </div>
+      <div id="fbt-reveal" hidden>
+        <h3 id="fbt-rv-name"></h3>
+        <p id="fbt-rv-verdict" class="qdr-conclusion"></p>
+        <p id="fbt-rv-explain" class="hint au-why"></p>
+        <p id="fbt-rv-fake" class="qd-claim"></p>
+        <div class="qd-actions">
+          <button id="btn-fbt-next" class="primary big"></button>
+        </div>
+      </div>
+      <button id="btn-fbt-back" class="ghost" data-i18n="fbt.back">退出品鉴</button>
+    </div>
+
+    <div id="fbt-report" hidden>
+      <h3 data-i18n="fbt.reportTitle">品鉴单</h3>
+      <p id="fbtr-conclusion" class="qdr-conclusion"></p>
+      <ul id="fbtr-log" class="qd-notes"></ul>
+      <p id="fbtr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-fbtr-again" class="primary big" data-i18n="fbt.again">再品一轮</button>
+        <button id="btn-fbtr-games" class="big" data-i18n="fbt.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-swan" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="sw.title">🦢 黑天鹅轮盘</span> <span class="sub" data-i18n="sw.sub">20 天里必然发生 3 件大事——不知道哪天、什么事、什么方向，保险越恐慌越贵</span></h2>
+
+    <div id="sw-select">
+      <p class="hint" data-i18n="sw.selectHint">一局 20 个交易日，开局已暗定 3 个事件日（利好利空各半，当日波动放大到 ±11%~18%）。每天两个决策：调仓位（每调 10% 收 0.5 点手续费——手越勤磨损越厚）、买不买当日保险（基础 2 点；昨天刚出过事降到 1 点，连续 5 天平静涨到 3 点——恐慌定价）。保险只在事件日生效、只对损失减半，方向受益不打折。胜利是双指标：终值 ≥ 115 且全程最低点 ≥ 75——只看收益会鼓励裸奔。</p>
+      <p class="hint" id="sw-best" hidden></p>
+      <button id="btn-sw-start" class="primary big" data-i18n="sw.start">转动轮盘</button>
+    </div>
+
+    <div id="sw-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="sw-day"></h3>
+        <span class="qd-credits-pill"><i data-i18n="sw.eqLabel">净值</i><b id="sw-eq">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="sw.minLabel">最低点</i><b id="sw-min">--</b></span>
+      </div>
+      <p id="sw-left" class="qd-claim"></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="sw.calTitle">日历（? = 未知，! = 事件已爆）</p>
+          <div id="sw-cal" class="sw-cal"></div>
+          <p class="hint" data-i18n="sw.chartTitle">净值曲线（虚线 = 胜利线 / 回撤线）</p>
+          <div id="sw-chart" class="au-chart"></div>
+        </div>
+        <div class="qd-right card">
+          <label class="sw-posrow"><span data-i18n="sw.posLabel">今日仓位</span><input type="range" id="sw-pos" min="0" max="100" step="10" value="0"><b id="sw-pos-v">0%</b></label>
+          <p id="sw-fee" class="hint"></p>
+          <label class="qd-verdict-row"><input type="checkbox" id="sw-ins"><span id="sw-insprice"></span></label>
+          <div class="qd-actions">
+            <button id="btn-sw-settle" class="primary big" data-i18n="sw.settle">收盘结算</button>
+          </div>
+        </div>
+      </div>
+      <button id="btn-sw-back" class="ghost" data-i18n="sw.back">离场</button>
+    </div>
+
+    <div id="sw-report" hidden>
+      <h3 data-i18n="sw.reportTitle">二十日复盘</h3>
+      <p id="swr-conclusion" class="qdr-conclusion"></p>
+      <p id="swr-stats" class="hint"></p>
+      <p class="hint" data-i18n="sw.evLogTitle">三只黑天鹅落点</p>
+      <ul id="swr-log" class="qd-notes"></ul>
+      <p id="swr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-swr-again" class="primary big" data-i18n="sw.again">再转一轮</button>
+        <button id="btn-swr-games" class="big" data-i18n="sw.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
   <div id="view-stratbox" class="tearoom" hidden>
   <section class="academy-panel center-panel">
     <h2><span data-i18n="sb.title">🎁 策略盲盒</span> <span class="sub" data-i18n="sb.sub">看不见行情，只看得见你的策略赚了还是亏了——从净值的指纹里猜出盲盒里的市场</span></h2>
@@ -1889,7 +2052,7 @@
         <!-- 生涯身份外显: 当前章 + 下一任务一句话, 点击直达生涯页 -->
         <button id="home-life-career" class="qs-textlink home-life-career" hidden></button>
       </div>
-      <button id="btn-home-life-cta" class="primary big"></button>
+      <button id="btn-home-life-cta" class="primary"></button>
     </div>
     <div class="home-life-stats">
       <div class="home-life-stat"><span class="hint" data-i18n="home.life.assets">虚拟资产</span><b id="home-life-assets"></b></div>
@@ -3082,9 +3245,9 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610268a99"></script>
+  <script src="i18n.js?v=20261026a5cf"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=202610267a5b"></script>
+  <script src="app.js?v=202610267e68"></script>
   <script src="play.js?v=20261026fae1"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
@@ -3126,6 +3289,9 @@
   <script src="maze.js?v=20261026afd3"></script>
   <script src="loopweek.js?v=2026102625cf"></script>
   <script src="supply.js?v=2026102665c6"></script>
+  <script src="soup.js?v=20261026c231"></script>
+  <script src="taste.js?v=20261026c5ad"></script>
+  <script src="swan.js?v=202610262cd8"></script>
   <script src="tasks.js?v=202610267667"></script>
   <script src="pet.js?v=2026102523c4"></script>
   <script src="career.js?v=20261026bb9e"></script>

@@ -38,7 +38,9 @@ DYNAMIC_KEY_PREFIXES = ("strat.", "room.status.", "me.mode.", "orders.",
                         "tm.cond.", "tm.act.",  # tm.cond./tm.act.{id}: 积木条件/动作拼键 (tamer.js)
                         "mz.ch.",  # mz.ch.{auction|cont|block|dark|forced}: 通道拼键 (maze.js)
                         "lw.dayName",  # lw.dayName{0..4}: 星期几拼键 (loopweek.js)
-                        "sp.order.")  # sp.order.{big|small|skip}: 订单档位拼键 (supply.js)
+                        "sp.order.",  # sp.order.{big|small|skip}: 订单档位拼键 (supply.js)
+                        "sop.name.", "sop.act.", "sop.actd.",  # 玩家名/动作拼键 (soup.js)
+                        "fbt.ind.", "fbt.m.", "fbt.dir.")  # 行业/指标/方向拼键 (taste.js)
 
 
 def read(path):
