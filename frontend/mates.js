@@ -181,7 +181,69 @@
     playSound(hits === 3 ? "win" : "fill");
   }
 
+  // ---------- 玩法 1/8: 同局战书 (服务端, 先交卷后揭晓) ----------
+
+  async function createDuel() {
+    if (!window.Auth || !Auth.user) { toast(t("fp.needLogin")); return; }
+    if (!state.lastSettle || !state.sessionId) { toast(t("fp.duelNeedGame")); return; }
+    try {
+      const res = await api("/challenge/create", {
+        method: "POST",
+        body: JSON.stringify({ sessionId: state.sessionId }),
+      });
+      $("fp-duel-out").value = res.code;
+      $("fp-duel-out").hidden = false;
+      navigator.clipboard?.writeText(res.code).then(
+        () => toast(t("fp.copied")), () => toast(t("fp.copyManual")));
+    } catch (e) { toast(e.message); }
+  }
+
+  async function acceptDuel() {
+    const code = $("fp-duel-in").value.trim();
+    if (!code) return;
+    if (!window.Auth || !Auth.user) { toast(t("fp.needLogin")); return; }
+    try {
+      const res = await api(`/challenge/${encodeURIComponent(code)}/accept`, {
+        method: "POST", body: "{}",
+      });
+      toast(t("fp.duelStarted"));
+      await qsEnterGame(res); // 与每日挑战同一条接管路径
+    } catch (e) { toast(e.message); }
+  }
+
+  async function loadDuelBoard() {
+    const code = $("fp-duel-in").value.trim();
+    if (!code) return;
+    try {
+      const b = await api(`/challenge/${encodeURIComponent(code)}`);
+      const box = $("fp-duel-board-box");
+      box.hidden = false;
+      // ≥4 人 = 小锦标赛 (玩法 8); 揭晓后榜首即擂主
+      $("fp-duel-board-title").textContent =
+        t(b.players >= 4 ? "fp.duelTourney" : "fp.duelPlayers", b.players);
+      $("fp-duel-sealed").hidden = b.revealed;
+      const ul = $("fp-duel-board");
+      ul.innerHTML = "";
+      b.entries.forEach((e, i) => {
+        const li = document.createElement("li");
+        const tt = document.createElement("b");
+        tt.textContent = (b.revealed && i === 0 ? "👑 " : "") + e.username
+          + (e.isSelf ? t("fp.duelMe") : "") + (e.isCreator ? t("fp.duelCreator") : "");
+        const dd = document.createElement("span");
+        dd.textContent = e.returnRate != null ? fmtPct(Number(e.returnRate))
+          : t(e.settled ? "fp.duelDone" : "fp.duelPlaying");
+        if (e.returnRate != null) dd.className = Number(e.returnRate) >= 0 ? "pos" : "neg";
+        li.append(tt, dd);
+        ul.appendChild(li);
+      });
+    } catch (e) { toast(e.message); }
+  }
+
   // ---------- 装配 ----------
+
+  $("btn-fp-duel-create").addEventListener("click", createDuel);
+  $("btn-fp-duel-accept").addEventListener("click", acceptDuel);
+  $("btn-fp-duel-board").addEventListener("click", loadDuelBoard);
 
   $("btn-fp-puzzle-export").addEventListener("click", exportPuzzle);
   $("btn-fp-puzzle-cmp").addEventListener("click", comparePuzzle);
@@ -190,9 +252,11 @@
   $("btn-fp-guess-submit").addEventListener("click", submitGuess);
 
   function renderEntry() {
-    // 盲猜出题入口需要"最近一局已结算": 没有就提示先去打一局
+    // 盲猜出题与立战书都需要"最近一局已结算": 没有就提示先去打一局
     $("fp-guess-export-row").hidden = !state.lastSettle;
     $("fp-guess-noGame").hidden = !!state.lastSettle;
+    $("btn-fp-duel-create").disabled = !state.lastSettle;
+    $("fp-duel-noGame").hidden = !!state.lastSettle;
   }
 
   document.addEventListener("qs:view", (e) => {

@@ -25,6 +25,8 @@ import com.quantsim.entity.DailyPrice;
 import com.quantsim.entity.Market;
 import com.quantsim.entity.Stock;
 import com.quantsim.repository.AccountRepository;
+import com.quantsim.repository.SeedChallengeEntryRepository;
+import com.quantsim.repository.SeedChallengeRepository;
 import com.quantsim.repository.BacktestResultRepository;
 import com.quantsim.repository.DailyChallengeRepository;
 import com.quantsim.repository.DailyIndicatorRepository;
@@ -78,6 +80,8 @@ abstract class IntegrationTestSupport {
     @Autowired protected RoomMemberRepository roomMemberRepository;
     @Autowired protected RoomRepository roomRepository;
     @Autowired protected DailyChallengeRepository dailyChallengeRepository;
+    @Autowired protected SeedChallengeEntryRepository seedChallengeEntryRepository;
+    @Autowired protected SeedChallengeRepository seedChallengeRepository;
     @Autowired protected UserProgressRepository userProgressRepository;
     @Autowired protected TransactionRepository transactionRepository;
     @Autowired protected AccountRepository accountRepository;
@@ -102,6 +106,8 @@ abstract class IntegrationTestSupport {
     }
 
     protected void clean() {
+        seedChallengeEntryRepository.deleteAll();
+        seedChallengeRepository.deleteAll();
         backtestRepository.deleteAll();
         orderRepository.deleteAll();
         positionRepository.deleteAll();

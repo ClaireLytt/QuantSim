@@ -22,7 +22,7 @@ public final class BlindDates {
     /** 该对局是否需要隐藏真实日期。EVENT (事件回放) 盲测是玩法本体, 同样全程脱敏。 */
     public static boolean blind(GameSession session) {
         return "DAILY".equals(session.getMode()) || "ROOM".equals(session.getMode())
-                || "EVENT".equals(session.getMode());
+                || "EVENT".equals(session.getMode()) || "SEED".equals(session.getMode());
     }
 
     /** 竞技模式把 d 平移到虚拟纪元 (startDate -> BASE), 普通模式原样返回。 */

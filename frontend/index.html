@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="style.css?v=20261025de84">
   <link rel="stylesheet" href="game.css?v=202610261018">
   <link rel="stylesheet" href="academy.css?v=20261026ea55">
-  <link rel="stylesheet" href="lab-games.css?v=20261026d79d">
+  <link rel="stylesheet" href="lab-games.css?v=20261026fbf9">
   <link rel="stylesheet" href="widgets.css?v=202610261442">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
@@ -1777,6 +1777,27 @@
     </section>
 
     <section class="card">
+      <h3 data-i18n="fp.duelTitle">同局战书</h3>
+      <p class="hint" data-i18n="fp.duelHint">用你打完的一局立战书（码锁死同一标的同一窗口、标的匿名），朋友凭码打完全相同的一局。你自己没结算前看不到任何人的成绩——先交卷，后揭晓。≥4 人应战自动变成小锦标赛。</p>
+      <div class="qd-actions">
+        <button id="btn-fp-duel-create" class="primary" data-i18n="fp.duelCreate">用最近一局立战书</button>
+      </div>
+      <p id="fp-duel-noGame" class="hint" data-i18n="fp.duelNeedGame" hidden>立战书需要一局已结算的标准经典对局。</p>
+      <textarea id="fp-duel-out" class="fp-code" readonly hidden></textarea>
+      <label class="hint" data-i18n="fp.duelIn">粘贴战书码（应战或看榜）</label>
+      <input id="fp-duel-in" class="fp-duel-in" maxlength="12" autocomplete="off">
+      <div class="qd-actions">
+        <button id="btn-fp-duel-accept" class="primary" data-i18n="fp.duelAccept">应战（开打同一局）</button>
+        <button id="btn-fp-duel-board" class="big" data-i18n="fp.duelBoard">看榜</button>
+      </div>
+      <div id="fp-duel-board-box" hidden>
+        <p id="fp-duel-board-title" class="hint"></p>
+        <ul id="fp-duel-board" class="qd-notes"></ul>
+        <p id="fp-duel-sealed" class="hint" data-i18n="fp.duelSealed" hidden>成绩已封存——打完你自己的那局才能揭晓全场。</p>
+      </div>
+    </section>
+
+    <section class="card">
       <h3 data-i18n="fp.guessTitle">策略盲猜</h3>
       <p class="hint" data-i18n="fp.guessHint">出题：用你最近一局已结算对局生成「过程码」（只含仓位曲线，抹掉标的、日期与结果）。猜题：看曲线猜出题人的风格、盈亏与最大加仓时的动机——答案封存在码里，本地揭晓。</p>
       <div id="fp-guess-export-row" class="fp-export-row">
@@ -3396,7 +3417,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261026b8be"></script>
+  <script src="i18n.js?v=202610262d84"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=202610260a64"></script>
   <script src="play.js?v=202610267d3d"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
@@ -3420,7 +3441,7 @@
   <script src="ranking.js?v=2026102585f6"></script>
   <script src="sharecard.js?v=202610258b6c"></script>
   <script src="sharecode.js?v=202610256297"></script>
-  <script src="mates.js?v=2026102678af"></script><!-- 依赖 app.js 的 qsCodec/state 与 auth.js 的 Auth -->
+  <script src="mates.js?v=202610261ce4"></script><!-- 依赖 app.js 的 qsCodec/state 与 auth.js 的 Auth -->
   <script src="heatmap.js?v=202610256ee4"></script>
   <script src="news.js?v=2026102553a0"></script>
   <script src="history.js?v=20261025bcf3"></script>

@@ -1104,5 +1104,19 @@ button.mk-yield:hover { border-style: solid; filter: none; }
 }
 .fp-code:focus { border-color: var(--accent); outline: none; }
 .fp-export-row { margin-bottom: 8px; }
+.fp-duel-in {
+  width: 100%;
+  font-family: var(--tr-mono);
+  font-size: 14px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 10px;
+  margin: 4px 0 10px;
+}
+.fp-duel-in:focus { border-color: var(--accent); outline: none; }
 #view-mates .card { margin-bottom: 16px; }
 #view-mates .card h3 { margin-top: 0; }
