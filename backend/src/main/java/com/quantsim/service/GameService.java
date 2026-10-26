@@ -122,7 +122,7 @@ public class GameService {
                 BlindDates.maskName(session, stock.getName()),
                 stock.getMarket().name(), stock.getMarket().getLotSize(),
                 BlindDates.mask(session, session.getStartDate()),
-                session.getInitialCash(), props.getTotalTicks(),
+                session.getInitialCash(), props.ticksFor(session.getMode()),
                 levelName, session.getMode(), session.isAdvanced(), session.isRealRules(), stocks,
                 session.getStatus().name(), session.getMaxTrades(), session.isRequireReason());
     }
@@ -180,7 +180,7 @@ public class GameService {
         KlinePoint bar = toKlinePoint(session, sd, next, sd.indicators().get(next.getTradeDate()));
 
         SettleResponse settleResult = null;
-        boolean settled = liquidatedNow || daysElapsed >= props.getTotalTicks();
+        boolean settled = liquidatedNow || daysElapsed >= props.ticksFor(session.getMode());
         if (settled) {
             settleResult = doSettle(session).response();
         }
@@ -192,7 +192,7 @@ public class GameService {
         List<NewsItem> news = BlindDates.blind(session)
                 ? List.of() : newsService.eventsFor(sd.stock(), next.getTradeDate());
 
-        return new TickResponse(BlindDates.mask(session, next.getTradeDate()), daysElapsed, props.getTotalTicks(),
+        return new TickResponse(BlindDates.mask(session, next.getTradeDate()), daysElapsed, props.ticksFor(session.getMode()),
                 settled, bar, settleResult, status,
                 fills.filled(), fills.autoCancelled(), liquidatedNow, news, day.aiTradeShares());
     }
@@ -702,7 +702,7 @@ public class GameService {
         return new StatusResponse(
                 session.getSessionId(), session.getStatus().name(),
                 BlindDates.mask(session, session.getCurrentTradeDate()),
-                session.getDaysElapsed(), props.getTotalTicks(),
+                session.getDaysElapsed(), props.ticksFor(session.getMode()),
                 account.getCashBalance(), account.getHoldingShares(), account.getHoldingCost(),
                 currentPrice, marketValue, totalAssets, floatingPnl, returnRate,
                 prediction, ai,

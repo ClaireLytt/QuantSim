@@ -108,6 +108,15 @@ public class GameStartService {
                     startPortfolio(user, eligible, marketById, counts, aiLevel, advanced, realRules, random),
                     maxTrades, requireReason);
         }
+        if ("INTRO".equals(mode)) {
+            // 新手浓缩局: 专挑波澜不惊的温和窗口 (新手第一局不该被暴涨暴跌吓跑),
+            // 笔数固定 2 (买卖各一次的近似), 短局天数见 GameProperties.introTicks
+            long[] pick = pickCalmWindow(eligible, random);
+            LocalDate calmStart = marketData.load(pick[0]).prices().get((int) pick[1]).getTradeDate();
+            return withConstraints(
+                    persistSession(user, List.of(pick[0]), calmStart, aiLevel, "INTRO", advanced, realRules, null),
+                    2, false);
+        }
         if ("SURVIVAL".equals(mode)) {
             // 熊市生存: 专挑历史上买入持有亏得最惨的窗口, 目标是跑赢基准 (亏得比它少)
             long[] pick = pickCrashWindow(eligible, random);
@@ -216,6 +225,45 @@ public class GameStartService {
         return new long[] { w.stockId(), w.startIdx() };
     }
 
+    /**
+     * 温和窗口: 扫全部合格标的的可开局窗口, 按 |区间收益| + 平均日振幅 打分,
+     * 挑最平静的前 20 个随机取一 (返回 [stockId, startIdx])。评分跨度用 introTicks
+     * (新手局真实时长); 窗口可用性校验仍按 totalTicks 留足余量 (与其他模式同口径)。
+     */
+    private long[] pickCalmWindow(List<Long> eligible, Random random) {
+        record Window(long stockId, int startIdx, double score) {}
+        List<Window> calmest = new ArrayList<>();
+        int span = props.getIntroTicks();
+        int reserve = props.getTotalTicks();
+        int minIdx = props.getMinHistoryDays() - 1;
+        for (Long sid : eligible) {
+            List<DailyPrice> prices = marketData.load(sid).prices();
+            for (int i = minIdx; i + reserve < prices.size(); i++) {
+                double start = prices.get(i).getClose().doubleValue();
+                if (start <= 0) {
+                    continue;
+                }
+                double ret = Math.abs(prices.get(i + span).getClose().doubleValue() / start - 1);
+                double range = 0;
+                for (int d = 1; d <= span; d++) {
+                    DailyPrice p = prices.get(i + d);
+                    double close = p.getClose().doubleValue();
+                    if (close > 0) {
+                        range += (p.getHigh().doubleValue() - p.getLow().doubleValue()) / close;
+                    }
+                }
+                calmest.add(new Window(sid, i, ret + range / span * 2));
+            }
+        }
+        if (calmest.isEmpty()) {
+            throw new BusinessException("没有数据量足够的股票, 请检查行情数据");
+        }
+        calmest.sort(java.util.Comparator.comparingDouble(Window::score));
+        List<Window> pool = calmest.subList(0, Math.min(20, calmest.size()));
+        Window w = pool.get(random.nextInt(pool.size()));
+        return new long[] { w.stockId(), w.startIdx() };
+    }
+
     private int randomStartIdx(long total, Random random) {
         int minIdx = props.getMinHistoryDays() - 1;
         int maxIdx = (int) total - props.getTotalTicks() - 1;
@@ -309,7 +357,7 @@ public class GameStartService {
                 BlindDates.maskName(session, stock.getName()),
                 stock.getMarket().name(), stock.getMarket().getLotSize(),
                 BlindDates.mask(session, startDate),
-                props.getInitialCash(), props.getTotalTicks(), aiLevel.name(),
+                props.getInitialCash(), props.ticksFor(mode), aiLevel.name(),
                 mode, advanced, realRules, stocks, session.getStatus().name(),
                 null, false);
     }
@@ -350,8 +398,9 @@ public class GameStartService {
             return "CLASSIC";
         }
         String mode = raw.trim().toUpperCase();
-        if (!mode.equals("CLASSIC") && !mode.equals("PORTFOLIO") && !mode.equals("SURVIVAL")) {
-            throw new BusinessException("未知模式: " + raw + "（可选 CLASSIC / PORTFOLIO / SURVIVAL）");
+        if (!mode.equals("CLASSIC") && !mode.equals("PORTFOLIO") && !mode.equals("SURVIVAL")
+                && !mode.equals("INTRO")) {
+            throw new BusinessException("未知模式: " + raw + "（可选 CLASSIC / PORTFOLIO / SURVIVAL / INTRO）");
         }
         return mode;
     }

@@ -95,6 +95,40 @@
 .home-life-stat .hint { font-size: 11px; }
 .home-all-toggle { margin-left: 10px; vertical-align: 3px; }
 
+/* 今日市场天气播报 (A5): hero 上方一条可点横幅, 纸面质感 + 主色呼吸点 */
+.home-pulse {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font-size: 13px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--tr-fiber), var(--tr-paper-grad);
+  background-blend-mode: var(--tr-blend), normal;
+  box-shadow: var(--tr-paper-shadow);
+  color: var(--text);
+}
+.home-pulse:hover { border-color: var(--border-strong); filter: none; }
+.home-pulse-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: home-pulse-breathe 2.4s ease-out infinite;
+}
+@keyframes home-pulse-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  50% { box-shadow: 0 0 0 5px transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .home-pulse-dot { animation: none; } }
+.home-pulse b { margin-left: auto; flex: none; color: var(--accent); font-weight: 600; }
+@media (max-width: 720px) { .home-pulse { flex-wrap: wrap; } .home-pulse b { margin-left: 18px; } }
+
 .home-hero {
   display: flex;
   align-items: center;

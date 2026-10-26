@@ -69,6 +69,7 @@ quantsim:
   game:
     initial-cash: 100000
     total-ticks: 20          # 每局交易日数, 到达后自动结算
+    intro-ticks: 8           # 新手 90 秒浓缩局 (INTRO 模式) 的交易日数
     history-days: 60         # 开局时可见的历史交易日数
     min-history-days: 60     # 随机起点前至少要有的数据天数
     leaderboard-size: 20     # 两个排行榜的展示条数

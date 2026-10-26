@@ -44,6 +44,98 @@ public class LabController {
             List<BigDecimal> pctChange,
             Map<String, List<BigDecimal>> probUp) {}
 
+    /**
+     * 今日市场速览 (首页天气播报): 数据库里最新一个交易日的全市场聚合——
+     * 涨跌家数 / 平均涨跌幅 / 量比 (今日总量 vs 前一日), regime 由纯函数分类,
+     * 前端按 regime 映射播报文案与推荐玩法。只读聚合, 无个体信息, 游客可访。
+     */
+    public record MarketPulse(
+            String market, LocalDate tradeDate, int upCount, int downCount,
+            double avgChgPct, double volRatio, String regime) {}
+
+    /** regime 分类纯函数 (供测试对拍): WILD 波动优先, 其次按涨家占比分涨跌, 默认分化。 */
+    public static String classifyRegime(int up, int down, double avgAbsChgPct, double volRatio) {
+        int total = up + down;
+        if (total < 8) {
+            return "THIN"; // 样本太少不播报, 前端走兜底文案
+        }
+        if (avgAbsChgPct >= 2.5) {
+            return "WILD";
+        }
+        double upRatio = (double) up / total;
+        if (upRatio >= 0.6) {
+            return volRatio >= 1.15 ? "SURGE_HOT" : "SURGE";
+        }
+        if (upRatio <= 0.4) {
+            return "SLUMP";
+        }
+        return "MIXED";
+    }
+
+    // 播报 10 分钟缓存: 行情按天更新, 每次请求全量扫缓存里的价格序列纯属浪费
+    private volatile MarketPulse pulseCache;
+    private volatile long pulseCachedAt;
+
+    @GetMapping("/market-pulse")
+    public MarketPulse marketPulse() {
+        MarketPulse cached = pulseCache;
+        if (cached != null && System.currentTimeMillis() - pulseCachedAt < 10 * 60_000) {
+            return cached;
+        }
+        // 以 A股为口径 (首页播报"今日 A 股"); 逐股取各自最新两根, 只聚合落在全局最新日的
+        List<Stock> stocks = stockRepository.findByHiddenFalse().stream()
+                .filter(s -> "STOCK".equals(s.getMarket().name()))
+                .toList();
+        LocalDate latest = null;
+        for (Stock s : stocks) {
+            List<DailyPrice> p = marketDataService.load(s.getStockId()).prices();
+            if (!p.isEmpty()) {
+                LocalDate d = p.get(p.size() - 1).getTradeDate();
+                if (latest == null || d.isAfter(latest)) {
+                    latest = d;
+                }
+            }
+        }
+        int up = 0;
+        int down = 0;
+        double chgSum = 0;
+        double absSum = 0;
+        double volToday = 0;
+        double volPrev = 0;
+        if (latest != null) {
+            for (Stock s : stocks) {
+                List<DailyPrice> p = marketDataService.load(s.getStockId()).prices();
+                if (p.size() < 2 || !p.get(p.size() - 1).getTradeDate().equals(latest)) {
+                    continue; // 停牌/数据滞后的标的不进当日统计
+                }
+                double prev = p.get(p.size() - 2).getClose().doubleValue();
+                if (prev <= 0) {
+                    continue;
+                }
+                double chg = (p.get(p.size() - 1).getClose().doubleValue() / prev - 1) * 100;
+                if (chg > 0) {
+                    up++;
+                } else if (chg < 0) {
+                    down++;
+                }
+                chgSum += chg;
+                absSum += Math.abs(chg);
+                volToday += p.get(p.size() - 1).getVolume() == null ? 0 : p.get(p.size() - 1).getVolume().doubleValue();
+                volPrev += p.get(p.size() - 2).getVolume() == null ? 0 : p.get(p.size() - 2).getVolume().doubleValue();
+            }
+        }
+        int total = up + down;
+        double avgChg = total == 0 ? 0 : chgSum / total;
+        double avgAbs = total == 0 ? 0 : absSum / total;
+        double volRatio = volPrev <= 0 ? 1 : volToday / volPrev;
+        MarketPulse pulse = new MarketPulse("STOCK", latest, up, down,
+                Math.round(avgChg * 100) / 100.0, Math.round(volRatio * 100) / 100.0,
+                classifyRegime(up, down, avgAbs, volRatio));
+        pulseCache = pulse;
+        pulseCachedAt = System.currentTimeMillis();
+        return pulse;
+    }
+
     /** probUp 分桶 vs 实际次日上涨频率: 校准好的模型两者应接近 (全部标的聚合)。 */
     public record CalibrationBucket(double probFrom, double probTo, int samples, double actualUpRate) {}
 

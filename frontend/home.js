@@ -400,12 +400,55 @@
   }
   $("btn-home-all-toggle").addEventListener("click", () => setOverviewCollapsed(!overviewCollapsed));
 
+  // ---------- 今日市场天气播报 (A5): 一句话市况 + 点击直达推荐玩法 ----------
+  // regime → 推荐玩法映射写死 (规则而非 LLM, 见 feature-audit A5 的风险栏)
+  const PULSE_GOTO = {
+    SURGE_HOT: { view: "monk", titleKey: "gz.g8.t" },
+    SURGE: { view: "guess", titleKey: "home.card.guess.t" },
+    SLUMP: { view: "buydip", titleKey: "home.card.buydip.t" },
+    WILD: { view: "swan", titleKey: "gz.g17.t" },
+    MIXED: { view: "taste", titleKey: "gz.g16.t" },
+  };
+  let pulse = null; // 同会话只拉一次, 服务端另有 10 分钟缓存
+
+  async function renderPulse() {
+    const btn = $("home-pulse");
+    try {
+      if (!pulse) pulse = await api("/lab/market-pulse");
+    } catch (e) { btn.hidden = true; return; } // 后端未起: 整条收起, 不留空壳
+    const reco = PULSE_GOTO[pulse.regime];
+    // THIN (样本太少/节假日无新数据) 走兜底文案, 不荐玩法
+    $("home-pulse-text").textContent = reco
+      ? t("pulse." + pulse.regime, pulse.upCount, pulse.downCount, pulse.avgChgPct)
+      : t("pulse.fallback");
+    $("home-pulse-cta").textContent = reco ? t("pulse.goto", t(reco.titleKey)) : "";
+    btn.dataset.goto = reco ? reco.view : "games";
+    btn.hidden = false;
+  }
+  $("home-pulse").addEventListener("click", () => switchView($("home-pulse").dataset.goto || "games"));
+
+  // ---------- 新手 90 秒浓缩局入口 (A1): 首访主推, 打完即收起 ----------
+  function renderIntroCta() {
+    let done = "1";
+    try { done = localStorage.getItem("qs_intro_done") || ""; } catch (e) { /* 隐私模式按已完成处理 */ }
+    const show = !done;
+    $("btn-home-intro").hidden = !show;
+    // 首访只留一个主按钮: 90 秒局是推荐路径, 完整对局降级为次按钮
+    $("btn-home-game").classList.toggle("primary", !show);
+  }
+  $("btn-home-intro").addEventListener("click", () => {
+    if (window.qsStartIntro) qsStartIntro();
+  });
+  document.addEventListener("qs:introdone", renderIntroCta);
+
   document.addEventListener("qs:view", (e) => {
     if (e.detail !== "home") return;
     if (sentiScore == null) renderSentiment();
     else drawSentiment(); // 隐藏容器里尺寸为 0, 回到首页重算
     renderRankPreview();
     renderLife();
+    renderPulse();
+    renderIntroCta();
   });
   // 仪表主题重绘由 qsChart 兜底; 语言切换要同步 senti-text 文案, 仍整体重画
   document.addEventListener("qs:lang", () => {
@@ -413,6 +456,7 @@
     setOverviewCollapsed(overviewCollapsed);
     if (lifeSummary && lifeSummary.settledCount > 0) { renderLifeNumbers(lifeSummary); lifeCurveH.refresh(); }
   });
+  document.addEventListener("qs:lang", () => { if (pulse) renderPulse(); }); // 数据语言无关, 只重渲染文案
   renderHome();
   renderReco();
   renderSentiPlaceholder();
@@ -420,4 +464,6 @@
   renderRankPreview();
   setOverviewCollapsed(false);
   renderLife();
+  renderPulse();
+  renderIntroCta();
 })();

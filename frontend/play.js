@@ -416,6 +416,8 @@ async function enterGame(res) {
     }
 }
 window.qsEnterGame = enterGame;
+// 新手 90 秒浓缩局 (首页首访入口): 短局 + 温和股票 + 简单 AI + 买卖各一次的笔数预算
+window.qsStartIntro = () => startGame({ mode: "INTRO", aiLevel: "EASY", maxTrades: 2, market: "" });
 
 async function loadHistory() {
   const q = state.mode === "PORTFOLIO" && state.activeStock
@@ -1080,6 +1082,12 @@ function showSettle(result) {
   loadLeaderboard();
   // 开局配置卡已下沉进对局页: 结算后把它请回来, 否则"再来一局"无门 (之前它常驻页头不存在这个问题)
   $("game-intro").hidden = false;
+  // 新手浓缩局打完: 落标记 (首页据此收起 90 秒入口), 弹提示指回茶室全貌
+  if (state.mode === "INTRO") {
+    try { localStorage.setItem("qs_intro_done", "1"); } catch (e) { /* 隐私模式下忽略 */ }
+    toast(t("intro.done"));
+    document.dispatchEvent(new CustomEvent("qs:introdone"));
+  }
   document.dispatchEvent(new CustomEvent("qs:settled", { detail: result }));
   // 生涯考核判定行: 事件先分发 (career 在 handle 里记录本局判定), 再回读展示 ✓/✗
   if (window.qsCareerSettleExam) {
@@ -1163,6 +1171,13 @@ function renderSettle(result) {
     const verdict = $("settle-verdict");
     verdict.textContent = t(win ? "survival.win" : "survival.lose");
     verdict.className = "verdict " + (win ? "win" : "lose");
+  }
+  // 新手浓缩局: 判词换成趣味称号 (不论盈亏都给正反馈——第一局的任务是留下来)
+  if (state.mode === "INTRO") {
+    const ret = Number(result.returnRate);
+    const verdict = $("settle-verdict");
+    verdict.textContent = t(ret >= 0.02 ? "intro.titleStar" : ret >= 0 ? "intro.titleSteady" : "intro.titleTuition");
+    verdict.className = "verdict win";
   }
   renderSettleExtras(result);
   renderSettleCurve(result);

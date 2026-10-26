@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="game.css?v=20261026620e">
   <link rel="stylesheet" href="academy.css?v=202610261536">
   <link rel="stylesheet" href="lab-games.css?v=20261026a629">
-  <link rel="stylesheet" href="widgets.css?v=20261026de34">
+  <link rel="stylesheet" href="widgets.css?v=202610261442">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
 <body>
@@ -2072,6 +2072,13 @@
     </div>
   </section>
 
+  <!-- 今日市场天气播报: 管道数据的当日聚合一句话, 点击直达推荐玩法 (A5) -->
+  <button id="home-pulse" class="home-pulse" hidden>
+    <span class="home-pulse-dot" aria-hidden="true"></span>
+    <span id="home-pulse-text"></span>
+    <b id="home-pulse-cta"></b>
+  </button>
+
   <!-- 首屏横幅: 主张 + 双主按钮 -->
   <section class="home-hero" id="home-hero">
     <div class="home-hero-text">
@@ -2105,6 +2112,7 @@
       </svg>
     </div>
     <div class="home-hero-actions">
+      <button id="btn-home-intro" class="primary big" data-i18n="home.hero.intro" hidden>先来 90 秒</button>
       <button id="btn-home-game" class="primary big" data-i18n="home.hero.play">开始对局</button>
       <button id="btn-home-lab" class="big" data-i18n="home.hero.lab">进入研究所</button>
       <button id="btn-home-career" class="big" data-i18n="home.hero.career">从生涯第一章开始</button>
@@ -3245,10 +3253,10 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261026a5cf"></script>
+  <script src="i18n.js?v=20261026d34d"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=202610267e68"></script>
-  <script src="play.js?v=20261026fae1"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
+  <script src="play.js?v=20261026119d"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
   <script src="replay.js?v=20261026025d"></script>
@@ -3272,7 +3280,7 @@
   <script src="heatmap.js?v=202610256ee4"></script>
   <script src="news.js?v=2026102553a0"></script>
   <script src="history.js?v=20261025bcf3"></script>
-  <script src="home.js?v=202610263969"></script>
+  <script src="home.js?v=2026102639e1"></script>
   <script src="points.js?v=20261025c358"></script>
   <script src="reborn.js?v=202610257b00"></script>
   <script src="bubble.js?v=20261025d32e"></script>
