@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="game.css?v=20261026653e">
   <link rel="stylesheet" href="academy.css?v=20261026ea55">
   <link rel="stylesheet" href="lab-games.css?v=20261026fbf9">
-  <link rel="stylesheet" href="widgets.css?v=202610261442">
+  <link rel="stylesheet" href="widgets.css?v=202610262bd7">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
 <body>
@@ -667,6 +667,9 @@
       <button class="lab-tile" data-lab="lab-b-timing"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h10M7 21h10"/><path d="M8 3v2l4 5 4-5V3"/><path d="M8 21v-2l4-5 4 5v2"/></svg></span><i class="lab-tier" data-i18n="lab.tier.adv">进阶</i></span><strong data-i18n="lab.timing">择时的代价</strong><span class="sub" data-i18n="lab.timingHint">“等回调再买”听起来很聪明——但如果因此错过涨得最猛的 5 天，会发生什么？用整段历史算给你看。</span><span class="lab-time-row"><span class="lab-time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span data-i18n="lab.t2m">约 2 分钟</span></span><span class="lab-mini"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="10" rx="5"/><path d="M8 12h4M10 10v4M16 13h.01M18 11h.01"/></svg><span data-i18n="lab.minigame">配套小游戏</span></span></span></button>
       <button class="lab-tile" data-lab="lab-b-overview"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 20v-9h6v9"/><path d="M4 20v-5h5"/><path d="M15 15h5v5"/><path d="M3 20h18"/></svg></span><i class="lab-tier" data-i18n="lab.tier.ai">AI 专项</i></span><strong data-i18n="lab.overview">市场风云榜</strong><span class="sub" data-i18n="lab.overviewHint2">全部标的一键横评：近 30 日涨幅、波动与 AI 看多度。</span><span class="lab-time-row"><span class="lab-time"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span data-i18n="lab.t1m">约 1 分钟</span></span></span></button>
     </div>
+
+    <!-- 实验台入口 (E1~E20 序列, 独立视图): 与上面的单点工具区分开 -->
+    <button id="btn-exlab-open" class="lab-tile exlab-entry"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v5l-5 9a2.5 2.5 0 0 0 2.2 3.8h9.6A2.5 2.5 0 0 0 19 17l-5-9V3M7.5 14h9"/></svg></span><i class="lab-tier" data-i18n="lab.tier.easy">入门</i></span><strong data-i18n="ex.entry">研究实验台</strong><span class="sub" data-i18n="ex.entryHint">六个可调参数的交互实验：均线滞后、波动仓位、费用滑点、止损与再平衡——每个都让你亲手踩一次经典坑。</span></button>
 
     <div class="lab-block" id="lab-b-compare" hidden>
       <h3 data-i18n="lab.compare">双股对比</h3>
@@ -1750,6 +1753,99 @@
         <button id="btn-swr-games" class="big" data-i18n="sw.toGames">返回训练场</button>
       </div>
     </div>
+  </section>
+  </div>
+
+  <div id="view-exlab" class="tearoom" hidden>
+  <section class="academy-panel">
+    <h2><span data-i18n="ex.title">🧪 研究实验台</span> <span class="sub" data-i18n="ex.sub">调参数、看结果、亲手踩一次经典坑——第一阶梯六个实验</span></h2>
+
+    <!-- 公共摩擦面板: 全部实验共享, 关掉亮"幻想模式"角标 -->
+    <div class="card ex-friction">
+      <label><input type="checkbox" id="ex-fr-on" checked><span data-i18n="ex.frOn">计入交易摩擦</span></label>
+      <span id="ex-fr-fantasy" class="ex-fantasy" data-i18n="ex.fantasy" hidden>无摩擦幻想模式</span>
+      <label><span data-i18n="ex.frComm">佣金</span><input type="range" id="ex-fr-comm" min="0" max="20" step="0.5" value="2.5"><b id="ex-fr-comm-v">2.5bp</b></label>
+      <label><span data-i18n="ex.frStamp">印花税（卖出）</span><input type="range" id="ex-fr-stamp" min="0" max="20" step="1" value="5"><b id="ex-fr-stamp-v">5bp</b></label>
+      <label><span data-i18n="ex.frSlip">滑点</span><input type="range" id="ex-fr-slip" min="0" max="20" step="1" value="2"><b id="ex-fr-slip-v">2bp</b></label>
+      <label><span data-i18n="ex.stock">实验标的</span><select id="ex-stock"></select></label>
+    </div>
+
+    <details class="ex-exp card" open>
+      <summary><b data-i18n="ex.e1.t">E1 · 均线的滞后税</b><span class="hint" data-i18n="ex.e1.q">均线越平滑越稳，但滞后的代价是多少？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e1.ma">MA 窗口</span><input type="range" id="ex1-ma" min="2" max="60" value="20"><b id="ex1-ma-v">20</b></label>
+        <label><span data-i18n="ex.e1.seg">数据段</span><select id="ex1-seg">
+          <option value="all" data-i18n="ex.seg.all">全段</option>
+          <option value="front" data-i18n="ex.seg.front">前半段</option>
+          <option value="back" data-i18n="ex.seg.back">后半段</option>
+        </select></label>
+      </div>
+      <p id="ex1-out" class="ex-out"></p>
+      <div id="ex1-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e1.trap">误区：本段的最优窗口不是普适最优——切到另半段，看它漂到哪去了。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e2.t">E2 · 波动率的两张面孔</b><span class="hint" data-i18n="ex.e2.q">波动是风险还是机会？取决于你拿多少仓位。</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e2.win">波动窗口</span><select id="ex2-win"><option value="5">5</option><option value="10" selected>10</option><option value="20">20</option></select></label>
+        <label><span data-i18n="ex.e2.target">目标年化波动</span><input type="range" id="ex2-target" min="10" max="40" value="20"><b id="ex2-target-v">20%</b></label>
+      </div>
+      <p id="ex2-out" class="ex-out"></p>
+      <div id="ex2-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e2.trap">误区：色带里的波动永远是「昨天的波动」——极端日它必然慢半拍。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e3.t">E3 · 手续费显微镜</b><span class="hint" data-i18n="ex.e3.q">交易频率翻倍，费用吃掉多少？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e3.theta">信号阈值（越小越勤）</span><input type="range" id="ex3-theta" min="1" max="50" value="10"><b id="ex3-theta-v">1.0%</b></label>
+      </div>
+      <p id="ex3-out" class="ex-out"></p>
+      <div id="ex3-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e3.trap">误区：忽略滑点——把上面的滑点滑块拖到 10bp，看看多少「赚钱」策略当场死亡。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e4.t">E4 · 滑点的非线性</b><span class="hint" data-i18n="ex.e4.q">下单量越大成交越差——差多少？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e4.size">下单规模（%日均量）</span><input type="range" id="ex4-size" min="1" max="100" value="10"><b id="ex4-size-v">1.0%</b></label>
+        <label><span data-i18n="ex.e4.model">冲击模型</span><select id="ex4-model">
+          <option value="linear" data-i18n="ex.e4.linear">线性（8bp/1%）</option>
+          <option value="sqrt" data-i18n="ex.e4.sqrt">平方根（25bp·√）</option>
+        </select></label>
+      </div>
+      <p id="ex4-out" class="ex-out"></p>
+      <div id="ex4-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e4.trap">误区：冲击模型本身是假设——切换两种模型，看结论对假设有多敏感。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e5.t">E5 · 止损线的代价谱</b><span class="hint" data-i18n="ex.e5.q">止损保护了你，还是反复割你？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e5.stop">止损线</span><input type="range" id="ex5-stop" min="2" max="20" value="8"><b id="ex5-stop-v">8%</b></label>
+        <label><span data-i18n="ex.e5.cool">重入冷却</span><select id="ex5-cool"><option value="0">0</option><option value="3" selected>3</option><option value="5">5</option></select></label>
+        <button id="btn-ex5-reveal" class="primary" data-i18n="ex.e5.reveal">揭晓测试段（参数将锁死）</button>
+      </div>
+      <p id="ex5-out" class="ex-out"></p>
+      <p id="ex5-locked" class="hint neg" data-i18n="ex.e5.locked" hidden>测试段已揭晓，参数锁死——想再调？换一只标的重新开始。</p>
+      <p id="ex5-test-out" class="ex-out ex-test" hidden></p>
+      <div id="ex5-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e5.trap">误区：用全段数据挑「最优止损线」。本实验只许你在前 70% 训练段调参——测试段的审判只有一次。</p>
+    </details>
+
+    <details class="ex-exp card">
+      <summary><b data-i18n="ex.e6.t">E6 · 再平衡节奏</b><span class="hint" data-i18n="ex.e6.q">两资产组合多久调一次仓合适？</span></summary>
+      <div class="ex-controls">
+        <label><span data-i18n="ex.e6.b">第二标的</span><select id="ex6-stock"></select></label>
+        <label><span data-i18n="ex.e6.w">标的 A 权重</span><input type="range" id="ex6-w" min="10" max="90" step="5" value="50"><b id="ex6-w-v">50%</b></label>
+      </div>
+      <p id="ex6-out" class="ex-out"></p>
+      <div id="ex6-chart" class="lab-chart ex-chart"></div>
+      <p class="hint ex-trap" data-i18n="ex.e6.trap">误区：「从不调仓跑赢」常是单边牛里强资产独大的幸存者叙事——换一段熊市数据再下结论。</p>
+    </details>
+
+    <p class="hint ex-iron" data-i18n="ex.iron">历史回测收益 ≠ 未来收益；本页全部结论只在所用数据与假设内成立。</p>
   </section>
   </div>
 
@@ -3422,9 +3518,9 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610267943"></script>
+  <script src="i18n.js?v=202610266a17"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=202610260a64"></script>
+  <script src="app.js?v=202610268754"></script>
   <script src="play.js?v=202610267b78"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
@@ -3437,6 +3533,7 @@
   <script src="guessgame.js?v=202610261cf8"></script>
   <script src="optsandbox.js?v=2026102556f9"></script>
   <script src="lab.js?v=20261026e7e8"></script>
+  <script src="exlab.js?v=20261026b5b0"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
   <script src="daily.js?v=2026102675d2"></script>
   <script src="event.js?v=202610250b8a"></script>
   <script src="option.js?v=2026102531c6"></script>
