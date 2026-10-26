@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="style.css?v=20261025de84">
   <link rel="stylesheet" href="game.css?v=202610261018">
   <link rel="stylesheet" href="academy.css?v=20261026ea55">
-  <link rel="stylesheet" href="lab-games.css?v=20261026978f">
+  <link rel="stylesheet" href="lab-games.css?v=20261026d79d">
   <link rel="stylesheet" href="widgets.css?v=202610261442">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
@@ -897,6 +897,7 @@
       <button class="gz-card" data-goto="taste"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2h8l-1 9a3 3 0 0 1-6 0zM12 14v7M8 21h8"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g16.t">财报盲品会</strong><span class="sub" data-i18n="gz.g16.d">匿名财报四选一行业，线索里混着粉饰干扰</span></button>
       <button class="gz-card" data-goto="swan"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16c3 0 4-2 4-5a4 4 0 0 1 8 0c0 5-3 8-8 8H3zM15 7l4-2"/><circle cx="14" cy="6" r=".5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g17.t">黑天鹅轮盘</strong><span class="sub" data-i18n="gz.g17.d">三件大事必然发生，保险越恐慌越贵</span></button>
       <button class="gz-card" data-goto="sleuth"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l5.5 5.5M7.5 10h5M10 7.5v5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g18.t">市场侦探</strong><span class="sub" data-i18n="gz.g18.d">证据板上拼真相，钉错误导线索会被点名</span></button>
+      <button class="gz-card" data-goto="mates"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 9a3 3 0 1 0 0-6M17 14c2.8 0 5 2.2 5 5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.easy">轻松</i></span><strong data-i18n="gz.g19.t">好友茶会</strong><span class="sub" data-i18n="gz.g19.d">一串码就是一次邀约：战绩对比与策略盲猜</span></button>
       <!-- 预留位: 不可点的"即将开放"占位卡, 暗示训练场还在扩建 -->
       <div class="gz-card gz-card-soon" aria-hidden="true"><strong data-i18n="gz.soon">即将开放</strong><span class="sub" data-i18n="gz.soonHint">新的训练项目正在打磨中</span></div>
     </div>
@@ -1744,6 +1745,73 @@
         <button id="btn-swr-games" class="big" data-i18n="sw.toGames">返回训练场</button>
       </div>
     </div>
+  </section>
+  </div>
+
+  <div id="view-mates" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="fp.title">🍵 好友茶会</span> <span class="sub" data-i18n="fp.sub">不用加好友、不用同时在线——一串码就是一次邀约</span></h2>
+    <p class="hint" data-i18n="fp.intro">这里的玩法全部走「码交换」：把生成的码用任何聊天工具发给朋友，对方粘贴即可参与。码带校验、无积分奖励——伪造只能骗朋友，骗不了排行榜。</p>
+
+    <section class="card">
+      <h3 data-i18n="fp.puzzleTitle">成绩拼图卡</h3>
+      <p class="hint" data-i18n="fp.puzzleHint">导出你的战绩码发给朋友；把两串码贴在下面，生成双人对比。样本量差 3 倍以上会标注「不可比」。</p>
+      <div class="qd-actions">
+        <button id="btn-fp-puzzle-export" class="primary" data-i18n="fp.export">导出我的战绩码</button>
+      </div>
+      <textarea id="fp-puzzle-out" class="fp-code" readonly hidden></textarea>
+      <label class="hint" data-i18n="fp.codeA">码 A（你或对方）</label>
+      <textarea id="fp-puzzle-a" class="fp-code"></textarea>
+      <label class="hint" data-i18n="fp.codeB">码 B</label>
+      <textarea id="fp-puzzle-b" class="fp-code"></textarea>
+      <div class="qd-actions">
+        <button id="btn-fp-puzzle-cmp" class="primary" data-i18n="fp.compare">生成对比</button>
+      </div>
+      <div id="fp-puzzle-cmp" hidden>
+        <table>
+          <thead><tr><th data-i18n="fp.cmp.metric">指标</th><th id="fp-cmp-ha">A</th><th id="fp-cmp-hb">B</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p id="fp-puzzle-warn" class="hint neg" data-i18n="fp.puzzleWarn" hidden>两人样本量差距过大，收益与胜率不具可比性——先打到局数接近再比。</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="fp.guessTitle">策略盲猜</h3>
+      <p class="hint" data-i18n="fp.guessHint">出题：用你最近一局已结算对局生成「过程码」（只含仓位曲线，抹掉标的、日期与结果）。猜题：看曲线猜出题人的风格、盈亏与最大加仓时的动机——答案封存在码里，本地揭晓。</p>
+      <div id="fp-guess-export-row" class="fp-export-row">
+        <label class="qd-verdict-row"><span data-i18n="fp.motiveLabel">你最大那笔加仓时在想什么（真实答案，封存入码）</span>
+          <select id="fp-guess-motive">
+            <option value="0" data-i18n="fp.motive.0">趋势确认了，顺势加</option>
+            <option value="1" data-i18n="fp.motive.1">被套了，摊低成本</option>
+            <option value="2" data-i18n="fp.motive.2">凭感觉，上头了</option>
+          </select>
+        </label>
+        <div class="qd-actions">
+          <button id="btn-fp-guess-export" class="primary" data-i18n="fp.exportGuess">用最近一局出题</button>
+        </div>
+      </div>
+      <p id="fp-guess-noGame" class="hint" data-i18n="fp.guessNeedGame" hidden>出题需要一局已结算的对局——先去打一局再来。</p>
+      <textarea id="fp-guess-out" class="fp-code" readonly hidden></textarea>
+      <label class="hint" data-i18n="fp.guessIn">粘贴朋友的过程码</label>
+      <textarea id="fp-guess-in" class="fp-code"></textarea>
+      <div class="qd-actions">
+        <button id="btn-fp-guess-load" class="big" data-i18n="fp.loadGuess">展开题目</button>
+      </div>
+      <div id="fp-guess-quiz" hidden>
+        <div id="fp-guess-chart" class="au-chart"></div>
+        <p class="hint" data-i18n="fp.q1">TA 是什么风格？</p>
+        <div id="fp-guess-q" class="lw-fracs qd-actions"></div>
+        <p class="hint" data-i18n="fp.q2">这局 TA 赚了还是亏了？</p>
+        <div id="fp-guess-w" class="lw-fracs qd-actions"></div>
+        <p class="hint" data-i18n="fp.q3">TA 最大那笔加仓时在想什么？</p>
+        <div id="fp-guess-m" class="lw-fracs qd-actions"></div>
+        <div class="qd-actions">
+          <button id="btn-fp-guess-submit" class="primary big" data-i18n="fp.submitGuess">揭晓答案</button>
+        </div>
+        <p id="fp-guess-reveal" class="qdr-conclusion" hidden></p>
+      </div>
+    </section>
   </section>
   </div>
 
@@ -3328,9 +3396,9 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=2026102656f0"></script>
+  <script src="i18n.js?v=20261026b8be"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=20261026b3cc"></script>
+  <script src="app.js?v=202610260a64"></script>
   <script src="play.js?v=202610267d3d"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
@@ -3352,6 +3420,7 @@
   <script src="ranking.js?v=2026102585f6"></script>
   <script src="sharecard.js?v=202610258b6c"></script>
   <script src="sharecode.js?v=202610256297"></script>
+  <script src="mates.js?v=2026102678af"></script><!-- 依赖 app.js 的 qsCodec/state 与 auth.js 的 Auth -->
   <script src="heatmap.js?v=202610256ee4"></script>
   <script src="news.js?v=2026102553a0"></script>
   <script src="history.js?v=20261025bcf3"></script>

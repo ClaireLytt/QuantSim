@@ -204,6 +204,48 @@ function qsShuffle(arr) {
   }
   return a;
 }
+// 好友码通用编解码: <TAG>.<base64url(JSON)>.<crc32hex8>。
+// sharecode (QS1 策略码) 是同构先例但闭包私有; 新的好友玩法码一律走这里, 别再各抄一份。
+const qsCodec = (() => {
+  const TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      t[i] = c >>> 0;
+    }
+    return t;
+  })();
+  const crc32 = (str) => {
+    let crc = 0xffffffff;
+    new TextEncoder().encode(str).forEach((b) => { crc = TABLE[(crc ^ b) & 0xff] ^ (crc >>> 8); });
+    return ((crc ^ 0xffffffff) >>> 0).toString(16).padStart(8, "0");
+  };
+  const enc = (str) => {
+    let bin = "";
+    new TextEncoder().encode(str).forEach((b) => { bin += String.fromCharCode(b); });
+    return btoa(bin).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+  };
+  const dec = (str) => {
+    const bin = atob(str.replaceAll("-", "+").replaceAll("_", "/"));
+    return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+  };
+  return {
+    encode(tag, obj) {
+      const json = JSON.stringify(obj);
+      return `${tag}.${enc(json)}.${crc32(json)}`;
+    },
+    decode(tag, code) {
+      const parts = String(code || "").trim().split(".");
+      if (parts.length !== 3 || parts[0] !== tag) return null;
+      try {
+        const json = dec(parts[1]);
+        if (crc32(json) !== parts[2]) return null;
+        return JSON.parse(json);
+      } catch (e) { return null; }
+    },
+  };
+})();
 // 迷你游戏最佳成绩读取 (统一容错)
 function qsLoadBest(key) {
   try {
@@ -402,7 +444,7 @@ const NAV_GROUPS = {
   me: ["mine", "career", "history", "account"],
   // extra: 无导航入口但仍是合法视图 (章节任务/训练场/首页卡片经 switchView 进入)
   extra: ["wiki", "guess", "famous", "story", "quiz", "option", "tape", "reborn", "bubble",
-    "newsjudge", "richman", "buydip", "stratbox", "qdetect", "autopsy", "monk", "alchemy", "tamer", "fool", "maze", "loopweek", "supply", "soup", "taste", "swan", "sleuth"],
+    "newsjudge", "richman", "buydip", "stratbox", "qdetect", "autopsy", "monk", "alchemy", "tamer", "fool", "maze", "loopweek", "supply", "soup", "taste", "swan", "sleuth", "mates"],
 };
 const VIEWS = Object.values(NAV_GROUPS).flat();
 const VIEW_GROUP = {};
