@@ -2268,6 +2268,45 @@
       <p id="rq15-verdict" class="qdr-conclusion" hidden></p>
     </section>
 
+    <section class="card">
+      <h3 data-i18n="rq.c1.t">因子卡组构筑</h3>
+      <p class="hint" data-i18n="rq.c1.hint">从七张因子卡里组一副 2~5 张的卡组（卡组仓位 = 所选信号等权合成）。训练段给每张卡的单卡成绩与卡间相关性——相似卡叠加是双倍暴露不是分散。写满 30 字的互补逻辑才能出征测试段，过三关：收益关（赢半仓躺平）、稳健关（回撤 ≤15% 且换手受限）、解释关。</p>
+      <div id="rq1-cards" class="dtc-board"></div>
+      <p id="rq1-corr" class="hint"></p>
+      <input id="rq1-why" class="fp-duel-in ex19-input" maxlength="80" data-i18n-placeholder="rq.c1.whyPh" placeholder="≥30 字：为什么这几张卡互补而不是重复">
+      <div class="qd-actions">
+        <button id="btn-rq1-march" class="primary" data-i18n="rq.c1.march">出征测试段</button>
+        <button id="btn-rq1-new" class="big" data-i18n="rq.c1.new">换一段行情</button>
+      </div>
+      <p id="rq1-out" class="qdr-conclusion"></p>
+      <ul id="rq1-gates" class="qd-notes" hidden></ul>
+      <div id="rq1-chart" class="lab-chart ex-chart"></div>
+      <p class="hint" data-i18n="rq.c1.albumTitle">卡册（通关卡组，带窗口标签——换窗口可能死，册子只记事实）：</p>
+      <p id="rq1-album-empty" class="hint" data-i18n="rq.c1.albumEmpty">还没有通关卡组。</p>
+      <ul id="rq1-album" class="qd-notes"></ul>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c3.t">卡牌拍卖行</h3>
+      <p class="hint" data-i18n="rq.c3.hint">预算 100 点，8 张线索卡逐张开拍（与隐身的 AI 竞拍者抢）。线索是隐藏标的训练半段上的真实统计——但约四成是「噪声卡」：同一统计算在洗牌后的收益序列上，货真价实的假信号。样本量公开：样本 10 的惊艳线索 vs 样本 200 的平庸线索值多少钱，是本玩法的灵魂。拍完选一张核心线索去测试半段验证——或者全弃权（如果你拍到的全是噪声，弃权是满分答案）。</p>
+      <p class="ex-out"><span data-i18n="rq.c3.budgetLabel">剩余预算</span>：<b id="rq3-budget">100</b></p>
+      <p id="rq3-lot" class="ex18-report"></p>
+      <div class="qd-actions">
+        <button id="btn-rq3-pass" class="big" data-i18n="rq.c3.pass">过（不出价）</button>
+        <button id="btn-rq3-b5" class="big" data-i18n="rq.c3.b5">出 5</button>
+        <button id="btn-rq3-b12" class="big" data-i18n="rq.c3.b12">出 12</button>
+        <button id="btn-rq3-b25" class="primary big" data-i18n="rq.c3.b25">出 25</button>
+        <button id="btn-rq3-new" class="small ghost" data-i18n="rq.c3.new">重开一场</button>
+      </div>
+      <ul id="rq3-owned" class="qd-notes"></ul>
+      <div id="rq3-verify" class="ex-controls" hidden>
+        <label><span data-i18n="rq.c3.coreLabel">核心线索</span><select id="rq3-core"></select></label>
+        <button id="btn-rq3-verify" class="primary small" data-i18n="rq.c3.go">去测试段验证</button>
+        <button id="btn-rq3-giveup" class="small" data-i18n="rq.c3.giveup">全是噪声，弃权</button>
+      </div>
+      <p id="rq3-result" class="qdr-conclusion" hidden></p>
+    </section>
+
     <p class="hint ex-iron" data-i18n="ex.iron">历史回测收益 ≠ 未来收益；本页全部结论只在所用数据与假设内成立。</p>
   </section>
   </div>
@@ -3941,7 +3980,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610268fce"></script>
+  <script src="i18n.js?v=202610267131"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=20261026f977"></script>
   <script src="play.js?v=202610267b78"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
@@ -3957,7 +3996,7 @@
   <script src="optsandbox.js?v=2026102556f9"></script>
   <script src="lab.js?v=20261026e7e8"></script>
   <script src="exlab.js?v=202610265e71"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
-  <script src="dojo.js?v=2026102625ae"></script><!-- 依赖 exlab.js 的 window.qsQuant 计算件, 必须在其后 -->
+  <script src="dojo.js?v=202610262716"></script><!-- 依赖 exlab.js 的 window.qsQuant 计算件, 必须在其后 -->
   <script src="daily.js?v=2026102675d2"></script>
   <script src="event.js?v=202610250b8a"></script>
   <script src="option.js?v=2026102531c6"></script>

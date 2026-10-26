@@ -1200,6 +1200,365 @@
     renderCourt();
   }
 
+  // ---------- 1 因子卡组构筑 ----------
+  // 卡 = 可计算的日频信号 (0/1); 卡组仓位 = 所选卡信号的均值 (等权合成, 不是叠 buff)。
+  const FACTOR_CARDS = ["mom", "trend", "lowvol", "rev", "brk", "cal", "meanrev"];
+
+  function cardSignal(key, c, dates) {
+    const r = Q().rets(c);
+    const m20 = Q().ma(c, 20);
+    const vol = c.map((_, i) => {
+      if (i < 10) return null;
+      const seg = r.slice(i - 9, i + 1);
+      const mu = seg.reduce((x, y) => x + y, 0) / 10;
+      return Math.sqrt(seg.reduce((x, y) => x + (y - mu) ** 2, 0) / 10);
+    });
+    const volMed = [...vol.filter((v) => v != null)].sort((a, b) => a - b)[Math.floor(vol.length / 2)] ?? 0;
+    return c.map((v, i) => {
+      if (i < 21 || m20[i] == null) return 0;
+      switch (key) {
+        case "mom": return v > c[i - 20] ? 1 : 0;
+        case "trend": return v > m20[i] ? 1 : 0;
+        case "lowvol": return vol[i] != null && vol[i] < volMed ? 1 : 0;
+        case "rev": return c[i - 5] > 0 && v / c[i - 5] - 1 < -0.03 ? 1 : 0;
+        case "brk": return v > Math.max(...c.slice(i - 20, i)) ? 1 : 0;
+        case "cal": return new Date(dates[i]).getDate() <= 10 ? 1 : 0;
+        default: return v < m20[i] * 0.97 ? 1 : 0; // meanrev
+      }
+    });
+  }
+
+  const deck = { picked: [], closes: null, dates: null, done: false };
+
+  async function newDeck() {
+    if (!(await ensureStocks())) return;
+    let h;
+    try { h = await labHistory(stocks[rnd(stocks.length)].code); } catch (e) { toast(e.message); return; }
+    deck.closes = h.close.map(Number);
+    deck.dates = h.dates;
+    deck.stock = h.code;
+    deck.picked = [];
+    deck.done = false;
+    $("rq1-gates").hidden = true;
+    renderDeck();
+  }
+
+  function deckPos(cards, c, dates) {
+    if (!cards.length) return c.map(() => 0);
+    const sigs = cards.map((k) => cardSignal(k, c, dates));
+    return c.map((_, i) => sigs.reduce((a, s) => a + s[i], 0) / cards.length);
+  }
+
+  function renderDeck() {
+    if (!deck.closes) return;
+    const split = Math.floor(deck.closes.length * 0.7);
+    const train = deck.closes.slice(0, split);
+    const trainDates = deck.dates.slice(0, split);
+    const wrap = $("rq1-cards");
+    wrap.innerHTML = "";
+    FACTOR_CARDS.forEach((k) => {
+      const solo = Q().lastRet(Q().simulate(train, cardSignal(k, train, trainDates), Q().frictionDefault()));
+      const btn = document.createElement("button");
+      btn.className = "dtc-clue" + (deck.picked.includes(k) ? " pinned" : "");
+      btn.disabled = deck.done;
+      const tag = document.createElement("i");
+      tag.textContent = deck.picked.includes(k) ? t("dtc.pinnedTag") : t("rq.c1.cardTag");
+      const txt = document.createElement("span");
+      txt.textContent = t("rq.c1.card." + k) + " · " + t("rq.c1.solo", fmtPct(solo));
+      btn.append(tag, txt);
+      btn.addEventListener("click", () => {
+        if (deck.picked.includes(k)) deck.picked = deck.picked.filter((x) => x !== k);
+        else if (deck.picked.length < 5) deck.picked.push(k);
+        else { toast(t("rq.c1.maxCards")); return; }
+        playSound("tap");
+        renderDeck();
+      });
+      wrap.appendChild(btn);
+    });
+    // 卡间相关性 (训练段信号): 相似卡叠加是双倍暴露不是分散, 相关矩阵当场戳破
+    const corrBox = $("rq1-corr");
+    corrBox.innerHTML = "";
+    if (deck.picked.length >= 2) {
+      for (let i = 0; i < deck.picked.length; i++) {
+        for (let j = i + 1; j < deck.picked.length; j++) {
+          const a = cardSignal(deck.picked[i], train, trainDates);
+          const b = cardSignal(deck.picked[j], train, trainDates);
+          const n = a.length;
+          const ma_ = a.reduce((x, y) => x + y, 0) / n;
+          const mb = b.reduce((x, y) => x + y, 0) / n;
+          let sxy = 0; let sx = 0; let sy = 0;
+          for (let x = 0; x < n; x++) { sxy += (a[x] - ma_) * (b[x] - mb); sx += (a[x] - ma_) ** 2; sy += (b[x] - mb) ** 2; }
+          const corr = sx > 0 && sy > 0 ? sxy / Math.sqrt(sx * sy) : 0;
+          const li = document.createElement("span");
+          li.className = "hint" + (corr > 0.7 ? " neg" : "");
+          li.textContent = t("rq.c1.card." + deck.picked[i]) + "×" + t("rq.c1.card." + deck.picked[j])
+            + " " + corr.toFixed(2) + (corr > 0.7 ? t("rq.c1.twin") : "") + "　";
+          corrBox.appendChild(li);
+        }
+      }
+    }
+    $("btn-rq1-march").disabled = deck.done || deck.picked.length < 2;
+  }
+
+  const deckChart = qsChart("rq1-chart", () => {
+    if (!deck.result) return null;
+    return lineOpt(deck.result.curves[0].data.map((_, i) => i + 1), deck.result.curves);
+  });
+
+  function marchDeck() {
+    if (deck.done || deck.picked.length < 2) return;
+    const why = $("rq1-why").value.trim();
+    if (why.length < 30) { toast(t("rq.c1.whyLen")); return; } // 解释关是硬门: 先想清互补逻辑再出征
+    deck.done = true;
+    const split = Math.floor(deck.closes.length * 0.7);
+    const test = deck.closes.slice(split);
+    const testDates = deck.dates.slice(split);
+    const pos = deckPos(deck.picked, test, testDates);
+    const eq = Q().simulate(test, pos, Q().frictionDefault());
+    const bench = Q().simulate(test, test.map(() => 0.5), Q().frictionDefault());
+    let turnover = 0;
+    for (let i = 1; i < pos.length; i++) turnover += Math.abs(pos[i] - pos[i - 1]);
+    const gates = [
+      { k: "ret", ok: Q().lastRet(eq) > Q().lastRet(bench) },
+      { k: "risk", ok: Q().maxDD(eq) <= 0.15 && turnover <= 8 },
+      { k: "explain", ok: true }, // 字数已在入口把门
+    ];
+    // 逐卡边际: leave-one-out
+    const margins = deck.picked.map((k) => {
+      const rest = deck.picked.filter((x) => x !== k);
+      const eqRest = Q().simulate(test, deckPos(rest, test, testDates), Q().frictionDefault());
+      return { k, d: Q().lastRet(eq) - Q().lastRet(eqRest) };
+    });
+    const ul = $("rq1-gates");
+    ul.hidden = false;
+    ul.innerHTML = "";
+    gates.forEach((gx) => {
+      const li = document.createElement("li");
+      const tt = document.createElement("b");
+      tt.textContent = (gx.ok ? "✓ " : "✗ ") + t("rq.c1.g." + gx.k);
+      li.appendChild(tt);
+      ul.appendChild(li);
+    });
+    margins.forEach((m) => {
+      const li = document.createElement("li");
+      const tt = document.createElement("b");
+      tt.textContent = t("rq.c1.margin", t("rq.c1.card." + m.k));
+      const dd = document.createElement("span");
+      dd.textContent = (m.d >= 0 ? "+" : "") + fmtPct(m.d);
+      dd.className = m.d >= 0 ? "pos" : "neg";
+      li.append(tt, dd);
+      ul.appendChild(li);
+    });
+    const passed = gates.every((gx) => gx.ok);
+    const out = $("rq1-out");
+    out.textContent = t(passed ? "rq.c1.pass" : "rq.c1.fail",
+      fmtPct(Q().lastRet(eq)), fmtPct(Q().lastRet(bench)), fmtPct(Q().maxDD(eq)), turnover.toFixed(1));
+    out.className = "qdr-conclusion " + (passed ? "win" : "lose");
+    playSound(passed ? "win" : "lose");
+    // 卡册: 通关卡组带窗口标签入册——同一卡组换窗口可能死, 册子诚实记录每次复用
+    if (passed) {
+      const st = qsLoadBest(BEST_KEY);
+      const album = (st.album || []).slice(-7);
+      album.push({ cards: deck.picked.slice(), stock: deck.stock || "?", when: new Date().toISOString().slice(0, 10) });
+      qsSaveBest(BEST_KEY, { album });
+    }
+    renderAlbum();
+    deck.result = { curves: [
+      { name: t("rq.c1.deckCurve"), data: eq, color: cssVar("--ma5") },
+      { name: t("rq.c1.benchCurve"), data: bench, color: cssVar("--text-muted") },
+    ] };
+    deckChart.refresh();
+  }
+
+  function renderAlbum() {
+    const album = qsLoadBest(BEST_KEY).album || [];
+    const ul = $("rq1-album");
+    ul.innerHTML = "";
+    album.forEach((a) => {
+      const li = document.createElement("li");
+      const tt = document.createElement("b");
+      tt.textContent = a.cards.map((k) => t("rq.c1.card." + k)).join("+");
+      const dd = document.createElement("span");
+      dd.textContent = t("rq.c1.albumLine", a.stock, a.when);
+      li.append(tt, dd);
+      ul.appendChild(li);
+    });
+    $("rq1-album-empty").hidden = !!album.length;
+  }
+
+  // ---------- 3 卡牌拍卖行 ----------
+  // 线索卡 = 隐藏标的训练半段上的真实统计; 噪声卡 = 把收益序列洗牌后算同一统计
+  // (噪声是真噪声, 不是编的)。为统计强度定价是本玩法的灵魂。
+  const AUC_SIGNALS = ["bounce", "crossweek", "monday", "monthstart", "brk", "lowvolNext"];
+  const auction = { budget: 100, round: 0, cards: [], owned: [], closes: null, dates: null, done: false };
+
+  function aucStat(sig, c, dates, r) {
+    const m5 = Q().ma(c, 5);
+    const m20 = Q().ma(c, 20);
+    const picks = [];
+    for (let i = 21; i < c.length - 5; i++) {
+      let hit = false;
+      if (sig === "bounce") hit = r[i] < -0.03;
+      else if (sig === "crossweek") hit = m5[i] > m20[i] && m5[i - 1] <= m20[i - 1];
+      else if (sig === "monday") hit = new Date(dates[i]).getDay() === 1;
+      else if (sig === "monthstart") hit = new Date(dates[i]).getDate() <= 5;
+      else if (sig === "brk") hit = c[i] > Math.max(...c.slice(i - 20, i));
+      else {
+        const seg = r.slice(i - 9, i + 1);
+        const mu = seg.reduce((x, y) => x + y, 0) / 10;
+        hit = Math.sqrt(seg.reduce((x, y) => x + (y - mu) ** 2, 0) / 10) < 0.01;
+      }
+      if (hit) picks.push(sig === "crossweek" ? c[i + 5] / c[i] - 1 : r[i + 1]);
+    }
+    const mean = picks.length ? picks.reduce((x, y) => x + y, 0) / picks.length : 0;
+    return { mean: mean * 100, n: picks.length };
+  }
+
+  async function newAuction() {
+    if (!(await ensureStocks())) return;
+    let h;
+    try { h = await labHistory(stocks[rnd(stocks.length)].code); } catch (e) { toast(e.message); return; }
+    auction.closes = h.close.map(Number);
+    auction.dates = h.dates;
+    auction.budget = 100;
+    auction.round = 0;
+    auction.owned = [];
+    auction.done = false;
+    const split = Math.floor(auction.closes.length * 0.7);
+    const train = auction.closes.slice(0, split);
+    const trainDates = auction.dates.slice(0, split);
+    const r = Q().rets(train);
+    // 洗牌收益 (固定种子) → 噪声底稿: 同一统计算在噪声上, 是货真价实的假信号
+    let a = 20260
+    + 26;
+    const rngS = () => { a = (a * 1103515245 + 12345) & 0x7fffffff; return a / 0x7fffffff; };
+    const shuffled = r.slice(1);
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(rngS() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    const noiseC = [train[0]];
+    shuffled.forEach((x) => noiseC.push(noiseC[noiseC.length - 1] * (1 + x)));
+    // 8 张卡: 6 信号各一张 (真/噪声随机), 再补 2 张随机
+    const pool = [];
+    AUC_SIGNALS.forEach((sig) => pool.push(sig));
+    pool.push(AUC_SIGNALS[rnd(6)], AUC_SIGNALS[rnd(6)]);
+    auction.cards = pool.map((sig) => {
+      const noise = Math.random() < 0.4;
+      const stat = noise ? aucStat(sig, noiseC, trainDates, Q().rets(noiseC))
+        : aucStat(sig, train, trainDates, r);
+      return { sig, noise, mean: stat.mean, n: stat.n };
+    }).sort(() => Math.random() - 0.5);
+    $("rq3-result").hidden = true;
+    $("rq3-verify").hidden = true;
+    renderAuction();
+  }
+
+  function renderAuction() {
+    if (!auction.cards.length) return;
+    $("rq3-budget").textContent = String(auction.budget);
+    const card = auction.cards[auction.round];
+    if (!card || auction.done) { openVerify(); return; }
+    $("rq3-lot").textContent = t("rq.c3.lot", auction.round + 1, auction.cards.length,
+      t("rq.c3.sig." + card.sig), card.mean.toFixed(2), card.n);
+    const ul = $("rq3-owned");
+    ul.innerHTML = "";
+    auction.owned.forEach((o) => {
+      const li = document.createElement("li");
+      const tt = document.createElement("b");
+      tt.textContent = t("rq.c3.sig." + o.sig);
+      const dd = document.createElement("span");
+      dd.textContent = t("rq.c3.ownedLine", o.paid, o.mean.toFixed(2), o.n);
+      li.append(tt, dd);
+      ul.appendChild(li);
+    });
+  }
+
+  /** AI 竞拍底价: 统计强度定价的镜子——样本量与超额幅度越像真货, AI 出得越高。 */
+  function aiBid(card) {
+    return Math.min(28, Math.round(card.n / 10 + Math.abs(card.mean) * 5 + Math.random() * 8));
+  }
+
+  function bid(amount) {
+    const card = auction.cards[auction.round];
+    if (!card || auction.done) return;
+    if (amount > 0) {
+      if (amount > auction.budget) { toast(t("rq.c3.broke")); return; }
+      const rival = aiBid(card);
+      if (amount > rival) {
+        auction.budget -= amount;
+        auction.owned.push({ ...card, paid: amount });
+        toast(t("rq.c3.won", amount, rival));
+        playSound("fill");
+      } else {
+        toast(t("rq.c3.lost", rival));
+        playSound("tap");
+      }
+    }
+    auction.round++;
+    if (auction.round >= auction.cards.length) openVerify();
+    else renderAuction();
+  }
+
+  function openVerify() {
+    auction.done = true;
+    $("rq3-lot").textContent = t("rq.c3.allDone", auction.owned.length, 100 - auction.budget);
+    const box = $("rq3-verify");
+    box.hidden = false;
+    const sel = $("rq3-core");
+    sel.innerHTML = "";
+    auction.owned.forEach((o, i) => {
+      const op = document.createElement("option");
+      op.value = String(i);
+      op.textContent = t("rq.c3.sig." + o.sig) + ` (${o.mean.toFixed(2)}%, n=${o.n})`;
+      sel.appendChild(op);
+    });
+    $("btn-rq3-verify").disabled = !auction.owned.length;
+  }
+
+  function verifyAuction(giveUp) {
+    const split = Math.floor(auction.closes.length * 0.7);
+    const spentTrue = auction.owned.filter((o) => !o.noise).reduce((a2, o) => a2 + o.paid, 0);
+    const spent = Math.max(1, 100 - auction.budget);
+    const eff = Math.round((spentTrue / spent) * 100);
+    let verdict;
+    if (giveUp) {
+      const allNoise = auction.owned.length > 0 && auction.owned.every((o) => o.noise);
+      verdict = t(allNoise ? "rq.c3.giveUpRight" : "rq.c3.giveUpWrong", eff);
+    } else {
+      const core = auction.owned[Number($("rq3-core").value)];
+      if (!core) return;
+      // 验证 = 核心线索在测试半段上的同号检验 (训练段的统计只在训练段算过)
+      const test = auction.closes.slice(split);
+      const testStat = aucStat(core.sig, test, auction.dates.slice(split), Q().rets(test));
+      const holds = !core.noise && Math.sign(testStat.mean) === Math.sign(core.mean) && testStat.n >= 5;
+      verdict = t(holds ? "rq.c3.verified" : "rq.c3.busted",
+        t("rq.c3.sig." + core.sig), testStat.mean.toFixed(2), testStat.n, eff)
+        + (core.noise ? " " + t("rq.c3.wasNoise") : "");
+    }
+    // 全部卡的事后真值揭晓: 噪声卡现形
+    const ul = $("rq3-owned");
+    ul.innerHTML = "";
+    auction.cards.forEach((cd) => {
+      const li = document.createElement("li");
+      const tt = document.createElement("b");
+      tt.textContent = (cd.noise ? "☠ " : "◆ ") + t("rq.c3.sig." + cd.sig);
+      const dd = document.createElement("span");
+      dd.textContent = t(cd.noise ? "rq.c3.truthNoise" : "rq.c3.truthReal")
+        + ` (${cd.mean.toFixed(2)}%, n=${cd.n})`;
+      dd.className = cd.noise ? "neg" : "pos";
+      li.append(tt, dd);
+      ul.appendChild(li);
+    });
+    const out = $("rq3-result");
+    out.hidden = false;
+    out.textContent = verdict;
+    out.className = "qdr-conclusion " + (verdict.includes("✓") ? "win" : "lose");
+    const st = qsLoadBest(BEST_KEY);
+    if (eff > (st.auction || 0)) qsSaveBest(BEST_KEY, { auction: eff });
+    playSound("flip");
+  }
+
   // ---------- 共享 ----------
   function lineOpt(xs, series) {
     return {
@@ -1252,6 +1611,15 @@
   $("btn-rq12-view").addEventListener("click", viewExhibit);
   $("btn-rq15-new").addEventListener("click", newCourt);
   $("btn-rq15-verdict").addEventListener("click", courtVerdict);
+  $("btn-rq1-new").addEventListener("click", newDeck);
+  $("btn-rq1-march").addEventListener("click", marchDeck);
+  $("btn-rq3-new").addEventListener("click", newAuction);
+  $("btn-rq3-pass").addEventListener("click", () => bid(0));
+  $("btn-rq3-b5").addEventListener("click", () => bid(5));
+  $("btn-rq3-b12").addEventListener("click", () => bid(12));
+  $("btn-rq3-b25").addEventListener("click", () => bid(25));
+  $("btn-rq3-verify").addEventListener("click", () => verifyAuction(false));
+  $("btn-rq3-giveup").addEventListener("click", () => verifyAuction(true));
 
   document.addEventListener("qs:view", (e) => {
     if (e.detail !== "dojo") return;
@@ -1261,8 +1629,11 @@
     if (!rescue.path) newRescue();
     if (!hunt.closes) newHunt();
     if (!court.motion) newCourt();
+    if (!deck.closes) newDeck();
+    if (!auction.cards.length) newAuction();
     renderBrief();
     renderMuseum();
+    renderAlbum();
     loadBlindBoard(null);
     digChart.refresh();
     juryChart.refresh();

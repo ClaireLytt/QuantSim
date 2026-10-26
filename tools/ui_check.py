@@ -49,7 +49,8 @@ DYNAMIC_KEY_PREFIXES = ("strat.", "room.status.", "me.mode.", "orders.",
                         "ex.e6.p.", "ex.e7.en.", "ex.e7.ex.", "ex.e12.s.", "ex.e13.a.",
                         "ex.e18.f.", "ex.e18.x.", "ex.e20.",  # 实验台拼键 (exlab.js)
                         "rq.c9.", "rq.c5.", "rq.c8.", "rq.c4.", "rq.c14.",
-                        "rq.c2.", "rq.c6.", "rq.c10.", "rq.c11.", "rq.c12.", "rq.c15.")  # 道场拼键 (dojo.js)
+                        "rq.c2.", "rq.c6.", "rq.c10.", "rq.c11.", "rq.c12.", "rq.c15.",
+                        "rq.c1.", "rq.c3.")  # 道场拼键 (dojo.js)
 
 
 def read(path):
