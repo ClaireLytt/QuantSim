@@ -873,3 +873,42 @@ button.small { width: auto; margin-top: 8px; padding: 4px 12px; font-size: 12px;
 .arena-top3 button { font-size: 12px; }
 @media (max-width: 1280px) { .arena-top3 { display: none; } }
 @media (prefers-reduced-motion: reduce) { .arena-top3 { transition: none; } }
+
+/* ---- autopsy: liquidation forensics (reuses qd-* room/notes/actions scaffolding) ---- */
+.au-chart {
+  height: 240px;
+  background: var(--lab-card);
+  border: 1px solid var(--lab-line);
+  border-radius: var(--radius-sm);
+}
+.au-snapshot {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+.au-snapshot dt { color: var(--text-muted); }
+.au-snapshot dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.au-snapshot dd.neg { color: var(--down); }
+.au-ledger { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.au-trade {
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  background: var(--lab-card);
+  border: 1px dashed var(--lab-line);
+}
+.au-trade:hover:not(:disabled) { border-color: var(--lab-blue); filter: none; }
+.au-trade.active {
+  border-style: solid;
+  border-color: var(--lab-blue);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--lab-blue) 30%, transparent);
+}
+.au-trade.done { border-style: solid; color: var(--text-muted); }
+.au-fatal { font-weight: 600; margin: 10px 0 4px; }
+.au-why { line-height: 1.75; }
+@media (max-width: 720px) {
+  .au-chart { height: 190px; }
+}
