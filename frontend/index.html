@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="style.css?v=20261025de84">
   <link rel="stylesheet" href="game.css?v=20261026620e">
   <link rel="stylesheet" href="academy.css?v=202610261536">
-  <link rel="stylesheet" href="lab-games.css?v=20261026dc35">
+  <link rel="stylesheet" href="lab-games.css?v=20261026ab59">
   <link rel="stylesheet" href="widgets.css?v=202610268eb7">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
@@ -871,6 +871,7 @@
       <button class="gz-card" data-goto="duel"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4l6 6M19 4l-6 6M7 14l-3 3 3 3 3-3M17 14l3 3-3 3-3-3"/><path d="M12 12l-5 5M12 12l5 5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g6.t">策略擂台战</strong><span class="sub" data-i18n="gz.g6.d">提交自定义策略，同台回测 PK</span></button>
       <button class="gz-card" data-goto="autopsy"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g7.t">爆仓倒推</strong><span class="sub" data-i18n="gz.g7.d">给爆仓账户验尸，指认那笔致命的交易</span></button>
       <button class="gz-card" data-goto="monk"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21c1.5-4 4-6 7-6s5.5 2 7 6"/><path d="M12 4v-2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g8.t">止损僧侣</strong><span class="sub" data-i18n="gz.g8.d">立下军令状，在贪婪弹窗的轰炸里守住纪律</span></button>
+      <button class="gz-card" data-goto="alchemy"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3h4M12 3v6l6 10a1.5 1.5 0 0 1-1.3 2.3H7.3A1.5 1.5 0 0 1 6 19L12 9"/><path d="M8.5 15h7"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g9.t">仓位炼金术</strong><span class="sub" data-i18n="gz.g9.d">未来全公开也赢不了——用组合数学过风险关</span></button>
       <!-- 预留位: 不可点的"即将开放"占位卡, 暗示训练场还在扩建 -->
       <div class="gz-card gz-card-soon" aria-hidden="true"><strong data-i18n="gz.soon">即将开放</strong><span class="sub" data-i18n="gz.soonHint">新的训练项目正在打磨中</span></div>
     </div>
@@ -1238,6 +1239,63 @@
       <div class="qd-actions">
         <button id="btn-mkr-again" class="primary big" data-i18n="mk.again">再修一局</button>
         <button id="btn-mkr-games" class="big" data-i18n="mk.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-alchemy" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="al.title">⚗️ 仓位炼金术</span> <span class="sub" data-i18n="al.sub">未来走势全部公开，你还是赢不了——除非你懂组合</span></h2>
+
+    <div id="al-select">
+      <p class="hint" data-i18n="al.selectHint">五只股票未来 120 天的走势全部摆在你眼前，没有任何信息被隐藏。但你只能提交一个静态权重向量，中途不许调仓——要通过的不是收益关，是夏普、回撤、波动这些风险约束。全押涨最多的那只？试试就知道。每关 3 次提交机会，三关通关，剩的机会越多分越高。</p>
+      <p class="hint" id="al-best" hidden></p>
+      <button id="btn-al-start" class="primary big" data-i18n="al.start">开炉炼金</button>
+    </div>
+
+    <div id="al-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="al-level-title"></h3>
+        <span class="qd-credits-pill"><i data-i18n="al.triesLabel">剩余提交机会</i><b id="al-tries">3</b></span>
+        <span class="qd-credits-pill"><i data-i18n="al.scoreLabel">累计得分</i><b id="al-score">0</b></span>
+      </div>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="al.chartTitle">五只股票的完整未来（无隐藏信息）</p>
+          <div id="al-chart" class="au-chart"></div>
+          <ul id="al-stats" class="qd-notes"></ul>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="al.weightsTitle">你的静态权重（其余留现金）</p>
+          <div id="al-weights" class="al-weights"></div>
+          <p class="hint"><span data-i18n="al.cashLabel">现金仓位：</span><b id="al-cash">100%</b></p>
+          <div id="al-metrics" hidden>
+            <p class="hint" data-i18n="al.metricsTitle">本次提交的组合体检</p>
+            <div id="al-nav-chart" class="al-nav-chart"></div>
+            <div class="qdr-stats">
+              <span><i data-i18n="al.mRet">总收益</i><b id="al-m-ret">--</b></span>
+              <span><i data-i18n="al.mVol">年化波动</i><b id="al-m-vol">--</b></span>
+              <span><i data-i18n="al.mSharpe">夏普</i><b id="al-m-sharpe">--</b></span>
+              <span><i data-i18n="al.mDd">最大回撤</i><b id="al-m-dd">--</b></span>
+            </div>
+            <p id="al-m-target" class="hint"></p>
+          </div>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-al-submit" class="primary big" data-i18n="al.submit">提交权重，封炉开炼</button>
+      </div>
+      <button id="btn-al-back" class="ghost" data-i18n="al.back">放弃本局</button>
+    </div>
+
+    <div id="al-report" hidden>
+      <h3 data-i18n="al.reportTitle">炼金结算</h3>
+      <p id="alr-conclusion" class="qdr-conclusion"></p>
+      <p id="alr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-alr-again" class="primary big" data-i18n="al.again">再炼一炉</button>
+        <button id="btn-alr-games" class="big" data-i18n="al.toGames">返回训练场</button>
       </div>
     </div>
   </section>
@@ -2758,9 +2816,9 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261026db6c"></script>
+  <script src="i18n.js?v=202610261e95"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=202610266fa3"></script>
+  <script src="app.js?v=202610261e25"></script>
   <script src="play.js?v=20261026fae1"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
@@ -2796,6 +2854,7 @@
   <script src="qdetect.js?v=20261025cbe8"></script>
   <script src="autopsy.js?v=202610267ebf"></script>
   <script src="monk.js?v=20261026f32e"></script>
+  <script src="alchemy.js?v=20261026af7f"></script>
   <script src="tasks.js?v=202610267667"></script>
   <script src="pet.js?v=2026102523c4"></script>
   <script src="career.js?v=20261026bb9e"></script>

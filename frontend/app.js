@@ -402,7 +402,7 @@ const NAV_GROUPS = {
   me: ["mine", "career", "history", "account"],
   // extra: 无导航入口但仍是合法视图 (章节任务/训练场/首页卡片经 switchView 进入)
   extra: ["wiki", "guess", "famous", "story", "quiz", "option", "tape", "reborn", "bubble",
-    "newsjudge", "richman", "buydip", "stratbox", "qdetect", "autopsy", "monk"],
+    "newsjudge", "richman", "buydip", "stratbox", "qdetect", "autopsy", "monk", "alchemy"],
 };
 const VIEWS = Object.values(NAV_GROUPS).flat();
 const VIEW_GROUP = {};

@@ -934,3 +934,18 @@ button.mk-yield {
 }
 button.mk-yield:hover { border-style: solid; filter: none; }
 .mk-settle { margin: 12px 0; }
+
+/* ---- alchemy: static-weights portfolio puzzle ---- */
+.al-weights { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.al-weight-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.al-weight-row span { flex: 1; }
+.al-weight-row input { width: 90px; text-align: right; }
+.al-weight-row i { font-style: normal; color: var(--text-muted); }
+#al-cash.neg { color: var(--down); }
+.al-nav-chart {
+  height: 140px;
+  background: var(--lab-card);
+  border: 1px solid var(--lab-line);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
