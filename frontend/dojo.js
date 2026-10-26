@@ -815,6 +815,391 @@
     renderHunt();
   }
 
+  // ---------- 10 擂台盲测赛 (服务端: 报名锁死 / 过去周才揭晓) ----------
+  async function blindSubmit() {
+    if (!window.Auth || !Auth.user) { toast(t("fp.needLogin")); return; }
+    const p = qsCodec.decode("QS1", $("rq10-in").value);
+    if (!p || !p.s) { toast(t("rq.c10.badCode")); return; }
+    // QS1 策略码 → RunRequest 形配置 (sharecode 的字段即 RunRequest 字段)
+    const config = { ...(p.p || {}), strategy: p.s, positionPct: p.pos };
+    if (p.buy) config.buyConditions = p.buy;
+    if (p.sell) config.sellConditions = p.sell;
+    try {
+      const r = await api("/blind/submit", { method: "POST", body: JSON.stringify(config) });
+      toast(t("rq.c10.locked", r.week, r.players));
+      playSound("win");
+      loadBlindBoard(null);
+    } catch (e) { toast(e.message); }
+  }
+
+  let blindWeek = null;
+  async function loadBlindBoard(week) {
+    try {
+      const b = await api("/blind/board" + (week != null ? "?week=" + week : ""));
+      blindWeek = b.week;
+      $("rq10-board").hidden = false;
+      $("rq10-status").textContent = b.revealed
+        ? t("rq.c10.revealed", b.week, b.players)
+        : t("rq.c10.sealed", b.week, b.players, t(b.joined ? "rq.c10.joined" : "rq.c10.notJoined"));
+      const ul = $("rq10-rows");
+      ul.innerHTML = "";
+      (b.rows || []).forEach((r, i) => {
+        const li = document.createElement("li");
+        const tt = document.createElement("b");
+        tt.textContent = `#${i + 1} ` + r.username + (r.isSelf ? t("fp.duelMe") : "");
+        const dd = document.createElement("span");
+        dd.textContent = t("rq.c10.row", fmtPct(Number(r.score)), fmtPct(Number(r.worst)), fmtPct(Number(r.mean)));
+        li.append(tt, dd);
+        ul.appendChild(li);
+      });
+    } catch (e) { toast(e.message); }
+  }
+
+  // ---------- 11 接力调参 (QSL1 码接力, 三旋钮每人只动一个) ----------
+  const KNOBS = ["entry", "exit", "defense"];
+  const RELAY_BASE = { entry: "cross", exit: "death", defense: "none" };
+  const KNOB_VALUES = {
+    entry: ["cross", "breakout", "pullback"],
+    exit: ["death", "fixed", "trail"],
+    defense: ["none", "cap", "volfilter"],
+  };
+  let relay = null; // {code, steps:[{k,v,why,who}]}
+
+  async function relayStart() {
+    if (!(await ensureStocks())) return;
+    relay = { code: stocks[rnd(stocks.length)].code, steps: [] };
+    $("rq11-stage").hidden = false;
+    renderRelay();
+  }
+
+  function relayLoad() {
+    const p = qsCodec.decode("QSL1", $("rq11-in").value);
+    if (!p || !p.code || !Array.isArray(p.steps)) { toast(t("fp.badCode")); return; }
+    relay = p;
+    $("rq11-stage").hidden = false;
+    if (relay.steps.length >= 3) revealRelay();
+    else renderRelay();
+  }
+
+  function relayKnobsLeft() {
+    const used = new Set(relay.steps.map((s) => s.k));
+    return KNOBS.filter((k) => !used.has(k));
+  }
+
+  function renderRelay() {
+    if (!relay) return;
+    $("rq11-head").textContent = t("rq.c11.head", relay.steps.length + 1, 3, relay.code);
+    const log = $("rq11-log");
+    log.innerHTML = "";
+    relay.steps.forEach((s, i) => {
+      const li = document.createElement("li");
+      const tt = document.createElement("b");
+      tt.textContent = t("rq.c11.stepLine", i + 1, s.who || "?", t("rq.c11.k." + s.k),
+        t("rq.c11.v." + s.k + "." + s.v));
+      const dd = document.createElement("span");
+      dd.textContent = "「" + s.why + "」";
+      li.append(tt, dd);
+      log.appendChild(li);
+    });
+    const kSel = $("rq11-knob");
+    kSel.innerHTML = "";
+    relayKnobsLeft().forEach((k) => {
+      const o = document.createElement("option");
+      o.value = k;
+      o.textContent = t("rq.c11.k." + k);
+      kSel.appendChild(o);
+    });
+    renderRelayValues();
+    $("rq11-form").hidden = false;
+    $("rq11-result").hidden = true;
+  }
+
+  function renderRelayValues() {
+    const k = $("rq11-knob").value;
+    const vSel = $("rq11-val");
+    vSel.innerHTML = "";
+    (KNOB_VALUES[k] || []).forEach((v) => {
+      if (v === RELAY_BASE[k]) return; // 动旋钮必须真的动 (基线值不可选)
+      const o = document.createElement("option");
+      o.value = v;
+      o.textContent = t("rq.c11.v." + k + "." + v);
+      vSel.appendChild(o);
+    });
+  }
+
+  function relayCommit() {
+    if (!relay) return;
+    const why = $("rq11-why").value.trim();
+    if (why.length < 10 || why.length > 30) { toast(t("rq.c11.whyLen")); return; }
+    const who = (window.Auth && Auth.user ? Auth.user.username : t("rq.c11.anon")).slice(0, 10);
+    relay.steps.push({ k: $("rq11-knob").value, v: $("rq11-val").value, why, who });
+    $("rq11-why").value = "";
+    if (relay.steps.length >= 3) { revealRelay(); return; }
+    const code = qsCodec.encode("QSL1", relay);
+    $("rq11-out").hidden = false;
+    $("rq11-out").value = code;
+    $("rq11-form").hidden = true;
+    navigator.clipboard?.writeText(code).then(
+      () => toast(t("rq.c11.pass")), () => toast(t("fp.copyManual")));
+    renderRelay2();
+  }
+
+  function renderRelay2() { // 交棒后只展示日志, 不再给表单
+    $("rq11-head").textContent = t("rq.c11.handed", relay.steps.length, 3);
+    $("rq11-form").hidden = true;
+  }
+
+  const relayChart = qsChart("rq11-chart", () => {
+    if (!relay || !relay.blind) return null;
+    return lineOpt(relay.blind.curves[0].data.map((_, i) => i + 1), relay.blind.curves);
+  });
+
+  async function revealRelay() {
+    // 盲测段 = 该标的后 30% (接力期间 UI 从不展示这段的任何数字)
+    let h;
+    try { h = await labHistory(relay.code); } catch (e) { toast(e.message); return; }
+    const c = h.close.map(Number);
+    const split = Math.floor(c.length * 0.7);
+    const blind = c.slice(split);
+    const cfgs = [{ ...RELAY_BASE }];
+    relay.steps.forEach((s, i) => { cfgs.push({ ...cfgs[i], [s.k]: s.v }); });
+    const rets = cfgs.map((cfg) => Q().lastRet(
+      Q().simulate(blind, wheelPos(blind, cfg.entry, cfg.exit, cfg.defense), Q().frictionDefault())));
+    const ul = $("rq11-log");
+    ul.innerHTML = "";
+    relay.steps.forEach((s, i) => {
+      const li = document.createElement("li");
+      const delta = rets[i + 1] - rets[i];
+      const tt = document.createElement("b");
+      tt.textContent = t("rq.c11.stepLine", i + 1, s.who || "?", t("rq.c11.k." + s.k),
+        t("rq.c11.v." + s.k + "." + s.v));
+      const dd = document.createElement("span");
+      dd.textContent = "「" + s.why + "」 " + t("rq.c11.delta", (delta >= 0 ? "+" : "") + fmtPct(delta));
+      dd.className = delta >= 0 ? "pos" : "neg";
+      li.append(tt, dd);
+      ul.appendChild(li);
+    });
+    relay.blind = { curves: [
+      { name: t("rq.c11.base"), data: Q().simulate(blind, wheelPos(blind, RELAY_BASE.entry, RELAY_BASE.exit, RELAY_BASE.defense), Q().frictionDefault()), color: cssVar("--text-muted") },
+      { name: t("rq.c11.final"), data: Q().simulate(blind, wheelPos(blind, cfgs[3].entry, cfgs[3].exit, cfgs[3].defense), Q().frictionDefault()), color: cssVar("--ma5") },
+    ] };
+    $("rq11-form").hidden = true;
+    $("rq11-result").hidden = false;
+    $("rq11-result").textContent = t("rq.c11.result", fmtPct(rets[0]), fmtPct(rets[3]));
+    $("rq11-result").className = "qdr-conclusion " + (rets[3] > rets[0] ? "win" : "lose");
+    $("rq11-head").textContent = t("rq.c11.done", relay.code);
+    playSound(rets[3] > rets[0] ? "win" : "lose");
+    relayChart.refresh();
+  }
+
+  // ---------- 12 失败博物馆 (QSM2 展品 / QSM3 受教回执, 全码交换) ----------
+  const FAIL_TAGS = ["chase", "noStop", "overtrade", "allin", "fomo", "stubborn"];
+
+  function curateExhibit() {
+    const r = state.lastSettle;
+    if (!r) { toast(t("fp.guessNeedGame")); return; }
+    const cap = $("rq12-cap").value.trim();
+    if (cap.length < 20) { toast(t("rq.c12.capLen")); return; }
+    const exhibit = {
+      v: 1, ret: +Number(r.returnRate).toFixed(4),
+      dd: r.risk ? +Number(r.risk.maxDrawdown).toFixed(4) : null,
+      tag: $("rq12-tag").value, cap: cap.slice(0, 60),
+      who: (window.Auth && Auth.user ? Auth.user.username : t("rq.c11.anon")).slice(0, 10),
+    };
+    const code = qsCodec.encode("QSM2", exhibit);
+    const st = qsLoadBest(BEST_KEY);
+    const mine = (st.museum || []).slice(-2); // 最多陈列 3 件
+    mine.push({ code, acks: [] });
+    qsSaveBest(BEST_KEY, { museum: mine });
+    $("rq12-out").hidden = false;
+    $("rq12-out").value = code;
+    navigator.clipboard?.writeText(code).then(
+      () => toast(t("fp.copied")), () => toast(t("fp.copyManual")));
+    renderMuseum();
+  }
+
+  function viewExhibit() {
+    const raw = $("rq12-in").value.trim();
+    // 受教回执直接记账 (策展人粘贴朋友发回的 QSM3)
+    const ack = qsCodec.decode("QSM3", raw);
+    if (ack && ack.h) {
+      const st = qsLoadBest(BEST_KEY);
+      const mine = st.museum || [];
+      const hit = mine.find((m) => m.code.endsWith(ack.h));
+      if (!hit) { toast(t("rq.c12.ackOrphan")); return; }
+      const key = ack.h + "|" + (ack.by || "?");
+      if (!hit.acks.includes(key)) hit.acks.push(key);
+      qsSaveBest(BEST_KEY, { museum: mine });
+      toast(t("rq.c12.ackIn"));
+      renderMuseum();
+      return;
+    }
+    const ex = qsCodec.decode("QSM2", raw);
+    if (!ex) { toast(t("fp.badCode")); return; }
+    const box = $("rq12-view");
+    box.hidden = false;
+    $("rq12-plaque").textContent = t("rq.c12.plaque", ex.who || "?",
+      fmtPct(Number(ex.ret)), ex.dd != null ? fmtPct(Number(ex.dd)) : "--",
+      t("rq.c12.tag." + ex.tag), ex.cap);
+    $("btn-rq12-ack").onclick = () => {
+      const by = (window.Auth && Auth.user ? Auth.user.username : t("rq.c11.anon")).slice(0, 10);
+      const code = qsCodec.encode("QSM3", { v: 1, h: raw.slice(-8), by });
+      navigator.clipboard?.writeText(code).then(
+        () => toast(t("rq.c12.ackOut")), () => toast(t("fp.copyManual")));
+    };
+  }
+
+  function renderMuseum() {
+    const mine = qsLoadBest(BEST_KEY).museum || [];
+    const ul = $("rq12-mine");
+    ul.innerHTML = "";
+    mine.forEach((m, i) => {
+      const ex = qsCodec.decode("QSM2", m.code);
+      if (!ex) return;
+      const li = document.createElement("li");
+      const tt = document.createElement("b");
+      tt.textContent = `#${i + 1} ` + t("rq.c12.tag." + ex.tag) + " · " + fmtPct(Number(ex.ret));
+      const dd = document.createElement("span");
+      dd.textContent = t("rq.c12.ackCount", m.acks.length);
+      li.append(tt, dd);
+      ul.appendChild(li);
+    });
+    $("rq12-mine-empty").hidden = !!mine.length;
+  }
+
+  // ---------- 15 假设法庭 (单人版: 规则引擎当对方) ----------
+  const MOTIONS = ["crossweek", "monday", "lowvol"];
+  const OPP_FLAWS = ["insample", "nofee", "smalln"]; // 对方三件证据各埋一个破绽
+  const court = { motion: null, side: null, closes: null, dates: null, slots: [], exams: [], done: false };
+
+  /** 动议统计 (真算): 返回 {dir: 数据支持动议的方向 +1/-1, text}。 */
+  function motionStat(motion, closes, dates, half) {
+    const r = Q().rets(closes);
+    const lo = half === 2 ? Math.floor(closes.length / 2) : 0;
+    const hi = half === 1 ? Math.floor(closes.length / 2) : closes.length;
+    const m5 = Q().ma(closes, 5);
+    const m20 = Q().ma(closes, 20);
+    const picks = [];
+    const base = [];
+    for (let i = Math.max(21, lo); i < Math.min(hi, closes.length - 5); i++) {
+      base.push(r[i]);
+      if (motion === "crossweek" && m5[i] > m20[i] && m5[i - 1] <= m20[i - 1]) {
+        picks.push(closes[i + 5] / closes[i] - 1);
+      } else if (motion === "monday" && new Date(dates[i]).getDay() === 1) {
+        picks.push(r[i]);
+      } else if (motion === "lowvol" && i > 10) {
+        const seg = r.slice(i - 9, i + 1);
+        const mu = seg.reduce((x, y) => x + y, 0) / 10;
+        const vol = Math.sqrt(seg.reduce((x, y) => x + (y - mu) ** 2, 0) / 10);
+        if (vol < 0.012) picks.push(r[i + 1]);
+      }
+    }
+    const mean = picks.length ? picks.reduce((x, y) => x + y, 0) / picks.length : 0;
+    const uncond = base.length ? base.reduce((x, y) => x + y, 0) / base.length : 0;
+    return { dir: mean > uncond ? 1 : -1, n: picks.length,
+      text: t("rq.c15.stat", (mean * 100).toFixed(3), (uncond * 100).toFixed(3), picks.length) };
+  }
+
+  async function newCourt() {
+    if (!(await ensureStocks())) return;
+    let h;
+    try { h = await labHistory(stocks[rnd(stocks.length)].code); } catch (e) { toast(e.message); return; }
+    court.closes = h.close.map(Number);
+    court.dates = h.dates;
+    court.motion = MOTIONS[rnd(MOTIONS.length)];
+    court.side = Math.random() < 0.5 ? 1 : -1; // +1 辩方(支持动议) / -1 控方(反对)
+    court.slots = [null, null, null];
+    court.exams = [null, null, null];
+    court.done = false;
+    $("rq15-verdict").hidden = true;
+    renderCourt();
+  }
+
+  function renderCourt() {
+    if (!court.motion) return;
+    $("rq15-case").textContent = t("rq.c15.case", t("rq.c15.m." + court.motion),
+      t(court.side === 1 ? "rq.c15.defend" : "rq.c15.oppose"));
+    const wrap = $("rq15-slots");
+    wrap.innerHTML = "";
+    court.slots.forEach((slot, i) => {
+      const row = document.createElement("div");
+      row.className = "dtc-jrow";
+      const lab = document.createElement("p");
+      lab.className = "hint";
+      lab.textContent = t("rq.c15.slot", i + 1) + (slot
+        ? " " + slot.stat.text + t(slot.stat.dir === court.side ? "rq.c15.favors" : "rq.c15.hurts")
+        : "");
+      row.appendChild(lab);
+      if (!slot && !court.done) {
+        const opts = document.createElement("div");
+        opts.className = "lw-fracs qd-actions";
+        [["full", 0], ["splitA", 1], ["splitB", 2]].forEach(([key, half]) => {
+          const b = document.createElement("button");
+          b.textContent = t("rq.c15.ev." + key);
+          b.addEventListener("click", () => {
+            const stat = motionStat(court.motion, court.closes, court.dates, half);
+            // 证据质量: 分区证据 +2 (方法学硬通货), 样本 ≥30 +1, 基础 1
+            court.slots[i] = { stat, q: 1 + (half ? 2 : 0) + (stat.n >= 30 ? 1 : 0) };
+            playSound("fill");
+            renderCourt();
+          });
+          opts.appendChild(b);
+        });
+        row.appendChild(opts);
+      }
+      wrap.appendChild(row);
+    });
+    // 对方证据与质询
+    const oppWrap = $("rq15-opp");
+    oppWrap.innerHTML = "";
+    OPP_FLAWS.forEach((flaw, i) => {
+      const row = document.createElement("div");
+      row.className = "dtc-jrow";
+      const lab = document.createElement("p");
+      lab.className = "hint";
+      lab.textContent = t("rq.c15.oppEv." + flaw)
+        + (court.exams[i] ? " → " + t("rq.c15.x." + court.exams[i])
+          + t(court.exams[i] === flaw ? "rq.c15.xHit" : "rq.c15.xMiss") : "");
+      row.appendChild(lab);
+      if (!court.exams[i] && !court.done) {
+        const opts = document.createElement("div");
+        opts.className = "lw-fracs qd-actions";
+        ["insample", "nofee", "smalln", "surv"].forEach((x) => {
+          const b = document.createElement("button");
+          b.className = "small";
+          b.textContent = t("rq.c15.x." + x);
+          b.addEventListener("click", () => { court.exams[i] = x; playSound("tap"); renderCourt(); });
+          opts.appendChild(b);
+        });
+        row.appendChild(opts);
+      }
+      oppWrap.appendChild(row);
+    });
+    $("btn-rq15-verdict").disabled = court.done
+      || court.slots.some((s) => !s) || court.exams.some((x) => !x);
+  }
+
+  function courtVerdict() {
+    if (court.done) return;
+    court.done = true;
+    const quality = court.slots.reduce((a, s) => a + s.q, 0); // ≤12
+    const hits = court.exams.filter((x, i) => x === OPP_FLAWS[i]).length;
+    const mine = quality + hits * 2; // 方法学质量是大头
+    const opp = 10; // 规则引擎对手的固定火力
+    const dataDir = motionStat(court.motion, court.closes, court.dates, 0).dir;
+    const devil = dataDir !== court.side && mine > opp; // 为数据不站边的立场打出高质量辩护
+    const win = mine > opp;
+    const v = $("rq15-verdict");
+    v.hidden = false;
+    v.textContent = t("rq.c15.verdict", mine, opp, t(win ? "rq.c15.win" : "rq.c15.lose"), hits)
+      + (devil ? " " + t("rq.c15.devil") : "") + " " + t("rq.c15.lit." + court.motion);
+    v.className = "qdr-conclusion " + (win ? "win" : "lose");
+    playSound(win ? "win" : "lose");
+    const st = qsLoadBest(BEST_KEY);
+    if (win) qsSaveBest(BEST_KEY, { court: (st.court || 0) + 1, devil: (st.devil || 0) + (devil ? 1 : 0) });
+    renderCourt();
+  }
+
   // ---------- 共享 ----------
   function lineOpt(xs, series) {
     return {
@@ -856,6 +1241,17 @@
   $("rq6-win").addEventListener("input", renderHunt);
   $("rq6-from").addEventListener("input", renderHunt);
   $("rq6-to").addEventListener("input", renderHunt);
+  $("btn-rq10-submit").addEventListener("click", blindSubmit);
+  $("btn-rq10-board").addEventListener("click", () => loadBlindBoard(null));
+  $("btn-rq10-last").addEventListener("click", () => loadBlindBoard(blindWeek != null ? blindWeek - 1 : null));
+  $("btn-rq11-start").addEventListener("click", relayStart);
+  $("btn-rq11-load").addEventListener("click", relayLoad);
+  $("btn-rq11-commit").addEventListener("click", relayCommit);
+  $("rq11-knob").addEventListener("change", renderRelayValues);
+  $("btn-rq12-curate").addEventListener("click", curateExhibit);
+  $("btn-rq12-view").addEventListener("click", viewExhibit);
+  $("btn-rq15-new").addEventListener("click", newCourt);
+  $("btn-rq15-verdict").addEventListener("click", courtVerdict);
 
   document.addEventListener("qs:view", (e) => {
     if (e.detail !== "dojo") return;
@@ -864,7 +1260,10 @@
     if (!repair.card) newRepair();
     if (!rescue.path) newRescue();
     if (!hunt.closes) newHunt();
+    if (!court.motion) newCourt();
     renderBrief();
+    renderMuseum();
+    loadBlindBoard(null);
     digChart.refresh();
     juryChart.refresh();
     radarChart.refresh();

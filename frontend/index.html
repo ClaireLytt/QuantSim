@@ -2186,6 +2186,88 @@
       <p id="rq6-reveal" class="qdr-conclusion" hidden></p>
     </section>
 
+    <section class="card">
+      <h3 data-i18n="rq.c10.t">擂台盲测赛</h3>
+      <p class="hint" data-i18n="rq.c10.hint">把回测工坊调好的策略（QS1 策略码）投进本周擂台——报名即锁死。赛果在本周成为过去后，于三段保密历史窗口上统一计算：最差段占 50%、均值占 50%——短板定成败，面向分布做设计。</p>
+      <textarea id="rq10-in" class="fp-code"></textarea>
+      <div class="qd-actions">
+        <button id="btn-rq10-submit" class="primary" data-i18n="rq.c10.submit">投递策略（锁死）</button>
+        <button id="btn-rq10-board" class="big" data-i18n="rq.c10.cur">本周战况</button>
+        <button id="btn-rq10-last" class="big" data-i18n="rq.c10.last">上周赛果</button>
+      </div>
+      <div id="rq10-board" hidden>
+        <p id="rq10-status" class="ex-out"></p>
+        <ul id="rq10-rows" class="qd-notes"></ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c11.t">接力调参</h3>
+      <p class="hint" data-i18n="rq.c11.hint">三人异步接力调同一策略：三个旋钮（入场/出场/防御件），每人只许动一个、留 10~30 字理由，码传给下一棒。三步集齐自动在盲测段（该标的后 30%，接力期间不展示）结算，逐步拆解每人的边际贡献。</p>
+      <div class="qd-actions">
+        <button id="btn-rq11-start" class="primary" data-i18n="rq.c11.start">发起接力（我是第一棒）</button>
+      </div>
+      <label class="hint" data-i18n="rq.c11.paste">或粘贴接力码接棒：</label>
+      <textarea id="rq11-in" class="fp-code"></textarea>
+      <div class="qd-actions"><button id="btn-rq11-load" class="big" data-i18n="rq.c11.take">接棒</button></div>
+      <div id="rq11-stage" hidden>
+        <p id="rq11-head" class="ex-out"></p>
+        <ul id="rq11-log" class="qd-notes"></ul>
+        <div id="rq11-form" class="ex-controls">
+          <label><span data-i18n="rq.c11.knob">动哪个旋钮</span><select id="rq11-knob"></select></label>
+          <label><span data-i18n="rq.c11.toVal">调成</span><select id="rq11-val"></select></label>
+          <input id="rq11-why" class="fp-duel-in ex19-input" maxlength="30" data-i18n-placeholder="rq.c11.whyPh" placeholder="10~30 字：为什么这么调">
+          <button id="btn-rq11-commit" class="primary small" data-i18n="rq.c11.commit">落子并交棒</button>
+        </div>
+        <textarea id="rq11-out" class="fp-code" readonly hidden></textarea>
+        <p id="rq11-result" class="qdr-conclusion" hidden></p>
+        <div id="rq11-chart" class="lab-chart ex-chart"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c12.t">失败博物馆</h3>
+      <p class="hint" data-i18n="rq.c12.hint">用你最近一局的真实结果策展一件「失败展品」：选败因标签 + 写 ≥20 字展签，导出展品码给朋友参观。参观者可生成「受教了」回执码发回给你——回执计数挂在你的展位上。亏损金额不计分，归因质量才是策展水平。</p>
+      <div class="ex-controls">
+        <label><span data-i18n="rq.c12.tagLabel">败因标签</span><select id="rq12-tag">
+          <option value="chase" data-i18n="rq.c12.tag.chase">追高接最后一棒</option>
+          <option value="noStop" data-i18n="rq.c12.tag.noStop">没有止损纪律</option>
+          <option value="overtrade" data-i18n="rq.c12.tag.overtrade">过度交易磨损</option>
+          <option value="allin" data-i18n="rq.c12.tag.allin">仓位孤注一掷</option>
+          <option value="fomo" data-i18n="rq.c12.tag.fomo">怕错过而上头</option>
+          <option value="stubborn" data-i18n="rq.c12.tag.stubborn">死扛不认错</option>
+        </select></label>
+      </div>
+      <input id="rq12-cap" class="fp-duel-in ex19-input" maxlength="60" data-i18n-placeholder="rq.c12.capPh" placeholder="≥20 字的展签：这次败在哪、学到什么">
+      <div class="qd-actions"><button id="btn-rq12-curate" class="primary" data-i18n="rq.c12.curate">用最近一局策展</button></div>
+      <textarea id="rq12-out" class="fp-code" readonly hidden></textarea>
+      <p class="hint" data-i18n="rq.c12.mineTitle">我的展位（受教回执计数）：</p>
+      <p id="rq12-mine-empty" class="hint" data-i18n="rq.c12.mineEmpty">还没有展品——失败资产化，从策展第一件开始。</p>
+      <ul id="rq12-mine" class="qd-notes"></ul>
+      <label class="hint" data-i18n="rq.c12.viewLabel">参观展品 / 录入受教回执（粘贴 QSM2 或 QSM3 码）：</label>
+      <textarea id="rq12-in" class="fp-code"></textarea>
+      <div class="qd-actions"><button id="btn-rq12-view" class="big" data-i18n="rq.c12.view">参观 / 录入</button></div>
+      <div id="rq12-view" hidden>
+        <p id="rq12-plaque" class="ex18-report"></p>
+        <div class="qd-actions"><button id="btn-rq12-ack" class="primary small" data-i18n="rq.c12.ack">受教了（生成回执码）</button></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c15.t">假设法庭</h3>
+      <p class="hint" data-i18n="rq.c15.hint">一项研究主张开庭，系统随机指派你当控方或辩方——可能要为你不信的立场辩护，这是最锋利的学习装置。用三件证据出庭（分区证据的方法学分量最重），并逐件质询对方证据的破绽。立场胜负只占小头，方法学质量定输赢。</p>
+      <p id="rq15-case" class="ex18-report"></p>
+      <p class="hint" data-i18n="rq.c15.myEv">我方证据（三件，选取证方式）：</p>
+      <div id="rq15-slots"></div>
+      <p class="hint" data-i18n="rq.c15.oppEvTitle">对方证据（逐件质询其破绽）：</p>
+      <div id="rq15-opp"></div>
+      <div class="qd-actions">
+        <button id="btn-rq15-verdict" class="primary" data-i18n="rq.c15.close">请求判决</button>
+        <button id="btn-rq15-new" class="big" data-i18n="rq.c15.new">换一桩案子</button>
+      </div>
+      <p id="rq15-verdict" class="qdr-conclusion" hidden></p>
+    </section>
+
     <p class="hint ex-iron" data-i18n="ex.iron">历史回测收益 ≠ 未来收益；本页全部结论只在所用数据与假设内成立。</p>
   </section>
   </div>
@@ -3859,7 +3941,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610266227"></script>
+  <script src="i18n.js?v=202610268fce"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=20261026f977"></script>
   <script src="play.js?v=202610267b78"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
@@ -3875,7 +3957,7 @@
   <script src="optsandbox.js?v=2026102556f9"></script>
   <script src="lab.js?v=20261026e7e8"></script>
   <script src="exlab.js?v=202610265e71"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
-  <script src="dojo.js?v=202610261f0c"></script><!-- 依赖 exlab.js 的 window.qsQuant 计算件, 必须在其后 -->
+  <script src="dojo.js?v=2026102625ae"></script><!-- 依赖 exlab.js 的 window.qsQuant 计算件, 必须在其后 -->
   <script src="daily.js?v=2026102675d2"></script>
   <script src="event.js?v=202610250b8a"></script>
   <script src="option.js?v=2026102531c6"></script>
