@@ -876,6 +876,7 @@
       <button class="gz-card" data-goto="fool"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18c2-8 5-13 8-13s6 5 8 13"/><path d="M3 18h18M12 5v-2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g11.t">最后一个接盘侠</strong><span class="sub" data-i18n="gz.g11.d">音乐停止前逃离妖股，别当最后那个人</span></button>
       <button class="gz-card" data-goto="maze"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h18v18H3zM3 9h12M9 9v6M15 9v12M9 15h6M15 3v3"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g12.t">平仓迷宫</strong><span class="sub" data-i18n="gz.g12.d">大仓位出逃，每扇交易通道的门都有脾气</span></button>
       <button class="gz-card" data-goto="loopweek"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/><path d="M12 7v5l3 2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g13.t">周一的一千次</strong><span class="sub" data-i18n="gz.g13.d">循环同一个交易周——仓位越大，答案越不见</span></button>
+      <button class="gz-card" data-goto="supply"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V11l6 4v-4l6 4v-4l6 4v6z"/><path d="M3 21h18M7 7V3h4v4"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g14.t">供应链战争</strong><span class="sub" data-i18n="gz.g14.d">售价锁定成本漂移，套保比例决定工厂生死</span></button>
       <!-- 预留位: 不可点的"即将开放"占位卡, 暗示训练场还在扩建 -->
       <div class="gz-card gz-card-soon" aria-hidden="true"><strong data-i18n="gz.soon">即将开放</strong><span class="sub" data-i18n="gz.soonHint">新的训练项目正在打磨中</span></div>
     </div>
@@ -1504,6 +1505,63 @@
       <div class="qd-actions">
         <button id="btn-lwr-again" class="primary big" data-i18n="lw.again">换一个星期重困一次</button>
         <button id="btn-lwr-games" class="big" data-i18n="lw.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-supply" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="sp.title">🏭 供应链战争</span> <span class="sub" data-i18n="sp.sub">售价今天锁定，成本下季才揭晓——套保不是副业，是工厂的呼吸</span></h2>
+
+    <div id="sp-select">
+      <p class="hint" data-i18n="sp.selectHint">你经营一家工厂，走 8 个季度。每季接一张订单（售价锁死、下季交付），但生产成本跟着铜价走——铜价有平静季（±6%）和风暴季（±28%），每季还有一条可靠度 75% 的市场传闻。核心决策只有两个：接大单还是小单，以及用期货把下季的原料成本锁住多少（锁 = 付 1% 保费、放弃铜价下跌的红利）。现金断裂当场破产——哪怕你账面是赚的。目标：8 季后现金 ≥ 150 万。</p>
+      <p class="hint" id="sp-best" hidden></p>
+      <button id="btn-sp-start" class="primary big" data-i18n="sp.start">接手工厂</button>
+    </div>
+
+    <div id="sp-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="sp-q"></h3>
+        <span class="qd-credits-pill"><i data-i18n="sp.cashLabel">账上现金</i><b id="sp-cash">--</b></span>
+        <span class="qd-credits-pill"><i data-i18n="sp.copperLabel">铜价（现货）</i><b id="sp-copper">--</b></span>
+      </div>
+      <p id="sp-rumor" class="qd-claim"></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="sp.chartTitle">铜价走势（你的成本线）</p>
+          <div id="sp-chart" class="au-chart"></div>
+          <p class="hint" data-i18n="sp.logTitle">近期经营台账</p>
+          <p id="sp-log-empty" class="hint" data-i18n="sp.logEmptyText">第一季——先接单，再决定锁多少成本。</p>
+          <ul id="sp-log" class="qd-notes"></ul>
+        </div>
+        <div class="qd-right card">
+          <p class="hint" data-i18n="sp.ordersTitle">本季订单（售价锁定，下季按届时铜价生产交付）</p>
+          <div id="sp-orders" class="mz-doors"></div>
+          <label class="qd-verdict-row"><span data-i18n="sp.hedgeLabel">套保比例</span>
+            <select id="sp-hedge">
+              <option value="0" data-i18n="sp.hedge0">0%（裸奔，赌铜价不涨）</option>
+              <option value="1" selected data-i18n="sp.hedge50">50%（半锁）</option>
+              <option value="2" data-i18n="sp.hedge100">100%（全锁，付足保费）</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-sp-commit" class="primary big" data-i18n="sp.commit">签字画押，进入下一季</button>
+      </div>
+      <button id="btn-sp-back" class="ghost" data-i18n="sp.back">关厂走人</button>
+    </div>
+
+    <div id="sp-report" hidden>
+      <h3 data-i18n="sp.reportTitle">年终清算</h3>
+      <p id="spr-conclusion" class="qdr-conclusion"></p>
+      <p class="hint" data-i18n="sp.fullLogTitle">八季完整台账（传闻真伪已揭晓）</p>
+      <ul id="spr-log" class="qd-notes"></ul>
+      <p id="spr-why" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-spr-again" class="primary big" data-i18n="sp.again">再开一厂</button>
+        <button id="btn-spr-games" class="big" data-i18n="sp.toGames">返回训练场</button>
       </div>
     </div>
   </section>
@@ -3024,9 +3082,9 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261026418c"></script>
+  <script src="i18n.js?v=202610268a99"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=2026102638f8"></script>
+  <script src="app.js?v=202610267a5b"></script>
   <script src="play.js?v=20261026fae1"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
@@ -3067,6 +3125,7 @@
   <script src="fool.js?v=202610265728"></script>
   <script src="maze.js?v=20261026afd3"></script>
   <script src="loopweek.js?v=2026102625cf"></script>
+  <script src="supply.js?v=2026102665c6"></script>
   <script src="tasks.js?v=202610267667"></script>
   <script src="pet.js?v=2026102523c4"></script>
   <script src="career.js?v=20261026bb9e"></script>
