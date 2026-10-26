@@ -15,6 +15,15 @@
       info.textContent = t("daily.loading");
       return;
     }
+    // 今日规则卡 (D1~D8 轮换): 开打前先亮规则, 玩家带着约束进场
+    const ruleEl = $("daily-rule");
+    const ruleDesc = $("daily-rule-desc");
+    ruleEl.hidden = !today.dailyRule;
+    ruleDesc.hidden = !today.dailyRule;
+    if (today.dailyRule) {
+      ruleEl.textContent = t("dc.badge", t("dc." + today.dailyRule + ".t"));
+      ruleDesc.textContent = t("dc." + today.dailyRule + ".d");
+    }
     // 连续挑战 streak: 留存钩子, 有连续记录就展示在标的信息后
     let text = t("daily.info", stockName(today.stockName, today.stockCode));
     if (today.streak > 0) {

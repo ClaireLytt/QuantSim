@@ -42,7 +42,8 @@ DYNAMIC_KEY_PREFIXES = ("strat.", "room.status.", "me.mode.", "orders.",
                         "sop.name.", "sop.act.", "sop.actd.",  # 玩家名/动作拼键 (soup.js)
                         "fbt.ind.", "fbt.m.", "fbt.dir.",  # 行业/指标/方向拼键 (taste.js)
                         "pulse.",  # pulse.{SURGE_HOT|...}: 今日播报 regime 拼键 (home.js)
-                        "gw.dim.", "gw.reward.", "gw.style.")  # 六维/奖励位/九宫风格拼键 (growth.js)
+                        "gw.dim.", "gw.reward.", "gw.style.",  # 六维/奖励位/九宫风格拼键 (growth.js)
+                        "dc.")  # dc.{FIVE|BELT|...}.t/.d: 每日规则拼键 (daily.js / play.js)
 
 
 def read(path):

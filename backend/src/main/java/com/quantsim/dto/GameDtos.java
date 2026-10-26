@@ -248,7 +248,11 @@ public final class GameDtos {
             int winStreak,
             BiasReport biasReport,
             List<JournalEntry> journal,
-            EventReveal eventReveal) {}
+            EventReveal eventReveal,
+            DailyRuleResult dailyChallenge) {}
+
+    /** 每日挑战规则结算判定 (非每日局为 null): rule = DailyRules.Rule 枚举名。 */
+    public record DailyRuleResult(String rule, boolean passed) {}
 
     /** LLM 交易顾问的解说与建议。 */
     public record AdvisorResponse(String advice, String model) {}

@@ -506,6 +506,18 @@ header.collapsed h1 .sub { display: none; }
 
 /* ---------- 每日挑战 ---------- */
 
+/* 今日规则徽标 (D1~D8 轮换): 衬线标题体 + 主色描边胶囊 */
+.daily-rule {
+  align-self: center;
+  font-family: var(--tr-serif);
+  font-size: 15px;
+  letter-spacing: .06em;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 999px;
+  padding: 4px 16px;
+}
+
 /* 每日挑战卡: 窄栏内整体居中, 文案与按钮都走中轴 */
 .daily-card {
   display: flex;

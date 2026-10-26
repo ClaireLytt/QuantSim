@@ -1172,6 +1172,16 @@ function renderSettle(result) {
     verdict.textContent = t(win ? "survival.win" : "survival.lose");
     verdict.className = "verdict " + (win ? "win" : "lose");
   }
+  // 每日挑战规则判定 (D1~D8): 结算卡上亮当日规则的过/未过
+  const dcEl = $("settle-daily-rule");
+  dcEl.hidden = !result.dailyChallenge;
+  if (result.dailyChallenge) {
+    const dc = result.dailyChallenge;
+    dcEl.textContent = t(dc.passed ? "dc.passed" : "dc.failed", t("dc." + dc.rule + ".t"));
+    dcEl.className = "hint " + (dc.passed ? "pos" : "neg");
+    // 达成给学堂经验 (XP 体系在前端 prog, 与徽章同层); addXp 来自 academy.js
+    if (dc.passed && window.addXp) addXp(15);
+  }
   // 新手浓缩局: 判词换成趣味称号 (不论盈亏都给正反馈——第一局的任务是留下来)
   if (state.mode === "INTRO") {
     const ret = Number(result.returnRate);

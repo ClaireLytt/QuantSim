@@ -61,7 +61,8 @@ public class DailyChallengeService {
                 stock.getMarket().name(),
                 mine != null, mine == null ? null : mine.getSessionId(),
                 mine != null && mine.getStatus() == GameSession.Status.SETTLED,
-                streak(userId, date));
+                streak(userId, date),
+                DailyRules.ruleFor(date).name());
     }
 
     @Transactional
@@ -74,8 +75,23 @@ public class DailyChallengeService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
         try {
-            return gameStart.startGameAt(user, challenge.getStockId(), challenge.getStartDate(),
+            StartGameResponse res = gameStart.startGameAt(user, challenge.getStockId(), challenge.getStartDate(),
                     DAILY_AI, "DAILY", false, date);
+            // 当日规则 (D1~D8 轮换) 的开局参数固化进 session: 笔数上限/强制理由复用既有闸门,
+            // 交易时闸与结算判定按 challengeDate 推导, 不新增存储
+            DailyRules.Rule rule = DailyRules.ruleFor(date);
+            Integer maxTrades = DailyRules.maxTrades(rule);
+            boolean requireReason = DailyRules.requireReason(rule);
+            if (maxTrades != null || requireReason) {
+                GameSession session = sessionRepository.findById(res.sessionId()).orElseThrow();
+                session.setMaxTrades(maxTrades);
+                session.setRequireReason(requireReason);
+                res = new StartGameResponse(res.sessionId(), res.stockCode(), res.stockName(),
+                        res.market(), res.lotSize(), res.startDate(), res.initialCash(),
+                        res.totalTicks(), res.aiLevel(), res.mode(), res.advanced(), res.realRules(),
+                        res.stocks(), res.status(), maxTrades, requireReason);
+            }
+            return res;
         } catch (DataIntegrityViolationException e) {
             // 并发双开撞 uk_user_daily
             throw new BusinessException("你今天已经玩过每日挑战, 明天再来");
