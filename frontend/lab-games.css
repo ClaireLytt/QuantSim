@@ -912,3 +912,25 @@ button.small { width: auto; margin-top: 8px; padding: 4px 12px; font-size: 12px;
 @media (max-width: 720px) {
   .au-chart { height: 190px; }
 }
+
+/* ---- monk: stop-loss discipline practice (reuses qd-*/au-* scaffolding) ---- */
+.mk-vow-row { display: flex; gap: 18px; margin: 12px 0; }
+.mk-vow-row label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+.mk-prompt {
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: color-mix(in srgb, var(--down) 6%, var(--lab-card));
+  border: 1px solid color-mix(in srgb, var(--down) 40%, var(--lab-line));
+  border-radius: var(--radius-sm);
+}
+.mk-prompt .hint { margin: 0 0 6px; }
+.mk-whisper { margin: 0 0 10px; font-size: 14px; line-height: 1.7; font-style: italic; }
+.mk-prompt-btns { display: flex; gap: 10px; }
+.mk-prompt-btns button { flex: 1; }
+button.mk-yield {
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--down) 55%, var(--lab-line));
+  color: var(--down);
+}
+button.mk-yield:hover { border-style: solid; filter: none; }
+.mk-settle { margin: 12px 0; }

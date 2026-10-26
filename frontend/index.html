@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="style.css?v=20261025de84">
   <link rel="stylesheet" href="game.css?v=20261026620e">
   <link rel="stylesheet" href="academy.css?v=202610261536">
-  <link rel="stylesheet" href="lab-games.css?v=20261026cd2d">
+  <link rel="stylesheet" href="lab-games.css?v=20261026dc35">
   <link rel="stylesheet" href="widgets.css?v=202610268eb7">
   <script src="vendor/echarts.min.js?v=5.6.0"></script><!-- 本地 vendor (ticket 16): CDN 断连曾两次打挂图表与冒烟 -->
 </head>
@@ -870,6 +870,7 @@
       <button class="gz-card" data-goto="qdetect" data-case="survivor"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M8 20v-9a4 4 0 0 1 8 0v9"/><path d="M10 13h4"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g5.t">幸存者陷阱</strong><span class="sub" data-i18n="gz.g5.d">揭露幸存者偏差带来的选股幻觉</span></button>
       <button class="gz-card" data-goto="duel"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4l6 6M19 4l-6 6M7 14l-3 3 3 3 3-3M17 14l3 3-3 3-3-3"/><path d="M12 12l-5 5M12 12l5 5"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g6.t">策略擂台战</strong><span class="sub" data-i18n="gz.g6.d">提交自定义策略，同台回测 PK</span></button>
       <button class="gz-card" data-goto="autopsy"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g7.t">爆仓倒推</strong><span class="sub" data-i18n="gz.g7.d">给爆仓账户验尸，指认那笔致命的交易</span></button>
+      <button class="gz-card" data-goto="monk"><span class="lab-tile-top"><span class="lab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21c1.5-4 4-6 7-6s5.5 2 7 6"/><path d="M12 4v-2"/></svg></span><i class="lab-tier" data-i18n="gz.tier.adv">进阶</i></span><strong data-i18n="gz.g8.t">止损僧侣</strong><span class="sub" data-i18n="gz.g8.d">立下军令状，在贪婪弹窗的轰炸里守住纪律</span></button>
       <!-- 预留位: 不可点的"即将开放"占位卡, 暗示训练场还在扩建 -->
       <div class="gz-card gz-card-soon" aria-hidden="true"><strong data-i18n="gz.soon">即将开放</strong><span class="sub" data-i18n="gz.soonHint">新的训练项目正在打磨中</span></div>
     </div>
@@ -1167,6 +1168,76 @@
       <div class="qd-actions">
         <button id="btn-aur-again" class="primary big" data-i18n="au.again">再验一宗</button>
         <button id="btn-aur-games" class="big" data-i18n="au.toGames">返回训练场</button>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <div id="view-monk" class="tearoom" hidden>
+  <section class="academy-panel center-panel">
+    <h2><span data-i18n="mk.title">📿 止损僧侣</span> <span class="sub" data-i18n="mk.sub">对抗的不是市场，是界面里的贪婪弹窗——立下军令状，守住你的纪律</span></h2>
+
+    <div id="mk-select">
+      <p class="hint" data-i18n="mk.selectHint">开局先立军令状：止损线和止盈线。之后 40 个交易日里，每逢止损位、止盈位和「黄金坑」，魔鬼都会弹出来劝你破戒。守戒得佛珠，从了诱惑记一罪——三罪破戒，本局即败。结算时和「每次都从了诱惑」的平行宇宙对账。</p>
+      <div class="mk-vow-row">
+        <label><span data-i18n="mk.stopLabel">止损线</span>
+          <select id="mk-stop"><option value="0">-6%</option><option value="1" selected>-10%</option><option value="2">-15%</option></select>
+        </label>
+        <label><span data-i18n="mk.tpLabel">止盈线</span>
+          <select id="mk-tp"><option value="0">+8%</option><option value="1" selected>+15%</option><option value="2">+25%</option></select>
+        </label>
+      </div>
+      <p class="hint" id="mk-best" hidden></p>
+      <button id="btn-mk-start" class="primary big" data-i18n="mk.start">签下军令状，入场</button>
+    </div>
+
+    <div id="mk-room" hidden>
+      <div class="qd-room-head">
+        <h3 id="mk-day"></h3>
+        <span class="qd-credits-pill"><i data-i18n="mk.beadsLabel">佛珠</i><b id="mk-beads">—</b></span>
+        <span class="qd-credits-pill"><i data-i18n="mk.sinsLabel">罪业</i><b id="mk-sins">0 / 3</b></span>
+      </div>
+      <p id="mk-vow" class="qd-claim"></p>
+      <div class="qd-room-cols">
+        <div class="qd-left card">
+          <p class="hint" data-i18n="mk.chartTitle">行情逐日揭示（虚线 = 你的军令状）</p>
+          <div id="mk-chart" class="au-chart"></div>
+          <dl class="au-snapshot">
+            <dt data-i18n="mk.priceLabel">现价</dt><dd id="mk-price">--</dd>
+            <dt data-i18n="mk.equityLabel">账户净值</dt><dd id="mk-equity">--</dd>
+          </dl>
+        </div>
+        <div class="qd-right card">
+          <div id="mk-prompt" class="mk-prompt" hidden>
+            <p class="hint" data-i18n="mk.whisperTitle">魔鬼的耳语</p>
+            <p id="mk-whisper" class="mk-whisper"></p>
+            <div class="mk-prompt-btns">
+              <button id="btn-mk-yield" class="mk-yield" data-i18n="mk.yield">从了诱惑</button>
+              <button id="btn-mk-keep" class="primary">守戒</button>
+            </div>
+          </div>
+          <p class="hint" data-i18n="mk.logTitle">修行记录</p>
+          <p id="mk-log-empty" class="hint" data-i18n="mk.logEmptyText">还没有诱惑来敲门——往前走。</p>
+          <ul id="mk-log" class="qd-notes"></ul>
+        </div>
+      </div>
+      <div class="qd-actions">
+        <button id="btn-mk-next" class="primary big" data-i18n="mk.next">下一交易日</button>
+      </div>
+      <button id="btn-mk-back" class="ghost" data-i18n="mk.back">放弃修行</button>
+    </div>
+
+    <div id="mk-report" hidden>
+      <h3 data-i18n="mk.reportTitle">修行结算</h3>
+      <p id="mkr-conclusion" class="qdr-conclusion"></p>
+      <dl class="au-snapshot mk-settle">
+        <dt data-i18n="mk.youLabel">守戒的你</dt><dd id="mkr-you">--</dd>
+        <dt data-i18n="mk.altLabel">平行宇宙（每次都从了诱惑）</dt><dd id="mkr-alt">--</dd>
+      </dl>
+      <p id="mkr-verdict" class="hint au-why"></p>
+      <div class="qd-actions">
+        <button id="btn-mkr-again" class="primary big" data-i18n="mk.again">再修一局</button>
+        <button id="btn-mkr-games" class="big" data-i18n="mk.toGames">返回训练场</button>
       </div>
     </div>
   </section>
@@ -2687,9 +2758,9 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261026aeec"></script>
+  <script src="i18n.js?v=20261026db6c"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=202610263d70"></script>
+  <script src="app.js?v=202610266fa3"></script>
   <script src="play.js?v=20261026fae1"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
@@ -2724,6 +2795,7 @@
   <script src="stratbox.js?v=202610255d84"></script>
   <script src="qdetect.js?v=20261025cbe8"></script>
   <script src="autopsy.js?v=202610267ebf"></script>
+  <script src="monk.js?v=20261026f32e"></script>
   <script src="tasks.js?v=202610267667"></script>
   <script src="pet.js?v=2026102523c4"></script>
   <script src="career.js?v=20261026bb9e"></script>
