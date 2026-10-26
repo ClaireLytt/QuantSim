@@ -499,6 +499,322 @@
     };
   });
 
+  // ---------- 2 残卡修复所 ----------
+  // 残卡模板: truth = 病根 (noexit 缺出场 / badparam 参数损坏 / noise 入场即噪声);
+  // fixable=false 的卡正确答案是"放弃修复"——识别没救的点子是研究者的核心能力。
+  const BROKEN_CARDS = [
+    { id: "b1", entry: "cross", exitKind: "none", truth: "noexit", fixable: true, goodFixes: ["death", "trail"] },
+    { id: "b2", entry: "breakout", exitKind: "tightTrail", truth: "badparam", fixable: true, goodFixes: ["trail", "fixed"] },
+    { id: "b3", entry: "pullback", exitKind: "oneDay", truth: "badparam", fixable: true, goodFixes: ["fixed", "death"] },
+    { id: "b4", entry: "random", exitKind: "death", truth: "noise", fixable: false, goodFixes: [] },
+  ];
+  const repair = { card: null, closes: null, diag: null, fix: null, done: false };
+
+  /** 残卡/修复后的仓位: 残缺形态本地实现 (qsQuant.rulePos 只有健康件)。 */
+  function repairPos(c, entry, exitKind) {
+    const m5 = Q().ma(c, 5);
+    const m20 = Q().ma(c, 20);
+    let seed = 777;
+    const rng = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    const pos = [];
+    let holding = false;
+    let entryIdx = -1;
+    let peak = 0;
+    for (let i = 0; i < c.length; i++) {
+      if (m20[i] == null) { pos.push(0); rng(); continue; }
+      if (!holding) {
+        const hi20 = i >= 20 ? Math.max(...c.slice(i - 20, i)) : Infinity;
+        const enter = entry === "cross" ? (m5[i] > m20[i] && m5[i - 1] != null && m5[i - 1] <= m20[i - 1])
+          : entry === "breakout" ? c[i] > hi20
+            : entry === "pullback" ? (c[i] > m20[i] && m5[i] != null && c[i] < m5[i])
+              : rng() < 0.08; // random: 噪声入场
+        if (enter) { holding = true; entryIdx = i; peak = c[i]; }
+      } else {
+        peak = Math.max(peak, c[i]);
+        const leave = exitKind === "none" ? false
+          : exitKind === "tightTrail" ? c[i] <= peak * 0.995
+            : exitKind === "oneDay" ? i - entryIdx >= 1
+              : exitKind === "death" ? c[i] < m20[i]
+                : exitKind === "fixed" ? i - entryIdx >= 10
+                  : c[i] <= peak * 0.92; // trail 8%
+        if (leave) holding = false;
+      }
+      pos.push(holding ? 1 : 0);
+    }
+    return pos;
+  }
+
+  const repairChart = qsChart("rq2-chart", () => {
+    if (!repair.card || !repair.closes) return null;
+    const c = repair.closes;
+    const split = Math.floor(c.length * 0.7);
+    const broken = Q().simulate(c.slice(0, split),
+      repairPos(c.slice(0, split), repair.card.entry, repair.card.exitKind), Q().frictionDefault());
+    const series = [{ name: t("rq.c2.broken"), data: broken, color: cssVar("--bad") }];
+    if (repair.done && repair.fix && repair.fix !== "abandon") {
+      const fixed = Q().simulate(c.slice(split),
+        repairPos(c.slice(split), repair.card.entry, repair.fix), Q().frictionDefault());
+      series.push({ name: t("rq.c2.fixed"), data: fixed, color: cssVar("--ma5") });
+    }
+    return lineOpt(series[0].data.map((_, i) => i + 1), series);
+  });
+
+  async function newRepair() {
+    if (!(await ensureStocks())) return;
+    let h;
+    try { h = await labHistory(stocks[rnd(stocks.length)].code); } catch (e) { toast(e.message); return; }
+    repair.closes = h.close.map(Number);
+    repair.card = BROKEN_CARDS[rnd(BROKEN_CARDS.length)];
+    repair.diag = null;
+    repair.fix = null;
+    repair.done = false;
+    $("rq2-reveal").hidden = true;
+    renderRepair();
+  }
+
+  function renderRepair() {
+    if (!repair.card) return;
+    $("rq2-card").textContent = t("rq.c2.card", t("ex.e7.en." + (repair.card.entry === "random" ? "cross" : repair.card.entry))
+      + (repair.card.entry === "random" ? t("rq.c2.entrySuspect") : ""),
+      t("rq.c2.ex." + repair.card.exitKind));
+    const dWrap = $("rq2-diags");
+    dWrap.innerHTML = "";
+    ["noexit", "badparam", "noise"].forEach((d) => {
+      const b = document.createElement("button");
+      b.className = repair.diag === d ? "primary" : "";
+      b.disabled = repair.done;
+      b.textContent = t("rq.c2.d." + d);
+      b.addEventListener("click", () => { repair.diag = d; renderRepair(); });
+      dWrap.appendChild(b);
+    });
+    const fWrap = $("rq2-fixes");
+    fWrap.innerHTML = "";
+    ["death", "fixed", "trail", "abandon"].forEach((f) => {
+      const b = document.createElement("button");
+      b.className = repair.fix === f ? "primary" : "";
+      b.disabled = repair.done;
+      b.textContent = t("rq.c2.f." + f);
+      b.addEventListener("click", () => { repair.fix = f; renderRepair(); });
+      fWrap.appendChild(b);
+    });
+    $("btn-rq2-submit").disabled = repair.done || !repair.diag || !repair.fix;
+    repairChart.refresh();
+  }
+
+  function submitRepair() {
+    const card = repair.card;
+    if (!card || repair.done || !repair.diag || !repair.fix) return;
+    repair.done = true;
+    const diagOk = repair.diag === card.truth;
+    const fixOk = card.fixable ? card.goodFixes.includes(repair.fix) : repair.fix === "abandon";
+    const knowStop = !card.fixable && repair.fix === "abandon" && diagOk;
+    const rv = $("rq2-reveal");
+    rv.hidden = false;
+    rv.textContent = t("rq.c2.reveal", t(diagOk ? "fbt.hit" : "fbt.miss"), t("rq.c2.d." + card.truth),
+      t(fixOk ? "fbt.hit" : "fbt.miss"))
+      + (knowStop ? " " + t("rq.c2.knowStop") : "")
+      + (!card.fixable && repair.fix !== "abandon" ? " " + t("rq.c2.unfixable") : "");
+    rv.className = "qdr-conclusion " + (diagOk && fixOk ? "win" : "lose");
+    playSound(diagOk && fixOk ? "win" : "lose");
+    const st = qsLoadBest(BEST_KEY);
+    qsSaveBest(BEST_KEY, { repN: (st.repN || 0) + 1, repOk: (st.repOk || 0) + (diagOk && fixOk ? 1 : 0) });
+    renderRepair();
+  }
+
+  // ---------- 13 历史爆仓重演 ----------
+  // 任务不是赚钱, 是比原主少死一点: 单日减仓限速 20% (流动性约束), 原主死扛到强平线 (净值 60%) 全抛。
+  const rescue = { path: null, day: 0, shares: 0, cash: 0, entryEq: 0, done: false, hist: [], ownerEq: null };
+  const RESCUE_DAYS = 20;
+
+  const rescueChart = qsChart("rq13-chart", () => {
+    if (!rescue.path) return null;
+    const shown = rescue.path.slice(0, 11 + rescue.day);
+    const series = [{ name: "P", data: shown, color: cssVar("--text-muted") }];
+    if (rescue.done) {
+      series.push({ name: t("rq.c13.you"), data: rescue.hist, color: cssVar("--ma5") });
+      series.push({ name: t("rq.c13.owner"), data: rescue.ownerEq, color: cssVar("--bad") });
+    }
+    return lineOpt(shown.map((_, i) => i + 1), series);
+  });
+
+  function newRescue() {
+    // 案例行情: 前 10 日下跌铺垫(你接手时已浮亏), 后 20 日继续下杀再弱反弹 (随机种子)
+    const seed = Math.floor(Math.random() * 1e9);
+    let a = seed | 0;
+    const rng = () => { a = (a * 1103515245 + 12345) & 0x7fffffff; return a / 0x7fffffff; };
+    const p = [100];
+    for (let i = 1; i < 11 + RESCUE_DAYS; i++) {
+      const drift = i < 11 ? -0.012 : i < 23 ? -0.02 : 0.008;
+      p.push(Math.max(10, p[i - 1] * (1 + drift + (rng() * 2 - 1) * 0.022)));
+    }
+    rescue.path = p;
+    rescue.day = 0;
+    rescue.shares = 1000;
+    rescue.cash = 0;
+    rescue.entryEq = 1000 * p[10]; // 接手时点净值 (已距成本 -10%+)
+    rescue.done = false;
+    rescue.hist = [normEq()];
+    $("rq13-reveal").hidden = true;
+    renderRescue();
+  }
+
+  const normEq = () => (rescue.cash + rescue.shares * rescue.path[10 + rescue.day]) / rescue.entryEq;
+
+  function rescueStep(sellPct) {
+    if (!rescue.path || rescue.done) return;
+    const price = rescue.path[10 + rescue.day];
+    const sellShares = Math.floor(rescue.shares * sellPct);
+    if (sellShares > 0) {
+      const fr0 = Q().frictionDefault();
+      rescue.cash += sellShares * price * (1 - (fr0.comm + fr0.slip + fr0.stamp) / 10000);
+      rescue.shares -= sellShares;
+    }
+    rescue.day++;
+    rescue.hist.push(normEq());
+    playSound("tap");
+    if (rescue.day >= RESCUE_DAYS) finishRescue();
+    else renderRescue();
+  }
+
+  function finishRescue() {
+    rescue.done = true;
+    // 原主路径: 死扛, 净值跌破 60% 当日全抛 (强平), 之后持现金
+    let oShares = 1000;
+    let oCash = 0;
+    const ownerEq = [1];
+    for (let d = 1; d <= RESCUE_DAYS; d++) {
+      const price = rescue.path[10 + d];
+      const eq = (oCash + oShares * price) / rescue.entryEq;
+      if (oShares > 0 && eq < 0.6) { oCash += oShares * price * 0.995; oShares = 0; }
+      ownerEq.push((oCash + oShares * price) / rescue.entryEq);
+    }
+    // 曲线对齐到图表 x 轴 (前 10 根铺垫期无净值, 补 null)
+    rescue.ownerEq = Array(11).fill(null).concat(ownerEq);
+    rescue.hist = Array(11).fill(null).concat(rescue.hist);
+    const mine = rescue.hist[rescue.hist.length - 1];
+    const owner = rescue.ownerEq[rescue.ownerEq.length - 1];
+    const rv = $("rq13-reveal");
+    rv.hidden = false;
+    rv.textContent = t("rq.c13.reveal", fmtPct(mine - 1), fmtPct(owner - 1), fmtPct(mine - owner));
+    rv.className = "qdr-conclusion " + (mine > owner ? "win" : "lose");
+    playSound(mine > owner ? "win" : "lose");
+    const st = qsLoadBest(BEST_KEY);
+    const gain = Math.round((mine - owner) * 1000) / 10;
+    if (mine > owner && gain > (st.rescue || 0)) qsSaveBest(BEST_KEY, { rescue: gain });
+    renderRescue();
+  }
+
+  function renderRescue() {
+    if (!rescue.path) return;
+    $("rq13-day").textContent = t("rq.c13.day", rescue.day, RESCUE_DAYS);
+    $("rq13-state").textContent = t("rq.c13.state",
+      rescue.shares, fmtPct(normEq() - 1), Math.round(rescue.cash));
+    ["btn-rq13-hold", "btn-rq13-s10", "btn-rq13-s20"].forEach((id) => { $(id).disabled = rescue.done; });
+    rescueChart.refresh();
+  }
+
+  // ---------- 6 异常侦查令 ----------
+  const hunt = { closes: null, from: 0, to: 0, type: null, done: false, pickType: null };
+
+  const huntChart = qsChart("rq6-chart", () => {
+    if (!hunt.closes) return null;
+    const w = Number($("rq6-win").value);
+    const r = Q().rets(hunt.closes);
+    const rollMean = r.map((_, i) => (i < w ? null : +(r.slice(i - w + 1, i + 1).reduce((x, y) => x + y, 0) / w * 10000).toFixed(1)));
+    const rollVolArr = r.map((_, i) => {
+      if (i < w) return null;
+      const seg = r.slice(i - w + 1, i + 1);
+      const m = seg.reduce((x, y) => x + y, 0) / w;
+      return +(Math.sqrt(seg.reduce((x, y) => x + (y - m) ** 2, 0) / w) * 10000).toFixed(1);
+    });
+    const opt = lineOpt(hunt.closes.map((_, i) => i + 1), [
+      { name: t("rq.c6.mean"), data: rollMean, color: cssVar("--ma5") },
+      { name: t("rq.c6.vol"), data: rollVolArr, color: cssVar("--ma20") },
+    ]);
+    // 嫌疑区间标记 (玩家圈定); 揭晓后叠加真值区间
+    opt.series[0].markArea = { silent: true, itemStyle: { color: cssVar("--mask") },
+      data: [[{ xAxis: Number($("rq6-from").value) }, { xAxis: Number($("rq6-to").value) }]] };
+    if (hunt.done) {
+      opt.series[1].markArea = { silent: true,
+        itemStyle: { color: cssVar("--warn"), opacity: 0.18 },
+        data: [[{ xAxis: hunt.from }, { xAxis: hunt.to }]] };
+    }
+    return opt;
+  });
+
+  async function newHunt() {
+    if (!(await ensureStocks())) return;
+    let h;
+    try { h = await labHistory(stocks[rnd(stocks.length)].code); } catch (e) { toast(e.message); return; }
+    const c = h.close.map(Number).slice(0, 250);
+    if (c.length < 120) return;
+    const types = ["drift", "volx", "saw"];
+    hunt.type = types[rnd(3)];
+    hunt.from = 30 + rnd(c.length - 90);
+    hunt.to = hunt.from + 25;
+    // 注入: 漂移 +0.4%/日 / 波动×2.2 / 锯齿 ±1.5% 交替
+    let seed = 31337;
+    const rng = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    const mod = c.slice();
+    let drift = 1;
+    for (let i = hunt.from; i <= hunt.to; i++) {
+      if (hunt.type === "drift") { drift *= 1.004; mod[i] = c[i] * drift; }
+      else if (hunt.type === "volx") mod[i] = c[i] * (1 + (rng() * 2 - 1) * 0.035);
+      else mod[i] = c[i] * (1 + (i % 2 ? 0.015 : -0.015));
+    }
+    if (hunt.type === "drift") for (let i = hunt.to + 1; i < mod.length; i++) mod[i] = c[i] * drift; // 漂移不回撤, 防"断崖"泄题
+    hunt.closes = mod;
+    hunt.done = false;
+    hunt.pickType = null;
+    $("rq6-from").max = String(mod.length - 1);
+    $("rq6-to").max = String(mod.length - 1);
+    $("rq6-reveal").hidden = true;
+    renderHunt();
+  }
+
+  function renderHunt() {
+    if (!hunt.closes) return;
+    $("rq6-range-v").textContent = $("rq6-from").value + " ~ " + $("rq6-to").value;
+    const wrap = $("rq6-types");
+    wrap.innerHTML = "";
+    ["drift", "volx", "saw"].forEach((ty) => {
+      const b = document.createElement("button");
+      b.className = hunt.pickType === ty ? "primary" : "";
+      b.disabled = hunt.done;
+      b.textContent = t("rq.c6.ty." + ty);
+      b.addEventListener("click", () => { hunt.pickType = ty; renderHunt(); });
+      wrap.appendChild(b);
+    });
+    $("btn-rq6-submit").disabled = hunt.done || !hunt.pickType;
+    huntChart.refresh();
+  }
+
+  function submitHunt() {
+    if (!hunt.closes || hunt.done || !hunt.pickType) return;
+    const f = Number($("rq6-from").value);
+    const to = Number($("rq6-to").value);
+    if (to <= f) { toast(t("rq.c6.badRange")); return; }
+    hunt.done = true;
+    const span = to - f;
+    // 乱枪打鸟判无效: 圈定超过全长 40% 直接零分 (精确性是硬要求)
+    const shotgun = span > hunt.closes.length * 0.4;
+    const overlap = Math.max(0, Math.min(to, hunt.to) - Math.max(f, hunt.from));
+    const truthLen = hunt.to - hunt.from;
+    const iou = overlap / (span + truthLen - overlap);
+    const typeOk = hunt.pickType === hunt.type;
+    const score = shotgun ? 0 : Math.round(iou * 70 + (typeOk ? 30 : 0));
+    const rv = $("rq6-reveal");
+    rv.hidden = false;
+    rv.textContent = (shotgun ? t("rq.c6.shotgun") + " " : "")
+      + t("rq.c6.reveal", hunt.from, hunt.to, t("rq.c6.ty." + hunt.type),
+        Math.round(iou * 100), t(typeOk ? "fbt.hit" : "fbt.miss"), score);
+    rv.className = "qdr-conclusion " + (score >= 60 ? "win" : "lose");
+    playSound(score >= 60 ? "win" : "lose");
+    const st = qsLoadBest(BEST_KEY);
+    if (score > (st.hunt || 0)) qsSaveBest(BEST_KEY, { hunt: score });
+    renderHunt();
+  }
+
   // ---------- 共享 ----------
   function lineOpt(xs, series) {
     return {
@@ -529,15 +845,32 @@
   $("btn-rq8-vault").addEventListener("click", tryVault);
   $("btn-rq4-review").addEventListener("click", acceptBrief);
   $("btn-rq14-spin").addEventListener("click", spinWheel);
+  $("btn-rq2-new").addEventListener("click", newRepair);
+  $("btn-rq2-submit").addEventListener("click", submitRepair);
+  $("btn-rq13-new").addEventListener("click", newRescue);
+  $("btn-rq13-hold").addEventListener("click", () => rescueStep(0));
+  $("btn-rq13-s10").addEventListener("click", () => rescueStep(0.1));
+  $("btn-rq13-s20").addEventListener("click", () => rescueStep(0.2));
+  $("btn-rq6-new").addEventListener("click", newHunt);
+  $("btn-rq6-submit").addEventListener("click", submitHunt);
+  $("rq6-win").addEventListener("input", renderHunt);
+  $("rq6-from").addEventListener("input", renderHunt);
+  $("rq6-to").addEventListener("input", renderHunt);
 
   document.addEventListener("qs:view", (e) => {
     if (e.detail !== "dojo") return;
     if (!dig.targetEq) newDig();
     if (!jury.closes) newJury();
+    if (!repair.card) newRepair();
+    if (!rescue.path) newRescue();
+    if (!hunt.closes) newHunt();
     renderBrief();
     digChart.refresh();
     juryChart.refresh();
     radarChart.refresh();
+    repairChart.refresh();
+    rescueChart.refresh();
+    huntChart.refresh();
   });
   document.addEventListener("qs:lang", () => {
     if ($("view-dojo").hidden) return;

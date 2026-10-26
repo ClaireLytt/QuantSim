@@ -2138,6 +2138,54 @@
       <div id="rq14-radar" class="lab-chart ex-chart"></div>
     </section>
 
+    <section class="card">
+      <h3 data-i18n="rq.c2.t">残卡修复所</h3>
+      <p class="hint" data-i18n="rq.c2.hint">一张残缺策略卡：先看它在训练段的惨状，诊断病根，再从备件库选补件——注意：约四分之一的残卡根本不可修，正确答案是提交「放弃修复」。诊断正确性比修复后的收益更值钱。</p>
+      <p id="rq2-card" class="ex18-report"></p>
+      <p class="hint" data-i18n="rq.c2.dq">你的诊断：</p>
+      <div id="rq2-diags" class="lw-fracs qd-actions"></div>
+      <p class="hint" data-i18n="rq.c2.fq">你的处置（修复件或放弃）：</p>
+      <div id="rq2-fixes" class="lw-fracs qd-actions"></div>
+      <div class="qd-actions">
+        <button id="btn-rq2-submit" class="primary" data-i18n="rq.c2.submit">提交修复方案</button>
+        <button id="btn-rq2-new" class="big" data-i18n="rq.c2.new">换一张残卡</button>
+      </div>
+      <p id="rq2-reveal" class="qdr-conclusion" hidden></p>
+      <div id="rq2-chart" class="lab-chart ex-chart"></div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c13.t">历史爆仓重演</h3>
+      <p class="hint" data-i18n="rq.c13.hint">你接管一个已浮亏的重仓账户，后面还有 20 个交易日。任务不是赚钱——是比原主少死一点。流动性约束：单日最多减仓 20%。原主的剧本：死扛到净值 60% 被强平。</p>
+      <p id="rq13-day" class="ex-out"></p>
+      <p id="rq13-state" class="ex-out"></p>
+      <div class="qd-actions">
+        <button id="btn-rq13-hold" class="big" data-i18n="rq.c13.hold">按兵不动</button>
+        <button id="btn-rq13-s10" class="big" data-i18n="rq.c13.s10">减仓 10%</button>
+        <button id="btn-rq13-s20" class="primary big" data-i18n="rq.c13.s20">减仓 20%（限速顶格）</button>
+        <button id="btn-rq13-new" class="small ghost" data-i18n="rq.c13.new">换一桩案例</button>
+      </div>
+      <p id="rq13-reveal" class="qdr-conclusion" hidden></p>
+      <div id="rq13-chart" class="lab-chart ex-chart"></div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="rq.c6.t">异常侦查令</h3>
+      <p class="hint" data-i18n="rq.c6.hint">这段行情里被人为注入了一个 25 根左右的结构性异常。用滚动统计量扫描（窗口自选——开小了误报，开大了稀释，这就是检验功效的手感），圈定嫌疑区间并指认类型。圈定超过全长 40% 判无效：精确性是硬要求。</p>
+      <div class="ex-controls">
+        <label><span data-i18n="rq.c6.win">扫描窗口</span><input type="range" id="rq6-win" min="5" max="30" value="10"></label>
+        <label><span data-i18n="rq.c6.range">嫌疑区间</span><input type="range" id="rq6-from" min="0" max="250" value="80"><input type="range" id="rq6-to" min="0" max="250" value="120"><b id="rq6-range-v"></b></label>
+      </div>
+      <div id="rq6-chart" class="lab-chart ex-chart"></div>
+      <p class="hint" data-i18n="rq.c6.tq">异常类型：</p>
+      <div id="rq6-types" class="lw-fracs qd-actions"></div>
+      <div class="qd-actions">
+        <button id="btn-rq6-submit" class="primary" data-i18n="rq.c6.submit">指认</button>
+        <button id="btn-rq6-new" class="big" data-i18n="rq.c6.new">换一道侦查令</button>
+      </div>
+      <p id="rq6-reveal" class="qdr-conclusion" hidden></p>
+    </section>
+
     <p class="hint ex-iron" data-i18n="ex.iron">历史回测收益 ≠ 未来收益；本页全部结论只在所用数据与假设内成立。</p>
   </section>
   </div>
@@ -3811,7 +3859,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=20261026a047"></script>
+  <script src="i18n.js?v=202610266227"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=20261026f977"></script>
   <script src="play.js?v=202610267b78"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
@@ -3827,7 +3875,7 @@
   <script src="optsandbox.js?v=2026102556f9"></script>
   <script src="lab.js?v=20261026e7e8"></script>
   <script src="exlab.js?v=202610265e71"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
-  <script src="dojo.js?v=202610263fab"></script><!-- 依赖 exlab.js 的 window.qsQuant 计算件, 必须在其后 -->
+  <script src="dojo.js?v=202610261f0c"></script><!-- 依赖 exlab.js 的 window.qsQuant 计算件, 必须在其后 -->
   <script src="daily.js?v=2026102675d2"></script>
   <script src="event.js?v=202610250b8a"></script>
   <script src="option.js?v=2026102531c6"></script>
