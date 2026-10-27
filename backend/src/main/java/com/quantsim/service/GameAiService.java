@@ -32,13 +32,15 @@ public class GameAiService {
     private final AiOpponent opponent;
 
     /**
-     * AI 用当日预测决策, 按当日收盘价成交 (整手、扣费, 与玩家同规则)。
-     * EASY 保留全进全出; 其余难度按置信度调仓: 目标仓位比例 = clamp((probUp-0.5)/0.15, 0, 1)。
+     * AI 按难度人设决策, 按当日收盘价成交 (整手、扣费, 与玩家同规则)。
+     * 人设结构化 (审计创意30, 难度差异 = 信息与纪律, 不再是参数微调):
+     *   EASY 预测全进全出 / NORMAL 预测+低换手价值派 /
+     *   HARD 纯 MA5×MA20 动量纪律派 (不看预测, 行为可被玩家从图上读出并反制) /
+     *   HELL 高精模型按置信度调仓。
      */
     int applyAiTrade(GameSession session, StockData sd) {
-        DailyPrediction pred = sd.prediction(session.getCurrentTradeDate(), session.getAiModel());
         DailyPrice bar = sd.bar(session.getCurrentTradeDate());
-        if (pred == null || bar == null) {
+        if (bar == null) {
             return 0;
         }
         Market market = sd.stock().getMarket();
@@ -47,13 +49,39 @@ public class GameAiService {
         if (close.signum() <= 0) {
             return 0; // 坏行情防御: 零价会把下面的 divide 炸成 ArithmeticException
         }
-        double probUp = pred.getProbUp().doubleValue();
 
         // 真实规则下 AI 与玩家同受封板限制 (T+1 对一天一次操作的 AI 天然满足)
         boolean limitUp = session.isRealRules() && tradeEngine.limitBandError(sd,
                 session.getCurrentTradeDate(), TradeTransaction.Direction.BUY) != null;
         boolean limitDown = session.isRealRules() && tradeEngine.limitBandError(sd,
                 session.getCurrentTradeDate(), TradeTransaction.Direction.SELL) != null;
+
+        if (AiLevel.HARD.getModel().equals(session.getAiModel())) {
+            // 量化狂魔 = 动量纪律派: MA5 在 MA20 上满仓, 之下清仓, 完全不看预测。
+            // 确定性规则是刻意设计: 玩家能从图上读出它的下一步并反制, 对手从"黑盒"变"可学"
+            DailyIndicator ind = sd.indicators().get(session.getCurrentTradeDate());
+            if (ind == null || ind.getMa5() == null || ind.getMa20() == null) {
+                return 0;
+            }
+            int cmp = ind.getMa5().compareTo(ind.getMa20());
+            if (cmp > 0 && !limitUp) {
+                int bought = feeCalculator.maxAffordableShares(session.getAiCash(), close, lotSize, market);
+                opponent.buy(session, market, close, bought);
+                return bought;
+            }
+            if (cmp < 0 && session.getAiShares() > 0 && !limitDown) {
+                int sold = session.getAiShares();
+                opponent.sell(session, market, close, sold);
+                return -sold;
+            }
+            return 0;
+        }
+
+        DailyPrediction pred = sd.prediction(session.getCurrentTradeDate(), session.getAiModel());
+        if (pred == null) {
+            return 0;
+        }
+        double probUp = pred.getProbUp().doubleValue();
 
         if (AiLevel.EASY.getModel().equals(session.getAiModel())) {
             // 简单 AI: 老式全进全出
@@ -70,16 +98,8 @@ public class GameAiService {
             return 0;
         }
 
-        // 按置信度定目标仓位; NORMAL/HARD 在此基础上体现"性格" (EASY/HELL 行为有集成测试锁定)
-        double adjProb = probUp;
-        if (AiLevel.HARD.getModel().equals(session.getAiModel())) {
-            // 量化狂魔: 动量派, 价格站上 MA5 加码看多, 跌破减码 (追涨杀跌的纪律版)
-            DailyIndicator ind = sd.indicators().get(session.getCurrentTradeDate());
-            if (ind != null && ind.getMa5() != null) {
-                adjProb += close.compareTo(ind.getMa5()) > 0 ? 0.04 : -0.04;
-            }
-        }
-        double targetFraction = Math.max(0, Math.min(1, (adjProb - 0.5) / 0.15));
+        // 按置信度定目标仓位 (NORMAL/HELL; EASY/HELL 行为有集成测试锁定, HARD 已在上方分流)
+        double targetFraction = Math.max(0, Math.min(1, (probUp - 0.5) / 0.15));
         BigDecimal aiEquity = opponent.valueAt(session, close);
         BigDecimal targetValue = aiEquity.multiply(BigDecimal.valueOf(targetFraction));
         int targetShares = targetValue.divide(close, 0, RoundingMode.DOWN).intValue() / lotSize * lotSize;

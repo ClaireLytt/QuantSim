@@ -113,6 +113,10 @@ public class GameSession {
     @Column(name = "equity_curve", columnDefinition = "MEDIUMTEXT")
     private String equityCurve;
 
+    /** 结算时刻 (SettledColumns 统一写入): 每日挑战榜的完赛用时由 createdAt→settledAt 推出 */
+    @Column(name = "settled_at")
+    private LocalDateTime settledAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -351,4 +351,50 @@ class TradingDepthIntegrationTest extends IntegrationTestSupport {
         assertThat(ok.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(json(ok).get(0).path("status").asText()).isEqualTo("CANCELLED");
     }
+
+    /**
+     * 审计创意30: HARD = 纯 MA5×MA20 动量纪律派, 完全不看预测。
+     * 预测恒 0.5 (旧的置信度逻辑会按兵不动), 金叉指标在位 → 首次 tick 必满仓。
+     */
+    @Test
+    void hardAiTradesOnMomentumNotPrediction() {
+        Stock stock = seedStock("000001", "测试股", Market.STOCK);
+        seedBars(stock, "10", "10", "10", "10", "10", "10", "10", "10", "10");
+        LocalDate d = LocalDate.of(2024, 1, 1);
+        for (int i = 0; i < 9; i++) {
+            com.quantsim.entity.DailyIndicator ind = new com.quantsim.entity.DailyIndicator();
+            ind.setStockId(stock.getStockId());
+            ind.setTradeDate(d.plusDays(i));
+            ind.setMa5(new BigDecimal("11"));
+            ind.setMa20(new BigDecimal("10"));
+            indicatorRepository.save(ind);
+        }
+        long sid = json(postJson("/api/game/start",
+                "{\"username\":\"深度测试\",\"aiLevel\":\"HARD\"}")).path("sessionId").asLong();
+        JsonNode t = tick(sid);
+        // 零费下满仓 = 100000 / (10 × 100手) = 10000 股
+        assertThat(t.path("status").path("ai").path("shares").asInt()).isEqualTo(10000);
+    }
+
+    /** 审计创意28: 组合模式优先挑行业互异的三只 (同行业强相关标的让分散决策失去意义)。 */
+    @Test
+    void portfolioPrefersDistinctIndustries() {
+        String[] flat = { "10", "10", "10", "10", "10", "10", "10", "10", "10", "10", "10", "10" };
+        String[] industries = { "白酒", "白酒", "银行", "医药" };
+        for (int i = 0; i < industries.length; i++) {
+            Stock s = seedStock("00000" + (i + 1), "股" + i, Market.STOCK);
+            s.setIndustry(industries[i]);
+            stockRepository.save(s);
+            seedBars(s, flat);
+        }
+        JsonNode start = json(postJson("/api/game/start",
+                "{\"username\":\"深度测试\",\"aiLevel\":\"EASY\",\"mode\":\"PORTFOLIO\",\"market\":\"STOCK\"}"));
+        assertThat(start.path("stocks")).hasSize(3);
+        java.util.Set<String> picked = new java.util.HashSet<>();
+        for (JsonNode st : start.path("stocks")) {
+            picked.add(stockRepository.findByCode(st.path("code").asText()).orElseThrow().getIndustry());
+        }
+        // 白酒×2 + 银行 + 医药 的池子里, 任何合法三选必须三行业互异
+        assertThat(picked).containsExactlyInAnyOrder("白酒", "银行", "医药");
+    }
 }

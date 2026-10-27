@@ -83,4 +83,26 @@ class SeedChallengeIntegrationTest extends IntegrationTestSupport {
         JsonNode lb = json(get("/api/leaderboard", null));
         lb.forEach(row -> assertThat(row.path("sessionId").asLong()).isNotEqualTo(sidB));
     }
+
+    /** 审计创意25: 已结算者能看到揭晓标的, 应战无时限 = 答案可以慢慢传; 超 72h 拒绝应战。 */
+    @Test
+    void acceptRejectedAfterWindowExpires() {
+        seedFlatStock("600100", "战书股", Market.STOCK, LocalDate.of(2024, 1, 1), 12,
+                "10.00", AiLevel.NORMAL, "0.5000");
+        String alice = register("战书丙");
+        String bob = register("战书丁");
+        // created_at 列 updatable=false, 回拨旧行无效 —— 直接插一张 73 小时前的战书行
+        com.quantsim.entity.SeedChallenge sc = new com.quantsim.entity.SeedChallenge();
+        sc.setCode("EXPIREDAAA");
+        sc.setCreatorUserId(userRepository.findByUsername("战书丙").orElseThrow().getUserId());
+        sc.setStockId(stockRepository.findAll().get(0).getStockId());
+        sc.setStartDate(LocalDate.of(2024, 1, 6));
+        sc.setCreatedAt(java.time.LocalDateTime.now().minusHours(73));
+        seedChallengeRepository.save(sc);
+        String code = "EXPIREDAAA";
+        org.springframework.http.ResponseEntity<String> resp =
+                postJson("/api/challenge/" + code + "/accept", "{}", bob);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(json(resp).path("message").asText()).contains("过期");
+    }
 }

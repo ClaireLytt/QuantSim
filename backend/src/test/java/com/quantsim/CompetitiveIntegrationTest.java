@@ -264,6 +264,9 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         assertThat(board).hasSize(1);
         assertThat(board.get(0).path("username").asText()).isEqualTo("***@qq.com"); // 短 local 全遮
         assertThat(board.get(0).path("isSelf").asBoolean()).isTrue();
+        // 完赛用时指纹 (审计创意26): settled_at 落库, 榜单带 durationSeconds
+        assertThat(board.get(0).path("durationSeconds").isNull()).isFalse();
+        assertThat(board.get(0).path("durationSeconds").asLong()).isGreaterThanOrEqualTo(0);
         // 第二个注册用户看同一榜: 认不出别人, isSelf=false (daily 榜受 AuthFilter 保护, 需登录)
         String other = register("旁观乙");
         JsonNode otherView = json(get("/api/daily/leaderboard", other));

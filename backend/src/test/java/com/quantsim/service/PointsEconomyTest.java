@@ -94,6 +94,16 @@ class PointsEconomyTest {
     }
 
     @Test
+    void 自选限笔局结算有补偿加成() {
+        UserPoints p = stub(0);
+        p.setTaskDate(LocalDate.now(GameService.GAME_ZONE));
+        p.setTaskFlags(UserPoints.TASK_SETTLE); // 任务位已领, 隔离出加成本身
+        var award = service.awardSettle(1L, false, false, false, true);
+        // 基础 50 + 限笔补偿 15: 限制无补偿时"从不勾选限笔"是支配选择 (审计创意21)
+        assertThat(award.earned()).isEqualTo(PointsService.SETTLE_BASE + PointsService.SELF_LIMIT_BONUS);
+    }
+
+    @Test
     void 大额兑换要求非盲盒净收入达标() {
         stub(100000);
         when(ledger.earnedExcludingBlindbox(1L)).thenReturn(0L);

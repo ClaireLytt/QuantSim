@@ -43,6 +43,11 @@ public class PointsService {
     /** 大额兑换门槛: 达到该价的奖品要求非盲盒净收入 ≥ 奖品价 (流水表口径) */
     static final int BIG_TICKET_THRESHOLD = 4800;
 
+    /** 自选限笔补偿: 开局自限 ≤10 笔的局结算 +15 —— 限制无补偿时"从不勾选限笔"是支配选择
+     *  (审计创意21)。每日挑战的限笔是规则强加, 不计此加成。 */
+    static final int SELF_LIMIT_MAX_TRADES = 10;
+    static final int SELF_LIMIT_BONUS = 15;
+
     /** 商城目录: 奖品 id -> 积分价。实物类为虚拟演示, 道具类入账道具计数。 */
     private static final Map<String, Integer> CATALOG = Map.ofEntries(
             Map.entry("blindbox", 500), Map.entry("coffee", 800),
@@ -206,9 +211,17 @@ public class PointsService {
         return toState(repository.save(p));
     }
 
-    /** 结算入账: 基础 (当日前 3 局全额, 之后衰减) + 战胜加成 + 连胜加成 (封顶) + 每日任务位。 */
+    /** 兼容入口: 无自选限笔加成。 */
     @Transactional
     public SettleAward awardSettle(Long userId, boolean beatAi, boolean beatHold, boolean isDaily) {
+        return awardSettle(userId, beatAi, beatHold, isDaily, false);
+    }
+
+    /** 结算入账: 基础 (当日前 3 局全额, 之后衰减) + 战胜加成 + 连胜加成 (封顶)
+     *  + 自选限笔补偿 + 每日任务位。 */
+    @Transactional
+    public SettleAward awardSettle(Long userId, boolean beatAi, boolean beatHold, boolean isDaily,
+                                   boolean selfLimited) {
         UserPoints p = getOrCreate(userId);
         touchDay(p);
         int earned = p.getSettleCount() < SETTLE_FULL_GAMES_PER_DAY ? SETTLE_BASE : SETTLE_BASE_DECAYED;
@@ -222,6 +235,9 @@ public class PointsService {
         p.setWinStreak(beatAi ? p.getWinStreak() + 1 : 0);
         if (p.getWinStreak() >= 2) {
             earned += 10 * Math.min(p.getWinStreak(), STREAK_CAP);
+        }
+        if (selfLimited) {
+            earned += SELF_LIMIT_BONUS;
         }
         earned += claimTask(p, UserPoints.TASK_SETTLE, 30);
         if (isDaily) {

@@ -61,7 +61,10 @@
         const rate = Number(r.returnRate);
         tr.innerHTML = `<td>${i + 1}</td><td></td><td></td>
           <td class="${rate >= 0 ? "pos" : "neg"}">${fmtPct(rate)}</td>`;
-        tr.children[1].textContent = r.username;
+        // 完赛用时后缀: 异常快速的"完美局"全场可见 (后端 durationSeconds, 老对局无值不显示)
+        const d = r.durationSeconds;
+        tr.children[1].textContent = r.username
+          + (d != null ? ` · ${d < 60 ? d + "s" : Math.round(d / 60) + "m"}` : "");
         tr.children[2].textContent = stockName(r.stockName, r.stockCode);
         return tr;
       });

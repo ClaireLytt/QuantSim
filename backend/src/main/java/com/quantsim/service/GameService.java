@@ -483,9 +483,14 @@ public class GameService {
         boolean beatHold = bonusEligible && holdReturn != null && returnRate.compareTo(holdReturn) > 0;
         boolean completed = session.isLiquidated()
                 || session.getDaysElapsed() >= props.getTotalTicks();
+        // 自选限笔补偿 (≤10 笔): 每日挑战的限笔是规则强加不计; INTRO 结构上到不了 completed
+        boolean selfLimited = !"DAILY".equals(session.getMode())
+                && session.getMaxTrades() != null
+                && session.getMaxTrades() <= PointsService.SELF_LIMIT_MAX_TRADES;
         PointsService.SettleAward award = completed
                 ? pointsService.awardSettle(
-                        session.getUserId(), beatAi, beatHold, "DAILY".equals(session.getMode()))
+                        session.getUserId(), beatAi, beatHold, "DAILY".equals(session.getMode()),
+                        selfLimited)
                 : new PointsService.SettleAward(0, 0);
 
         // 已结算: 竞技模式在此揭晓真实标的 (进行中全程匿名)。
