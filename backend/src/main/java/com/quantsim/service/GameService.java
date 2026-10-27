@@ -195,7 +195,8 @@ public class GameService {
 
         return new TickResponse(BlindDates.mask(session, next.getTradeDate()), daysElapsed, props.ticksFor(session.getMode()),
                 settled, bar, settleResult, status,
-                fills.filled(), fills.autoCancelled(), liquidatedNow, news, day.aiTradeShares());
+                fills.filled(), fills.autoCancelled(), liquidatedNow, news, day.aiTradeShares(),
+                day.interestToday());
     }
 
     /**
@@ -307,8 +308,14 @@ public class GameService {
      * 这里只串联"预算 + 理由"两道闸并把快照递回 (调用方推剩余笔数, 省第二次 COUNT)。
      */
     private TradeBudget.Snapshot requireBudgetAndReason(GameSession session, String sanitizedReason, String action) {
+        return requireBudgetAndReason(session, sanitizedReason, action, 1);
+    }
+
+    /** weight: 本次新增占用的笔数 (移动止损挂单为 2, 其余 1; 口径见 TradeBudget)。 */
+    private TradeBudget.Snapshot requireBudgetAndReason(GameSession session, String sanitizedReason,
+                                                        String action, int weight) {
         TradeBudget.Snapshot budget = tradeBudget.snapshot(session);
-        budget.requireHeadroom();
+        budget.requireHeadroom(weight);
         if (session.isRequireReason() && (sanitizedReason == null || sanitizedReason.isEmpty())) {
             throw new BusinessException("本局开启了交易日志: 请写一句交易理由再" + action);
         }
@@ -330,7 +337,11 @@ public class GameService {
         // 限制模式对挂单同样生效, 否则挂单就是绕开笔数上限/交易日志的后门:
         // 已成交 + 在挂单一起占笔数预算; 强制理由随挂单落库, 成交时写进流水。
         String reason = sanitizeReason(request.reason());
-        requireBudgetAndReason(session, reason, "挂单");
+        // 移动止损在挂期间占 2 笔 (同价时严格支配普通止损, 见 TradeBudget.Snapshot javadoc)
+        PendingOrder.Type orderType =
+                Enums.parse(request.orderType(), PendingOrder.Type.class, "挂单类型");
+        requireBudgetAndReason(session, reason, "挂单",
+                orderType == PendingOrder.Type.TRAIL_STOP ? 2 : 1);
         // 带交易时闸的每日规则禁用挂单: 次日 OHLC 成交会绕过观察期/半仓线/追高闸
         if ("DAILY".equals(session.getMode()) && session.getChallengeDate() != null
                 && DailyRules.ordersBlocked(DailyRules.ruleFor(session.getChallengeDate()))) {
@@ -489,7 +500,9 @@ public class GameService {
                 prepared.responseReport(), journal, eventReveal,
                 dailyRuleResult(session, returnRate, holdReturn, risk, allTxs, journal, sd, startIdx, endIdx),
                 coachService.findings(session, sd, allTxs, initial, finalAssets,
-                        account.getInterestTotal(), returnRate, holdReturn, maCrossReturn, dcaReturn, aiReturn)),
+                        account.getInterestTotal(), returnRate, holdReturn, maCrossReturn, dcaReturn, aiReturn),
+                // 择时贡献 = 玩家收益 - 买入持有: 给"主动操作"单独的计分轴
+                holdReturn == null ? null : returnRate.subtract(holdReturn)),
                 prepared.columns());
     }
 
@@ -504,7 +517,8 @@ public class GameService {
         List<DailyPrice> window = (startIdx == null || endIdx == null)
                 ? null : sd.prices().subList(startIdx, endIdx + 1);
         return DailyRules.evaluate(rule, returnRate, holdReturn,
-                risk == null ? null : risk.maxDrawdown(), allTxs, journal, window);
+                risk == null ? null : risk.maxDrawdown(), session.getInitialCash(),
+                allTxs, journal, window);
     }
 
     /** 事件回放结算揭晓: 场景名 + 真实窗口 + 整段大事记 (给足上下文, 不只截对局窗口)。 */
@@ -728,9 +742,14 @@ public class GameService {
         }
         BigDecimal returnRate = TradeMath.returnRate(totalAssets, session.getInitialCash());
 
-        DailyPrediction pred = sd.prediction(session.getCurrentTradeDate(), session.getAiModel());
-        PredictionInfo prediction = pred == null ? null
-                : new PredictionInfo(pred.getPredictedDirection(), pred.getProbUp());
+        // 模型预测只在 EASY 局免费下发 (新手教学): 其余难度白送 probUp 会让"跟单预测"
+        // 成为零思考优势策略, 玩家自己的判断没有被奖励的通道 (审计创意17)
+        PredictionInfo prediction = null;
+        if (AiLevel.fromModel(session.getAiModel()) == AiLevel.EASY) {
+            DailyPrediction pred = sd.prediction(session.getCurrentTradeDate(), session.getAiModel());
+            prediction = pred == null ? null
+                    : new PredictionInfo(pred.getPredictedDirection(), pred.getProbUp());
+        }
 
         AiStatus ai = null;
         if (aiOpponent.initialized(session)) {

@@ -94,7 +94,9 @@ public final class GameDtos {
             int autoCancelledOrders,
             boolean liquidated,
             List<NewsItem> news,
-            int aiTradeShares) {}
+            int aiTradeShares,
+            // 今日隔夜利息 (玩家侧): 让现金的机会成本可见 (审计创意19)
+            BigDecimal interestToday) {}
 
     /** stockCode 仅组合模式需要 (指定买卖哪只), 单股模式缺省主标的。 */
     public record TradeRequest(
@@ -250,10 +252,14 @@ public final class GameDtos {
             List<JournalEntry> journal,
             EventReveal eventReveal,
             DailyRuleResult dailyChallenge,
-            List<CoachFinding> coach) {}
+            List<CoachFinding> coach,
+            // 择时贡献 = 玩家收益 - 买入持有收益 (正负都展示): 让"主动操作"有独立计分轴,
+            // 否则买入持有在收益率单轴下近乎支配所有休闲局 (审计创意18)
+            BigDecimal timingDelta) {}
 
-    /** 每日挑战规则结算判定 (非每日局为 null): rule = DailyRules.Rule 枚举名。 */
-    public record DailyRuleResult(String rule, boolean passed) {}
+    /** 每日挑战规则结算判定 (非每日局为 null): rule = DailyRules.Rule 枚举名;
+     *  stars = 0 未过 / 1 过 / 2 跑赢持有 / 3 再叠回撤 ≤5% (口径见 DailyRules.stars)。 */
+    public record DailyRuleResult(String rule, boolean passed, int stars) {}
 
     /** 复盘教练证据锚: TX=某笔交易 / STAT=统计值 (statKey 为 i18n 键)。 */
     public record CoachAnchor(String type, Long txId, String statKey, String statValue) {}

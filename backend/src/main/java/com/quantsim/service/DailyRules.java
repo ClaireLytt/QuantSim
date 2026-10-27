@@ -74,34 +74,59 @@ public final class DailyRules {
         return rule == Rule.WATCH || rule == Rule.HALF || rule == Rule.NOCHASE;
     }
 
+    /** STRIKE 的买入最小规模: 名义金额 ≥ 初始资金 × 30% (1 手试探 +3% 不算"一击脱离")。 */
+    static final BigDecimal STRIKE_MIN_NOTIONAL = new BigDecimal("0.3");
+    /** AUDIT 的理由最短长度: 短于此的敷衍理由不计入一致率样本。 */
+    static final int AUDIT_MIN_REASON_LEN = 8;
+    /** 三星条件: 通过 + 跑赢持有 + 回撤 ≤5%。 */
+    private static final BigDecimal STAR3_DD = new BigDecimal("0.05");
+
     /**
-     * 结算判定。口径注记:
-     *   HALF 的"50% 躺平基准"取 买入持有收益 × 0.5 (忽略现金利息的近似, 误差远小于玩家操作差异);
-     *   AUDIT 的"理由-结果一致率"v1 以正结果率近似 (journal 的 outcomePct > 0 占比 ≥60%);
+     * 结算判定。口径注记 (2026-10 审计创意 12~16 收紧):
+     *   躺平封堵 —— BELT/HALF/WATCH/NOCHASE/IRONSTOP 要求至少 1 笔成交: 现金利息使
+     *   零交易收益恒为小正数, 否则"什么都不做"是这些规则日的优势策略;
+     *   HALF 的目标取 max(持有×0.5, 0): 乘法基准在熊市窗口会反转语义 (负一半更容易);
+     *   STRIKE 买入须 ≥ 初始资金 30%; AUDIT 只计 ≥8 字理由的流水 (正结果率 ≥60%);
      *   IRONSTOP 的浮亏按收盘价对持仓均价衡量 (成交价口径全站统一为收盘价)。
+     * 星级: 未过 0 星; 过 1 星; 跑赢买入持有 2 星; 再叠回撤 ≤5% 3 星 (全规则同口径)。
      */
     public static GameDtos.DailyRuleResult evaluate(Rule rule, BigDecimal returnRate,
                                                     BigDecimal holdReturn, BigDecimal maxDrawdown,
+                                                    BigDecimal initialCash,
                                                     List<TradeTransaction> txs,
                                                     List<GameDtos.JournalEntry> journal,
                                                     List<DailyPrice> window) {
+        boolean hasTrade = txs != null && !txs.isEmpty();
         boolean passed = switch (rule) {
             case FIVE -> holdReturn != null && returnRate.compareTo(holdReturn) > 0;
-            case BELT -> returnRate.signum() > 0
+            case BELT -> hasTrade && returnRate.signum() > 0
                     && maxDrawdown != null && maxDrawdown.compareTo(BELT_DD) <= 0;
-            case HALF -> holdReturn != null
-                    && returnRate.compareTo(holdReturn.multiply(HALF_LINE)) > 0;
-            case WATCH, NOCHASE -> returnRate.signum() > 0;
-            case STRIKE -> strikeHit(txs);
+            case HALF -> hasTrade && holdReturn != null
+                    && returnRate.compareTo(holdReturn.multiply(HALF_LINE).max(BigDecimal.ZERO)) > 0;
+            case WATCH, NOCHASE -> hasTrade && returnRate.signum() > 0;
+            case STRIKE -> strikeHit(txs, initialCash);
             case AUDIT -> auditHit(journal);
-            case IRONSTOP -> returnRate.compareTo(IRONSTOP_LOSS) >= 0
+            case IRONSTOP -> hasTrade && returnRate.compareTo(IRONSTOP_LOSS) >= 0
                     && window != null && !ironStopViolated(txs, window);
         };
-        return new GameDtos.DailyRuleResult(rule.name(), passed);
+        return new GameDtos.DailyRuleResult(rule.name(), passed,
+                stars(passed, returnRate, holdReturn, maxDrawdown));
     }
 
-    /** STRIKE: 恰好一买一卖且卖价较买价高 ≥3%。 */
-    static boolean strikeHit(List<TradeTransaction> txs) {
+    /** 星级梯度: 让"压线过"与"大胜"有分辨率, 过/不过布尔没有策略张力。 */
+    static int stars(boolean passed, BigDecimal returnRate, BigDecimal holdReturn,
+                     BigDecimal maxDrawdown) {
+        if (!passed) {
+            return 0;
+        }
+        if (holdReturn == null || returnRate.compareTo(holdReturn) <= 0) {
+            return 1;
+        }
+        return maxDrawdown != null && maxDrawdown.compareTo(STAR3_DD) <= 0 ? 3 : 2;
+    }
+
+    /** STRIKE: 恰好一买一卖、卖价较买价高 ≥3%, 且买入名义金额 ≥ 初始资金 30%。 */
+    static boolean strikeHit(List<TradeTransaction> txs, BigDecimal initialCash) {
         if (txs == null || txs.size() != 2) {
             return false;
         }
@@ -113,21 +138,31 @@ public final class DailyRules {
                 || buy.getPrice().signum() <= 0) {
             return false;
         }
+        // 规模闸: 1 手试探性买卖与收益脱钩, 不构成"一击"
+        if (initialCash != null && buy.getShares() != null) {
+            BigDecimal notional = buy.getPrice().multiply(BigDecimal.valueOf(buy.getShares()));
+            if (notional.compareTo(initialCash.multiply(STRIKE_MIN_NOTIONAL)) < 0) {
+                return false;
+            }
+        }
         return sell.getPrice().subtract(buy.getPrice())
                 .divide(buy.getPrice(), 6, java.math.RoundingMode.HALF_UP)
                 .compareTo(STRIKE_GAP) >= 0;
     }
 
-    /** AUDIT: 有理由流水 ≥1 条且正结果率 ≥60%。 */
+    /** AUDIT: ≥8 字理由的流水 ≥1 条且其正结果率 ≥60% (短理由不计入样本, 防敷衍)。 */
     static boolean auditHit(List<GameDtos.JournalEntry> journal) {
         if (journal == null || journal.isEmpty()) {
             return false;
         }
-        long scored = journal.stream().filter(j -> j.outcomePct() != null).count();
+        List<GameDtos.JournalEntry> serious = journal.stream()
+                .filter(j -> j.reason() != null && j.reason().trim().length() >= AUDIT_MIN_REASON_LEN)
+                .toList();
+        long scored = serious.stream().filter(j -> j.outcomePct() != null).count();
         if (scored == 0) {
             return false;
         }
-        long good = journal.stream()
+        long good = serious.stream()
                 .filter(j -> j.outcomePct() != null && j.outcomePct().signum() > 0)
                 .count();
         return good * 10 >= scored * 6;

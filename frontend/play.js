@@ -444,6 +444,12 @@ async function tick() {
     syncTradeInputs();
     // 后端已内嵌账户快照, 无需再请求 /status
     renderStatus(res.status);
+    // 今日隔夜利息后缀: 让"现金也在工作/杠杆在烧钱"可见 (为 0 或未计息时不加噪音)
+    if (res.interestToday != null && Number(res.interestToday) !== 0) {
+      const iv = Number(res.interestToday);
+      $("st-interest").textContent += " " + t("game.interestToday",
+        (iv > 0 ? "+" : "-") + fmtMoney(Math.abs(iv)));
+    }
     aiTrashTalk(res.status);
     (res.filledOrders || []).forEach((f) => {
       toast(t("orders.filled", t(ORDER_TYPE_KEY[f.orderType] || f.orderType), f.shares, fmtMoney(f.price)));
@@ -1164,6 +1170,14 @@ function renderSettle(result) {
   const el = $("settle-return");
   el.textContent = fmtPct(Number(result.returnRate));
   el.className = Number(result.returnRate) >= 0 ? "pos" : "neg";
+  // 择时贡献 = 玩家收益 - 买入持有: 主动操作的独立计分轴 (正负都展示)
+  $("settle-timing").hidden = result.timingDelta == null;
+  if (result.timingDelta != null) {
+    const tv = $("settle-timing-val");
+    const d = Number(result.timingDelta);
+    tv.textContent = (d >= 0 ? "+" : "") + fmtPct(d);
+    tv.className = d >= 0 ? "pos" : "neg";
+  }
   renderComparison(result);
   // 熊市生存的胜负口径是「亏得比买入持有少」, 覆盖默认的人机判词
   if (state.mode === "SURVIVAL" && result.holdReturnRate != null) {
@@ -1177,7 +1191,9 @@ function renderSettle(result) {
   dcEl.hidden = !result.dailyChallenge;
   if (result.dailyChallenge) {
     const dc = result.dailyChallenge;
-    dcEl.textContent = t(dc.passed ? "dc.passed" : "dc.failed", t("dc." + dc.rule + ".t"));
+    // 星级 (1~3) 给"压线过"与"大胜"分辨率, 口径见后端 DailyRules.stars
+    dcEl.textContent = t(dc.passed ? "dc.passed" : "dc.failed", t("dc." + dc.rule + ".t"))
+      + (dc.stars > 0 ? " " + "★".repeat(dc.stars) : "");
     dcEl.className = "hint " + (dc.passed ? "pos" : "neg");
     // 达成给学堂经验 (XP 体系在前端 prog, 与徽章同层); addXp 来自 academy.js
     if (dc.passed && window.addXp) addXp(15);

@@ -223,9 +223,9 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
     }
 
     /** 榜单只收打满全程的局 (审计创意6): tick 到自动结算 (total-ticks=3), 不能 day-0 秒结。 */
-    private void playToSettle(long sid) {
+    private void playToSettle(long sid, String cookie) {
         for (int i = 0; i < 3; i++) {
-            if (json(postJson("/api/game/" + sid + "/tick", "{}", null)).path("settled").asBoolean()) {
+            if (json(postJson("/api/game/" + sid + "/tick", "{}", cookie)).path("settled").asBoolean()) {
                 return;
             }
         }
@@ -237,12 +237,15 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
     void testAccountsDoNotOccupyBoardSlots() {
         seedStock("000001", LocalDate.of(2024, 1, 1), 12);
         // 先结算一个 smoke_ 账号 (高分在前) 再结算一个真实玩家
+        // 公开榜只收注册用户 (审计创意11): smoke_ 为注册测试账号, 仍被前缀排除
+        String smokeCookie = register("smoke_99999999");
         long smokeSid = json(postJson("/api/game/start",
-                "{\"username\":\"smoke_99999999\",\"aiLevel\":\"EASY\"}", null)).path("sessionId").asLong();
-        playToSettle(smokeSid);
+                "{\"username\":\"smoke_99999999\",\"aiLevel\":\"EASY\"}", smokeCookie)).path("sessionId").asLong();
+        playToSettle(smokeSid, smokeCookie);
+        String realCookie = register("真实玩家甲");
         long realSid = json(postJson("/api/game/start",
-                "{\"username\":\"真实玩家甲\",\"aiLevel\":\"EASY\"}", null)).path("sessionId").asLong();
-        playToSettle(realSid);
+                "{\"username\":\"真实玩家甲\",\"aiLevel\":\"EASY\"}", realCookie)).path("sessionId").asLong();
+        playToSettle(realSid, realCookie);
 
         JsonNode board = json(get("/api/leaderboard", null));
         // smoke_ 账号既不占名额也不展示, 真实玩家一条不少
@@ -353,10 +356,11 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
     @Test
     void seasonFilterOnLeaderboard() {
         seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        String cookie = register("season_player"); // 公开榜只收注册用户
         ResponseEntity<String> start = postJson("/api/game/start",
-                "{\"username\":\"赛季玩家\",\"aiLevel\":\"EASY\"}", null);
+                "{\"username\":\"season_player\",\"aiLevel\":\"EASY\"}", cookie);
         long sid = json(start).path("sessionId").asLong();
-        playToSettle(sid);
+        playToSettle(sid, cookie);
 
         JsonNode seasonsArr = json(get("/api/leaderboard/seasons", null));
         assertThat(seasonsArr.isArray()).isTrue();

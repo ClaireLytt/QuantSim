@@ -52,6 +52,14 @@ class LeaderboardHardeningIntegrationTest extends IntegrationTestSupport {
     private User user(String name) {
         User u = new User();
         u.setUsername(name);
+        u.setPasswordHash("$2a$10$test"); // 公开榜只收注册用户 (审计创意11), fixture 默认注册态
+        return userRepository.save(u);
+    }
+
+    /** 游客 (passwordHash 为空) 可无限换昵称, 不入公开榜。 */
+    private User guest(String name) {
+        User u = new User();
+        u.setUsername(name);
         return userRepository.save(u);
     }
 
@@ -84,6 +92,16 @@ class LeaderboardHardeningIntegrationTest extends IntegrationTestSupport {
         assertThat(rows.get(0).returnRate()).isEqualByComparingTo("0.10");
         assertThat(rows.get(0).daysElapsed()).isEqualTo(3);
         assertThat(rows.get(1).returnRate()).isEqualByComparingTo("-0.80");
+    }
+
+    @Test
+    void 游客完赛局不入公开榜() {
+        Stock st = seedStock("600005", "测试五", Market.STOCK);
+        settled(guest("drifter"), st, "0.70", 3, false, false);
+        settled(user("member"), st, "0.10", 3, false, false);
+        List<LeaderboardEntry> rows = leaderboardService.topSessions(null, null, null);
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0).username()).isEqualTo("member");
     }
 
     @Test

@@ -281,6 +281,8 @@ const PAIRS = {
   "rank.byReturn": ["收益榜", "By return"],
   "rank.bySharpe": ["夏普榜", "By Sharpe"],
   "rank.byAvg": ["稳定榜", "By consistency"],
+  "settle.timing": ["择时贡献（相对买入持有）: ", "Timing contribution (vs buy & hold): "],
+  "game.interestToday": ["（今日利息 {0}）", "(interest today {0})"],
   "lb.avgGames": ["{0} 局均值", "avg of {0} runs"],
   "daily.dist": ["今日收益分布", "Today's return distribution"],
   "daily.pct": ["你超过了今日 {0}% 的玩家", "You beat {0}% of today's players"],

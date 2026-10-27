@@ -22,7 +22,8 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
      *  - 只收打满全程 (daysElapsed ≥ minTicks) 或被强平的局 —— 否则"涨了秒结算/跌了弃局"
      *    可零成本摘樱桃刷榜;
      *  - 排除 advanced (杠杆/做空) 局 —— 高方差策略在 top-N 口径下必然统治普通局;
-     *  - 每用户只留最佳一局 (not exists 组内最大, 平手取 sessionId 小者) —— 防一人多席。
+     *  - 每用户只留最佳一局 (not exists 组内最大, 平手取 sessionId 小者) —— 防一人多席;
+     *  - 只收注册用户 (passwordHash 非空) —— 游客可无限换昵称刷席位 (三条榜同口径)。
      */
     @Query("""
             select s, u.username, st.name, st.code
@@ -34,6 +35,7 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
               and s.advanced = false
               and (s.liquidated = true or s.daysElapsed >= :minTicks)
               and (:season is null or s.season = :season)
+              and u.passwordHash is not null
               and u.username not like 'smoke\\_%' escape '\\'
               and u.username not like 'btncheck\\_%' escape '\\'
               and u.username not like 'shot\\_%' escape '\\'
@@ -64,6 +66,7 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
               and (s.liquidated = true or s.daysElapsed >= :minTicks)
               and s.finalSharpe is not null
               and (:season is null or s.season = :season)
+              and u.passwordHash is not null
               and u.username not like 'smoke\\_%' escape '\\'
               and u.username not like 'btncheck\\_%' escape '\\'
               and u.username not like 'shot\\_%' escape '\\'
@@ -93,6 +96,7 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
               and s.advanced = false
               and (s.liquidated = true or s.daysElapsed >= :minTicks)
               and (:season is null or s.season = :season)
+              and u.passwordHash is not null
               and u.username not like 'smoke\\_%' escape '\\'
               and u.username not like 'btncheck\\_%' escape '\\'
               and u.username not like 'shot\\_%' escape '\\'
