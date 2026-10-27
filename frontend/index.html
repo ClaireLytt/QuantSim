@@ -68,6 +68,9 @@
     <!-- 呼吸式版式 (2026-10-25): 主 CTA 紧跟标题 (默认配置即可开局), 配置区下沉为带分隔线的安静次级区块 -->
     <div class="start-cta start-cta-main">
       <button id="btn-start" class="primary start-xl" data-i18n="btn.start">开始新对局</button>
+      <!-- 隐藏机制 #10 凤凰计划: 强平后由 hidden.js 点亮 -->
+      <p id="phoenix-banner" class="hint" hidden><span data-i18n="hidden.phoenixText">灰烬里有东西在动。</span>
+        <button id="btn-phoenix" class="qs-textlink" data-i18n="hidden.phoenixBtn">开启凤凰局（限 10 笔 + 交易日志）</button></p>
     </div>
     <p class="hint start-custom-label" data-i18n="intro.customize">想换个开法？自定义市场 · 难度 · 模式</p>
     <!-- 开局配置: 原在页头常驻 (信息架构倒置, 评审 3/3 提及), 下沉为开局向导的一部分 -->
@@ -581,6 +584,11 @@
       <div class="card profile-badges">
         <span class="hint" data-i18n="profile.badges">成就徽章</span>
         <div id="badge-list" class="badge-list"></div>
+      </div>
+      <!-- 隐藏机制 #7 历史回声: 集到第一枚印章前整卡隐藏 (hidden.js 维护) -->
+      <div class="card profile-stamps" id="profile-stamps-card" hidden>
+        <span class="hint" data-i18n="hidden.stampsTitle">大事记印章</span>
+        <div id="stamp-list" class="badge-list"></div>
       </div>
       <div class="card profile-titles">
         <span class="hint"><span data-i18n="collect.title">称号图鉴</span> <span id="collect-pct"></span></span>
@@ -3201,6 +3209,21 @@
   <button id="btn-recap-fab" class="primary recap-fab" hidden data-i18n="gs.recapFab">本局复盘</button>
 
   <!-- 从研究所导入策略 -->
+  <!-- 隐藏机制 #8 抄底试炼: 连续三根大阴线时由 hidden.js 弹出 -->
+  <div id="dip-modal" class="modal-mask" hidden>
+    <div class="modal" role="dialog" aria-labelledby="dip-modal-title">
+      <div class="modal-head">
+        <h2 id="dip-modal-title" data-i18n="hidden.dipTitle">抄底试炼</h2>
+        <button id="btn-dip-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="hint" data-i18n="hidden.dipBody">连续三根大阴线。此刻买入并持有到结算——敢接吗？</p>
+        <button id="btn-dip-accept" class="primary" data-i18n="hidden.dipAccept">接下试炼</button>
+        <button id="btn-dip-decline" data-i18n="hidden.dipDecline">再看看</button>
+      </div>
+    </div>
+  </div>
+
   <div id="strat-modal" class="modal-mask" hidden>
     <div class="modal" role="dialog" aria-labelledby="strat-modal-title">
       <div class="modal-head">
@@ -3982,10 +4005,10 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610274f81"></script>
+  <script src="i18n.js?v=202610271e20"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=20261027419a"></script>
-  <script src="play.js?v=20261027ba75"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
+  <script src="play.js?v=20261027c125"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
   <script src="replay.js?v=20261026025d"></script>
@@ -3993,7 +4016,7 @@
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
   <script src="data/levels.js?v=20261025e7d0"></script>
   <script src="data/cases.js?v=202610255824"></script>
-  <script src="academy.js?v=2026102667ff"></script>
+  <script src="academy.js?v=2026102746e4"></script>
   <script src="guessgame.js?v=202610261cf8"></script>
   <script src="optsandbox.js?v=2026102556f9"></script>
   <script src="lab.js?v=20261026e7e8"></script>
@@ -4008,12 +4031,12 @@
   <script src="ranking.js?v=2026102585f6"></script>
   <script src="sharecard.js?v=202610258b6c"></script>
   <script src="sharecode.js?v=202610256297"></script>
-  <script src="mates.js?v=202610261ce4"></script><!-- 依赖 app.js 的 qsCodec/state 与 auth.js 的 Auth -->
+  <script src="mates.js?v=20261027c8ee"></script><!-- 依赖 app.js 的 qsCodec/state 与 auth.js 的 Auth -->
   <script src="heatmap.js?v=202610256ee4"></script>
   <script src="news.js?v=2026102553a0"></script>
   <script src="history.js?v=20261025bcf3"></script>
   <script src="home.js?v=2026102639e1"></script>
-  <script src="points.js?v=20261025c358"></script>
+  <script src="points.js?v=202610277ea4"></script>
   <script src="reborn.js?v=202610257b00"></script>
   <script src="bubble.js?v=20261025d32e"></script>
   <script src="newsjudge.js?v=20261026c998"></script>
@@ -4043,5 +4066,6 @@
   <script src="wiki.js?v=202610252f2e"></script>
   <script src="games.js?v=20261025f87a"></script>
   <script src="mine.js?v=20261026a03a"></script>
+  <script src="hidden.js"></script><!-- 隐藏机制 1-10: 依赖 app 的 $/t/qsModal、academy 的 awardBadge/awardTitle、play 的 state 与 qs:* 事件, 必须在它们之后 -->
 </body>
 </html>

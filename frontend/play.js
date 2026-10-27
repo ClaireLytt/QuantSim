@@ -364,6 +364,11 @@ async function enterGame(res) {
     state.lastSettle = null;
     state.trades = [];
     state.aiMoves = [];
+    // 隐藏机制 (hidden.js) 的会话上下文: 道具使用/强平/HIGH 级事件见闻
+    state.itemUsed = false;
+    state.wasLiquidated = false;
+    state.newsHigh = [];
+    document.dispatchEvent(new CustomEvent("qs:gameStart"));
     state.autoStrat = null;
     state._autoReason = null;
     renderStratActive();
@@ -467,9 +472,14 @@ async function tick() {
     if ((res.filledOrders || []).length) playSound("fill");
     if (res.autoCancelledOrders > 0) toast(t("orders.autoCancelled"));
     if ((res.filledOrders || []).length || res.autoCancelledOrders > 0 || state.orders.length) loadOrders();
-    if (res.liquidated) { toast(t("adv.liquidated")); flashScreen(); playSound("lose"); }
+    if (res.liquidated) { toast(t("adv.liquidated")); flashScreen(); playSound("lose"); state.wasLiquidated = true; }
     if (res.news && res.news.length && window.qsShowNews) window.qsShowNews(res.news, res.daysElapsed);
+    // 历史回声印章 (hidden.js): 只记 HIGH 级大事件
+    (res.news || []).forEach((n) => {
+      if (n.severity === "HIGH") (state.newsHigh = state.newsHigh || []).push({ zh: n.titleZh, en: n.titleEn });
+    });
     renderTradeLog();
+    if (!res.settled) document.dispatchEvent(new CustomEvent("qs:tick"));
     if (res.settled) {
       showSettle(res.settleResult);
     } else {
@@ -577,6 +587,8 @@ async function trade(direction) {
     return true; // 调用方 (自动策略) 需要知道这单到底成没成
   } catch (e) {
     toast(e.message);
+    // 隐藏机制 #9 (排队文化) 监听拒单文案
+    document.dispatchEvent(new CustomEvent("qs:tradeRejected", { detail: e.message }));
     return false;
   }
 }
@@ -1183,7 +1195,9 @@ function renderSettle(result) {
   if (state.mode === "SURVIVAL" && result.holdReturnRate != null) {
     const win = Number(result.returnRate) > Number(result.holdReturnRate);
     const verdict = $("settle-verdict");
-    verdict.textContent = t(win ? "survival.win" : "survival.lose");
+    // 零交易取胜的判词微变: 隐藏机制 #2 (以静制动) 的发现线索
+    verdict.textContent = t(win && (state.trades || []).length === 0
+      ? "survival.winIdle" : win ? "survival.win" : "survival.lose");
     verdict.className = "verdict " + (win ? "win" : "lose");
   }
   // 每日挑战规则判定 (D1~D8): 结算卡上亮当日规则的过/未过

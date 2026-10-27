@@ -110,6 +110,16 @@ const BADGES = [
   { id: "discipline", name: { zh: "纪律之证", en: "Proof of Discipline" }, desc: { zh: "结算一局行为偏差零触发（≥3 笔交易）", en: "Settle a game with zero bias triggers (3+ trades)" } },
   { id: "career_res", name: { zh: "研究者徽记", en: "The Researcher's Seal" }, desc: { zh: "生涯第六章：成为策略研究者", en: "Career Ch.6: become a strategy researcher" } },
   { id: "recap_reader", name: { zh: "复盘常客", en: "Recap Regular" }, desc: { zh: "累计阅读 10 份复盘报告", en: "Read 10 post-game recaps" } },
+  // 隐藏机制 1-10 (hidden.js 发放; 纯奖励层不碰积分, 设计见审计隐藏机制方案)
+  { id: "h_discipline", hidden: true, name: { zh: "纪律之手", en: "Hand of Discipline" }, desc: { zh: "一局内每笔都写满理由、不用道具且正收益", en: "Win a game with a full-reason journal and no items" } },
+  { id: "h_idle", hidden: true, name: { zh: "以静制动", en: "Still Waters" }, desc: { zh: "熊市生存局一笔不出手, 靠利息跑赢买入持有", en: "Beat buy & hold in Survival without a single trade" } },
+  { id: "h_mirror", hidden: true, name: { zh: "对手镜", en: "The Mirror" }, desc: { zh: "连续 3 局每天都与 AI 反着来并战胜它", en: "Oppose the AI every day and beat it, 3 games running" } },
+  { id: "h_bell", name: { zh: "晨钟", en: "Morning Bell" }, desc: { zh: "连续 7 天在清晨完成每日挑战", en: "Finish the daily challenge at dawn 7 days running" } },
+  { id: "h_interest", name: { zh: "睡后收入", en: "Sleeper Income" }, desc: { zh: "单局利息赚得比交易盈亏还多", en: "Earn more from interest than from trading in one game" } },
+  { id: "h_gate", hidden: true, name: { zh: "以彼之道", en: "Gate Crasher" }, desc: { zh: "在战书里击败立书的擂主", en: "Beat the creator of a seed challenge" } },
+  { id: "h_witness", name: { zh: "亲历者", en: "The Witness" }, desc: { zh: "集齐 5 枚历史大事件印章", en: "Collect 5 major-event stamps" } },
+  { id: "h_knife", name: { zh: "接飞刀的人", en: "Knife Catcher" }, desc: { zh: "接受抄底试炼并以正收益结算", en: "Accept the dip trial and settle in the green" } },
+  { id: "h_queue", hidden: true, name: { zh: "排队文化", en: "Queue Culture" }, desc: { zh: "在涨停板上连续敲门三次", en: "Knock three times on a limit-up board" } },
 ];
 
 // 未解锁徽章的进度提示 [当前, 目标]
@@ -121,6 +131,9 @@ const BADGE_PROGRESS = {
   famous_all: () => [prog.famous.length, FAMOUS_LEVELS.length],
   daily_150: () => [Math.min(prog.daily.best || 0, 150), 150],
   case_all: () => [prog.cases.length, CASES.length],
+  // 隐藏机制的进度在 qs_hidden (hidden.js 维护), 加载序晚于本文件, 取值时兜底
+  h_bell: () => [Math.min((window.qsHidden || {}).bellStreak || 0, 7), 7],
+  h_witness: () => [Math.min(((window.qsHidden || {}).stamps || []).length, 5), 5],
 };
 
 function rankOf(xp) {

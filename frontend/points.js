@@ -243,6 +243,7 @@
     try {
       const res = await api(`/game/${state.sessionId}/peek`, { method: "POST" });
       if (S) S.peek--;
+      state.itemUsed = true; // 道具局不计"纪律之手"(hidden.js); 服务端另有战胜加成归零
       toast(t("item.peekResult." + res.direction));
     } catch (e) { toast(e.message); }
     renderAll();
@@ -254,6 +255,7 @@
     try {
       await api(`/game/${state.sessionId}/undo-trade`, { method: "POST" });
       if (S) S.undo--;
+      state.itemUsed = true; // 同 peek: 隐藏成就的道具局标记
       if (state.trades.length) state.trades.pop();
       if (state.mode !== "PORTFOLIO") updateChartData();
       await refreshStatus();
