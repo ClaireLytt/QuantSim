@@ -64,6 +64,7 @@ import lombok.extern.slf4j.Slf4j;
 public class GameService {
 
     private final MarketDataService marketData;
+    private final SessionMarketData sessionData;
     private final UserRepository userRepository;
     private final GameSessionRepository sessionRepository;
     private final AccountRepository accountRepository;
@@ -109,7 +110,7 @@ public class GameService {
     @Transactional(readOnly = true)
     public StartGameResponse describe(Long sessionId) {
         GameSession session = getSession(sessionId);
-        Stock stock = marketData.load(session.getStockId()).stock();
+        Stock stock = sessionData.of(session, session.getStockId()).stock();
         List<StockLite> stocks = tradeEngine.stockIds(session).stream()
                 .map(sid -> {
                     Stock st = marketData.load(sid).stock();
@@ -132,7 +133,7 @@ public class GameService {
     public HistoryResponse getHistory(Long sessionId, String stockCode) {
         GameSession session = getSession(sessionId);
         Long stockId = resolveStock(session, stockCode);
-        StockData sd = marketData.load(stockId);
+        StockData sd = sessionData.of(session, stockId);
         Stock stock = sd.stock();
 
         Integer startIdx = sd.indexOf(session.getStartDate());
@@ -161,7 +162,7 @@ public class GameService {
     public TickResponse tick(Long sessionId) {
         GameSession session = getSessionWithLock(sessionId);
         requireInProgress(session);
-        StockData sd = marketData.load(session.getStockId());
+        StockData sd = sessionData.of(session, session.getStockId());
 
         Integer curIdx = sd.indexOf(session.getCurrentTradeDate());
         if (curIdx == null || curIdx + 1 >= sd.prices().size()) {
@@ -209,7 +210,7 @@ public class GameService {
         if (session.getStatus() != GameSession.Status.IN_PROGRESS || BlindDates.blind(session)) {
             return List.of();
         }
-        StockData sd = marketData.load(session.getStockId());
+        StockData sd = sessionData.of(session, session.getStockId());
         Integer curIdx = sd.indexOf(session.getCurrentTradeDate());
         if (curIdx == null || curIdx + 1 >= sd.prices().size()) {
             return List.of();
@@ -232,7 +233,7 @@ public class GameService {
         price = price.setScale(2, RoundingMode.UNNECESSARY);
 
         Long stockId = resolveStock(session, request.stockCode());
-        StockData sd = marketData.load(stockId);
+        StockData sd = sessionData.of(session, stockId);
         DailyPrice bar = sd.bar(session.getCurrentTradeDate());
         if (bar == null) {
             throw new BusinessException("当前交易日行情缺失");
@@ -368,7 +369,7 @@ public class GameService {
         GameSession session = getSession(sessionId);
         Account account = accountRepository.findBySessionId(sessionId)
                 .orElseThrow(() -> new NotFoundException("账户不存在"));
-        return buildStatus(session, account, marketData.load(session.getStockId()));
+        return buildStatus(session, account, sessionData.of(session, session.getStockId()));
     }
 
     /**
@@ -406,7 +407,7 @@ public class GameService {
         Account account = accountRepository.findWithLockBySessionId(session.getSessionId())
                 .orElseThrow(() -> new NotFoundException("账户不存在"));
 
-        StockData sd = marketData.load(session.getStockId());
+        StockData sd = sessionData.of(session, session.getStockId());
         DailyPrice bar = sd.bar(session.getCurrentTradeDate());
         if (bar == null) {
             throw new BusinessException("结算日行情缺失");
@@ -453,7 +454,7 @@ public class GameService {
                 transactionRepository.findBySessionIdOrderByCreatedAtAsc(session.getSessionId());
         BiasReport biasReport = analyzeBiasOrNull(session, allTxs);
         // 交易日志: 理由 vs 结果 (只有写过理由的流水才有行)
-        List<GameDtos.JournalEntry> journal = biasAnalysisService.journal(session, allTxs, marketData::load);
+        List<GameDtos.JournalEntry> journal = biasAnalysisService.journal(session, allTxs, sid -> sessionData.of(session, sid));
         // 事件回放: 结算揭晓场景与大事记 (进行中绝不下发, 文本会暴露真实时间)
         GameDtos.EventReveal eventReveal = eventReveal(session);
 
@@ -548,7 +549,7 @@ public class GameService {
      */
     private BiasReport analyzeBiasOrNull(GameSession session, List<TradeTransaction> txs) {
         try {
-            return biasAnalysisService.analyze(session, txs, marketData::load);
+            return biasAnalysisService.analyze(session, txs, sid -> sessionData.of(session, sid));
         } catch (Exception e) {
             log.warn("偏差诊断失败 session={}", session.getSessionId(), e);
             return null;
@@ -601,7 +602,7 @@ public class GameService {
         }
         pointsService.consumeItem(session.getUserId(), "peek"); // 道具计数服务端扣减
         session.setItemUsed(true); // 用过道具: 结算不发胜AI/赢基准加成 (积分买不到计分优势)
-        StockData sd = marketData.load(session.getStockId());
+        StockData sd = sessionData.of(session, session.getStockId());
         Integer curIdx = sd.indexOf(session.getCurrentTradeDate());
         if (curIdx == null || curIdx + 1 >= sd.prices().size()) {
             throw new BusinessException("行情数据已到尽头");
@@ -659,7 +660,7 @@ public class GameService {
     /** 已结算对局的风险指标 (LLM 复盘上下文用); 旧组合流水缺 stock_id 时返回 null。 */
     @Transactional(readOnly = true)
     public RiskMetrics riskForSettled(GameSession session) {
-        StockData sd = marketData.load(session.getStockId());
+        StockData sd = sessionData.of(session, session.getStockId());
         Integer startIdx = sd.indexOf(session.getStartDate());
         Integer endIdx = sd.indexOf(session.getCurrentTradeDate());
         if (startIdx == null || endIdx == null) {
@@ -674,7 +675,7 @@ public class GameService {
      * 重放循环在 LedgerReplay (与 tick 计息/结算曲线同一内核), 这里只取末日快照落账。
      */
     private void replayAccount(GameSession session, Account account) {
-        StockData sd = marketData.load(session.getStockId());
+        StockData sd = sessionData.of(session, session.getStockId());
         Integer startIdx = sd.indexOf(session.getStartDate());
         Integer endIdx = sd.indexOf(session.getCurrentTradeDate());
         if (startIdx == null || endIdx == null) {
@@ -733,7 +734,7 @@ public class GameService {
             positions = new ArrayList<>();
             floatingPnl = BigDecimal.ZERO;
             for (Long sid : tradeEngine.stockIds(session)) {
-                StockData ssd = marketData.load(sid);
+                StockData ssd = sessionData.of(session, sid);
                 var pos = tradeEngine.position(session, account, sid);
                 BigDecimal close = closes.getOrDefault(sid, BigDecimal.ZERO);
                 BigDecimal value = close.multiply(BigDecimal.valueOf(pos.shares()));

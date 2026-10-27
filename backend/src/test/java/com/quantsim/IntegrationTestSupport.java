@@ -136,6 +136,10 @@ abstract class IntegrationTestSupport {
         priceRepository.deleteAll();
         stockRepository.deleteAll();
         cacheManager.getCache("stockData").clear();
+        var blind = cacheManager.getCache("blindData");
+        if (blind != null) {
+            blind.clear();
+        }
         var news = cacheManager.getCache("newsByDate");
         if (news != null) {
             news.clear();

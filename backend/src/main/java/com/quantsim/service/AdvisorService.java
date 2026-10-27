@@ -88,6 +88,7 @@ public class AdvisorService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final MarketDataService marketData;
+    private final SessionMarketData sessionData;
     private final GameService gameService;
     private final AdvisorProperties props;
     private final ObjectMapper objectMapper;
@@ -114,11 +115,13 @@ public class AdvisorService {
 
     public AdvisorService(GameSessionRepository sessionRepository, AccountRepository accountRepository,
             TransactionRepository transactionRepository, MarketDataService marketData,
+            SessionMarketData sessionData,
             GameService gameService, AdvisorProperties props, ObjectMapper objectMapper) {
         this.sessionRepository = sessionRepository;
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.marketData = marketData;
+        this.sessionData = sessionData;
         this.gameService = gameService;
         this.props = props;
         this.objectMapper = objectMapper;
@@ -139,7 +142,7 @@ public class AdvisorService {
                 .orElseThrow(() -> new NotFoundException("对局不存在: " + sessionId));
         Account account = accountRepository.findBySessionId(sessionId)
                 .orElseThrow(() -> new NotFoundException("账户不存在"));
-        StockData sd = marketData.load(session.getStockId());
+        StockData sd = sessionData.of(session, session.getStockId());
 
         String systemPrompt = "en".equalsIgnoreCase(lang) ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT_ZH;
         String advice = callClaude(systemPrompt, buildMessages(sessionId, session, account, sd, question), false, null);
@@ -156,7 +159,7 @@ public class AdvisorService {
                 .orElseThrow(() -> new NotFoundException("对局不存在: " + sessionId));
         Account account = accountRepository.findBySessionId(sessionId)
                 .orElseThrow(() -> new NotFoundException("账户不存在"));
-        StockData sd = marketData.load(session.getStockId());
+        StockData sd = sessionData.of(session, session.getStockId());
         String systemPrompt = "en".equalsIgnoreCase(lang) ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT_ZH;
         List<Map<String, String>> messages = buildMessages(sessionId, session, account, sd, question);
 
@@ -272,7 +275,7 @@ public class AdvisorService {
         }
         Account account = accountRepository.findBySessionId(sessionId)
                 .orElseThrow(() -> new NotFoundException("账户不存在"));
-        StockData sd = marketData.load(session.getStockId());
+        StockData sd = sessionData.of(session, session.getStockId());
 
         String systemPrompt = "en".equalsIgnoreCase(lang) ? REVIEW_PROMPT_EN : REVIEW_PROMPT_ZH;
         String advice = callClaude(systemPrompt,

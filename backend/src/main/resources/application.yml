@@ -35,7 +35,8 @@ spring:
       initialize-schema: always
   cache:
     type: caffeine
-    cache-names: stockData
+    # blindData: 盲局扰动视图 (BlindPerturb), 按 标的@起始日 缓存, 与 stockData 同过期策略
+    cache-names: stockData,blindData
     caffeine:
       # 行情数据不可变, 缓存过期仅为管道重灌数据后能自动刷新
       # maximumSize 要大于 stocks 表行数 (事件回放的 hidden 标的 ticker@scenario 各占一行),

@@ -225,6 +225,31 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         assertThat(codes).allMatch(c -> c == 200 || c == 400);
     }
 
+    /** 审计创意24 (产品拍板): 盲局 K 线是不可逆扰动序列 (P1-9 根治)——
+     *  不等于 lab 可见的真实行情, 但同一挑战全员同一扰动 (榜单可比), 且现价与图表自洽。 */
+    @Test
+    void blindGamesServePerturbedButSharedPrices() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12); // 真实行情恒为 10.00
+        String alice = register("扰动甲");
+        String bob = register("扰动乙");
+        long sidA = json(postJson("/api/daily/start", "{}", alice)).path("sessionId").asLong();
+        long sidB = json(postJson("/api/daily/start", "{}", bob)).path("sessionId").asLong();
+        JsonNode histA = json(get("/api/game/" + sidA + "/history", alice));
+        JsonNode histB = json(get("/api/game/" + sidB + "/history", bob));
+        boolean anyDiff = false;
+        for (JsonNode k : histA.path("klines")) {
+            anyDiff |= k.path("close").decimalValue().compareTo(new java.math.BigDecimal("10.00")) != 0;
+        }
+        assertThat(anyDiff).as("扰动后的收盘不可能整段仍等于真实价 10.00").isTrue();
+        // 同一每日挑战全员共享同一扰动序列
+        assertThat(histA.path("klines")).isEqualTo(histB.path("klines"));
+        // 现价与图表自洽: status 的 currentPrice = 最后一根扰动 K 线的收盘
+        JsonNode st = json(get("/api/game/" + sidA + "/status", alice));
+        JsonNode lastBar = histA.path("klines").get(histA.path("klines").size() - 1);
+        assertThat(st.path("currentPrice").decimalValue())
+                .isEqualByComparingTo(lastBar.path("close").decimalValue());
+    }
+
     /** 审计创意29 (产品拍板): 事后 5 日 |涨跌| < 2% 的新闻不推送; 后市数据不足时保留。 */
     @Test
     void newsFilteredByRealizedImpact() {
@@ -548,9 +573,12 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         String alice = register("日志脱敏");
         long sid = json(postJson("/api/daily/start", "{}", alice)).path("sessionId").asLong();
 
-        // 带理由的交易才会生成 journal 行; 手动交易只按当日收盘价 10.00 成交
+        // 带理由的交易才会生成 journal 行; 手动交易只按当日收盘价成交——
+        // 盲局行情已被扰动 (创意24), 收盘价从 status 现价取, 不能写死 10.00
+        String close = json(get("/api/game/" + sid + "/status", alice))
+                .path("currentPrice").decimalValue().toPlainString();
         postJson("/api/game/" + sid + "/trade",
-                "{\"direction\":\"BUY\",\"price\":10.00,\"shares\":100,\"reason\":\"测试理由\"}", alice);
+                "{\"direction\":\"BUY\",\"price\":" + close + ",\"shares\":100,\"reason\":\"测试理由\"}", alice);
         JsonNode settle = json(postJson("/api/game/" + sid + "/settle", "{}", alice));
 
         JsonNode journal = settle.path("journal");
