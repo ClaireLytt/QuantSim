@@ -79,6 +79,8 @@ async function labHistory(code) {
   if (!labHistCache[code]) {
     labHistCache[code] = api("/lab/history/" + encodeURIComponent(code))
       .catch((e) => { delete labHistCache[code]; throw e; }); // 失败不缓存, 允许重试
+    // 隐藏机制 #20 (似曾相识, hidden.js): 记录研究过的标的
+    document.dispatchEvent(new CustomEvent("qs:labHistory", { detail: code }));
   }
   return labHistCache[code];
 }

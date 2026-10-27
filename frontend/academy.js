@@ -120,6 +120,16 @@ const BADGES = [
   { id: "h_witness", name: { zh: "亲历者", en: "The Witness" }, desc: { zh: "集齐 5 枚历史大事件印章", en: "Collect 5 major-event stamps" } },
   { id: "h_knife", name: { zh: "接飞刀的人", en: "Knife Catcher" }, desc: { zh: "接受抄底试炼并以正收益结算", en: "Accept the dip trial and settle in the green" } },
   { id: "h_queue", hidden: true, name: { zh: "排队文化", en: "Queue Culture" }, desc: { zh: "在涨停板上连续敲门三次", en: "Knock three times on a limit-up board" } },
+  // 隐藏机制 11-20
+  { id: "h_resonance", name: { zh: "共振观察者", en: "Resonance Watcher" }, desc: { zh: "三次目睹组合三标的同日同向共振 (±3%)", en: "Witness all three portfolio stocks resonate (3%+ same day) three times" } },
+  { id: "h_zen", hidden: true, name: { zh: "禅定", en: "Zen State" }, desc: { zh: "在禅定局 (全程限 2 笔) 中获胜", en: "Win a Zen run (2 trades for the whole game)" } },
+  { id: "h_corrected", hidden: true, name: { zh: "矫正者", en: "The Corrected" }, desc: { zh: "同一行为偏差连亮三局后, 又连续三局保持干净", en: "After a bias lit up 3 games running, keep it clean for 3 more" } },
+  { id: "h_scholar", name: { zh: "日志学者", en: "Journal Scholar" }, desc: { zh: "攒下 20 条认真写的交易理由", en: "Write 20 serious trade reasons" } },
+  { id: "h_abstainer", hidden: true, name: { zh: "自律者", en: "The Abstainer" }, desc: { zh: "活跃一个月而不碰一次盲盒", en: "Stay active for a month without touching the blind box" } },
+  { id: "h_curse", hidden: true, name: { zh: "破咒", en: "Curse Breaker" }, desc: { zh: "在同一每日规则连败三次后终于通过它", en: "Pass a daily rule after failing it three times running" } },
+  { id: "h_knowfoe", hidden: true, name: { zh: "知己知彼", en: "Know Thy Foe" }, desc: { zh: "解锁对手策略档案后首次战胜它", en: "Beat an AI after unlocking its strategy archive" } },
+  { id: "h_distribution", hidden: true, name: { zh: "均值与最差都重要", en: "Mean and Worst" }, desc: { zh: "连续垫底两周后在盲测擂台打回前一半", en: "Climb back to the top half of the blind arena after two bottom weeks" } },
+  { id: "h_deja", hidden: true, name: { zh: "学以致用", en: "Study Pays" }, desc: { zh: "在研究所研究过的标的上三次获胜", en: "Win three games on stocks you studied in the lab" } },
 ];
 
 // 未解锁徽章的进度提示 [当前, 目标]
@@ -134,6 +144,8 @@ const BADGE_PROGRESS = {
   // 隐藏机制的进度在 qs_hidden (hidden.js 维护), 加载序晚于本文件, 取值时兜底
   h_bell: () => [Math.min((window.qsHidden || {}).bellStreak || 0, 7), 7],
   h_witness: () => [Math.min(((window.qsHidden || {}).stamps || []).length, 5), 5],
+  h_resonance: () => [Math.min((window.qsHidden || {}).resonance || 0, 3), 3],
+  h_scholar: () => [Math.min(((window.qsHidden || {}).journal || []).length, 20), 20],
 };
 
 function rankOf(xp) {

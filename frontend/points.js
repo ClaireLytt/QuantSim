@@ -138,6 +138,11 @@
       const name = document.createElement("span");
       name.className = "name";
       name.textContent = t("points.item." + item.id);
+      // 隐藏机制 #15 (空窗期): 盲盒久未购买会"积灰" (hidden.js 提供文案, 未到期返回 null)
+      if (item.id === "blindbox" && window.qsHiddenDustLabel) {
+        const dust = qsHiddenDustLabel();
+        if (dust) name.textContent += " " + dust;
+      }
       const cost = document.createElement("span");
       cost.className = "cost";
       cost.textContent = item.cost.toLocaleString() + " " + t("points.unit");
@@ -179,7 +184,11 @@
       history.unshift({ id: item.id, t: Date.now() });
       saveHistory();
       if (window.playSound) playSound("buy");
-      if (item.id === "blindbox") toast(t("points.blindboxWin", res.blindboxWin));
+      if (item.id === "blindbox") {
+        toast(t("points.blindboxWin", res.blindboxWin));
+        // 隐藏机制 #15 (空窗期, hidden.js): 重置"没碰盲盒"计时
+        document.dispatchEvent(new CustomEvent("qs:blindbox"));
+      }
       else toast(t("points.redeemOk", t("points.item." + item.id)));
       renderAll();
       renderShop();

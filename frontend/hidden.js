@@ -1,6 +1,8 @@
-// 隐藏机制 1-10 (策略单一化审计后的"可发现奖励层"方案, 2026-10-27):
-// 纪律之手 / 以静制动 / 对手镜 / 晨钟 / 睡后收入 / 以彼之道 /
-// 历史回声印章 / 抄底试炼 / 排队文化 / 凤凰计划。
+// 隐藏机制 1-20 (策略单一化审计后的"可发现奖励层"方案, 2026-10-27):
+// 1-10: 纪律之手 / 以静制动 / 对手镜 / 晨钟 / 睡后收入 / 以彼之道 /
+//       历史回声印章 / 抄底试炼 / 排队文化 / 凤凰计划;
+// 11-20: 共振日 / 禅定局(佛系) / 偏差矫正 / 日志学者 / 空窗期 /
+//        双冠 / 规则字条 / 策略档案 / 分布思维 / 似曾相识。
 // 设计守则: 纯奖励层 (徽章/称号/彩蛋), 不发积分、不改任何竞技口径; 线索全部来自
 // 游戏内可见数据。跨局进度存 localStorage (qs_hidden), 与 qs_progress 分开。
 // 加载序依赖: app.js ($ / t / toast / qsModal) + i18n.js (t 键) +
@@ -8,7 +10,12 @@
 
 (() => {
   const KEY = "qs_hidden";
-  let H = { bellLast: "", bellStreak: 0, mirrorStreak: 0, stamps: [], phoenixArmed: false };
+  let H = { bellLast: "", bellStreak: 0, mirrorStreak: 0, stamps: [], phoenixArmed: false,
+    // 11-20 的跨局进度
+    resonance: 0, journal: [], holderRun: 0, zenUnlocked: false,
+    aiLoss: {}, biasRun: {}, biasArmed: {}, biasClean: {},
+    ruleFails: {}, ruleArmed: "", blindBadWeeks: 0, blindLastWeek: null, blindArmed: false,
+    labSeen: {}, dejaApplied: 0, lastBox: "", firstSeen: "", activeDays: [] };
   try { H = Object.assign(H, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) { /* 隐私模式下忽略 */ }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(H)); } catch (e) { /* ignore */ } };
   window.qsHidden = H; // academy.js 的徽章进度条 (晨钟/亲历者) 从这里读
@@ -19,6 +26,10 @@
   let dipAccepted = false;
   let phoenixPending = false; // #10 点了凤凰按钮、等开局成功
   let phoenixSession = false;
+  let zenPending = false;     // #12 禅定局同理
+  let zenSession = false;
+  let prevCloses = null;      // #11 组合模式上一 tick 各标的收盘
+  let dejaActive = false;     // #20 本局标的曾在研究所完整浏览过
 
   document.addEventListener("qs:gameStart", () => {
     queueHits = 0;
@@ -26,6 +37,18 @@
     dipAccepted = false;
     phoenixSession = phoenixPending;
     phoenixPending = false;
+    zenSession = zenPending;
+    zenPending = false;
+    prevCloses = null;
+    // #20 似曾相识: 竞技局标的是 "???", 结构上不可能命中 (防剧透)
+    const s = window.state || {};
+    dejaActive = !!(s.stockCode && H.labSeen[s.stockCode]);
+    const hint = $("deja-hint");
+    if (hint) {
+      hint.hidden = !dejaActive;
+      if (dejaActive) hint.textContent = t("hidden.deja", H.labSeen[s.stockCode]);
+    }
+    renderArchiveLink(s.aiLevel);
   });
 
   // ---------- #8 抄底试炼: 连续 3 根阴线且累计 ≤ -8% 时弹试炼卡 ----------
@@ -38,8 +61,27 @@
   });
   $("btn-dip-decline").addEventListener("click", dipModal.close);
 
-  document.addEventListener("qs:tick", () => {
+  document.addEventListener("qs:tick", (ev) => {
     const s = window.state || {};
+    // #11 共振日: 组合模式三标的同日全部 ±3% 同向
+    const positions = ev.detail && ev.detail.status && ev.detail.status.positions;
+    if (s.mode === "PORTFOLIO" && Array.isArray(positions) && positions.length >= 3) {
+      const closes = {};
+      positions.forEach((p) => { closes[p.stockCode] = Number(p.price); });
+      if (prevCloses) {
+        const pcts = positions.map((p) => prevCloses[p.stockCode] > 0
+          ? closes[p.stockCode] / prevCloses[p.stockCode] - 1 : 0);
+        const allUp = pcts.every((x) => x >= 0.03);
+        const allDown = pcts.every((x) => x <= -0.03);
+        if (allUp || allDown) {
+          H.resonance++;
+          save();
+          toast(t("hidden.resonance", H.resonance));
+          if (H.resonance >= 3) awardBadge("h_resonance");
+        }
+      }
+      prevCloses = closes;
+    }
     const k = s.klines || [];
     if (dipShown || k.length < 4) return;
     const base = Number(k[k.length - 4].close);
@@ -133,7 +175,287 @@
       save();
       renderPhoenix();
     }
+
+    // #12 禅定局: 连续 5 局风格画像为佛系持有 → 点亮入口; 禅定局获胜得称号
+    if (s.mode !== "INTRO" && r.styleTag) {
+      H.holderRun = r.styleTag === "HOLDER" ? H.holderRun + 1 : 0;
+      if (!H.zenUnlocked && H.holderRun >= 5) {
+        H.zenUnlocked = true;
+        toast(t("hidden.zenUnlocked"));
+      }
+      save();
+      renderZen();
+    }
+    if (zenSession && ret > 0) {
+      awardTitle({ zh: "扫地僧", en: "The Sweeper Monk" });
+      awardBadge("h_zen");
+    }
+
+    // #13 偏差矫正: 同一偏差连亮 3 局 → 提示; 其后连续 3 局不亮 → 破除徽章
+    const verdicts = (r.biasReport && r.biasReport.verdicts) || [];
+    if (verdicts.length) {
+      verdicts.forEach((v) => {
+        const k = v.key;
+        if (v.triggered) {
+          H.biasRun[k] = (H.biasRun[k] || 0) + 1;
+          H.biasClean[k] = 0;
+          if (H.biasRun[k] === 3 && !H.biasArmed[k]) {
+            H.biasArmed[k] = true;
+            toast(t("hidden.biasRun3"));
+          }
+        } else {
+          H.biasRun[k] = 0;
+          if (H.biasArmed[k]) {
+            H.biasClean[k] = (H.biasClean[k] || 0) + 1;
+            if (H.biasClean[k] >= 3) {
+              delete H.biasArmed[k];
+              H.biasClean[k] = 0;
+              awardBadge("h_corrected");
+            }
+          }
+        }
+      });
+      save();
+    }
+
+    // #14 日志学者: 认真理由 (≥8 字) 的流水攒 20 条解锁"理由×结果"透视
+    (r.journal || []).forEach((j) => {
+      if (String(j.reason || "").trim().length >= 8) {
+        H.journal.push({ r: j.reason, o: j.outcomePct });
+        if (H.journal.length > 100) H.journal.shift();
+      }
+    });
+    if ((r.journal || []).length) {
+      save();
+      renderScholar();
+      if (H.journal.length >= 20) awardBadge("h_scholar");
+    }
+
+    // #17 规则字条: 同一每日规则连败 3 次 → 结算卡出现攻略字条; 之后通过该规则 → 破咒
+    if (r.dailyChallenge && r.dailyChallenge.rule) {
+      const rule = r.dailyChallenge.rule;
+      if (r.dailyChallenge.passed) {
+        if (H.ruleArmed === rule) {
+          H.ruleArmed = "";
+          awardBadge("h_curse");
+        }
+        H.ruleFails[rule] = 0;
+      } else {
+        H.ruleFails[rule] = (H.ruleFails[rule] || 0) + 1;
+        if (H.ruleFails[rule] >= 3) {
+          H.ruleArmed = rule;
+          showRuleNote(rule);
+        }
+      }
+      save();
+    }
+
+    // #18 策略档案: 被同一 AI 人设击败累计计数; 档案解锁后首次战而胜之 → 知己知彼
+    if (r.aiReturnRate != null && s.aiLevel) {
+      const persona = String(s.aiLevel).toLowerCase();
+      if (ret <= Number(r.aiReturnRate)) {
+        H.aiLoss[persona] = (H.aiLoss[persona] || 0) + 1;
+      } else if ((H.aiLoss[persona] || 0) >= 5) {
+        awardBadge("h_knowfoe");
+      }
+      save();
+      renderArchiveLink(s.aiLevel);
+    }
+
+    // #20 似曾相识: 研究过的标的上取胜计入"学以致用"
+    if (dejaActive && ret > 0) {
+      H.dejaApplied++;
+      save();
+      if (H.dejaApplied >= 3) awardBadge("h_deja");
+    }
   });
+
+  // ---------- #17 字条内容: 按规则给静态攻略 (匿名高分摘要需后端聚合, 先用手写字条) ----------
+
+  function showRuleNote(rule) {
+    const card = $("settle-card");
+    if (!card || card.querySelector(".hidden-rule-note")) return;
+    const p = document.createElement("p");
+    p.className = "hint hidden-rule-note";
+    p.textContent = t("hidden.ruleNote") + " " + t("hidden.note." + rule);
+    card.appendChild(p);
+  }
+
+  // ---------- #16 双冠: 收益榜与夏普榜同季同时进 TOP20 ----------
+
+  let crownChecked = false; // 每次进榜单页查一次即可
+  document.addEventListener("qs:view", async (e) => {
+    if (e.detail !== "ranking" || crownChecked) return;
+    crownChecked = true;
+    try {
+      const now = new Date();
+      const season = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const [ret, sharpe] = await Promise.all([
+        api("/leaderboard?season=" + season),
+        api("/leaderboard?season=" + season + "&sort=sharpe"),
+      ]);
+      if (ret.some((x) => x.isSelf) && sharpe.some((x) => x.isSelf)) {
+        awardTitle({ zh: "既快又稳", en: "Fast and Steady" });
+      }
+    } catch (err) { /* 榜单失败不打扰 */ }
+  });
+
+  // ---------- #18 策略档案 UI ----------
+
+  const PERSONAS = ["easy", "normal", "hard", "hell"];
+  const archiveModal = qsModal("archive-modal", { closeBtnId: "btn-archive-close", escape: true });
+
+  function renderArchiveLink(aiLevel) {
+    const link = $("ai-archive-link");
+    if (!link) return;
+    const persona = String(aiLevel || "").toLowerCase();
+    // 裂纹线索: 被该人设击败 ≥3 次后才出现入口
+    link.hidden = !persona || (H.aiLoss[persona] || 0) < 3;
+  }
+
+  function renderArchive() {
+    const box = $("archive-list");
+    box.innerHTML = "";
+    PERSONAS.forEach((p) => {
+      const losses = H.aiLoss[p] || 0;
+      const item = document.createElement("p");
+      item.className = "hint";
+      const name = document.createElement("b");
+      name.textContent = t("ai.persona." + p) + " · ";
+      const body = document.createElement("span");
+      body.textContent = losses >= 5
+        ? t("hidden.archive." + p)
+        : t("hidden.archiveLocked", losses);
+      item.append(name, body);
+      box.appendChild(item);
+    });
+  }
+
+  $("ai-archive-link").addEventListener("click", () => {
+    renderArchive();
+    archiveModal.open();
+  });
+
+  // ---------- #19 分布思维: 盲测擂台连续两周垫底后翻出对照卡 (dojo.js 派发) ----------
+
+  document.addEventListener("qs:blindBoard", (e) => {
+    const b = e.detail || {};
+    if (!b.revealed || !Array.isArray(b.rows) || b.rows.length < 3) return;
+    const idx = b.rows.findIndex((x) => x.isSelf);
+    if (idx < 0 || b.week === H.blindLastWeek) {
+      renderBlindCard(b);
+      return;
+    }
+    H.blindLastWeek = b.week;
+    const bottom = idx >= Math.ceil(b.rows.length * 2 / 3);
+    const topHalf = idx < Math.ceil(b.rows.length / 2);
+    if (H.blindArmed && topHalf) {
+      H.blindArmed = false;
+      H.blindBadWeeks = 0;
+      awardBadge("h_distribution");
+    }
+    H.blindBadWeeks = bottom ? H.blindBadWeeks + 1 : 0;
+    if (H.blindBadWeeks >= 2) H.blindArmed = true;
+    save();
+    renderBlindCard(b);
+  });
+
+  /** 对照卡: 自己与榜首的三段收益并排——"最差段 50%"的教学时刻。 */
+  function renderBlindCard(b) {
+    const box = $("rq10-dist");
+    if (!box) return;
+    const idx = b.rows.findIndex((x) => x.isSelf);
+    if (!H.blindArmed || idx < 0) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    const fmt = (ws) => (ws || []).map((w) => fmtPct(Number(w))).join(" / ");
+    $("rq10-dist-mine").textContent = t("hidden.distMine", fmt(b.rows[idx].windows));
+    $("rq10-dist-top").textContent = t("hidden.distTop", fmt(b.rows[0].windows));
+  }
+
+  // ---------- #20 研究所浏览记录 (lab.js 派发) ----------
+
+  document.addEventListener("qs:labHistory", (e) => {
+    const code = e.detail;
+    if (!code) return;
+    H.labSeen[code] = (H.labSeen[code] || 0) + 1;
+    save();
+  });
+
+  // ---------- #15 空窗期: 30 天活跃且不碰盲盒 ----------
+
+  document.addEventListener("qs:blindbox", () => {
+    H.lastBox = shanghaiNow().toISOString().slice(0, 10);
+    H.activeDays = [];
+    save();
+  });
+
+  /** 商城灰尘线索 (points.js renderShop 调): ≥7 天没碰盲盒开始积灰。 */
+  window.qsHiddenDustLabel = () => {
+    const days = daysSinceBox();
+    return days >= 7 ? t("hidden.dust", days) : null;
+  };
+
+  function daysSinceBox() {
+    const from = H.lastBox || H.firstSeen;
+    if (!from) return 0;
+    return Math.floor((shanghaiNow() - new Date(from)) / 86400e3);
+  }
+
+  function trackActiveDay() {
+    const today = shanghaiNow().toISOString().slice(0, 10);
+    if (!H.firstSeen) H.firstSeen = today;
+    if (!H.activeDays.includes(today)) {
+      H.activeDays.push(today);
+      if (H.activeDays.length > 40) H.activeDays.shift();
+    }
+    // 自律者: 30 天没碰盲盒且期间活跃 ≥10 天 (奖励层徽章; 商城折扣需后端经济支持, 另期)
+    if (daysSinceBox() >= 30 && H.activeDays.length >= 10) awardBadge("h_abstainer");
+    save();
+  }
+
+  // ---------- #12 禅定局入口 ----------
+
+  function renderZen() {
+    const box = $("zen-banner");
+    if (box) box.hidden = !H.zenUnlocked;
+  }
+
+  $("btn-zen").addEventListener("click", () => {
+    zenPending = true;
+    startGame({ maxTrades: 2, requireReason: false });
+  });
+
+  // ---------- #14 日志学者面板 (个人页): 1 条起显示进度, 20 条解锁透视 ----------
+
+  function renderScholar() {
+    const card = $("profile-scholar-card");
+    const box = $("scholar-list");
+    if (!card || !box) return;
+    card.hidden = H.journal.length === 0;
+    if (card.hidden) return;
+    const n = H.journal.length;
+    $("scholar-progress").textContent = n < 20
+      ? t("hidden.scholarProgress", n)
+      : t("hidden.scholarRate",
+          Math.round(100 * H.journal.filter((j) => Number(j.o) > 0).length / n));
+    box.innerHTML = "";
+    if (n < 20) return; // 透视 20 条起解锁
+    H.journal.slice(-20).reverse().forEach((j) => {
+      const p = document.createElement("p");
+      p.className = "hint";
+      const pct = document.createElement("span");
+      const v = Number(j.o);
+      pct.className = v >= 0 ? "pos" : "neg";
+      pct.textContent = j.o == null ? "--" : fmtPct(v) + " ";
+      const txt = document.createElement("span");
+      txt.textContent = j.r;
+      p.append(pct, txt);
+      box.appendChild(p);
+    });
+  }
 
   /** #3 判定: AI 每个出手日 (shares≠0) 玩家当日净方向必须相反; AI 出手 <3 天的局不计。 */
   function updateMirror(r, s, trades, ret) {
@@ -213,4 +535,7 @@
 
   renderStamps();
   renderPhoenix();
+  renderZen();
+  renderScholar();
+  trackActiveDay();
 })();

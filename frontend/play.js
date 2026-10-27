@@ -479,7 +479,7 @@ async function tick() {
       if (n.severity === "HIGH") (state.newsHigh = state.newsHigh || []).push({ zh: n.titleZh, en: n.titleEn });
     });
     renderTradeLog();
-    if (!res.settled) document.dispatchEvent(new CustomEvent("qs:tick"));
+    if (!res.settled) document.dispatchEvent(new CustomEvent("qs:tick", { detail: { status: res.status } }));
     if (res.settled) {
       showSettle(res.settleResult);
     } else {
