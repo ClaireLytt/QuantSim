@@ -92,11 +92,12 @@ class TradingDepthIntegrationTest extends IntegrationTestSupport {
     }
 
     /**
-     * 回归 (审计 P1-5): 「后悔药」撤销挂单成交的流水时, 挂单必须回滚为 OPEN ——
-     * 否则挂单显示 FILLED 但资金里没有这笔 (账实分叉), 且笔数预算两侧都不再计它。
+     * 回归 (审计 P1-5 → 创意31 修订): 「后悔药」撤销挂单成交的流水时, 挂单作废 (CANCELLED) ——
+     * 不能留 FILLED (账实分叉), 也不回 OPEN (白拿一次"多看一天行情再重试"的延迟期权,
+     * 2026-10-27 产品拍板改为作废, 见 CONSTRAINTS.md Exceptions E1)。
      */
     @Test
-    void undoOrderFillRevertsOrderToOpen() {
+    void undoOrderFillCancelsOrder() {
         Stock stock = seedStock("000001", "测试股", Market.STOCK);
         seedBars(stock, "10", "10", "10", "10", "10", "10", "10", "10", "10");
         long sid = startGame("");
@@ -107,7 +108,7 @@ class TradingDepthIntegrationTest extends IntegrationTestSupport {
         JsonNode t = tick(sid);
         assertThat(t.path("filledOrders").size()).isEqualTo(1);
 
-        // 发一枚后悔药道具后撤销: 流水删除、挂单回滚 OPEN、现金复原 (零费零息)
+        // 发一枚后悔药道具后撤销: 流水删除、挂单作废、现金复原 (零费零息)
         Long userId = sessionRepository.findById(sid).orElseThrow().getUserId();
         com.quantsim.entity.UserPoints p = new com.quantsim.entity.UserPoints();
         p.setUserId(userId);
@@ -118,7 +119,7 @@ class TradingDepthIntegrationTest extends IntegrationTestSupport {
         assertThat(transactionRepository.count()).isZero();
         JsonNode orders = json(rest.getForEntity("/api/game/" + sid + "/orders", String.class));
         assertThat(orders.get(0).path("orderId").asLong()).isEqualTo(orderId);
-        assertThat(orders.get(0).path("status").asText()).isEqualTo("OPEN");
+        assertThat(orders.get(0).path("status").asText()).isEqualTo("CANCELLED");
         assertThat(orders.get(0).path("filledPrice").isNull()).isTrue();
     }
 

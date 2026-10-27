@@ -636,11 +636,12 @@ public class GameService {
                 .max(java.util.Comparator.comparing(TradeTransaction::getTxId))
                 .orElseThrow();
         if (last.getOrderId() != null) {
-            // 这笔成交来自挂单: 只删流水不回滚挂单会账实分叉 (挂单显示 FILLED 但资金里没有
-            // 这笔), 且该单从笔数预算两侧 (已成交数+在挂单数) 同时消失, 限笔模式可刷额度。
-            // 回滚为 OPEN: 挂单继续有效, 次日仍可再触发, 预算占用恢复。
+            // 这笔成交来自挂单: 只删流水不动挂单会账实分叉 (挂单显示 FILLED 但资金里没有这笔)。
+            // 2026-10 审计创意31 (产品拍板): 回滚为 CANCELLED 而不是 OPEN —— 回 OPEN 等于
+            // 白拿一次"多看一天行情后同触发价重试"的延迟期权; 作废后想再挂须重新下单,
+            // 重新占用笔数预算 (undo 释放的额度被再下单抵消, 预算净额与改前一致)。
             orderRepository.findById(last.getOrderId()).ifPresent(order -> {
-                order.setStatus(PendingOrder.Status.OPEN);
+                order.setStatus(PendingOrder.Status.CANCELLED);
                 order.setFilledDate(null);
                 order.setFilledPrice(null);
                 orderRepository.save(order);

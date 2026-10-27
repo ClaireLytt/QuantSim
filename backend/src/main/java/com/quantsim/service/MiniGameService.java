@@ -40,9 +40,10 @@ public class MiniGameService {
     public static final int GUESS_REVEAL = 10;
     private static final int GUESS_TOTAL = GUESS_VISIBLE + GUESS_REVEAL;
 
-    /** 实战题口径: 事件日收盘 → 后 5 个交易日收盘, |涨跌| < 2% 判中性 */
-    private static final int QUIZ_HORIZON = 5;
-    private static final BigDecimal QUIZ_FLAT_BAND = new BigDecimal("0.02");
+    /** 实战题口径: 事件日收盘 → 后 5 个交易日收盘, |涨跌| < 2% 判中性。
+     *  NewsService 的"低相关新闻过滤"复用同一口径 (审计创意29), 包内可见。 */
+    static final int QUIZ_HORIZON = 5;
+    static final BigDecimal QUIZ_FLAT_BAND = new BigDecimal("0.02");
     private static final int QUIZ_MAX_ITEMS = 5;
 
     private final StockRepository stockRepository;
@@ -142,8 +143,9 @@ public class MiniGameService {
     }
 
     /** 事件日若非该标的交易日 (周末/停牌) 取下一交易日; 超出行情范围、或下一交易日
-     *  离事件日超过 7 天 (事件远在行情起点之前, 被吸附到无关日期) 返回 null */
-    private static Integer ceilingIndex(StockData sd, LocalDate date) {
+     *  离事件日超过 7 天 (事件远在行情起点之前, 被吸附到无关日期) 返回 null。
+     *  NewsService 的事件影响判定复用此口径 (包内可见)。 */
+    static Integer ceilingIndex(StockData sd, LocalDate date) {
         Integer exact = sd.indexOf(date);
         if (exact != null) {
             return exact;

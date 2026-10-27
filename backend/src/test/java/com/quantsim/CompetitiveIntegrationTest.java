@@ -39,6 +39,9 @@ import com.quantsim.entity.Stock;
 class CompetitiveIntegrationTest extends IntegrationTestSupport {
 
     /** 均匀 K 线 + probUp=0.5 (NORMAL 模型): 竞技断言不受 AI 行为干扰。 */
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.quantsim.service.NewsService newsService;
+
     private Stock seedStock(String code, LocalDate firstDay, int days) {
         return seedFlatStock(code, "测试股" + code, Market.STOCK, firstDay, days,
                 "10.00", AiLevel.NORMAL, "0.5000");
@@ -220,6 +223,21 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         // 恰好一个 200, 其余 400; 不允许任何 500/-1
         assertThat(codes).filteredOn(c -> c == 200).hasSize(1);
         assertThat(codes).allMatch(c -> c == 200 || c == 400);
+    }
+
+    /** 审计创意29 (产品拍板): 事后 5 日 |涨跌| < 2% 的新闻不推送; 后市数据不足时保留。 */
+    @Test
+    void newsFilteredByRealizedImpact() {
+        // 平盘股: 2024-09-24 内置事件日后 5 日影响为 0 → 过滤
+        Stock flat = seedStock("000001", LocalDate.of(2024, 9, 18), 30);
+        assertThat(newsService.eventsFor(flat, LocalDate.of(2024, 9, 24))).isEmpty();
+        // 事件日 (9/24) 收盘 10, 之后跳涨到 11 (+10%) 的标的 → 保留
+        Stock mover = seedFlatStock("000002", "大涨股", Market.STOCK,
+                LocalDate.of(2024, 9, 18), 7, "10.00", null, null);
+        for (int i = 7; i < 30; i++) {
+            savePrice(mover.getStockId(), LocalDate.of(2024, 9, 18).plusDays(i), new java.math.BigDecimal("11.00"));
+        }
+        assertThat(newsService.eventsFor(mover, LocalDate.of(2024, 9, 24))).isNotEmpty();
     }
 
     /** 榜单只收打满全程的局 (审计创意6): tick 到自动结算 (total-ticks=3), 不能 day-0 秒结。 */
