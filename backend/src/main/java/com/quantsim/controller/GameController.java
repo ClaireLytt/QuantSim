@@ -136,6 +136,12 @@ public class GameController {
         return gameService.trade(sessionId, request);
     }
 
+    /** 财报日历 (联动设计#7): [第几天...] 偏移; 盲局恒空。 */
+    @GetMapping("/{sessionId}/earnings")
+    public java.util.List<Integer> earnings(@PathVariable Long sessionId) {
+        return gameService.earningsDays(sessionId);
+    }
+
     @GetMapping("/{sessionId}/status")
     public StatusResponse status(@PathVariable Long sessionId) {
         return gameService.getStatus(sessionId);

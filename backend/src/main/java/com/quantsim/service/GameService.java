@@ -86,6 +86,7 @@ public class GameService {
     private final AiOpponent aiOpponent;
     private final TradeBudget tradeBudget;
     private final GameDay gameDay;
+    private final EarningsService earningsService;
 
     public static final ZoneId GAME_ZONE = ZoneId.of("Asia/Shanghai");
 
@@ -190,9 +191,22 @@ public class GameService {
 
         // 内嵌账户快照, 前端 tick 后无需再请求 /status
         StatusResponse status = buildStatus(session, account, sd);
-        // 竞技模式不下发新闻: 事件文本 (如 "924行情") 会暴露隐藏窗口的真实时间
-        List<NewsItem> news = BlindDates.blind(session)
-                ? List.of() : newsService.eventsFor(sd.stock(), next.getTradeDate());
+        // 竞技模式不下发新闻: 事件文本 (如 "924行情") 会暴露隐藏窗口的真实时间。
+        // 组合模式多腿新闻 (联动设计#4): 同一事件可对不同腿给相反方向
+        List<NewsItem> news = List.of();
+        if (!BlindDates.blind(session)) {
+            news = "PORTFOLIO".equals(session.getMode())
+                    ? newsService.eventsForPortfolio(tradeEngine.stockIds(session).stream()
+                            .map(sid -> sessionData.of(session, sid).stock()).toList(),
+                            next.getTradeDate())
+                    : newsService.eventsFor(sd.stock(), next.getTradeDate());
+            // 财报揭晓 (联动设计 8/9): 合成解释层走既有新闻横幅通道
+            var earn = earningsService.on(sd, next.getTradeDate());
+            if (earn.isPresent()) {
+                news = new ArrayList<>(news);
+                news.add(earningsService.toNews(earn.get()));
+            }
+        }
 
         return new TickResponse(BlindDates.mask(session, next.getTradeDate()), daysElapsed, props.ticksFor(session.getMode()),
                 settled, bar, settleResult, status,
@@ -215,7 +229,19 @@ public class GameService {
         if (curIdx == null || curIdx + 1 >= sd.prices().size()) {
             return List.of();
         }
-        return newsService.eventsFor(sd.stock(), sd.prices().get(curIdx + 1).getTradeDate());
+        List<NewsItem> up = new ArrayList<>(
+                newsService.eventsFor(sd.stock(), sd.prices().get(curIdx + 1).getTradeDate()));
+        // 财报临近预警 (联动设计#10): 未来 3 个交易日内有财报日即提示 (只给日期不给内容)
+        for (int k = 1; k <= 3 && curIdx + k < sd.prices().size(); k++) {
+            if (!earningsService.on(sd, sd.prices().get(curIdx + k).getTradeDate()).isEmpty()) {
+                up.add(new NewsItem("MED",
+                        "财报临近：" + k + " 个交易日后发布，注意持仓过夜风险",
+                        "Earnings in " + k + " trading day(s) - mind your overnight exposure",
+                        null, null, 0, null, "OFFICIAL", null));
+                break;
+            }
+        }
+        return up;
     }
 
     @Transactional
@@ -352,6 +378,25 @@ public class GameService {
                 request.trailPct(), reason);
     }
 
+    /** #7 财报日历: 窗口内财报日的"第几天"偏移 (只给日期不给内容); 盲局不提供。 */
+    @Transactional(readOnly = true)
+    public List<Integer> earningsDays(Long sessionId) {
+        GameSession session = getSession(sessionId);
+        if (BlindDates.blind(session)) {
+            return List.of();
+        }
+        StockData sd = sessionData.of(session, session.getStockId());
+        Integer start = sd.indexOf(session.getStartDate());
+        if (start == null) {
+            return List.of();
+        }
+        int end = Math.min(sd.prices().size() - 1, start + props.ticksFor(session.getMode()));
+        final int s0 = start;
+        return earningsService.daysIn(sd, start, end).stream()
+                .map(d -> sd.indexOf(d) - s0)
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public List<OrderInfo> listOrders(Long sessionId) {
         return orderService.list(getSession(sessionId));
@@ -457,6 +502,25 @@ public class GameService {
         List<GameDtos.JournalEntry> journal = biasAnalysisService.journal(session, allTxs, sid -> sessionData.of(session, sid));
         // 事件回放: 结算揭晓场景与大事记 (进行中绝不下发, 文本会暴露真实时间)
         GameDtos.EventReveal eventReveal = eventReveal(session);
+        // 新闻复盘与预期差发现 (联动设计 1/3/5): 盲局无新闻, 不出复盘
+        List<GameDtos.CoachFinding> coach = new ArrayList<>(
+                coachService.findings(session, sd, allTxs, initial, finalAssets,
+                        account.getInterestTotal(), returnRate, holdReturn, maCrossReturn, dcaReturn, aiReturn));
+        List<GameDtos.NewsRecapItem> newsRecap = null;
+        if (!BlindDates.blind(session) && startIdx != null && endIdx != null) {
+            newsRecap = new ArrayList<>(newsService.recap(sd.stock(), sd, startIdx, endIdx));
+            // 财报复盘行 (联动设计 8/9 的"复盘解释"一步): 走同一张复盘卡
+            for (LocalDate ed : earningsService.daysIn(sd, startIdx, endIdx)) {
+                var earnOpt = earningsService.on(sd, ed);
+                if (earnOpt.isPresent()) {
+                    NewsItem n = earningsService.toNews(earnOpt.get());
+                    newsRecap.add(new GameDtos.NewsRecapItem(ed, "EARNINGS",
+                            n.titleZh() + " — " + n.bodyZh(),
+                            n.titleEn() + " — " + n.bodyEn(), null, null, null));
+                }
+            }
+            newsService.pricedInFinding(sd.stock(), sd, allTxs).ifPresent(coach::add);
+        }
 
         // 逐日净值点: curve 首点是初始资金 (无日期), 第 i+1 点对应窗口内第 i 个交易日
         List<SettledColumns.DayValue> dayValues = null;
@@ -505,10 +569,10 @@ public class GameService {
                 // 响应与落库口径一致由 Prepared 构造保证: 序列化失败时两侧一起为 null
                 prepared.responseReport(), journal, eventReveal,
                 dailyRuleResult(session, returnRate, holdReturn, risk, allTxs, journal, sd, startIdx, endIdx),
-                coachService.findings(session, sd, allTxs, initial, finalAssets,
-                        account.getInterestTotal(), returnRate, holdReturn, maCrossReturn, dcaReturn, aiReturn),
+                coach,
                 // 择时贡献 = 玩家收益 - 买入持有: 给"主动操作"单独的计分轴
-                holdReturn == null ? null : returnRate.subtract(holdReturn)),
+                holdReturn == null ? null : returnRate.subtract(holdReturn),
+                newsRecap),
                 prepared.columns());
     }
 
