@@ -79,7 +79,14 @@ public final class GameDtos {
     public record FilledOrder(String orderType, BigDecimal price, int shares, String stockCode, String reason) {}
 
     /** 当日揭示的历史事件 (不含日历日期, 防剧透); 双语字段由前端按当前语言取用 */
-    public record NewsItem(String severity, String titleZh, String titleEn, String bodyZh, String bodyEn) {}
+    /** direction/expectation/sourceTier: 新闻语义层 (联动设计 1/2/4); stockCode 仅组合模式
+     *  标的级新闻携带 (宏观新闻为 null), 前端据此标注这条消息打在哪条腿上。 */
+    public record NewsItem(String severity, String titleZh, String titleEn, String bodyZh, String bodyEn,
+                           int direction, BigDecimal expectation, String sourceTier, String stockCode) {}
+
+    /** 结算新闻复盘 (联动设计 3/5): NEWS=大事件及其后 1/3/5 日实际走势; SILENT=无消息异动日。 */
+    public record NewsRecapItem(LocalDate date, String kind, String titleZh, String titleEn,
+                                BigDecimal d1, BigDecimal d3, BigDecimal d5) {}
 
     /** aiTradeShares: AI 当日动作 (正=买入股数, 负=卖出, 0=持有不动), 前端时间线用 */
     public record TickResponse(
@@ -255,7 +262,9 @@ public final class GameDtos {
             List<CoachFinding> coach,
             // 择时贡献 = 玩家收益 - 买入持有收益 (正负都展示): 让"主动操作"有独立计分轴,
             // 否则买入持有在收益率单轴下近乎支配所有休闲局 (审计创意18)
-            BigDecimal timingDelta) {}
+            BigDecimal timingDelta,
+            // 新闻复盘 (联动设计 3/5): 大事件衰减曲线 + 无消息异动日; 盲局为 null
+            List<NewsRecapItem> newsRecap) {}
 
     /** 每日挑战规则结算判定 (非每日局为 null): rule = DailyRules.Rule 枚举名;
      *  stars = 0 未过 / 1 过 / 2 跑赢持有 / 3 再叠回撤 ≤5% (口径见 DailyRules.stars)。 */

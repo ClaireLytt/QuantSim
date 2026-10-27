@@ -1207,6 +1207,21 @@ function renderSettle(result) {
   const el = $("settle-return");
   el.textContent = fmtPct(Number(result.returnRate));
   el.className = Number(result.returnRate) >= 0 ? "pos" : "neg";
+  // 新闻复盘 (联动设计 3/5): 大事件衰减曲线 + 无消息异动日
+  const rec = result.newsRecap || [];
+  const recBox = $("settle-news-recap");
+  recBox.hidden = !rec.length;
+  const recList = $("settle-news-list");
+  recList.innerHTML = "";
+  rec.forEach((r) => {
+    const p = document.createElement("p");
+    p.className = "hint";
+    const f = (v) => (v == null ? "--" : fmtPct(Number(v)));
+    p.textContent = r.kind === "SILENT"
+      ? t("news.silentDay", f(r.d1), f(r.d3), f(r.d5))
+      : `${LANG === "en" ? r.titleEn : r.titleZh} → ${t("news.decay", f(r.d1), f(r.d3), f(r.d5))}`;
+    recList.appendChild(p);
+  });
   // 择时贡献 = 玩家收益 - 买入持有: 主动操作的独立计分轴 (正负都展示)
   $("settle-timing").hidden = result.timingDelta == null;
   if (result.timingDelta != null) {

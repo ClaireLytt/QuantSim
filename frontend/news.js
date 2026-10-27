@@ -9,7 +9,15 @@
     const body = (LANG === "en" ? item.bodyEn : item.bodyZh) || "";
     banner.className = "news-banner sev-" + (item.severity || "LOW");
     banner.innerHTML = `<span class="news-tag"></span><strong></strong><span class="news-body"></span>`;
-    banner.querySelector(".news-tag").textContent = `📰 ${t("news.title")} · ${t("news.day", dayNo)}`;
+    // 新闻语义层 (联动设计 1/2/4): 传闻/方向/预期消化度/所属腿 标签
+    const tags = [];
+    if (item.sourceTier === "RUMOR") tags.push(t("news.rumor"));
+    if (item.direction > 0) tags.push(t("news.bull"));
+    else if (item.direction < 0) tags.push(t("news.bear"));
+    if (item.expectation != null && Number(item.expectation) >= 0.7) tags.push(t("news.pricedIn"));
+    if (item.stockCode) tags.push(item.stockCode);
+    banner.querySelector(".news-tag").textContent = `📰 ${t("news.title")} · ${t("news.day", dayNo)}`
+      + (tags.length ? " · " + tags.join(" · ") : "");
     banner.querySelector("strong").textContent = title;
     banner.querySelector(".news-body").textContent = body;
     banner.hidden = false;

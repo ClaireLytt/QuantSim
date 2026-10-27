@@ -659,8 +659,26 @@ function openNewsGate(news) {
   const item = news[0];
   $("newsgate-title").textContent = LANG === "en" ? item.titleEn : item.titleZh;
   $("newsgate-body").textContent = (LANG === "en" ? item.bodyEn : item.bodyZh) || "";
+  // 语义标签 + 事前竞猜 (联动设计 1/6): 先判断再看答案, 结算对照命中率
+  const tags = [];
+  if (item.sourceTier === "RUMOR") tags.push(t("news.rumor"));
+  if (item.direction > 0) tags.push(t("news.bull"));
+  else if (item.direction < 0) tags.push(t("news.bear"));
+  if (item.expectation != null && Number(item.expectation) >= 0.7) tags.push(t("news.pricedIn"));
+  $("newsgate-meta").textContent = tags.join(" · ");
+  $("newsgate-meta").hidden = !tags.length;
+  document.querySelectorAll(".newsgate-call").forEach((b) => { b.disabled = false; b.classList.remove("active"); });
   $("newsgate-modal").hidden = false;
 }
+
+// 竞猜三键: 登记判断 (hidden.js 在次日 K 线揭晓后对账)
+document.querySelectorAll(".newsgate-call").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".newsgate-call").forEach((b) => { b.disabled = true; });
+    btn.classList.add("active");
+    document.dispatchEvent(new CustomEvent("qs:newsCall", { detail: Number(btn.dataset.call) }));
+  });
+});
 
 $("btn-newsgate-go").addEventListener("click", () => {
   $("newsgate-modal").hidden = true;

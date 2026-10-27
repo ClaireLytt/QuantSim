@@ -33,7 +33,19 @@
   let prevCloses = null;      // #11 组合模式上一 tick 各标的收盘
   let dejaActive = false;     // #20 本局标的曾在研究所完整浏览过
 
-  document.addEventListener("qs:gameStart", () => {
+  document.addEventListener("qs:gameStart", async () => {
+    // 联动设计 #7 财报日历: 非盲局在开局就能看到"第几天有财报" (日期公开, 内容保密)
+    const earnHint = $("earnings-hint");
+    if (earnHint) {
+      earnHint.hidden = true;
+      try {
+        const days = await api(`/game/${state.sessionId}/earnings`);
+        if (days && days.length) {
+          earnHint.textContent = t("earn.calendar", days.map((d) => t("earn.day", d)).join(" / "));
+          earnHint.hidden = false;
+        }
+      } catch (err) { /* 日历失败不打扰 */ }
+    }
     queueHits = 0;
     dipShown = false;
     dipAccepted = false;
@@ -104,6 +116,39 @@
       toast(t("hidden.queue3"));
       awardBadge("h_queue");
     }
+  });
+
+  // ---------- 联动设计 #6 新闻竞猜: 登记判断, 次日 K 线揭晓后对账 ----------
+
+  let pendingCall = null;
+  document.addEventListener("qs:newsCall", (e) => { pendingCall = Number(e.detail); });
+
+  document.addEventListener("qs:tick", () => {
+    if (pendingCall == null) return;
+    const k = (window.state || {}).klines || [];
+    if (k.length < 2) { pendingCall = null; return; }
+    const pct = Number(k[k.length - 1].close) / Number(k[k.length - 2].close) - 1;
+    const hit = pendingCall > 0 ? pct > 0 : pendingCall < 0 ? pct < 0 : Math.abs(pct) < 0.01;
+    H.newsCalls = H.newsCalls || { n: 0, hit: 0 };
+    H.newsCalls.n++;
+    if (hit) H.newsCalls.hit++;
+    save();
+    toast(t(hit ? "news.callHit" : "news.callMiss"));
+    pendingCall = null;
+  });
+
+  document.addEventListener("qs:settled", () => {
+    // 新闻判断命中率线 (累计): 有记录才显示
+    const c = H.newsCalls;
+    const card = $("settle-card");
+    if (!c || !c.n || !card) return;
+    let p = card.querySelector(".hidden-newscall");
+    if (!p) {
+      p = document.createElement("p");
+      p.className = "hint hidden-newscall";
+      card.appendChild(p);
+    }
+    p.textContent = t("news.callRate", c.hit, c.n);
   });
 
   // ---------- #6 以彼之道: 战书榜踢馆成功 (mates.js 派发) ----------
