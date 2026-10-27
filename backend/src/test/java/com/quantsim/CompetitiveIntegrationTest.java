@@ -222,6 +222,16 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         assertThat(codes).allMatch(c -> c == 200 || c == 400);
     }
 
+    /** 榜单只收打满全程的局 (审计创意6): tick 到自动结算 (total-ticks=3), 不能 day-0 秒结。 */
+    private void playToSettle(long sid) {
+        for (int i = 0; i < 3; i++) {
+            if (json(postJson("/api/game/" + sid + "/tick", "{}", null)).path("settled").asBoolean()) {
+                return;
+            }
+        }
+        throw new IllegalStateException("3 tick 后仍未结算");
+    }
+
     /** 回归 T-02/T-14: 测试账号在分页前被 JPQL 排除, 不挤占真实玩家的 TOP N 名额。 */
     @Test
     void testAccountsDoNotOccupyBoardSlots() {
@@ -229,10 +239,10 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         // 先结算一个 smoke_ 账号 (高分在前) 再结算一个真实玩家
         long smokeSid = json(postJson("/api/game/start",
                 "{\"username\":\"smoke_99999999\",\"aiLevel\":\"EASY\"}", null)).path("sessionId").asLong();
-        postJson("/api/game/" + smokeSid + "/settle", "{}", null);
+        playToSettle(smokeSid);
         long realSid = json(postJson("/api/game/start",
                 "{\"username\":\"真实玩家甲\",\"aiLevel\":\"EASY\"}", null)).path("sessionId").asLong();
-        postJson("/api/game/" + realSid + "/settle", "{}", null);
+        playToSettle(realSid);
 
         JsonNode board = json(get("/api/leaderboard", null));
         // smoke_ 账号既不占名额也不展示, 真实玩家一条不少
@@ -346,7 +356,7 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         ResponseEntity<String> start = postJson("/api/game/start",
                 "{\"username\":\"赛季玩家\",\"aiLevel\":\"EASY\"}", null);
         long sid = json(start).path("sessionId").asLong();
-        postJson("/api/game/" + sid + "/settle", "{}", null);
+        playToSettle(sid);
 
         JsonNode seasonsArr = json(get("/api/leaderboard/seasons", null));
         assertThat(seasonsArr.isArray()).isTrue();

@@ -277,5 +277,9 @@ public final class GameDtos {
             BigDecimal returnRate,
             BigDecimal sharpe,
             // 用户名经 PublicNames 脱敏后前端无法再用名字认出自己, 由后端标记 (百分位/颁奖台徽章用)
-            boolean isSelf) {}
+            boolean isSelf,
+            // 持有交易日数 (收益率的时长口径, 单局榜用); 稳定榜行为 null
+            Integer daysElapsed,
+            // 稳定榜 (sort=avg) 专用: 参与均值的完赛局数; 单局榜行为 null
+            Integer games) {}
 }

@@ -280,6 +280,8 @@ const PAIRS = {
   "rank.sort": ["榜单", "Board"],
   "rank.byReturn": ["收益榜", "By return"],
   "rank.bySharpe": ["夏普榜", "By Sharpe"],
+  "rank.byAvg": ["稳定榜", "By consistency"],
+  "lb.avgGames": ["{0} 局均值", "avg of {0} runs"],
   "daily.dist": ["今日收益分布", "Today's return distribution"],
   "daily.pct": ["你超过了今日 {0}% 的玩家", "You beat {0}% of today's players"],
   "me.career": ["生涯统计", "Career stats"],

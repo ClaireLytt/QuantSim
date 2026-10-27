@@ -18,7 +18,9 @@ import com.quantsim.repository.UserPointsRepository;
 class SignInStreakTest {
 
     private final UserPointsRepository repo = mock(UserPointsRepository.class);
-    private final PointsService service = new PointsService(repo);
+    private final com.quantsim.repository.PointsLedgerRepository ledger =
+            mock(com.quantsim.repository.PointsLedgerRepository.class);
+    private final PointsService service = new PointsService(repo, ledger);
 
     private UserPoints withLastSignIn(LocalDate date, int streak) {
         UserPoints p = new UserPoints();

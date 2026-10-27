@@ -171,7 +171,15 @@ class GameApiIntegrationTest extends IntegrationTestSupport {
         // 手动交易只按当日收盘价 (10.00) 成交
         postJson("/api/game/" + id + "/trade", "{\"direction\":\"BUY\",\"price\":10.00,\"shares\":100}");
 
-        JsonNode settle = json(postJson("/api/game/" + id + "/settle", ""));
+        // 榜单只收打满全程的局 (审计创意6): tick 到自动结算, 而不是 day-0 秒结
+        JsonNode settle = null;
+        for (int i = 0; i < 3 && settle == null; i++) {
+            JsonNode tick = json(postJson("/api/game/" + id + "/tick", ""));
+            if (tick.get("settled").asBoolean()) {
+                settle = tick.get("settleResult");
+            }
+        }
+        assertThat(settle).isNotNull();
         // 现金 99000 + 100 股 × 收盘 10 = 100000, 收益率 0
         assertThat(settle.get("finalAssets").decimalValue()).isEqualByComparingTo("100000.00");
         assertThat(settle.get("returnRate").decimalValue()).isEqualByComparingTo("0.0000");

@@ -97,6 +97,10 @@ public class GameSession {
     @Column(name = "require_reason", nullable = false)
     private boolean requireReason = false;
 
+    /** 本局用过预知卡/后悔药: 结算仍发基础分, 但胜AI/赢基准加成归零 (道具不应买到计分优势) */
+    @Column(name = "item_used", nullable = false)
+    private boolean itemUsed = false;
+
     /** 事件回放场景 id (仅 EVENT 模式); 结算时据此揭晓场景与大事记 */
     @Column(name = "scenario_id")
     private Long scenarioId;

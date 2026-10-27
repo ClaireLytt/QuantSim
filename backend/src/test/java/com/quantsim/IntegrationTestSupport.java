@@ -88,6 +88,7 @@ abstract class IntegrationTestSupport {
     @Autowired protected TransactionRepository transactionRepository;
     @Autowired protected AccountRepository accountRepository;
     @Autowired protected GameSessionRepository sessionRepository;
+    @Autowired protected com.quantsim.repository.PointsLedgerRepository pointsLedgerRepository;
     @Autowired protected UserPointsRepository userPointsRepository;
     @Autowired protected UserRepository userRepository;
     @Autowired protected EventTimelineRepository timelineRepository;
@@ -123,6 +124,7 @@ abstract class IntegrationTestSupport {
         transactionRepository.deleteAll();
         accountRepository.deleteAll();
         sessionRepository.deleteAll();
+        pointsLedgerRepository.deleteAll();
         userPointsRepository.deleteAll();
         userRepository.deleteAll();
         timelineRepository.deleteAll();

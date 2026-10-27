@@ -810,15 +810,20 @@ function renderLeaderboard() {
   qsRenderRows($("leaderboard").querySelector("tbody"), rows, 6, "lb.empty", (r, i) => {
     const tr = document.createElement("tr");
     const rate = Number(r.returnRate);
+    // 稳定榜 (sort=avg) 的行是用户均值: 无单局标的/日期, 日期列改放"N 局均值"
+    const period = r.startDate != null
+      ? r.startDate + (r.daysElapsed != null ? ` · ${r.daysElapsed}d` : "")
+      : (r.games != null ? t("lb.avgGames", r.games) : "--");
     tr.innerHTML = `
       <td>${i + 1}</td>
       <td></td>
       <td></td>
-      <td>${r.startDate}</td>
+      <td></td>
       <td class="${rate >= 0 ? "pos" : "neg"}">${fmtPct(rate)}</td>
       <td>${r.sharpe == null ? "--" : Number(r.sharpe).toFixed(2)}</td>`;
     tr.children[1].textContent = r.username;
-    tr.children[2].textContent = stockName(r.stockName, r.stockCode);
+    tr.children[2].textContent = r.stockName == null ? "--" : stockName(r.stockName, r.stockCode);
+    tr.children[3].textContent = period;
     return tr;
   });
 }

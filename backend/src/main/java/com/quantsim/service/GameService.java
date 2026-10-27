@@ -466,8 +466,10 @@ public class GameService {
         // 积分入账 (服务端权威): 基础/胜AI/赢基准/连胜/每日任务, 前端只展示。
         // 只有打满全程或被强平的局才计分: 否则登录用户"秒开秒结"(开局无限流 + day-0 可结算)
         // 每次白拿基础分, 积分经济可被脚本刷爆; 提前弃局允许结算但不给奖励。
-        boolean beatAi = aiReturn != null && returnRate.compareTo(aiReturn) > 0;
-        boolean beatHold = holdReturn != null && returnRate.compareTo(holdReturn) > 0;
+        // 道具局 (用过预知卡/后悔药) 战胜加成归零: beatAi 同时驱动连胜, 一并按未胜处理
+        boolean bonusEligible = !session.isItemUsed();
+        boolean beatAi = bonusEligible && aiReturn != null && returnRate.compareTo(aiReturn) > 0;
+        boolean beatHold = bonusEligible && holdReturn != null && returnRate.compareTo(holdReturn) > 0;
         boolean completed = session.isLiquidated()
                 || session.getDaysElapsed() >= props.getTotalTicks();
         PointsService.SettleAward award = completed
@@ -579,6 +581,7 @@ public class GameService {
             throw new BusinessException("竞技对局不能使用预知道具");
         }
         pointsService.consumeItem(session.getUserId(), "peek"); // 道具计数服务端扣减
+        session.setItemUsed(true); // 用过道具: 结算不发胜AI/赢基准加成 (积分买不到计分优势)
         StockData sd = marketData.load(session.getStockId());
         Integer curIdx = sd.indexOf(session.getCurrentTradeDate());
         if (curIdx == null || curIdx + 1 >= sd.prices().size()) {
@@ -601,6 +604,7 @@ public class GameService {
             throw new BusinessException("竞技对局不能使用后悔药");
         }
         pointsService.consumeItem(session.getUserId(), "undo"); // 道具计数服务端扣减
+        session.setItemUsed(true); // 同 peek: 道具局不发战胜加成
         Account account = accountRepository.findWithLockBySessionId(sessionId)
                 .orElseThrow(() -> new NotFoundException("账户不存在"));
         List<TradeTransaction> todays = transactionRepository
