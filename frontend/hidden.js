@@ -15,7 +15,9 @@
     resonance: 0, journal: [], holderRun: 0, zenUnlocked: false,
     aiLoss: {}, biasRun: {}, biasArmed: {}, biasClean: {},
     ruleFails: {}, ruleArmed: "", blindBadWeeks: 0, blindLastWeek: null, blindArmed: false,
-    labSeen: {}, dejaApplied: 0, lastBox: "", firstSeen: "", activeDays: [] };
+    labSeen: {}, dejaApplied: 0, lastBox: "", firstSeen: "", activeDays: [],
+    // 21-25 的跨局进度
+    monthPass: {}, medals: [] };
   try { H = Object.assign(H, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) { /* 隐私模式下忽略 */ }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(H)); } catch (e) { /* ignore */ } };
   window.qsHidden = H; // academy.js 的徽章进度条 (晨钟/亲历者) 从这里读
@@ -253,13 +255,29 @@
     // #18 策略档案: 被同一 AI 人设击败累计计数; 档案解锁后首次战而胜之 → 知己知彼
     if (r.aiReturnRate != null && s.aiLevel) {
       const persona = String(s.aiLevel).toLowerCase();
-      if (ret <= Number(r.aiReturnRate)) {
+      const beatAi = ret > Number(r.aiReturnRate);
+      if (!beatAi) {
         H.aiLoss[persona] = (H.aiLoss[persona] || 0) + 1;
       } else if ((H.aiLoss[persona] || 0) >= 5) {
         awardBadge("h_knowfoe");
       }
       save();
       renderArchiveLink(s.aiLevel);
+      // #23 你读完了它的书: 量化狂魔是确定性均线纪律派——在它出手前一天同向埋伏并胜之
+      if (persona === "hard" && beatAi) {
+        const aiMoves = (s.aiMoves || []).filter((m) => m.shares);
+        const frontRan = trades.some((tx) => aiMoves.some((m) =>
+          m.idx === tx.idx + 1 && Math.sign(m.shares) === (tx.dir === "BUY" ? 1 : -1)));
+        if (frontRan) awardBadge("h_readbook");
+      }
+    }
+
+    // #25 赛季月相: 每日挑战通过数按月累计, 攒满 10 次铸当月勋章
+    if (r.dailyChallenge && r.dailyChallenge.passed) {
+      const ym = shanghaiNow().toISOString().slice(0, 7);
+      H.monthPass[ym] = (H.monthPass[ym] || 0) + 1;
+      save();
+      mintMedals();
     }
 
     // #20 似曾相识: 研究过的标的上取胜计入"学以致用"
@@ -520,22 +538,123 @@
     startGame({ maxTrades: 10, requireReason: true });
   });
 
-  // ---------- #4 线索: 清晨访问每日页时的一句话 ----------
+  // ---------- #4/#25 线索: 每日页的清晨一句话与月末满月 ----------
 
   document.addEventListener("qs:view", (e) => {
     if (e.detail !== "daily") return;
-    if (shanghaiNow().getUTCHours() !== 0) return;
     const view = $("view-daily");
-    if (!view || view.querySelector(".hidden-bell-hint")) return;
-    const p = document.createElement("p");
-    p.className = "hint hidden-bell-hint";
-    p.textContent = t("hidden.bellHint");
-    view.prepend(p);
+    if (!view) return;
+    if (shanghaiNow().getUTCHours() === 0 && !view.querySelector(".hidden-bell-hint")) {
+      const p = document.createElement("p");
+      p.className = "hint hidden-bell-hint";
+      p.textContent = t("hidden.bellHint");
+      view.prepend(p);
+    }
+    // #25 月末 7 天: 月亮渐圆的提示 (勋章按当月通过数在月末铸成)
+    const sh = shanghaiNow();
+    const lastDay = new Date(Date.UTC(sh.getUTCFullYear(), sh.getUTCMonth() + 1, 0)).getUTCDate();
+    if (lastDay - sh.getUTCDate() <= 6 && !view.querySelector(".hidden-moon-hint")) {
+      const ym = sh.toISOString().slice(0, 7);
+      const p = document.createElement("p");
+      p.className = "hint hidden-moon-hint";
+      p.textContent = t("hidden.moonHint", H.monthPass[ym] || 0);
+      view.prepend(p);
+    }
   });
+
+  // ---------- #25 月勋章: 已成为过去的月份且当月通过 ≥10 次 → 铸一枚 (错过不补) ----------
+
+  const MEDAL_MIN_PASSES = 10;
+
+  function mintMedals() {
+    const cur = shanghaiNow().toISOString().slice(0, 7);
+    Object.keys(H.monthPass).forEach((ym) => {
+      if (ym < cur && H.monthPass[ym] >= MEDAL_MIN_PASSES && !H.medals.includes(ym)) {
+        H.medals.push(ym);
+        toast(t("hidden.medalGot", ym));
+      }
+    });
+    save();
+    renderMedals();
+  }
+
+  function renderMedals() {
+    const card = $("profile-medals-card");
+    const list = $("medal-list");
+    if (!card || !list) return;
+    card.hidden = H.medals.length === 0;
+    list.innerHTML = "";
+    H.medals.forEach((ym) => {
+      const span = document.createElement("span");
+      span.className = "badge got";
+      span.textContent = ym;
+      list.appendChild(span);
+    });
+  }
+
+  // ---------- #21 第四根线: 通关学院均线课 (教学第 2 关) 解锁 BOLL 芯片 ----------
+
+  function syncBoll() {
+    const chip = $("chip-boll");
+    // prog 是 academy.js 的顶层 let (全局词法绑定, 不在 window 上), 用 typeof 探测
+    if (chip) chip.hidden = !(typeof prog !== "undefined" && prog.teach && prog.teach.includes(1));
+  }
+  document.addEventListener("qs:view", syncBoll);
+
+  // ---------- #24 周期之眼: 30 局完赛后个人页点亮月份胜率热力 ----------
+
+  let cycleLoaded = false;
+  document.addEventListener("qs:view", async (e) => {
+    if (e.detail !== "profile" || cycleLoaded) return;
+    if (!(window.Auth && Auth.user)) return; // 生涯数据需登录
+    cycleLoaded = true;
+    try {
+      const games = await api("/me/games");
+      renderCycleEye(games.filter((g) => g.status === "SETTLED" && g.returnRate != null));
+    } catch (err) { /* 未登录/网络异常不打扰 */ }
+  });
+
+  function renderCycleEye(rows) {
+    const card = $("profile-cycle-card");
+    const box = $("cycle-list");
+    if (!card || !box) return;
+    card.hidden = rows.length < 30; // 样本不足不显示, 避免小样本误导
+    if (card.hidden) return;
+    const byMonth = {};
+    rows.forEach((g) => {
+      const m = String(g.createdAt).slice(5, 7);
+      byMonth[m] = byMonth[m] || { n: 0, w: 0 };
+      byMonth[m].n++;
+      if (Number(g.returnRate) > 0) byMonth[m].w++;
+    });
+    box.innerHTML = "";
+    let best = null;
+    let worst = null;
+    Object.keys(byMonth).sort().forEach((m) => {
+      const v = byMonth[m];
+      if (v.n < 3) return; // 单月样本 <3 不计入最佳/最差
+      const rate = v.w / v.n;
+      if (!best || rate > best.rate) best = { m, rate };
+      if (!worst || rate < worst.rate) worst = { m, rate };
+      const p = document.createElement("p");
+      p.className = "hint";
+      p.textContent = t("hidden.cycleRow", Number(m), Math.round(rate * 100), v.n);
+      box.appendChild(p);
+    });
+    if (best && worst && best.m !== worst.m) {
+      const p = document.createElement("p");
+      p.className = "hint";
+      p.textContent = t("hidden.cycleBest", Number(best.m), Number(worst.m));
+      box.prepend(p);
+    }
+  }
 
   renderStamps();
   renderPhoenix();
   renderZen();
   renderScholar();
+  renderMedals();
+  mintMedals();
+  syncBoll();
   trackActiveDay();
 })();

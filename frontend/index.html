@@ -160,6 +160,8 @@
           <button class="small ind-chip active" data-ind="ma">MA</button>
           <button class="small ind-chip active" data-ind="macd">MACD</button>
           <button class="small ind-chip active" data-ind="rsi">RSI</button>
+          <!-- 隐藏机制 #21: 通关学院均线课后由 hidden.js 解锁 -->
+          <button class="small ind-chip" data-ind="boll" id="chip-boll" hidden>BOLL</button>
           <button id="btn-sonify" class="small ind-chip" data-i18n-title="sonify.title" title="听盘模式">♪</button>
         </span>
         <button id="btn-status-pop" class="fold-btn"><span id="status-pop-label" data-i18n="status.title">账户状态</span></button>
@@ -598,6 +600,16 @@
       <div class="card profile-scholar" id="profile-scholar-card" hidden>
         <span class="hint"><span data-i18n="hidden.scholarTitle">日志学者</span> <span id="scholar-progress"></span></span>
         <div id="scholar-list"></div>
+      </div>
+      <!-- 隐藏机制 #24 周期之眼: 30 局完赛前整卡隐藏 (hidden.js 维护, 需登录) -->
+      <div class="card profile-cycle" id="profile-cycle-card" hidden>
+        <span class="hint" data-i18n="hidden.cycleTitle">周期之眼 · 你的月份胜率</span>
+        <div id="cycle-list"></div>
+      </div>
+      <!-- 隐藏机制 #25 月勋章: 铸出第一枚前整卡隐藏 -->
+      <div class="card profile-medals" id="profile-medals-card" hidden>
+        <span class="hint" data-i18n="hidden.medalsTitle">月勋章墙</span>
+        <div id="medal-list" class="badge-list"></div>
       </div>
       <div class="card profile-titles">
         <span class="hint"><span data-i18n="collect.title">称号图鉴</span> <span id="collect-pct"></span></span>
@@ -4035,10 +4047,10 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610270ef8"></script>
+  <script src="i18n.js?v=202610277f7a"></script>
   <script src="glossary.js?v=202610252b94"></script>
   <script src="app.js?v=20261027419a"></script>
-  <script src="play.js?v=202610270895"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
+  <script src="play.js?v=20261027f4c8"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
   <script src="replay.js?v=20261026025d"></script>
@@ -4046,7 +4058,7 @@
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
   <script src="data/levels.js?v=20261025e7d0"></script>
   <script src="data/cases.js?v=202610255824"></script>
-  <script src="academy.js?v=202610270d51"></script>
+  <script src="academy.js?v=202610276933"></script>
   <script src="guessgame.js?v=202610261cf8"></script>
   <script src="optsandbox.js?v=2026102556f9"></script>
   <script src="lab.js?v=202610271f29"></script>
@@ -4087,7 +4099,7 @@
   <script src="sleuth.js?v=202610262a6a"></script>
   <script src="swan.js?v=202610262cd8"></script>
   <script src="tasks.js?v=202610267667"></script>
-  <script src="pet.js?v=2026102523c4"></script>
+  <script src="pet.js?v=20261027e305"></script>
   <script src="career.js?v=20261026bb9e"></script>
   <script src="growth.js?v=20261026acfb"></script><!-- 依赖 academy 的 prog / career 的 prog.career / auth 的 Auth, 必须在三者之后 -->
   <script src="relics.js?v=202610253759"></script>

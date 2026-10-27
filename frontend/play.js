@@ -23,7 +23,24 @@ function chartData() {
     }),
     macdDif: state.klines.map((k) => (k.macdDif == null ? null : Number(k.macdDif))),
     macdDea: state.klines.map((k) => (k.macdDea == null ? null : Number(k.macdDea))),
+    ...bollBands(),
   };
+}
+
+// 布林带 (隐藏机制 #21 "第四根线"): MA20 ± 2σ, 由已揭晓收盘现算; 通关均线课后解锁开关
+function bollBands() {
+  const closes = state.klines.map((k) => Number(k.close));
+  const up = [];
+  const dn = [];
+  for (let i = 0; i < closes.length; i++) {
+    if (i < 19) { up.push(null); dn.push(null); continue; }
+    const win = closes.slice(i - 19, i + 1);
+    const mean = win.reduce((a, b) => a + b, 0) / 20;
+    const sd = Math.sqrt(win.reduce((a, b) => a + (b - mean) ** 2, 0) / 20);
+    up.push((mean + 2 * sd).toFixed(2));
+    dn.push((mean - 2 * sd).toFixed(2));
+  }
+  return { bollUp: up, bollDn: dn };
 }
 
 // K 线买卖点 + 涨跌停封板标记 (组合模式图表随标的切换, 不标交易点以免错位)
@@ -78,8 +95,9 @@ function buildKlineMarks() {
   return marks;
 }
 
-// 指标开关 (MA/MACD/RSI): 关掉的序列喂空数组, 结构不变只隐藏
-const indShow = { ma: true, macd: true, rsi: true };
+// 指标开关 (MA/MACD/RSI/BOLL): 关掉的序列喂空数组, 结构不变只隐藏。
+// BOLL 是隐藏机制 #21: 芯片默认 hidden, 由 hidden.js 在通关均线课后解锁
+const indShow = { ma: true, macd: true, rsi: true, boll: false };
 document.querySelectorAll(".ind-chip").forEach((chip) => {
   chip.addEventListener("click", () => {
     indShow[chip.dataset.ind] = !indShow[chip.dataset.ind];
@@ -92,7 +110,7 @@ document.querySelectorAll(".ind-chip").forEach((chip) => {
 function updateChartData() {
   const c = mainChart.instance();
   if (!c) { renderChart(); return; } // 懒 init 尚未发生 (隐藏容器): 回退全量渲染
-  const { dates, candles, ma5, ma20, volumes, rsi, macdHist, macdDif, macdDea } = chartData();
+  const { dates, candles, ma5, ma20, volumes, rsi, macdHist, macdDif, macdDea, bollUp, bollDn } = chartData();
   c.setOption({
     xAxis: [{ data: dates }, { data: dates }, { data: dates }],
     series: [
@@ -104,6 +122,8 @@ function updateChartData() {
       { data: indShow.macd ? macdDif : [] },
       { data: indShow.macd ? macdDea : [] },
       { data: indShow.rsi ? rsi : [] },
+      { data: indShow.boll ? bollUp : [] },
+      { data: indShow.boll ? bollDn : [] },
     ],
   });
 }
@@ -114,7 +134,7 @@ function renderChart() {
 
 // 主图完整 option (qsChart 的 buildOption; tick 增量路径见 updateChartData)
 function buildChartOption() {
-  const { dates, candles, ma5, ma20, volumes, rsi, macdHist, macdDif, macdDea } = chartData();
+  const { dates, candles, ma5, ma20, volumes, rsi, macdHist, macdDif, macdDea, bollUp, bollDn } = chartData();
 
   return ({
     backgroundColor: "transparent",
@@ -241,6 +261,11 @@ function buildChartOption() {
           lineStyle: { color: COLORS.muted, type: "dotted", opacity: 0.6 },
           data: [{ yAxis: 30 }, { yAxis: 70 }],
         } },
+      // 隐藏机制 #21 "第四根线": 布林上下轨, 芯片解锁前恒喂空数组 (序列位置固定, 见 updateChartData)
+      { name: "BOLL+", type: "line", data: indShow.boll ? bollUp : [], smooth: true, showSymbol: false,
+        lineStyle: { width: 1, color: COLORS.muted, type: "dashed" }, itemStyle: { color: COLORS.muted } },
+      { name: "BOLL-", type: "line", data: indShow.boll ? bollDn : [], smooth: true, showSymbol: false,
+        lineStyle: { width: 1, color: COLORS.muted, type: "dashed" }, itemStyle: { color: COLORS.muted } },
     ],
   });
 }

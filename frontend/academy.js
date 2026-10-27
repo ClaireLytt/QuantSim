@@ -130,6 +130,8 @@ const BADGES = [
   { id: "h_knowfoe", hidden: true, name: { zh: "知己知彼", en: "Know Thy Foe" }, desc: { zh: "解锁对手策略档案后首次战胜它", en: "Beat an AI after unlocking its strategy archive" } },
   { id: "h_distribution", hidden: true, name: { zh: "均值与最差都重要", en: "Mean and Worst" }, desc: { zh: "连续垫底两周后在盲测擂台打回前一半", en: "Climb back to the top half of the blind arena after two bottom weeks" } },
   { id: "h_deja", hidden: true, name: { zh: "学以致用", en: "Study Pays" }, desc: { zh: "在研究所研究过的标的上三次获胜", en: "Win three games on stocks you studied in the lab" } },
+  // 隐藏机制 21-25
+  { id: "h_readbook", hidden: true, name: { zh: "你读完了它的书", en: "You Read Its Book" }, desc: { zh: "在量化狂魔出手前一天同向埋伏并战胜它", en: "Front-run Quant Maniac's move by a day and beat it" } },
 ];
 
 // 未解锁徽章的进度提示 [当前, 目标]
@@ -1136,6 +1138,8 @@ function finishPlay() {
     text += " " + t("play.xpGain", xp);
     if (play.kind === "teach") {
       if (play.idx === 0) awardBadge("teach_1");
+      // 隐藏机制 #21 线索: 均线课 (第 2 关) 首通后, 对局图表会多一样东西
+      if (play.idx === 1 && first) toast(t("hidden.bollClue"));
       if (prog.teach.length >= TEACH_LEVELS.length) awardBadge("teach_all");
       renderTeach();
     } else {
