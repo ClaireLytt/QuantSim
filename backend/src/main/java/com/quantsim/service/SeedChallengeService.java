@@ -82,11 +82,19 @@ public class SeedChallengeService {
         return new CreateResult(sc.getCode());
     }
 
+    /** 应战窗口 (小时): 任一已结算参与者都看得到揭晓标的, 应战无时限 = 答案可以慢慢传;
+     *  72h 内朋友间先后交卷是正常节奏, 更晚的应战按过期拒绝 (审计创意25)。 */
+    static final long ACCEPT_WINDOW_HOURS = 72;
+
     @Transactional
     public StartGameResponse accept(Long userId, String code) {
         requireLogin(userId);
         SeedChallenge sc = challengeRepository.findByCode(normalize(code))
                 .orElseThrow(() -> new NotFoundException("战书不存在或已撤销"));
+        if (sc.getCreatedAt() != null && java.time.LocalDateTime.now()
+                .isAfter(sc.getCreatedAt().plusHours(ACCEPT_WINDOW_HOURS))) {
+            throw new BusinessException("战书已过期（应战窗口 72 小时）——让朋友重新立一张吧");
+        }
         if (entryRepository.findByChallengeIdAndUserId(sc.getChallengeId(), userId).isPresent()) {
             throw new BusinessException("你已应战过这张战书（一人一局）");
         }

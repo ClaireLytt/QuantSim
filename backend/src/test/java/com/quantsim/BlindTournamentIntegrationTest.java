@@ -54,6 +54,8 @@ class BlindTournamentIntegrationTest extends IntegrationTestSupport {
         assertThat(cur.path("players").asInt()).isEqualTo(1);
         assertThat(cur.path("rows").size()).isZero();
         assertThat(cur.path("joined").asBoolean()).isTrue();
+        // commit-reveal (审计创意22): 赛中盐绝不下发, 窗口无法本地预计算
+        assertThat(cur.path("salt").isNull()).isTrue();
 
         // 过去周: 直接种一条上周报名, 看榜应揭晓且三窗计分
         Long uid = userRepo2.findAll().get(0).getUserId();
@@ -73,5 +75,28 @@ class BlindTournamentIntegrationTest extends IntegrationTestSupport {
         double mean = row.path("mean").asDouble();
         assertThat(row.path("score").asDouble()).isCloseTo(0.5 * worst + 0.5 * mean,
                 org.assertj.core.data.Offset.offset(1e-6));
+        // 揭晓周公布盐 (reveal 半边, 供复算审计), 且窗口在盐固化后确定——两次看榜结果一致
+        assertThat(past.path("salt").isNull()).isFalse();
+        JsonNode again = json(get("/api/blind/board?week=" + lastWeek, alice));
+        assertThat(again.path("rows").get(0).path("windows")).isEqualTo(row.path("windows"));
+    }
+
+    /** 审计创意23: 足够久远的周揭晓时追加第四段"周结束后的真实行情" (报名时尚未发生)。 */
+    @Test
+    void pastWeekWithPostDeadlineDataGetsFourthWindow() {
+        seedFlatStock("600100", "盲测股", Market.STOCK, LocalDate.of(2024, 1, 1), 200,
+                "10.00", AiLevel.NORMAL, "0.5000");
+        String alice = register("盲测乙");
+        Long uid = userRepo2.findAll().get(0).getUserId();
+        // 2024-03-04 所在周: 周结束日后行情还有 100+ 根, 第四段 (20 根) 必然可取
+        int oldWeek = (int) Math.floorDiv(LocalDate.of(2024, 3, 4).toEpochDay() - 4, 7);
+        BlindEntry e = new BlindEntry();
+        e.setWeekIdx(oldWeek);
+        e.setUserId(uid);
+        e.setConfigJson(CONFIG);
+        blindEntryRepository.save(e);
+        JsonNode past = json(get("/api/blind/board?week=" + oldWeek, alice));
+        assertThat(past.path("revealed").asBoolean()).isTrue();
+        assertThat(past.path("rows").get(0).path("windows").size()).isEqualTo(4);
     }
 }

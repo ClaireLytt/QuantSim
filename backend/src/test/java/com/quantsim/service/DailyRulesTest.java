@@ -69,20 +69,37 @@ class DailyRulesTest {
                 9, new BigDecimal("99"), BigDecimal.TEN, null));
     }
 
+    /** 初始资金 1000: 买入 100 股 @10 = 名义 1000 (100%), 规模闸恒满足, 只测价差逻辑。 */
+    private static final BigDecimal CASH_1000 = new BigDecimal("1000");
+
     @Test
     void strikeNeedsExactPairWithGap() {
         assertTrue(DailyRules.strikeHit(List.of(
                 tx("2026-01-01", TradeTransaction.Direction.BUY, 10, 100),
-                tx("2026-01-05", TradeTransaction.Direction.SELL, 10.3, 100))));
+                tx("2026-01-05", TradeTransaction.Direction.SELL, 10.3, 100)), CASH_1000));
         // 价差不足 3% / 顺序颠倒 / 笔数不对 都不算
         assertFalse(DailyRules.strikeHit(List.of(
                 tx("2026-01-01", TradeTransaction.Direction.BUY, 10, 100),
-                tx("2026-01-05", TradeTransaction.Direction.SELL, 10.2, 100))));
+                tx("2026-01-05", TradeTransaction.Direction.SELL, 10.2, 100)), CASH_1000));
         assertFalse(DailyRules.strikeHit(List.of(
                 tx("2026-01-01", TradeTransaction.Direction.SELL, 10, 100),
-                tx("2026-01-05", TradeTransaction.Direction.BUY, 9, 100))));
+                tx("2026-01-05", TradeTransaction.Direction.BUY, 9, 100)), CASH_1000));
         assertFalse(DailyRules.strikeHit(List.of(
-                tx("2026-01-01", TradeTransaction.Direction.BUY, 10, 100))));
+                tx("2026-01-01", TradeTransaction.Direction.BUY, 10, 100)), CASH_1000));
+    }
+
+    @Test
+    void strikeRejectsTokenSizedBuy() {
+        // 初始资金 10000: 买 100 股 @10 = 1000 (10%) < 30% 规模闸, 价差再漂亮也不算
+        assertFalse(DailyRules.strikeHit(List.of(
+                tx("2026-01-01", TradeTransaction.Direction.BUY, 10, 100),
+                tx("2026-01-05", TradeTransaction.Direction.SELL, 10.5, 100)),
+                new BigDecimal("10000")));
+        // 同资金买 300 股 = 3000 (30%) 达标
+        assertTrue(DailyRules.strikeHit(List.of(
+                tx("2026-01-01", TradeTransaction.Direction.BUY, 10, 300),
+                tx("2026-01-05", TradeTransaction.Direction.SELL, 10.5, 300)),
+                new BigDecimal("10000")));
     }
 
     @Test
@@ -104,10 +121,66 @@ class DailyRulesTest {
 
     @Test
     void auditRateAtSixtyPercent() {
-        GameDtos.JournalEntry good = new GameDtos.JournalEntry(LocalDate.now(), "BUY", "r", BigDecimal.ONE);
-        GameDtos.JournalEntry bad = new GameDtos.JournalEntry(LocalDate.now(), "BUY", "r", new BigDecimal("-1"));
+        String reason = "MA5 上穿 MA20 顺势买入"; // ≥8 字的认真理由
+        GameDtos.JournalEntry good = new GameDtos.JournalEntry(LocalDate.now(), "BUY", reason, BigDecimal.ONE);
+        GameDtos.JournalEntry bad = new GameDtos.JournalEntry(LocalDate.now(), "BUY", reason, new BigDecimal("-1"));
         assertTrue(DailyRules.auditHit(List.of(good, good, good, bad, bad)));
         assertFalse(DailyRules.auditHit(List.of(good, bad, bad, bad, bad)));
         assertFalse(DailyRules.auditHit(List.of()));
+    }
+
+    @Test
+    void auditIgnoresTokenReasons() {
+        // 敷衍理由 (<8 字) 不计入样本: 全是短理由 = 没有有效样本, 不过
+        GameDtos.JournalEntry lazy = new GameDtos.JournalEntry(LocalDate.now(), "BUY", "买", BigDecimal.ONE);
+        assertFalse(DailyRules.auditHit(List.of(lazy, lazy, lazy)));
+        // 长短混合: 只有长理由那条进样本 (正结果 → 过)
+        GameDtos.JournalEntry serious = new GameDtos.JournalEntry(
+                LocalDate.now(), "BUY", "跌破支撑位止损离场观望", BigDecimal.ONE);
+        GameDtos.JournalEntry lazyBad = new GameDtos.JournalEntry(
+                LocalDate.now(), "BUY", "卖", new BigDecimal("-1"));
+        assertTrue(DailyRules.auditHit(List.of(serious, lazyBad, lazyBad)));
+    }
+
+    @Test
+    void lyingFlatNoLongerPasses() {
+        // 零交易 + 利息带来的小正收益: WATCH/NOCHASE/BELT/HALF/IRONSTOP 全部不再白给
+        BigDecimal tinyGain = new BigDecimal("0.0006");
+        BigDecimal cash = new BigDecimal("100000");
+        List<DailyPrice> window = List.of(day("2026-01-01", 10), day("2026-01-02", 9));
+        for (DailyRules.Rule rule : List.of(DailyRules.Rule.WATCH, DailyRules.Rule.NOCHASE,
+                DailyRules.Rule.BELT, DailyRules.Rule.HALF, DailyRules.Rule.IRONSTOP)) {
+            GameDtos.DailyRuleResult r = DailyRules.evaluate(rule, tinyGain,
+                    new BigDecimal("-0.10"), BigDecimal.ZERO, cash, List.of(), List.of(), window);
+            assertFalse(r.passed(), rule + " 零交易不应通过");
+            assertEquals(0, r.stars());
+        }
+    }
+
+    @Test
+    void halfTargetFloorsAtZeroInBearWindows() {
+        // 熊市 (hold=-10%): 目标 = max(-5%, 0) = 0, 有交易且收益 +1% → 过
+        List<TradeTransaction> txs = List.of(tx("2026-01-01", TradeTransaction.Direction.BUY, 10, 100));
+        GameDtos.DailyRuleResult win = DailyRules.evaluate(DailyRules.Rule.HALF,
+                new BigDecimal("0.01"), new BigDecimal("-0.10"), BigDecimal.ZERO,
+                new BigDecimal("100000"), txs, List.of(), null);
+        assertTrue(win.passed());
+        // 有交易但收益 -1% < 0 → 不过 (老口径 -1% > -5% 会放行)
+        GameDtos.DailyRuleResult lose = DailyRules.evaluate(DailyRules.Rule.HALF,
+                new BigDecimal("-0.01"), new BigDecimal("-0.10"), BigDecimal.ZERO,
+                new BigDecimal("100000"), txs, List.of(), null);
+        assertFalse(lose.passed());
+    }
+
+    @Test
+    void starsGradePassQuality() {
+        // 过但没跑赢持有 → 1 星; 跑赢 → 2 星; 跑赢且回撤 ≤5% → 3 星
+        assertEquals(1, DailyRules.stars(true, new BigDecimal("0.02"),
+                new BigDecimal("0.05"), BigDecimal.ZERO));
+        assertEquals(2, DailyRules.stars(true, new BigDecimal("0.08"),
+                new BigDecimal("0.05"), new BigDecimal("0.08")));
+        assertEquals(3, DailyRules.stars(true, new BigDecimal("0.08"),
+                new BigDecimal("0.05"), new BigDecimal("0.03")));
+        assertEquals(0, DailyRules.stars(false, BigDecimal.ONE, BigDecimal.ZERO, BigDecimal.ZERO));
     }
 }

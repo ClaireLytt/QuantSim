@@ -49,7 +49,7 @@ public class GameBenchmarks {
     private static final int HOLDER_MAX_TRADES = 2;
 
     private final TransactionRepository transactionRepository;
-    private final MarketDataService marketData;
+    private final SessionMarketData sessionData;
     private final TradeEngine tradeEngine;
     private final FeeCalculator feeCalculator;
     private final GameProperties props;
@@ -130,7 +130,7 @@ public class GameBenchmarks {
                 if (shares == 0) {
                     continue;
                 }
-                StockData sdd = datas.computeIfAbsent(e.getKey(), marketData::load);
+                StockData sdd = datas.computeIfAbsent(e.getKey(), sid -> sessionData.of(session, sid));
                 eq = eq.add(tradeEngine.lastCloseOnOrBefore(sdd, snap.day())
                         .multiply(BigDecimal.valueOf(shares)));
             }

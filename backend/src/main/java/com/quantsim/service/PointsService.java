@@ -8,8 +8,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.quantsim.entity.PointsLedger;
 import com.quantsim.entity.UserPoints;
 import com.quantsim.exception.BusinessException;
+import com.quantsim.repository.PointsLedgerRepository;
 import com.quantsim.repository.UserPointsRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -17,12 +19,34 @@ import lombok.RequiredArgsConstructor;
 /**
  * 积分系统 (服务端权威): 签到/结算/连胜/每日任务攒分, 转盘与商城消费,
  * 道具计数在服务端扣减 —— 前端只做展示, 改本地存档刷不了分。
- * 规则: 签到+10 / 结算+50 / 胜AI+30 / 赢基准+20 / 连胜加成 10×N (N≥2) /
- * 每日任务: 首局结算+30, 首次回测+20, 每日挑战+40。
+ * 规则: 签到+10 / 结算基础分当日前 3 局 50、之后 10 / 胜AI+30 / 赢基准+20 /
+ * 连胜加成 10×min(N,5) (N≥2) / 每日任务: 首局结算+30, 首次回测+20, 每日挑战+40。
+ * 所有余额变动经 {@link #credit} 记入 points_ledger 流水 (守恒审计 + 大额兑换资格)。
  */
 @Service
 @RequiredArgsConstructor
 public class PointsService {
+
+    // 盲盒返利区间 [MIN, MIN+SPAN-1]: 期望值必须低于售价 (曾因 100~1000 配 500 售价
+    // 成为正期望印钞机, 见 2026-10 策略单一化审计 A1); PointsEconomyTest 钉死 EV < 价格
+    static final int BLINDBOX_MIN = 50;
+    static final int BLINDBOX_SPAN = 751; // 返利 50~800, EV=425 < 500
+
+    /** 连胜加成封顶 (10×min(N,CAP)): 无上限时连胜是无界积分放大器 (审计 A6) */
+    static final int STREAK_CAP = 5;
+
+    /** 结算基础分: 当日前 N 局全额, 之后衰减 (基础分无日顶可被刷局脚本白拿, 审计创意3) */
+    static final int SETTLE_FULL_GAMES_PER_DAY = 3;
+    static final int SETTLE_BASE = 50;
+    static final int SETTLE_BASE_DECAYED = 10;
+
+    /** 大额兑换门槛: 达到该价的奖品要求非盲盒净收入 ≥ 奖品价 (流水表口径) */
+    static final int BIG_TICKET_THRESHOLD = 4800;
+
+    /** 自选限笔补偿: 开局自限 ≤10 笔的局结算 +15 —— 限制无补偿时"从不勾选限笔"是支配选择
+     *  (审计创意21)。每日挑战的限笔是规则强加, 不计此加成。 */
+    static final int SELF_LIMIT_MAX_TRADES = 10;
+    static final int SELF_LIMIT_BONUS = 15;
 
     /** 商城目录: 奖品 id -> 积分价。实物类为虚拟演示, 道具类入账道具计数。 */
     private static final Map<String, Integer> CATALOG = Map.ofEntries(
@@ -42,6 +66,30 @@ public class PointsService {
             new String[] {"pts", "200"}, new String[] {"pts", "30"});
 
     private final UserPointsRepository repository;
+    private final PointsLedgerRepository ledgerRepository;
+
+    /** 余额变动的唯一入口: 改余额 + 记流水 (delta=0 不记)。 */
+    private void credit(UserPoints p, int delta, String reason) {
+        if (delta == 0) {
+            return;
+        }
+        p.setBalance(p.getBalance() + delta);
+        PointsLedger entry = new PointsLedger();
+        entry.setUserId(p.getUserId());
+        entry.setDelta(delta);
+        entry.setReason(reason);
+        ledgerRepository.save(entry);
+    }
+
+    /** 跨零点滚动每日状态: 任务位与结算局数一起归零 (两者共用 taskDate)。 */
+    private void touchDay(UserPoints p) {
+        LocalDate today = LocalDate.now(GameService.GAME_ZONE);
+        if (!today.equals(p.getTaskDate())) {
+            p.setTaskDate(today);
+            p.setTaskFlags(0);
+            p.setSettleCount(0);
+        }
+    }
 
     public record PointsState(int balance, int peek, int undo, int fast, int winStreak,
                               boolean signedToday, boolean spunToday, int taskFlags,
@@ -83,7 +131,7 @@ public class PointsService {
             // 昨日也签过则连续天数 +1, 断签 (或首签) 归 1
             p.setSignInStreak(today.minusDays(1).equals(p.getLastSignIn()) ? p.getSignInStreak() + 1 : 1);
             p.setLastSignIn(today);
-            p.setBalance(p.getBalance() + 10);
+            credit(p, 10, "signin");
         }
         return toState(repository.save(p));
     }
@@ -100,14 +148,14 @@ public class PointsService {
         int idx = ThreadLocalRandom.current().nextInt(WHEEL.size());
         String[] prize = WHEEL.get(idx);
         if ("pts".equals(prize[0])) {
-            p.setBalance(p.getBalance() + Integer.parseInt(prize[1]));
+            credit(p, Integer.parseInt(prize[1]), "spin");
         } else {
             addItem(p, prize[1], 1);
         }
         return new SpinResult(prize[0], prize[1], idx, toState(repository.save(p)));
     }
 
-    /** 商城兑换: 道具入计数, 实物为虚拟演示只扣分; 盲盒随机返 100~1000 分。 */
+    /** 商城兑换: 道具入计数, 实物为虚拟演示只扣分; 盲盒随机返 50~800 分 (负期望)。 */
     @Transactional
     public Map<String, Object> redeem(Long userId, String itemId) {
         Integer cost = CATALOG.get(itemId);
@@ -118,11 +166,15 @@ public class PointsService {
         if (p.getBalance() < cost) {
             throw new BusinessException("积分不够, 再玩几局攒一攒");
         }
-        p.setBalance(p.getBalance() - cost);
+        // 大额兑换资格: 非盲盒净收入 ≥ 奖品价 (防任何经济漏洞被套现成高价奖品)
+        if (cost >= BIG_TICKET_THRESHOLD && ledgerRepository.earnedExcludingBlindbox(userId) < cost) {
+            throw new BusinessException("大额奖品需要用对局/任务攒下的积分兑换（盲盒返利不计入）");
+        }
+        credit(p, -cost, "redeem:" + itemId);
         int blindboxWin = 0;
         if ("blindbox".equals(itemId)) {
-            blindboxWin = 100 + ThreadLocalRandom.current().nextInt(901);
-            p.setBalance(p.getBalance() + blindboxWin);
+            blindboxWin = BLINDBOX_MIN + ThreadLocalRandom.current().nextInt(BLINDBOX_SPAN);
+            credit(p, blindboxWin, "blindbox");
         } else if (CATALOG.containsKey(itemId) && isItem(itemId)) {
             addItem(p, itemId, 1);
         }
@@ -159,11 +211,21 @@ public class PointsService {
         return toState(repository.save(p));
     }
 
-    /** 结算入账: 基础+战胜加成+连胜加成+每日任务位, 全部服务端判定。 */
+    /** 兼容入口: 无自选限笔加成。 */
     @Transactional
     public SettleAward awardSettle(Long userId, boolean beatAi, boolean beatHold, boolean isDaily) {
+        return awardSettle(userId, beatAi, beatHold, isDaily, false);
+    }
+
+    /** 结算入账: 基础 (当日前 3 局全额, 之后衰减) + 战胜加成 + 连胜加成 (封顶)
+     *  + 自选限笔补偿 + 每日任务位。 */
+    @Transactional
+    public SettleAward awardSettle(Long userId, boolean beatAi, boolean beatHold, boolean isDaily,
+                                   boolean selfLimited) {
         UserPoints p = getOrCreate(userId);
-        int earned = 50;
+        touchDay(p);
+        int earned = p.getSettleCount() < SETTLE_FULL_GAMES_PER_DAY ? SETTLE_BASE : SETTLE_BASE_DECAYED;
+        p.setSettleCount(p.getSettleCount() + 1);
         if (beatAi) {
             earned += 30;
         }
@@ -172,13 +234,16 @@ public class PointsService {
         }
         p.setWinStreak(beatAi ? p.getWinStreak() + 1 : 0);
         if (p.getWinStreak() >= 2) {
-            earned += 10 * p.getWinStreak();
+            earned += 10 * Math.min(p.getWinStreak(), STREAK_CAP);
+        }
+        if (selfLimited) {
+            earned += SELF_LIMIT_BONUS;
         }
         earned += claimTask(p, UserPoints.TASK_SETTLE, 30);
         if (isDaily) {
             earned += claimTask(p, UserPoints.TASK_DAILY, 40);
         }
-        p.setBalance(p.getBalance() + earned);
+        credit(p, earned, "settle");
         repository.save(p);
         return new SettleAward(earned, p.getWinStreak());
     }
@@ -189,9 +254,7 @@ public class PointsService {
     public int awardReborn(Long userId) {
         UserPoints p = getOrCreate(userId);
         int earned = claimTask(p, UserPoints.TASK_REBORN, 40);
-        if (earned > 0) {
-            p.setBalance(p.getBalance() + earned);
-        }
+        credit(p, earned, "reborn");
         repository.save(p);
         return earned;
     }
@@ -208,9 +271,7 @@ public class PointsService {
             throw new BusinessException("今日任务还没完成: 先结算一局再来开宝箱");
         }
         int earned = claimTask(p, UserPoints.TASK_CHEST, 30);
-        if (earned > 0) {
-            p.setBalance(p.getBalance() + earned);
-        }
+        credit(p, earned, "chest");
         repository.save(p);
         return earned;
     }
@@ -226,9 +287,7 @@ public class PointsService {
         };
         UserPoints p = getOrCreate(userId);
         int earned = claimTask(p, flag, 40);
-        if (earned > 0) {
-            p.setBalance(p.getBalance() + earned);
-        }
+        credit(p, earned, "academy");
         repository.save(p);
         return earned;
     }
@@ -238,19 +297,13 @@ public class PointsService {
     public void awardBacktest(Long userId) {
         UserPoints p = getOrCreate(userId);
         int earned = claimTask(p, UserPoints.TASK_BACKTEST, 20);
-        if (earned > 0) {
-            p.setBalance(p.getBalance() + earned);
-        }
+        credit(p, earned, "backtest");
         repository.save(p);
     }
 
     /** 领当日任务位: 已领返回 0, 未领置位并返回奖励分。 */
     private int claimTask(UserPoints p, int flag, int reward) {
-        LocalDate today = LocalDate.now(GameService.GAME_ZONE);
-        if (!today.equals(p.getTaskDate())) {
-            p.setTaskDate(today);
-            p.setTaskFlags(0);
-        }
+        touchDay(p);
         if ((p.getTaskFlags() & flag) != 0) {
             return 0;
         }

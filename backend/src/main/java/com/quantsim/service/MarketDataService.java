@@ -37,6 +37,7 @@ public class MarketDataService {
     private final DailyPriceRepository priceRepository;
     private final DailyIndicatorRepository indicatorRepository;
     private final DailyPredictionRepository predictionRepository;
+    private final com.quantsim.repository.AppSaltRepository saltRepository;
 
     public record StockData(
             Stock stock,
@@ -84,6 +85,26 @@ public class MarketDataService {
             return byDate == null ? null : byDate.get(date);
         }
     }
+
+    /**
+     * 盲局视图: 对 (标的, 起始日) 做确定性不可逆扰动 (BlindPerturb, 审计创意24)。
+     * 同一每日挑战/房间/战书共享同一扰动序列 (榜单可比); 密钥在 app_salts, 首访惰性生成。
+     * 非 readOnly: 首访要 INSERT IGNORE 密钥行。内部 load 自调用绕过 stockData 缓存,
+     * 代价只在 blindData 未命中时发生一次全量加载, 可接受。
+     */
+    @Cacheable(value = "blindData", sync = true, key = "#stockId + '@' + #startDate")
+    @Transactional
+    public StockData loadBlind(Long stockId, java.time.LocalDate startDate) {
+        long secret = saltRepository.findById(BLIND_SALT_NAME)
+                .map(com.quantsim.entity.AppSalt::getSalt)
+                .orElseGet(() -> {
+                    saltRepository.insertIgnore(BLIND_SALT_NAME, new java.security.SecureRandom().nextLong());
+                    return saltRepository.findById(BLIND_SALT_NAME).orElseThrow().getSalt();
+                });
+        return BlindPerturb.perturb(load(stockId), BlindPerturb.seed(secret, stockId, startDate));
+    }
+
+    private static final String BLIND_SALT_NAME = "blind-ohlc";
 
     @Cacheable(value = "stockData", sync = true) // sync: 同一标的缓存失效瞬间只放一个线程进来全量加载, 防击穿
     @Transactional(readOnly = true)

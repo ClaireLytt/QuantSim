@@ -25,13 +25,15 @@ import com.quantsim.entity.GameSession;
  * @param finalSharpe     最终夏普 (权益曲线不可得时为 null)
  * @param biasReportJson  行为偏差诊断 JSON (序列化失败/无报告时为 null)
  * @param equityCurveJson 逐日净值曲线 JSON [[date,value]...] (曲线不可得/序列化失败时为 null)
+ * @param settledAt       结算时刻 (每日挑战榜的完赛用时指纹, 审计创意26)
  */
 public record SettledColumns(
         GameSession.Status status,
         BigDecimal finalReturnRate,
         BigDecimal finalSharpe,
         String biasReportJson,
-        String equityCurveJson) {
+        String equityCurveJson,
+        java.time.LocalDateTime settledAt) {
 
     private static final Logger log = LoggerFactory.getLogger(SettledColumns.class);
 
@@ -66,7 +68,8 @@ public record SettledColumns(
             }
         }
         return new Prepared(new SettledColumns(status, finalReturnRate, finalSharpe, json,
-                curveJson(equityCurve, objectMapper)), json == null ? null : report);
+                curveJson(equityCurve, objectMapper),
+                java.time.LocalDateTime.now()), json == null ? null : report);
     }
 
     /**
@@ -101,5 +104,6 @@ public record SettledColumns(
         session.setFinalSharpe(finalSharpe);
         session.setBiasReport(biasReportJson);
         session.setEquityCurve(equityCurveJson);
+        session.setSettledAt(settledAt);
     }
 }

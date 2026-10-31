@@ -852,6 +852,8 @@
         li.append(tt, dd);
         ul.appendChild(li);
       });
+      // 隐藏机制 #19 (分布思维, hidden.js): 连续垫底后翻出"你 vs 榜首"分段对照卡
+      document.dispatchEvent(new CustomEvent("qs:blindBoard", { detail: b }));
     } catch (e) { toast(e.message); }
   }
 

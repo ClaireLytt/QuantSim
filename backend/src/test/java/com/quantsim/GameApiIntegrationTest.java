@@ -167,11 +167,23 @@ class GameApiIntegrationTest extends IntegrationTestSupport {
 
     @Test
     void settle_withHoldingsAndLeaderboard() throws Exception {
-        long id = startGame("it_settle");
+        // 公开榜只收注册用户 (审计创意11), 注册局属主校验要求带会话 Cookie
+        String cookie = register("it_settle");
+        long id = json(postJson("/api/game/start", "{\"username\":\"it_settle\"}", cookie))
+                .get("sessionId").asLong();
         // 手动交易只按当日收盘价 (10.00) 成交
-        postJson("/api/game/" + id + "/trade", "{\"direction\":\"BUY\",\"price\":10.00,\"shares\":100}");
+        postJson("/api/game/" + id + "/trade",
+                "{\"direction\":\"BUY\",\"price\":10.00,\"shares\":100}", cookie);
 
-        JsonNode settle = json(postJson("/api/game/" + id + "/settle", ""));
+        // 榜单只收打满全程的局 (审计创意6): tick 到自动结算, 而不是 day-0 秒结
+        JsonNode settle = null;
+        for (int i = 0; i < 3 && settle == null; i++) {
+            JsonNode tick = json(postJson("/api/game/" + id + "/tick", "", cookie));
+            if (tick.get("settled").asBoolean()) {
+                settle = tick.get("settleResult");
+            }
+        }
+        assertThat(settle).isNotNull();
         // 现金 99000 + 100 股 × 收盘 10 = 100000, 收益率 0
         assertThat(settle.get("finalAssets").decimalValue()).isEqualByComparingTo("100000.00");
         assertThat(settle.get("returnRate").decimalValue()).isEqualByComparingTo("0.0000");
@@ -205,9 +217,20 @@ class GameApiIntegrationTest extends IntegrationTestSupport {
 
     // ---------- AI 对手与策略基准 ----------
 
+    /** 审计创意17: probUp 白送会让"跟单预测"成为零思考策略, 非 EASY 局一律不下发。 */
+    @Test
+    void prediction_hiddenOutsideEasyGames() throws Exception {
+        long id = json(postJson("/api/game/start",
+                "{\"username\":\"it_pred\",\"aiLevel\":\"NORMAL\"}")).get("sessionId").asLong();
+        JsonNode st = json(rest.getForEntity("/api/game/" + id + "/status", String.class));
+        assertThat(st.get("prediction").isNull()).isTrue();
+    }
+
     @Test
     void aiOpponent_tradesOnPredictionAndSettleComparesStrategies() throws Exception {
-        long id = startGame("it_ai");
+        // 预测只在 EASY 局免费下发 (审计创意17), 本用例显式选 EASY
+        long id = json(postJson("/api/game/start",
+                "{\"username\":\"it_ai\",\"aiLevel\":\"EASY\"}")).get("sessionId").asLong();
 
         // 开局状态即带预测和 AI 仓位 (尚未交易)
         JsonNode st0 = json(rest.getForEntity("/api/game/" + id + "/status", String.class));

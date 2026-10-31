@@ -35,6 +35,8 @@ public class TradeBudget {
                 transactionRepository.countBySessionId(session.getSessionId()),
                 orderRepository.countBySessionIdAndStatus(
                         session.getSessionId(), PendingOrder.Status.OPEN),
+                orderRepository.countBySessionIdAndStatusAndOrderType(
+                        session.getSessionId(), PendingOrder.Status.OPEN, PendingOrder.Type.TRAIL_STOP),
                 session.getMaxTrades());
     }
 
@@ -45,18 +47,23 @@ public class TradeBudget {
         return new FillConsumer(filled, session.getMaxTrades());
     }
 
-    /** 纯策略核: (已成交, 在挂单, 上限-或-null)。maxTrades 为 null = 本局不限笔。 */
-    public record Snapshot(long filled, long open, Integer maxTrades) {
+    /**
+     * 纯策略核: (已成交, 在挂单, 其中在挂移动止损, 上限-或-null)。maxTrades 为 null = 本局不限笔。
+     * 移动止损在挂期间占 2 笔 (openTrail 额外 +1): 同触发价下 TRAIL 结果恒 ≥ STOP_LOSS
+     * (ratchet 只升不降), 同价占一笔时严格支配 —— 加价消除支配 (审计创意20)。
+     * 成交后与普通单同价 (撮合口径只数已成交, 不受影响)。
+     */
+    public record Snapshot(long filled, long open, long openTrail, Integer maxTrades) {
 
-        static final Snapshot UNLIMITED = new Snapshot(0, 0, null);
+        static final Snapshot UNLIMITED = new Snapshot(0, 0, 0, null);
 
         public boolean unlimited() {
             return maxTrades == null;
         }
 
-        /** 新增口径的已用预算: 已成交 + 在挂单。 */
+        /** 新增口径的已用预算: 已成交 + 在挂单 + 在挂移动止损的加价。 */
         public long used() {
-            return filled + open;
+            return filled + open + openTrail;
         }
 
         /** 剩余可新增笔数; 不限笔返回 null (对外响应约定, 前端据此隐藏计数)。 */
@@ -71,9 +78,21 @@ public class TradeBudget {
 
         /** 不可再新增时抛业务异常; 文案与历史版本逐字一致 (集成测试断言过)。 */
         public void requireHeadroom() {
-            if (!unlimited() && used() >= maxTrades) {
+            requireHeadroom(1);
+        }
+
+        /** 带权重的余量校验: 移动止损占 2 笔 (weight=2), 其余 1 笔。 */
+        public void requireHeadroom(int weight) {
+            if (unlimited()) {
+                return;
+            }
+            if (used() >= maxTrades) {
                 throw new BusinessException(
                         "本局交易笔数已达上限 " + maxTrades + " 笔（在挂单也占用笔数）");
+            }
+            if (used() + weight > maxTrades) {
+                throw new BusinessException(
+                        "剩余笔数不足: 移动止损占 2 笔预算（在挂期间, 成交后与普通单同价）");
             }
         }
     }

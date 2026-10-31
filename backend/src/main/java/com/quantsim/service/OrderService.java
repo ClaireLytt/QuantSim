@@ -39,6 +39,7 @@ public class OrderService {
 
     private final PendingOrderRepository orderRepository;
     private final MarketDataService marketData;
+    private final SessionMarketData sessionData;
     private final TradeBudget tradeBudget;
     private final TradeEngine tradeEngine;
     private final GameProperties props;
@@ -49,7 +50,7 @@ public class OrderService {
     public OrderInfo place(GameSession session, Long stockId, String type, BigDecimal price, int shares,
                            BigDecimal trailPct, String reason) {
         PendingOrder.Type orderType = Enums.parse(type, PendingOrder.Type.class, "挂单类型");
-        StockData sd = marketData.load(stockId);
+        StockData sd = sessionData.of(session, stockId);
         if (orderType == PendingOrder.Type.TRAIL_STOP) {
             // 移动止损按跟踪距离下单, 初始触发价从当日收盘推出, 忽略传入 price
             if (trailPct == null || trailPct.doubleValue() < 1 || trailPct.doubleValue() > 30) {
@@ -134,7 +135,7 @@ public class OrderService {
         // 口径收口在 TradeBudget: 撮合只数已成交, 该单自己占的挂单名额就是它的预算。
         TradeBudget.FillConsumer budget = tradeBudget.beginFill(session);
         for (PendingOrder order : open) {
-            StockData sd = marketData.load(order.getStockId());
+            StockData sd = sessionData.of(session, order.getStockId());
             DailyPrice bar = sd.bar(session.getCurrentTradeDate());
             if (bar == null) {
                 continue;

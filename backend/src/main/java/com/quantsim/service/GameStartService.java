@@ -220,9 +220,18 @@ public class GameStartService {
             throw new BusinessException("没有数据量足够的股票, 请检查行情数据");
         }
         worst.sort(java.util.Comparator.comparingDouble(Window::ret));
-        List<Window> pool = worst.subList(0, Math.min(20, worst.size()));
+        List<Window> pool = worst.subList(0, windowPool(worst.size()));
         Window w = pool.get(random.nextInt(pool.size()));
         return new long[] { w.stockId(), w.startIdx() };
+    }
+
+    /**
+     * 极值窗口池大小: 最差/最平静的 5% 分位, 下限 20。
+     * 固定取前 20 时熊市生存的暴跌 K 线形态会被反复游玩的玩家背谱 (认出窗口即知道底部,
+     * 审计创意27); 分位制让池随数据量增长, 不牺牲"够极端"的筛选语义。
+     */
+    static int windowPool(int candidates) {
+        return Math.min(candidates, Math.max(20, candidates / 20));
     }
 
     /**
@@ -259,7 +268,7 @@ public class GameStartService {
             throw new BusinessException("没有数据量足够的股票, 请检查行情数据");
         }
         calmest.sort(java.util.Comparator.comparingDouble(Window::score));
-        List<Window> pool = calmest.subList(0, Math.min(20, calmest.size()));
+        List<Window> pool = calmest.subList(0, windowPool(calmest.size()));
         Window w = pool.get(random.nextInt(pool.size()));
         return new long[] { w.stockId(), w.startIdx() };
     }
@@ -296,19 +305,47 @@ public class GameStartService {
         LocalDate startDate = psd.prices().get(startIdx).getTradeDate();
         LocalDate endDate = psd.prices().get(startIdx + props.getTotalTicks()).getTradeDate();
 
-        List<Long> picked = new ArrayList<>();
-        picked.add(primary);
-        for (int i = 1; i < pool.size() && picked.size() < props.getPortfolioSize(); i++) {
+        // 窗口对齐的候选, 保持洗牌顺序
+        List<Long> aligned = new ArrayList<>();
+        for (int i = 1; i < pool.size(); i++) {
             StockData sd = marketData.load(pool.get(i));
             if (sd.indexOf(startDate) != null && sd.indexOf(endDate) != null
                     && sd.indexOf(startDate) >= props.getMinHistoryDays() - 1) {
-                picked.add(pool.get(i));
+                aligned.add(pool.get(i));
+            }
+        }
+        // 行业互异优先 (审计创意28): 同行业三只强相关标的会让"分散"决策失去意义;
+        // 先挑未出现过的行业, 行业种类不够时再回退补齐
+        List<Long> picked = new ArrayList<>();
+        picked.add(primary);
+        java.util.Set<String> industries = new java.util.HashSet<>();
+        industries.add(industryOf(primary));
+        for (Long sid : aligned) {
+            if (picked.size() >= props.getPortfolioSize()) {
+                break;
+            }
+            if (industries.add(industryOf(sid))) {
+                picked.add(sid);
+            }
+        }
+        for (Long sid : aligned) {
+            if (picked.size() >= props.getPortfolioSize()) {
+                break;
+            }
+            if (!picked.contains(sid)) {
+                picked.add(sid);
             }
         }
         if (picked.size() < props.getPortfolioSize()) {
             throw new BusinessException("未找到窗口对齐的 " + props.getPortfolioSize() + " 只标的, 请再试一次");
         }
         return persistSession(user, picked, startDate, aiLevel, "PORTFOLIO", advanced, realRules, null);
+    }
+
+    /** 行业键: 空标注按标的各自独立 (不互相挤占"新行业"名额, 也不被已有行业拦下)。 */
+    private String industryOf(Long stockId) {
+        String ind = marketData.load(stockId).stock().getIndustry();
+        return ind == null || ind.isBlank() ? "unknown-" + stockId : ind;
     }
 
     private StartGameResponse persistSession(User user, List<Long> stockIds, LocalDate startDate,

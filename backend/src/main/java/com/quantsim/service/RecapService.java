@@ -52,6 +52,7 @@ public class RecapService {
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
     private final MarketDataService marketData;
+    private final SessionMarketData sessionData;
     private final TradeEngine tradeEngine;
 
     public record RecapTrade(String stockCode, boolean isLong, int qty, BigDecimal entryAvg,
@@ -150,7 +151,7 @@ public class RecapService {
                 continue;
             }
             Long sid = tx.getStockId() == null ? session.getStockId() : tx.getStockId();
-            MarketDataService.StockData sd = marketData.load(sid);
+            MarketDataService.StockData sd = sessionData.of(session, sid);
             Integer idx = sd.indexOf(tx.getTradeDate());
             if (idx == null || idx + SELL_AFTER_DAYS >= sd.prices().size()) {
                 continue;

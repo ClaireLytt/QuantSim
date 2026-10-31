@@ -31,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 public class TradeEngine {
 
     private final MarketDataService marketData;
+    private final SessionMarketData sessionData;
     private final FeeCalculator feeCalculator;
     private final PositionRepository positionRepository;
     private final SessionStockRepository sessionStockRepository;
@@ -86,7 +87,7 @@ public class TradeEngine {
     public Map<Long, BigDecimal> currentCloses(GameSession session) {
         Map<Long, BigDecimal> closes = new HashMap<>();
         for (Long sid : stockIds(session)) {
-            closes.put(sid, lastCloseOnOrBefore(marketData.load(sid), session.getCurrentTradeDate()));
+            closes.put(sid, lastCloseOnOrBefore(sessionData.of(session, sid), session.getCurrentTradeDate()));
         }
         return closes;
     }
@@ -214,7 +215,7 @@ public class TradeEngine {
      */
     public String realRulesError(GameSession session, Account account, Long stockId,
                                  TradeTransaction.Direction direction, int shares) {
-        StockData sd = marketData.load(stockId);
+        StockData sd = sessionData.of(session, stockId);
         String limitError = limitBandError(sd, session.getCurrentTradeDate(), direction);
         if (limitError != null) {
             return limitError;

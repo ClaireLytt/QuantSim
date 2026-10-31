@@ -48,4 +48,20 @@ public class NewsEvent {
 
     @Column(name = "body_en", length = 500)
     private String bodyEn;
+
+    /** +1 利好 / -1 利空 / 0 中性 (同一事件可对不同标的相反, 见 V34) */
+    @Column(nullable = false)
+    private int direction;
+
+    /** 0~1 市场已消化度: 高预期利好落地常见"卖事实" */
+    @Column(precision = 3, scale = 2)
+    private java.math.BigDecimal expectation;
+
+    /** 传闻→证实/辟谣 链 id */
+    @Column(name = "chain_id")
+    private Long chainId;
+
+    /** OFFICIAL / RUMOR */
+    @Column(name = "source_tier", nullable = false, length = 8)
+    private String sourceTier = "OFFICIAL";
 }

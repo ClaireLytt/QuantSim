@@ -64,6 +64,7 @@ import lombok.extern.slf4j.Slf4j;
 public class GameService {
 
     private final MarketDataService marketData;
+    private final SessionMarketData sessionData;
     private final UserRepository userRepository;
     private final GameSessionRepository sessionRepository;
     private final AccountRepository accountRepository;
@@ -85,6 +86,7 @@ public class GameService {
     private final AiOpponent aiOpponent;
     private final TradeBudget tradeBudget;
     private final GameDay gameDay;
+    private final EarningsService earningsService;
 
     public static final ZoneId GAME_ZONE = ZoneId.of("Asia/Shanghai");
 
@@ -109,7 +111,7 @@ public class GameService {
     @Transactional(readOnly = true)
     public StartGameResponse describe(Long sessionId) {
         GameSession session = getSession(sessionId);
-        Stock stock = marketData.load(session.getStockId()).stock();
+        Stock stock = sessionData.of(session, session.getStockId()).stock();
         List<StockLite> stocks = tradeEngine.stockIds(session).stream()
                 .map(sid -> {
                     Stock st = marketData.load(sid).stock();
@@ -132,7 +134,7 @@ public class GameService {
     public HistoryResponse getHistory(Long sessionId, String stockCode) {
         GameSession session = getSession(sessionId);
         Long stockId = resolveStock(session, stockCode);
-        StockData sd = marketData.load(stockId);
+        StockData sd = sessionData.of(session, stockId);
         Stock stock = sd.stock();
 
         Integer startIdx = sd.indexOf(session.getStartDate());
@@ -161,7 +163,7 @@ public class GameService {
     public TickResponse tick(Long sessionId) {
         GameSession session = getSessionWithLock(sessionId);
         requireInProgress(session);
-        StockData sd = marketData.load(session.getStockId());
+        StockData sd = sessionData.of(session, session.getStockId());
 
         Integer curIdx = sd.indexOf(session.getCurrentTradeDate());
         if (curIdx == null || curIdx + 1 >= sd.prices().size()) {
@@ -189,13 +191,27 @@ public class GameService {
 
         // 内嵌账户快照, 前端 tick 后无需再请求 /status
         StatusResponse status = buildStatus(session, account, sd);
-        // 竞技模式不下发新闻: 事件文本 (如 "924行情") 会暴露隐藏窗口的真实时间
-        List<NewsItem> news = BlindDates.blind(session)
-                ? List.of() : newsService.eventsFor(sd.stock(), next.getTradeDate());
+        // 竞技模式不下发新闻: 事件文本 (如 "924行情") 会暴露隐藏窗口的真实时间。
+        // 组合模式多腿新闻 (联动设计#4): 同一事件可对不同腿给相反方向
+        List<NewsItem> news = List.of();
+        if (!BlindDates.blind(session)) {
+            news = "PORTFOLIO".equals(session.getMode())
+                    ? newsService.eventsForPortfolio(tradeEngine.stockIds(session).stream()
+                            .map(sid -> sessionData.of(session, sid).stock()).toList(),
+                            next.getTradeDate())
+                    : newsService.eventsFor(sd.stock(), next.getTradeDate());
+            // 财报揭晓 (联动设计 8/9): 合成解释层走既有新闻横幅通道
+            var earn = earningsService.on(sd, next.getTradeDate());
+            if (earn.isPresent()) {
+                news = new ArrayList<>(news);
+                news.add(earningsService.toNews(earn.get()));
+            }
+        }
 
         return new TickResponse(BlindDates.mask(session, next.getTradeDate()), daysElapsed, props.ticksFor(session.getMode()),
                 settled, bar, settleResult, status,
-                fills.filled(), fills.autoCancelled(), liquidatedNow, news, day.aiTradeShares());
+                fills.filled(), fills.autoCancelled(), liquidatedNow, news, day.aiTradeShares(),
+                day.interestToday());
     }
 
     /**
@@ -208,12 +224,24 @@ public class GameService {
         if (session.getStatus() != GameSession.Status.IN_PROGRESS || BlindDates.blind(session)) {
             return List.of();
         }
-        StockData sd = marketData.load(session.getStockId());
+        StockData sd = sessionData.of(session, session.getStockId());
         Integer curIdx = sd.indexOf(session.getCurrentTradeDate());
         if (curIdx == null || curIdx + 1 >= sd.prices().size()) {
             return List.of();
         }
-        return newsService.eventsFor(sd.stock(), sd.prices().get(curIdx + 1).getTradeDate());
+        List<NewsItem> up = new ArrayList<>(
+                newsService.eventsFor(sd.stock(), sd.prices().get(curIdx + 1).getTradeDate()));
+        // 财报临近预警 (联动设计#10): 未来 3 个交易日内有财报日即提示 (只给日期不给内容)
+        for (int k = 1; k <= 3 && curIdx + k < sd.prices().size(); k++) {
+            if (!earningsService.on(sd, sd.prices().get(curIdx + k).getTradeDate()).isEmpty()) {
+                up.add(new NewsItem("MED",
+                        "财报临近：" + k + " 个交易日后发布，注意持仓过夜风险",
+                        "Earnings in " + k + " trading day(s) - mind your overnight exposure",
+                        null, null, 0, null, "OFFICIAL", null));
+                break;
+            }
+        }
+        return up;
     }
 
     @Transactional
@@ -231,7 +259,7 @@ public class GameService {
         price = price.setScale(2, RoundingMode.UNNECESSARY);
 
         Long stockId = resolveStock(session, request.stockCode());
-        StockData sd = marketData.load(stockId);
+        StockData sd = sessionData.of(session, stockId);
         DailyPrice bar = sd.bar(session.getCurrentTradeDate());
         if (bar == null) {
             throw new BusinessException("当前交易日行情缺失");
@@ -307,8 +335,14 @@ public class GameService {
      * 这里只串联"预算 + 理由"两道闸并把快照递回 (调用方推剩余笔数, 省第二次 COUNT)。
      */
     private TradeBudget.Snapshot requireBudgetAndReason(GameSession session, String sanitizedReason, String action) {
+        return requireBudgetAndReason(session, sanitizedReason, action, 1);
+    }
+
+    /** weight: 本次新增占用的笔数 (移动止损挂单为 2, 其余 1; 口径见 TradeBudget)。 */
+    private TradeBudget.Snapshot requireBudgetAndReason(GameSession session, String sanitizedReason,
+                                                        String action, int weight) {
         TradeBudget.Snapshot budget = tradeBudget.snapshot(session);
-        budget.requireHeadroom();
+        budget.requireHeadroom(weight);
         if (session.isRequireReason() && (sanitizedReason == null || sanitizedReason.isEmpty())) {
             throw new BusinessException("本局开启了交易日志: 请写一句交易理由再" + action);
         }
@@ -330,7 +364,11 @@ public class GameService {
         // 限制模式对挂单同样生效, 否则挂单就是绕开笔数上限/交易日志的后门:
         // 已成交 + 在挂单一起占笔数预算; 强制理由随挂单落库, 成交时写进流水。
         String reason = sanitizeReason(request.reason());
-        requireBudgetAndReason(session, reason, "挂单");
+        // 移动止损在挂期间占 2 笔 (同价时严格支配普通止损, 见 TradeBudget.Snapshot javadoc)
+        PendingOrder.Type orderType =
+                Enums.parse(request.orderType(), PendingOrder.Type.class, "挂单类型");
+        requireBudgetAndReason(session, reason, "挂单",
+                orderType == PendingOrder.Type.TRAIL_STOP ? 2 : 1);
         // 带交易时闸的每日规则禁用挂单: 次日 OHLC 成交会绕过观察期/半仓线/追高闸
         if ("DAILY".equals(session.getMode()) && session.getChallengeDate() != null
                 && DailyRules.ordersBlocked(DailyRules.ruleFor(session.getChallengeDate()))) {
@@ -338,6 +376,25 @@ public class GameService {
         }
         return orderService.place(session, stockId, request.orderType(), request.price(), request.shares(),
                 request.trailPct(), reason);
+    }
+
+    /** #7 财报日历: 窗口内财报日的"第几天"偏移 (只给日期不给内容); 盲局不提供。 */
+    @Transactional(readOnly = true)
+    public List<Integer> earningsDays(Long sessionId) {
+        GameSession session = getSession(sessionId);
+        if (BlindDates.blind(session)) {
+            return List.of();
+        }
+        StockData sd = sessionData.of(session, session.getStockId());
+        Integer start = sd.indexOf(session.getStartDate());
+        if (start == null) {
+            return List.of();
+        }
+        int end = Math.min(sd.prices().size() - 1, start + props.ticksFor(session.getMode()));
+        final int s0 = start;
+        return earningsService.daysIn(sd, start, end).stream()
+                .map(d -> sd.indexOf(d) - s0)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -357,7 +414,7 @@ public class GameService {
         GameSession session = getSession(sessionId);
         Account account = accountRepository.findBySessionId(sessionId)
                 .orElseThrow(() -> new NotFoundException("账户不存在"));
-        return buildStatus(session, account, marketData.load(session.getStockId()));
+        return buildStatus(session, account, sessionData.of(session, session.getStockId()));
     }
 
     /**
@@ -395,7 +452,7 @@ public class GameService {
         Account account = accountRepository.findWithLockBySessionId(session.getSessionId())
                 .orElseThrow(() -> new NotFoundException("账户不存在"));
 
-        StockData sd = marketData.load(session.getStockId());
+        StockData sd = sessionData.of(session, session.getStockId());
         DailyPrice bar = sd.bar(session.getCurrentTradeDate());
         if (bar == null) {
             throw new BusinessException("结算日行情缺失");
@@ -442,9 +499,28 @@ public class GameService {
                 transactionRepository.findBySessionIdOrderByCreatedAtAsc(session.getSessionId());
         BiasReport biasReport = analyzeBiasOrNull(session, allTxs);
         // 交易日志: 理由 vs 结果 (只有写过理由的流水才有行)
-        List<GameDtos.JournalEntry> journal = biasAnalysisService.journal(session, allTxs, marketData::load);
+        List<GameDtos.JournalEntry> journal = biasAnalysisService.journal(session, allTxs, sid -> sessionData.of(session, sid));
         // 事件回放: 结算揭晓场景与大事记 (进行中绝不下发, 文本会暴露真实时间)
         GameDtos.EventReveal eventReveal = eventReveal(session);
+        // 新闻复盘与预期差发现 (联动设计 1/3/5): 盲局无新闻, 不出复盘
+        List<GameDtos.CoachFinding> coach = new ArrayList<>(
+                coachService.findings(session, sd, allTxs, initial, finalAssets,
+                        account.getInterestTotal(), returnRate, holdReturn, maCrossReturn, dcaReturn, aiReturn));
+        List<GameDtos.NewsRecapItem> newsRecap = null;
+        if (!BlindDates.blind(session) && startIdx != null && endIdx != null) {
+            newsRecap = new ArrayList<>(newsService.recap(sd.stock(), sd, startIdx, endIdx));
+            // 财报复盘行 (联动设计 8/9 的"复盘解释"一步): 走同一张复盘卡
+            for (LocalDate ed : earningsService.daysIn(sd, startIdx, endIdx)) {
+                var earnOpt = earningsService.on(sd, ed);
+                if (earnOpt.isPresent()) {
+                    NewsItem n = earningsService.toNews(earnOpt.get());
+                    newsRecap.add(new GameDtos.NewsRecapItem(ed, "EARNINGS",
+                            n.titleZh() + " — " + n.bodyZh(),
+                            n.titleEn() + " — " + n.bodyEn(), null, null, null));
+                }
+            }
+            newsService.pricedInFinding(sd.stock(), sd, allTxs).ifPresent(coach::add);
+        }
 
         // 逐日净值点: curve 首点是初始资金 (无日期), 第 i+1 点对应窗口内第 i 个交易日
         List<SettledColumns.DayValue> dayValues = null;
@@ -466,13 +542,20 @@ public class GameService {
         // 积分入账 (服务端权威): 基础/胜AI/赢基准/连胜/每日任务, 前端只展示。
         // 只有打满全程或被强平的局才计分: 否则登录用户"秒开秒结"(开局无限流 + day-0 可结算)
         // 每次白拿基础分, 积分经济可被脚本刷爆; 提前弃局允许结算但不给奖励。
-        boolean beatAi = aiReturn != null && returnRate.compareTo(aiReturn) > 0;
-        boolean beatHold = holdReturn != null && returnRate.compareTo(holdReturn) > 0;
+        // 道具局 (用过预知卡/后悔药) 战胜加成归零: beatAi 同时驱动连胜, 一并按未胜处理
+        boolean bonusEligible = !session.isItemUsed();
+        boolean beatAi = bonusEligible && aiReturn != null && returnRate.compareTo(aiReturn) > 0;
+        boolean beatHold = bonusEligible && holdReturn != null && returnRate.compareTo(holdReturn) > 0;
         boolean completed = session.isLiquidated()
                 || session.getDaysElapsed() >= props.getTotalTicks();
+        // 自选限笔补偿 (≤10 笔): 每日挑战的限笔是规则强加不计; INTRO 结构上到不了 completed
+        boolean selfLimited = !"DAILY".equals(session.getMode())
+                && session.getMaxTrades() != null
+                && session.getMaxTrades() <= PointsService.SELF_LIMIT_MAX_TRADES;
         PointsService.SettleAward award = completed
                 ? pointsService.awardSettle(
-                        session.getUserId(), beatAi, beatHold, "DAILY".equals(session.getMode()))
+                        session.getUserId(), beatAi, beatHold, "DAILY".equals(session.getMode()),
+                        selfLimited)
                 : new PointsService.SettleAward(0, 0);
 
         // 已结算: 竞技模式在此揭晓真实标的 (进行中全程匿名)。
@@ -486,8 +569,10 @@ public class GameService {
                 // 响应与落库口径一致由 Prepared 构造保证: 序列化失败时两侧一起为 null
                 prepared.responseReport(), journal, eventReveal,
                 dailyRuleResult(session, returnRate, holdReturn, risk, allTxs, journal, sd, startIdx, endIdx),
-                coachService.findings(session, sd, allTxs, initial, finalAssets,
-                        account.getInterestTotal(), returnRate, holdReturn, maCrossReturn, dcaReturn, aiReturn)),
+                coach,
+                // 择时贡献 = 玩家收益 - 买入持有: 给"主动操作"单独的计分轴
+                holdReturn == null ? null : returnRate.subtract(holdReturn),
+                newsRecap),
                 prepared.columns());
     }
 
@@ -502,7 +587,8 @@ public class GameService {
         List<DailyPrice> window = (startIdx == null || endIdx == null)
                 ? null : sd.prices().subList(startIdx, endIdx + 1);
         return DailyRules.evaluate(rule, returnRate, holdReturn,
-                risk == null ? null : risk.maxDrawdown(), allTxs, journal, window);
+                risk == null ? null : risk.maxDrawdown(), session.getInitialCash(),
+                allTxs, journal, window);
     }
 
     /** 事件回放结算揭晓: 场景名 + 真实窗口 + 整段大事记 (给足上下文, 不只截对局窗口)。 */
@@ -527,7 +613,7 @@ public class GameService {
      */
     private BiasReport analyzeBiasOrNull(GameSession session, List<TradeTransaction> txs) {
         try {
-            return biasAnalysisService.analyze(session, txs, marketData::load);
+            return biasAnalysisService.analyze(session, txs, sid -> sessionData.of(session, sid));
         } catch (Exception e) {
             log.warn("偏差诊断失败 session={}", session.getSessionId(), e);
             return null;
@@ -579,7 +665,8 @@ public class GameService {
             throw new BusinessException("竞技对局不能使用预知道具");
         }
         pointsService.consumeItem(session.getUserId(), "peek"); // 道具计数服务端扣减
-        StockData sd = marketData.load(session.getStockId());
+        session.setItemUsed(true); // 用过道具: 结算不发胜AI/赢基准加成 (积分买不到计分优势)
+        StockData sd = sessionData.of(session, session.getStockId());
         Integer curIdx = sd.indexOf(session.getCurrentTradeDate());
         if (curIdx == null || curIdx + 1 >= sd.prices().size()) {
             throw new BusinessException("行情数据已到尽头");
@@ -601,6 +688,7 @@ public class GameService {
             throw new BusinessException("竞技对局不能使用后悔药");
         }
         pointsService.consumeItem(session.getUserId(), "undo"); // 道具计数服务端扣减
+        session.setItemUsed(true); // 同 peek: 道具局不发战胜加成
         Account account = accountRepository.findWithLockBySessionId(sessionId)
                 .orElseThrow(() -> new NotFoundException("账户不存在"));
         List<TradeTransaction> todays = transactionRepository
@@ -613,11 +701,12 @@ public class GameService {
                 .max(java.util.Comparator.comparing(TradeTransaction::getTxId))
                 .orElseThrow();
         if (last.getOrderId() != null) {
-            // 这笔成交来自挂单: 只删流水不回滚挂单会账实分叉 (挂单显示 FILLED 但资金里没有
-            // 这笔), 且该单从笔数预算两侧 (已成交数+在挂单数) 同时消失, 限笔模式可刷额度。
-            // 回滚为 OPEN: 挂单继续有效, 次日仍可再触发, 预算占用恢复。
+            // 这笔成交来自挂单: 只删流水不动挂单会账实分叉 (挂单显示 FILLED 但资金里没有这笔)。
+            // 2026-10 审计创意31 (产品拍板): 回滚为 CANCELLED 而不是 OPEN —— 回 OPEN 等于
+            // 白拿一次"多看一天行情后同触发价重试"的延迟期权; 作废后想再挂须重新下单,
+            // 重新占用笔数预算 (undo 释放的额度被再下单抵消, 预算净额与改前一致)。
             orderRepository.findById(last.getOrderId()).ifPresent(order -> {
-                order.setStatus(PendingOrder.Status.OPEN);
+                order.setStatus(PendingOrder.Status.CANCELLED);
                 order.setFilledDate(null);
                 order.setFilledPrice(null);
                 orderRepository.save(order);
@@ -635,7 +724,7 @@ public class GameService {
     /** 已结算对局的风险指标 (LLM 复盘上下文用); 旧组合流水缺 stock_id 时返回 null。 */
     @Transactional(readOnly = true)
     public RiskMetrics riskForSettled(GameSession session) {
-        StockData sd = marketData.load(session.getStockId());
+        StockData sd = sessionData.of(session, session.getStockId());
         Integer startIdx = sd.indexOf(session.getStartDate());
         Integer endIdx = sd.indexOf(session.getCurrentTradeDate());
         if (startIdx == null || endIdx == null) {
@@ -650,7 +739,7 @@ public class GameService {
      * 重放循环在 LedgerReplay (与 tick 计息/结算曲线同一内核), 这里只取末日快照落账。
      */
     private void replayAccount(GameSession session, Account account) {
-        StockData sd = marketData.load(session.getStockId());
+        StockData sd = sessionData.of(session, session.getStockId());
         Integer startIdx = sd.indexOf(session.getStartDate());
         Integer endIdx = sd.indexOf(session.getCurrentTradeDate());
         if (startIdx == null || endIdx == null) {
@@ -709,7 +798,7 @@ public class GameService {
             positions = new ArrayList<>();
             floatingPnl = BigDecimal.ZERO;
             for (Long sid : tradeEngine.stockIds(session)) {
-                StockData ssd = marketData.load(sid);
+                StockData ssd = sessionData.of(session, sid);
                 var pos = tradeEngine.position(session, account, sid);
                 BigDecimal close = closes.getOrDefault(sid, BigDecimal.ZERO);
                 BigDecimal value = close.multiply(BigDecimal.valueOf(pos.shares()));
@@ -724,9 +813,14 @@ public class GameService {
         }
         BigDecimal returnRate = TradeMath.returnRate(totalAssets, session.getInitialCash());
 
-        DailyPrediction pred = sd.prediction(session.getCurrentTradeDate(), session.getAiModel());
-        PredictionInfo prediction = pred == null ? null
-                : new PredictionInfo(pred.getPredictedDirection(), pred.getProbUp());
+        // 模型预测只在 EASY 局免费下发 (新手教学): 其余难度白送 probUp 会让"跟单预测"
+        // 成为零思考优势策略, 玩家自己的判断没有被奖励的通道 (审计创意17)
+        PredictionInfo prediction = null;
+        if (AiLevel.fromModel(session.getAiModel()) == AiLevel.EASY) {
+            DailyPrediction pred = sd.prediction(session.getCurrentTradeDate(), session.getAiModel());
+            prediction = pred == null ? null
+                    : new PredictionInfo(pred.getPredictedDirection(), pred.getProbUp());
+        }
 
         AiStatus ai = null;
         if (aiOpponent.initialized(session)) {

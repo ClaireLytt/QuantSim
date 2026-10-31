@@ -224,11 +224,19 @@
       $("fp-duel-sealed").hidden = b.revealed;
       const ul = $("fp-duel-board");
       ul.innerHTML = "";
+      // 隐藏机制 #6 (以彼之道): 揭晓后超过擂主成绩的行打"踢馆成功"标 (双方可见)
+      const creator = b.entries.find((x) => x.isCreator);
+      const creatorRate = b.revealed && creator && creator.returnRate != null
+        ? Number(creator.returnRate) : null;
       b.entries.forEach((e, i) => {
         const li = document.createElement("li");
         const tt = document.createElement("b");
+        const crashed = creatorRate != null && !e.isCreator && e.returnRate != null
+          && Number(e.returnRate) > creatorRate;
         tt.textContent = (b.revealed && i === 0 ? "👑 " : "") + e.username
-          + (e.isSelf ? t("fp.duelMe") : "") + (e.isCreator ? t("fp.duelCreator") : "");
+          + (e.isSelf ? t("fp.duelMe") : "") + (e.isCreator ? t("fp.duelCreator") : "")
+          + (crashed ? t("fp.gateCrash") : "");
+        if (crashed && e.isSelf) document.dispatchEvent(new CustomEvent("qs:gateCrash"));
         const dd = document.createElement("span");
         dd.textContent = e.returnRate != null ? fmtPct(Number(e.returnRate))
           : t(e.settled ? "fp.duelDone" : "fp.duelPlaying");

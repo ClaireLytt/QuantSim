@@ -62,6 +62,10 @@ public class UserPoints {
     @Column(name = "task_flags", nullable = false)
     private int taskFlags;
 
+    /** 当日已计分的结算局数 (随 task_date 一起跨零点归零): 基础分前 N 局全额, 之后衰减防刷 */
+    @Column(name = "settle_count", nullable = false)
+    private int settleCount;
+
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt = LocalDateTime.now();
 

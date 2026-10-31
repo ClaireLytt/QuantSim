@@ -112,11 +112,15 @@ public class DailyChallengeService {
                         PageRequest.of(0, props.getLeaderboardSize())).stream()
                 .map(row -> {
                     GameSession s = (GameSession) row[0];
+                    // 完赛用时: 老对局无 settledAt 时为 null, 前端不展示
+                    Long duration = s.getSettledAt() == null || s.getCreatedAt() == null ? null
+                            : java.time.Duration.between(s.getCreatedAt(), s.getSettledAt()).getSeconds();
                     return new DailyBoardEntry(PublicNames.mask((String) row[1]),
                             maskStock ? BlindDates.MASK_NAME : (String) row[2],
                             maskStock ? BlindDates.MASK_CODE : (String) row[3],
                             s.getFinalReturnRate(),
-                            PublicNames.isSelf(s.getUserId(), authUserId));
+                            PublicNames.isSelf(s.getUserId(), authUserId),
+                            duration);
                 })
                 .toList();
     }

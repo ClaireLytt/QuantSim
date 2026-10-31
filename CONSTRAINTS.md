@@ -47,5 +47,6 @@ mvn test / buttons 按 CLAUDE.md 既有约定跑，不计入此预算）；CI �
 
 | ID | Rule | Path | Reason | Owner | Expires |
 |----|------|------|--------|-------|---------|
+| E1 | 不删留存测试断言 | backend/src/test/java/com/quantsim/TradingDepthIntegrationTest.java | 审计创意31 产品拍板 (2026-10-27): undo 的挂单回滚从 OPEN 改为 CANCELLED, 原 P1-5 断言随行为同步更新 (非删除弱化) | ClaireLytt | 2027-01-25 |
 
 （空。新增一行 = floor_guard 会在 diff 里点名，必须在 PR 里讨论过。例外默认寿命 90 天。）

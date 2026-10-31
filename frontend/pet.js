@@ -716,7 +716,12 @@
 
   $("btn-pet-feed").addEventListener("click", () => {
     const today = qsTodayStr();
-    if (pet.fedDate !== today) { pet.fedDate = today; pet.fedCount = 0; }
+    if (pet.fedDate !== today) {
+      // 隐藏机制 #22 (宠物的鼻子): 连续投喂天数, 断一天归 1
+      pet.feedStreak = pet.fedDate === qsTodayStr(-1) ? (pet.feedStreak || 0) + 1 : 1;
+      pet.fedDate = today;
+      pet.fedCount = 0;
+    }
     if (pet.fedCount >= FEED_PER_DAY) {
       speak(t("pet.fed.full", FEED_PER_DAY));
       return;
@@ -753,6 +758,21 @@
     completeTask("game"); // 今日任务: 参与 1 场模拟对局
     bumpStat("games");
     gainXp(3); // 陪你打完一局也算陪伴
+    // 隐藏机制 #22 宠物的鼻子: 连喂 7 天后它能"闻出"你的历史偏差。
+    // 只复述你自己的历史统计 (qs_hidden.biasRun, hidden.js 在本事件之后才更新, 读到的是前史),
+    // 绝不预测行情; 守住历史习惯未重犯则开心加亲密度
+    const verdicts = (e.detail && e.detail.biasReport && e.detail.biasReport.verdicts) || [];
+    if ((pet.feedStreak || 0) >= 7 && window.qsHidden && verdicts.length) {
+      const hist = window.qsHidden.biasRun || {};
+      const repeat = verdicts.find((v) => v.triggered && (hist[v.key] || 0) >= 2);
+      if (repeat) {
+        speak(t("pet.sniff.repeat"));
+      } else if (Object.keys(window.qsHidden.biasArmed || {}).length
+          && verdicts.every((v) => !v.triggered)) {
+        speak(t("pet.sniff.clean"));
+        addBond(3);
+      }
+    }
   });
 
   $("btn-pet-chat").addEventListener("click", () => {

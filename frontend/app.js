@@ -659,8 +659,26 @@ function openNewsGate(news) {
   const item = news[0];
   $("newsgate-title").textContent = LANG === "en" ? item.titleEn : item.titleZh;
   $("newsgate-body").textContent = (LANG === "en" ? item.bodyEn : item.bodyZh) || "";
+  // 语义标签 + 事前竞猜 (联动设计 1/6): 先判断再看答案, 结算对照命中率
+  const tags = [];
+  if (item.sourceTier === "RUMOR") tags.push(t("news.rumor"));
+  if (item.direction > 0) tags.push(t("news.bull"));
+  else if (item.direction < 0) tags.push(t("news.bear"));
+  if (item.expectation != null && Number(item.expectation) >= 0.7) tags.push(t("news.pricedIn"));
+  $("newsgate-meta").textContent = tags.join(" · ");
+  $("newsgate-meta").hidden = !tags.length;
+  document.querySelectorAll(".newsgate-call").forEach((b) => { b.disabled = false; b.classList.remove("active"); });
   $("newsgate-modal").hidden = false;
 }
+
+// 竞猜三键: 登记判断 (hidden.js 在次日 K 线揭晓后对账)
+document.querySelectorAll(".newsgate-call").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".newsgate-call").forEach((b) => { b.disabled = true; });
+    btn.classList.add("active");
+    document.dispatchEvent(new CustomEvent("qs:newsCall", { detail: Number(btn.dataset.call) }));
+  });
+});
 
 $("btn-newsgate-go").addEventListener("click", () => {
   $("newsgate-modal").hidden = true;
@@ -810,15 +828,20 @@ function renderLeaderboard() {
   qsRenderRows($("leaderboard").querySelector("tbody"), rows, 6, "lb.empty", (r, i) => {
     const tr = document.createElement("tr");
     const rate = Number(r.returnRate);
+    // 稳定榜 (sort=avg) 的行是用户均值: 无单局标的/日期, 日期列改放"N 局均值"
+    const period = r.startDate != null
+      ? r.startDate + (r.daysElapsed != null ? ` · ${r.daysElapsed}d` : "")
+      : (r.games != null ? t("lb.avgGames", r.games) : "--");
     tr.innerHTML = `
       <td>${i + 1}</td>
       <td></td>
       <td></td>
-      <td>${r.startDate}</td>
+      <td></td>
       <td class="${rate >= 0 ? "pos" : "neg"}">${fmtPct(rate)}</td>
       <td>${r.sharpe == null ? "--" : Number(r.sharpe).toFixed(2)}</td>`;
     tr.children[1].textContent = r.username;
-    tr.children[2].textContent = stockName(r.stockName, r.stockCode);
+    tr.children[2].textContent = r.stockName == null ? "--" : stockName(r.stockName, r.stockCode);
+    tr.children[3].textContent = period;
     return tr;
   });
 }

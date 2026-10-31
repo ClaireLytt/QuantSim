@@ -68,6 +68,12 @@
     <!-- 呼吸式版式 (2026-10-25): 主 CTA 紧跟标题 (默认配置即可开局), 配置区下沉为带分隔线的安静次级区块 -->
     <div class="start-cta start-cta-main">
       <button id="btn-start" class="primary start-xl" data-i18n="btn.start">开始新对局</button>
+      <!-- 隐藏机制 #10 凤凰计划: 强平后由 hidden.js 点亮 -->
+      <p id="phoenix-banner" class="hint" hidden><span data-i18n="hidden.phoenixText">灰烬里有东西在动。</span>
+        <button id="btn-phoenix" class="qs-textlink" data-i18n="hidden.phoenixBtn">开启凤凰局（限 10 笔 + 交易日志）</button></p>
+      <!-- 隐藏机制 #12 禅定局: 连续 5 局佛系持有画像后由 hidden.js 点亮 -->
+      <p id="zen-banner" class="hint" hidden><span data-i18n="hidden.zenText">你的罗盘指针已经很久没动过了。</span>
+        <button id="btn-zen" class="qs-textlink" data-i18n="hidden.zenBtn">开启禅定局（全程限 2 笔）</button></p>
     </div>
     <p class="hint start-custom-label" data-i18n="intro.customize">想换个开法？自定义市场 · 难度 · 模式</p>
     <!-- 开局配置: 原在页头常驻 (信息架构倒置, 评审 3/3 提及), 下沉为开局向导的一部分 -->
@@ -146,6 +152,8 @@
     <section class="chart-panel">
       <div class="session-bar">
         <span id="stock-label">--</span>
+        <span id="deja-hint" class="hint" hidden></span>
+        <span id="earnings-hint" class="hint" hidden></span>
         <span id="day-label">--</span>
         <span id="date-label">--</span>
         <span id="streak-flame" class="streak-flame" hidden></span>
@@ -153,6 +161,8 @@
           <button class="small ind-chip active" data-ind="ma">MA</button>
           <button class="small ind-chip active" data-ind="macd">MACD</button>
           <button class="small ind-chip active" data-ind="rsi">RSI</button>
+          <!-- 隐藏机制 #21: 通关学院均线课后由 hidden.js 解锁 -->
+          <button class="small ind-chip" data-ind="boll" id="chip-boll" hidden>BOLL</button>
           <button id="btn-sonify" class="small ind-chip" data-i18n-title="sonify.title" title="听盘模式">♪</button>
         </span>
         <button id="btn-status-pop" class="fold-btn"><span id="status-pop-label" data-i18n="status.title">账户状态</span></button>
@@ -228,6 +238,12 @@
         <p><span data-i18n="settle.initial">初始资金: </span><span id="settle-initial">--</span></p>
         <p><span data-i18n="settle.final">最终资产: </span><span id="settle-final">--</span></p>
         <p class="hint" id="settle-interest" hidden><span data-i18n="settle.interest">其中闲置现金利息: </span><span id="settle-interest-val">--</span></p>
+        <p class="hint" id="settle-timing" hidden><span data-i18n="settle.timing">择时贡献（相对买入持有）: </span><span id="settle-timing-val">--</span></p>
+        <!-- 联动设计 3/5: 新闻衰减曲线 + 无消息异动日 -->
+        <div id="settle-news-recap" hidden>
+          <p class="hint" data-i18n="news.recapTitle">本局大事与真实走势</p>
+          <div id="settle-news-list"></div>
+        </div>
         <p class="settle-return"><span class="term" data-term="returnrate" data-i18n="settle.return">收益率: </span><span id="settle-return">--</span></p>
         <p id="settle-verdict" class="verdict"></p>
         <p id="settle-daily-rule" class="hint" hidden></p>
@@ -580,6 +596,26 @@
       <div class="card profile-badges">
         <span class="hint" data-i18n="profile.badges">成就徽章</span>
         <div id="badge-list" class="badge-list"></div>
+      </div>
+      <!-- 隐藏机制 #7 历史回声: 集到第一枚印章前整卡隐藏 (hidden.js 维护) -->
+      <div class="card profile-stamps" id="profile-stamps-card" hidden>
+        <span class="hint" data-i18n="hidden.stampsTitle">大事记印章</span>
+        <div id="stamp-list" class="badge-list"></div>
+      </div>
+      <!-- 隐藏机制 #14 日志学者: 攒第一条认真理由前整卡隐藏; 20 条解锁"理由×结果"透视 -->
+      <div class="card profile-scholar" id="profile-scholar-card" hidden>
+        <span class="hint"><span data-i18n="hidden.scholarTitle">日志学者</span> <span id="scholar-progress"></span></span>
+        <div id="scholar-list"></div>
+      </div>
+      <!-- 隐藏机制 #24 周期之眼: 30 局完赛前整卡隐藏 (hidden.js 维护, 需登录) -->
+      <div class="card profile-cycle" id="profile-cycle-card" hidden>
+        <span class="hint" data-i18n="hidden.cycleTitle">周期之眼 · 你的月份胜率</span>
+        <div id="cycle-list"></div>
+      </div>
+      <!-- 隐藏机制 #25 月勋章: 铸出第一枚前整卡隐藏 -->
+      <div class="card profile-medals" id="profile-medals-card" hidden>
+        <span class="hint" data-i18n="hidden.medalsTitle">月勋章墙</span>
+        <div id="medal-list" class="badge-list"></div>
       </div>
       <div class="card profile-titles">
         <span class="hint"><span data-i18n="collect.title">称号图鉴</span> <span id="collect-pct"></span></span>
@@ -2198,6 +2234,12 @@
       <div id="rq10-board" hidden>
         <p id="rq10-status" class="ex-out"></p>
         <ul id="rq10-rows" class="qd-notes"></ul>
+        <!-- 隐藏机制 #19 分布思维: 连续垫底两周后由 hidden.js 翻出对照卡 -->
+        <div id="rq10-dist" hidden>
+          <p class="hint" data-i18n="hidden.distTitle">翻开的卡片：你和榜首的三段收益</p>
+          <p class="hint" id="rq10-dist-mine"></p>
+          <p class="hint" id="rq10-dist-top"></p>
+        </div>
       </div>
     </section>
 
@@ -3071,6 +3113,7 @@
         <select id="rank-sort">
           <option value="" data-i18n="rank.byReturn">收益榜</option>
           <option value="sharpe" data-i18n="rank.bySharpe">夏普榜</option>
+          <option value="avg" data-i18n="rank.byAvg">稳定榜</option>
         </select>
       </label>
     </div>
@@ -3199,6 +3242,35 @@
   <button id="btn-recap-fab" class="primary recap-fab" hidden data-i18n="gs.recapFab">本局复盘</button>
 
   <!-- 从研究所导入策略 -->
+  <!-- 隐藏机制 #18 策略档案: 被同一 AI 人设击败攒出来的对手研究页 -->
+  <div id="archive-modal" class="modal-mask" hidden>
+    <div class="modal" role="dialog" aria-labelledby="archive-modal-title">
+      <div class="modal-head">
+        <h2 id="archive-modal-title" data-i18n="hidden.archiveTitle">策略档案</h2>
+        <button id="btn-archive-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="hint" data-i18n="hidden.archiveHint">败绩是最好的研究员：被同一位对手击败 5 次，它的档案就会向你敞开。</p>
+        <div id="archive-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 隐藏机制 #8 抄底试炼: 连续三根大阴线时由 hidden.js 弹出 -->
+  <div id="dip-modal" class="modal-mask" hidden>
+    <div class="modal" role="dialog" aria-labelledby="dip-modal-title">
+      <div class="modal-head">
+        <h2 id="dip-modal-title" data-i18n="hidden.dipTitle">抄底试炼</h2>
+        <button id="btn-dip-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="hint" data-i18n="hidden.dipBody">连续三根大阴线。此刻买入并持有到结算——敢接吗？</p>
+        <button id="btn-dip-accept" class="primary" data-i18n="hidden.dipAccept">接下试炼</button>
+        <button id="btn-dip-decline" data-i18n="hidden.dipDecline">再看看</button>
+      </div>
+    </div>
+  </div>
+
   <div id="strat-modal" class="modal-mask" hidden>
     <div class="modal" role="dialog" aria-labelledby="strat-modal-title">
       <div class="modal-head">
@@ -3259,7 +3331,13 @@
       </div>
       <div class="modal-body">
         <p><strong id="newsgate-title"></strong></p>
+        <p class="hint" id="newsgate-meta" hidden></p>
         <p id="newsgate-body"></p>
+        <!-- 联动设计 #6 事前竞猜: 判断登记, 次日揭晓对账 (hidden.js) -->
+        <p class="hint"><span data-i18n="news.callQ">你的判断：</span>
+          <button class="small newsgate-call" data-call="1" data-i18n="news.callBull">看涨</button>
+          <button class="small newsgate-call" data-call="-1" data-i18n="news.callBear">看跌</button>
+          <button class="small newsgate-call" data-call="0" data-i18n="news.callFlat">无感</button></p>
         <p class="hint" data-i18n="news.decideHint">以下事件将在明日发生。现在的仓位，你还满意吗？</p>
         <div class="trade-buttons">
           <button id="btn-newsgate-hold" class="replay" data-i18n="news.holdOn">先调仓</button>
@@ -3302,7 +3380,8 @@
   <div id="ai-modal" class="modal-mask" hidden>
     <div class="modal ai-modal" role="dialog" aria-labelledby="ai-modal-title">
       <div class="modal-head">
-        <h2 id="ai-modal-title"><span data-i18n="ai.title">AI 操盘手</span> <span id="ai-level-label" class="sub"></span></h2>
+        <h2 id="ai-modal-title"><span data-i18n="ai.title">AI 操盘手</span> <span id="ai-level-label" class="sub"></span>
+          <button id="ai-archive-link" class="qs-textlink" hidden data-i18n="hidden.archiveLink">策略档案</button></h2>
         <button id="btn-ai-close" class="close" data-i18n-title="modal.close" aria-label="关闭">✕</button>
       </div>
       <div class="modal-body">
@@ -3980,10 +4059,10 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=202610267131"></script>
+  <script src="i18n.js?v=202610270b48"></script>
   <script src="glossary.js?v=202610252b94"></script>
-  <script src="app.js?v=20261026f977"></script>
-  <script src="play.js?v=202610267b78"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
+  <script src="app.js?v=202610272456"></script>
+  <script src="play.js?v=2026102788fa"></script><!-- 对局视图层, 紧随共享层 app.js (架构评审⑤) -->
   <script src="advisor.js?v=20261025f448"></script>
   <script src="arena.js?v=202610253339"></script>
   <script src="replay.js?v=20261026025d"></script>
@@ -3991,13 +4070,13 @@
   <!-- 学堂纯数据 (关卡/剧本) 必须先于 academy.js 引擎加载 -->
   <script src="data/levels.js?v=20261025e7d0"></script>
   <script src="data/cases.js?v=202610255824"></script>
-  <script src="academy.js?v=2026102667ff"></script>
+  <script src="academy.js?v=202610276933"></script>
   <script src="guessgame.js?v=202610261cf8"></script>
   <script src="optsandbox.js?v=2026102556f9"></script>
-  <script src="lab.js?v=20261026e7e8"></script>
+  <script src="lab.js?v=202610271f29"></script>
   <script src="exlab.js?v=202610265e71"></script><!-- 依赖 lab.js 的 labHistory/labStocks 全局, 必须在其后 -->
-  <script src="dojo.js?v=20261026ee2e"></script><!-- 依赖 exlab.js 的 window.qsQuant 计算件, 必须在其后 -->
-  <script src="daily.js?v=2026102675d2"></script>
+  <script src="dojo.js?v=20261027d05a"></script><!-- 依赖 exlab.js 的 window.qsQuant 计算件, 必须在其后 -->
+  <script src="daily.js?v=202610278810"></script>
   <script src="event.js?v=202610250b8a"></script>
   <script src="option.js?v=2026102531c6"></script>
   <script src="biasprofile.js?v=2026102581cc"></script>
@@ -4006,12 +4085,12 @@
   <script src="ranking.js?v=2026102585f6"></script>
   <script src="sharecard.js?v=202610258b6c"></script>
   <script src="sharecode.js?v=202610256297"></script>
-  <script src="mates.js?v=202610261ce4"></script><!-- 依赖 app.js 的 qsCodec/state 与 auth.js 的 Auth -->
+  <script src="mates.js?v=20261027c8ee"></script><!-- 依赖 app.js 的 qsCodec/state 与 auth.js 的 Auth -->
   <script src="heatmap.js?v=202610256ee4"></script>
-  <script src="news.js?v=2026102553a0"></script>
+  <script src="news.js?v=202610278433"></script>
   <script src="history.js?v=20261025bcf3"></script>
   <script src="home.js?v=2026102639e1"></script>
-  <script src="points.js?v=20261025c358"></script>
+  <script src="points.js?v=202610279dd5"></script>
   <script src="reborn.js?v=202610257b00"></script>
   <script src="bubble.js?v=20261025d32e"></script>
   <script src="newsjudge.js?v=20261026c998"></script>
@@ -4032,7 +4111,7 @@
   <script src="sleuth.js?v=202610262a6a"></script>
   <script src="swan.js?v=202610262cd8"></script>
   <script src="tasks.js?v=202610267667"></script>
-  <script src="pet.js?v=2026102523c4"></script>
+  <script src="pet.js?v=20261027e305"></script>
   <script src="career.js?v=20261026bb9e"></script>
   <script src="growth.js?v=20261026acfb"></script><!-- 依赖 academy 的 prog / career 的 prog.career / auth 的 Auth, 必须在三者之后 -->
   <script src="relics.js?v=202610253759"></script>
@@ -4041,5 +4120,6 @@
   <script src="wiki.js?v=202610252f2e"></script>
   <script src="games.js?v=20261025f87a"></script>
   <script src="mine.js?v=20261026a03a"></script>
+  <script src="hidden.js"></script><!-- 隐藏机制 1-10: 依赖 app 的 $/t/qsModal、academy 的 awardBadge/awardTitle、play 的 state 与 qs:* 事件, 必须在它们之后 -->
 </body>
 </html>

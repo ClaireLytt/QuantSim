@@ -39,6 +39,9 @@ import com.quantsim.entity.Stock;
 class CompetitiveIntegrationTest extends IntegrationTestSupport {
 
     /** 均匀 K 线 + probUp=0.5 (NORMAL 模型): 竞技断言不受 AI 行为干扰。 */
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.quantsim.service.NewsService newsService;
+
     private Stock seedStock(String code, LocalDate firstDay, int days) {
         return seedFlatStock(code, "测试股" + code, Market.STOCK, firstDay, days,
                 "10.00", AiLevel.NORMAL, "0.5000");
@@ -222,17 +225,70 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         assertThat(codes).allMatch(c -> c == 200 || c == 400);
     }
 
+    /** 审计创意24 (产品拍板): 盲局 K 线是不可逆扰动序列 (P1-9 根治)——
+     *  不等于 lab 可见的真实行情, 但同一挑战全员同一扰动 (榜单可比), 且现价与图表自洽。 */
+    @Test
+    void blindGamesServePerturbedButSharedPrices() {
+        seedStock("000001", LocalDate.of(2024, 1, 1), 12); // 真实行情恒为 10.00
+        String alice = register("扰动甲");
+        String bob = register("扰动乙");
+        long sidA = json(postJson("/api/daily/start", "{}", alice)).path("sessionId").asLong();
+        long sidB = json(postJson("/api/daily/start", "{}", bob)).path("sessionId").asLong();
+        JsonNode histA = json(get("/api/game/" + sidA + "/history", alice));
+        JsonNode histB = json(get("/api/game/" + sidB + "/history", bob));
+        boolean anyDiff = false;
+        for (JsonNode k : histA.path("klines")) {
+            anyDiff |= k.path("close").decimalValue().compareTo(new java.math.BigDecimal("10.00")) != 0;
+        }
+        assertThat(anyDiff).as("扰动后的收盘不可能整段仍等于真实价 10.00").isTrue();
+        // 同一每日挑战全员共享同一扰动序列
+        assertThat(histA.path("klines")).isEqualTo(histB.path("klines"));
+        // 现价与图表自洽: status 的 currentPrice = 最后一根扰动 K 线的收盘
+        JsonNode st = json(get("/api/game/" + sidA + "/status", alice));
+        JsonNode lastBar = histA.path("klines").get(histA.path("klines").size() - 1);
+        assertThat(st.path("currentPrice").decimalValue())
+                .isEqualByComparingTo(lastBar.path("close").decimalValue());
+    }
+
+    /** 审计创意29 (产品拍板): 事后 5 日 |涨跌| < 2% 的新闻不推送; 后市数据不足时保留。 */
+    @Test
+    void newsFilteredByRealizedImpact() {
+        // 平盘股: 2024-09-24 内置事件日后 5 日影响为 0 → 过滤
+        Stock flat = seedStock("000001", LocalDate.of(2024, 9, 18), 30);
+        assertThat(newsService.eventsFor(flat, LocalDate.of(2024, 9, 24))).isEmpty();
+        // 事件日 (9/24) 收盘 10, 之后跳涨到 11 (+10%) 的标的 → 保留
+        Stock mover = seedFlatStock("000002", "大涨股", Market.STOCK,
+                LocalDate.of(2024, 9, 18), 7, "10.00", null, null);
+        for (int i = 7; i < 30; i++) {
+            savePrice(mover.getStockId(), LocalDate.of(2024, 9, 18).plusDays(i), new java.math.BigDecimal("11.00"));
+        }
+        assertThat(newsService.eventsFor(mover, LocalDate.of(2024, 9, 24))).isNotEmpty();
+    }
+
+    /** 榜单只收打满全程的局 (审计创意6): tick 到自动结算 (total-ticks=3), 不能 day-0 秒结。 */
+    private void playToSettle(long sid, String cookie) {
+        for (int i = 0; i < 3; i++) {
+            if (json(postJson("/api/game/" + sid + "/tick", "{}", cookie)).path("settled").asBoolean()) {
+                return;
+            }
+        }
+        throw new IllegalStateException("3 tick 后仍未结算");
+    }
+
     /** 回归 T-02/T-14: 测试账号在分页前被 JPQL 排除, 不挤占真实玩家的 TOP N 名额。 */
     @Test
     void testAccountsDoNotOccupyBoardSlots() {
         seedStock("000001", LocalDate.of(2024, 1, 1), 12);
         // 先结算一个 smoke_ 账号 (高分在前) 再结算一个真实玩家
+        // 公开榜只收注册用户 (审计创意11): smoke_ 为注册测试账号, 仍被前缀排除
+        String smokeCookie = register("smoke_99999999");
         long smokeSid = json(postJson("/api/game/start",
-                "{\"username\":\"smoke_99999999\",\"aiLevel\":\"EASY\"}", null)).path("sessionId").asLong();
-        postJson("/api/game/" + smokeSid + "/settle", "{}", null);
+                "{\"username\":\"smoke_99999999\",\"aiLevel\":\"EASY\"}", smokeCookie)).path("sessionId").asLong();
+        playToSettle(smokeSid, smokeCookie);
+        String realCookie = register("真实玩家甲");
         long realSid = json(postJson("/api/game/start",
-                "{\"username\":\"真实玩家甲\",\"aiLevel\":\"EASY\"}", null)).path("sessionId").asLong();
-        postJson("/api/game/" + realSid + "/settle", "{}", null);
+                "{\"username\":\"真实玩家甲\",\"aiLevel\":\"EASY\"}", realCookie)).path("sessionId").asLong();
+        playToSettle(realSid, realCookie);
 
         JsonNode board = json(get("/api/leaderboard", null));
         // smoke_ 账号既不占名额也不展示, 真实玩家一条不少
@@ -251,6 +307,9 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         assertThat(board).hasSize(1);
         assertThat(board.get(0).path("username").asText()).isEqualTo("***@qq.com"); // 短 local 全遮
         assertThat(board.get(0).path("isSelf").asBoolean()).isTrue();
+        // 完赛用时指纹 (审计创意26): settled_at 落库, 榜单带 durationSeconds
+        assertThat(board.get(0).path("durationSeconds").isNull()).isFalse();
+        assertThat(board.get(0).path("durationSeconds").asLong()).isGreaterThanOrEqualTo(0);
         // 第二个注册用户看同一榜: 认不出别人, isSelf=false (daily 榜受 AuthFilter 保护, 需登录)
         String other = register("旁观乙");
         JsonNode otherView = json(get("/api/daily/leaderboard", other));
@@ -343,10 +402,11 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
     @Test
     void seasonFilterOnLeaderboard() {
         seedStock("000001", LocalDate.of(2024, 1, 1), 12);
+        String cookie = register("season_player"); // 公开榜只收注册用户
         ResponseEntity<String> start = postJson("/api/game/start",
-                "{\"username\":\"赛季玩家\",\"aiLevel\":\"EASY\"}", null);
+                "{\"username\":\"season_player\",\"aiLevel\":\"EASY\"}", cookie);
         long sid = json(start).path("sessionId").asLong();
-        postJson("/api/game/" + sid + "/settle", "{}", null);
+        playToSettle(sid, cookie);
 
         JsonNode seasonsArr = json(get("/api/leaderboard/seasons", null));
         assertThat(seasonsArr.isArray()).isTrue();
@@ -513,9 +573,12 @@ class CompetitiveIntegrationTest extends IntegrationTestSupport {
         String alice = register("日志脱敏");
         long sid = json(postJson("/api/daily/start", "{}", alice)).path("sessionId").asLong();
 
-        // 带理由的交易才会生成 journal 行; 手动交易只按当日收盘价 10.00 成交
+        // 带理由的交易才会生成 journal 行; 手动交易只按当日收盘价成交——
+        // 盲局行情已被扰动 (创意24), 收盘价从 status 现价取, 不能写死 10.00
+        String close = json(get("/api/game/" + sid + "/status", alice))
+                .path("currentPrice").decimalValue().toPlainString();
         postJson("/api/game/" + sid + "/trade",
-                "{\"direction\":\"BUY\",\"price\":10.00,\"shares\":100,\"reason\":\"测试理由\"}", alice);
+                "{\"direction\":\"BUY\",\"price\":" + close + ",\"shares\":100,\"reason\":\"测试理由\"}", alice);
         JsonNode settle = json(postJson("/api/game/" + sid + "/settle", "{}", alice));
 
         JsonNode journal = settle.path("journal");

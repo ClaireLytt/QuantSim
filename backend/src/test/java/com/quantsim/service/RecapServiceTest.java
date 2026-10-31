@@ -35,9 +35,10 @@ class RecapServiceTest {
     private final TransactionRepository txRepo = mock(TransactionRepository.class);
     private final AccountRepository accounts = mock(AccountRepository.class);
     private final MarketDataService market = mock(MarketDataService.class);
+    private final SessionMarketData sessionData = mock(SessionMarketData.class);
     private final TradeEngine engine = mock(TradeEngine.class);
     private final RecapService service =
-            new RecapService(sessions, txRepo, accounts, market, engine);
+            new RecapService(sessions, txRepo, accounts, market, sessionData, engine);
 
     private final GameSession session = new GameSession();
     private final Account account = new Account();
@@ -87,8 +88,10 @@ class RecapServiceTest {
         s.setStockId(1L);
         s.setCode("600000");
         s.setName("测试股");
-        when(market.load(anyLong())).thenReturn(new MarketDataService.StockData(
-                s, prices, idx, Map.of(), Map.of(), new double[0], new double[0][0]));
+        MarketDataService.StockData sd = new MarketDataService.StockData(
+                s, prices, idx, Map.of(), Map.of(), new double[0], new double[0][0]);
+        when(market.load(anyLong())).thenReturn(sd);
+        when(sessionData.of(org.mockito.ArgumentMatchers.any(), anyLong())).thenReturn(sd);
     }
 
     @Test

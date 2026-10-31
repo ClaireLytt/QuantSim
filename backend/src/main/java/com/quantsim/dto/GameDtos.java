@@ -79,7 +79,14 @@ public final class GameDtos {
     public record FilledOrder(String orderType, BigDecimal price, int shares, String stockCode, String reason) {}
 
     /** 当日揭示的历史事件 (不含日历日期, 防剧透); 双语字段由前端按当前语言取用 */
-    public record NewsItem(String severity, String titleZh, String titleEn, String bodyZh, String bodyEn) {}
+    /** direction/expectation/sourceTier: 新闻语义层 (联动设计 1/2/4); stockCode 仅组合模式
+     *  标的级新闻携带 (宏观新闻为 null), 前端据此标注这条消息打在哪条腿上。 */
+    public record NewsItem(String severity, String titleZh, String titleEn, String bodyZh, String bodyEn,
+                           int direction, BigDecimal expectation, String sourceTier, String stockCode) {}
+
+    /** 结算新闻复盘 (联动设计 3/5): NEWS=大事件及其后 1/3/5 日实际走势; SILENT=无消息异动日。 */
+    public record NewsRecapItem(LocalDate date, String kind, String titleZh, String titleEn,
+                                BigDecimal d1, BigDecimal d3, BigDecimal d5) {}
 
     /** aiTradeShares: AI 当日动作 (正=买入股数, 负=卖出, 0=持有不动), 前端时间线用 */
     public record TickResponse(
@@ -94,7 +101,9 @@ public final class GameDtos {
             int autoCancelledOrders,
             boolean liquidated,
             List<NewsItem> news,
-            int aiTradeShares) {}
+            int aiTradeShares,
+            // 今日隔夜利息 (玩家侧): 让现金的机会成本可见 (审计创意19)
+            BigDecimal interestToday) {}
 
     /** stockCode 仅组合模式需要 (指定买卖哪只), 单股模式缺省主标的。 */
     public record TradeRequest(
@@ -250,10 +259,16 @@ public final class GameDtos {
             List<JournalEntry> journal,
             EventReveal eventReveal,
             DailyRuleResult dailyChallenge,
-            List<CoachFinding> coach) {}
+            List<CoachFinding> coach,
+            // 择时贡献 = 玩家收益 - 买入持有收益 (正负都展示): 让"主动操作"有独立计分轴,
+            // 否则买入持有在收益率单轴下近乎支配所有休闲局 (审计创意18)
+            BigDecimal timingDelta,
+            // 新闻复盘 (联动设计 3/5): 大事件衰减曲线 + 无消息异动日; 盲局为 null
+            List<NewsRecapItem> newsRecap) {}
 
-    /** 每日挑战规则结算判定 (非每日局为 null): rule = DailyRules.Rule 枚举名。 */
-    public record DailyRuleResult(String rule, boolean passed) {}
+    /** 每日挑战规则结算判定 (非每日局为 null): rule = DailyRules.Rule 枚举名;
+     *  stars = 0 未过 / 1 过 / 2 跑赢持有 / 3 再叠回撤 ≤5% (口径见 DailyRules.stars)。 */
+    public record DailyRuleResult(String rule, boolean passed, int stars) {}
 
     /** 复盘教练证据锚: TX=某笔交易 / STAT=统计值 (statKey 为 i18n 键)。 */
     public record CoachAnchor(String type, Long txId, String statKey, String statValue) {}
@@ -277,5 +292,9 @@ public final class GameDtos {
             BigDecimal returnRate,
             BigDecimal sharpe,
             // 用户名经 PublicNames 脱敏后前端无法再用名字认出自己, 由后端标记 (百分位/颁奖台徽章用)
-            boolean isSelf) {}
+            boolean isSelf,
+            // 持有交易日数 (收益率的时长口径, 单局榜用); 稳定榜行为 null
+            Integer daysElapsed,
+            // 稳定榜 (sort=avg) 专用: 参与均值的完赛局数; 单局榜行为 null
+            Integer games) {}
 }

@@ -17,6 +17,14 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<GameSession> findWithLockBySessionId(Long sessionId);
 
+    /**
+     * 收益榜 (2026-10 审计加固):
+     *  - 只收打满全程 (daysElapsed ≥ minTicks) 或被强平的局 —— 否则"涨了秒结算/跌了弃局"
+     *    可零成本摘樱桃刷榜;
+     *  - 排除 advanced (杠杆/做空) 局 —— 高方差策略在 top-N 口径下必然统治普通局;
+     *  - 每用户只留最佳一局 (not exists 组内最大, 平手取 sessionId 小者) —— 防一人多席;
+     *  - 只收注册用户 (passwordHash 非空) —— 游客可无限换昵称刷席位 (三条榜同口径)。
+     */
     @Query("""
             select s, u.username, st.name, st.code
             from GameSession s
@@ -24,15 +32,29 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
             join Stock st on st.stockId = s.stockId
             where s.status = :status
               and s.mode in ('CLASSIC', 'PORTFOLIO')
+              and s.advanced = false
+              and (s.liquidated = true or s.daysElapsed >= :minTicks)
               and (:season is null or s.season = :season)
+              and u.passwordHash is not null
               and u.username not like 'smoke\\_%' escape '\\'
               and u.username not like 'btncheck\\_%' escape '\\'
               and u.username not like 'shot\\_%' escape '\\'
+              and not exists (
+                  select 1 from GameSession s2
+                  where s2.userId = s.userId
+                    and s2.status = :status
+                    and s2.mode in ('CLASSIC', 'PORTFOLIO')
+                    and s2.advanced = false
+                    and (s2.liquidated = true or s2.daysElapsed >= :minTicks)
+                    and (:season is null or s2.season = :season)
+                    and (s2.finalReturnRate > s.finalReturnRate
+                         or (s2.finalReturnRate = s.finalReturnRate and s2.sessionId < s.sessionId)))
             order by s.finalReturnRate desc
             """)
-    List<Object[]> findLeaderboard(GameSession.Status status, String season, Pageable pageable);
+    List<Object[]> findLeaderboard(GameSession.Status status, String season, int minTicks,
+                                   Pageable pageable);
 
-    /** 夏普榜: 风险调整后收益排序, 防 all-in 赌徒霸榜; 老对局无夏普, 不入榜 */
+    /** 夏普榜: 风险调整后收益排序; 完赛/去杠杆/每人一席的加固口径与收益榜一致, 老对局无夏普不入榜。 */
     @Query("""
             select s, u.username, st.name, st.code
             from GameSession s
@@ -40,14 +62,50 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
             join Stock st on st.stockId = s.stockId
             where s.status = :status
               and s.mode in ('CLASSIC', 'PORTFOLIO')
+              and s.advanced = false
+              and (s.liquidated = true or s.daysElapsed >= :minTicks)
               and s.finalSharpe is not null
               and (:season is null or s.season = :season)
+              and u.passwordHash is not null
               and u.username not like 'smoke\\_%' escape '\\'
               and u.username not like 'btncheck\\_%' escape '\\'
               and u.username not like 'shot\\_%' escape '\\'
+              and not exists (
+                  select 1 from GameSession s2
+                  where s2.userId = s.userId
+                    and s2.status = :status
+                    and s2.mode in ('CLASSIC', 'PORTFOLIO')
+                    and s2.advanced = false
+                    and (s2.liquidated = true or s2.daysElapsed >= :minTicks)
+                    and s2.finalSharpe is not null
+                    and (:season is null or s2.season = :season)
+                    and (s2.finalSharpe > s.finalSharpe
+                         or (s2.finalSharpe = s.finalSharpe and s2.sessionId < s.sessionId)))
             order by s.finalSharpe desc
             """)
-    List<Object[]> findLeaderboardBySharpe(GameSession.Status status, String season, Pageable pageable);
+    List<Object[]> findLeaderboardBySharpe(GameSession.Status status, String season, int minTicks,
+                                           Pageable pageable);
+
+    /** 稳定榜: 用户完赛局平均收益 (≥minGames 局才入榜), 奖励持续而非单局极值。行: [userId, username, avg, count]。 */
+    @Query("""
+            select s.userId, u.username, avg(s.finalReturnRate), count(s)
+            from GameSession s
+            join User u on u.userId = s.userId
+            where s.status = :status
+              and s.mode in ('CLASSIC', 'PORTFOLIO')
+              and s.advanced = false
+              and (s.liquidated = true or s.daysElapsed >= :minTicks)
+              and (:season is null or s.season = :season)
+              and u.passwordHash is not null
+              and u.username not like 'smoke\\_%' escape '\\'
+              and u.username not like 'btncheck\\_%' escape '\\'
+              and u.username not like 'shot\\_%' escape '\\'
+            group by s.userId, u.username
+            having count(s) >= :minGames
+            order by avg(s.finalReturnRate) desc
+            """)
+    List<Object[]> findLeaderboardByAvg(GameSession.Status status, String season, int minTicks,
+                                        long minGames, Pageable pageable);
 
     Optional<GameSession> findByUserIdAndChallengeDate(Long userId, java.time.LocalDate challengeDate);
 

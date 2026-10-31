@@ -23,7 +23,24 @@ function chartData() {
     }),
     macdDif: state.klines.map((k) => (k.macdDif == null ? null : Number(k.macdDif))),
     macdDea: state.klines.map((k) => (k.macdDea == null ? null : Number(k.macdDea))),
+    ...bollBands(),
   };
+}
+
+// 布林带 (隐藏机制 #21 "第四根线"): MA20 ± 2σ, 由已揭晓收盘现算; 通关均线课后解锁开关
+function bollBands() {
+  const closes = state.klines.map((k) => Number(k.close));
+  const up = [];
+  const dn = [];
+  for (let i = 0; i < closes.length; i++) {
+    if (i < 19) { up.push(null); dn.push(null); continue; }
+    const win = closes.slice(i - 19, i + 1);
+    const mean = win.reduce((a, b) => a + b, 0) / 20;
+    const sd = Math.sqrt(win.reduce((a, b) => a + (b - mean) ** 2, 0) / 20);
+    up.push((mean + 2 * sd).toFixed(2));
+    dn.push((mean - 2 * sd).toFixed(2));
+  }
+  return { bollUp: up, bollDn: dn };
 }
 
 // K 线买卖点 + 涨跌停封板标记 (组合模式图表随标的切换, 不标交易点以免错位)
@@ -78,8 +95,9 @@ function buildKlineMarks() {
   return marks;
 }
 
-// 指标开关 (MA/MACD/RSI): 关掉的序列喂空数组, 结构不变只隐藏
-const indShow = { ma: true, macd: true, rsi: true };
+// 指标开关 (MA/MACD/RSI/BOLL): 关掉的序列喂空数组, 结构不变只隐藏。
+// BOLL 是隐藏机制 #21: 芯片默认 hidden, 由 hidden.js 在通关均线课后解锁
+const indShow = { ma: true, macd: true, rsi: true, boll: false };
 document.querySelectorAll(".ind-chip").forEach((chip) => {
   chip.addEventListener("click", () => {
     indShow[chip.dataset.ind] = !indShow[chip.dataset.ind];
@@ -92,7 +110,7 @@ document.querySelectorAll(".ind-chip").forEach((chip) => {
 function updateChartData() {
   const c = mainChart.instance();
   if (!c) { renderChart(); return; } // 懒 init 尚未发生 (隐藏容器): 回退全量渲染
-  const { dates, candles, ma5, ma20, volumes, rsi, macdHist, macdDif, macdDea } = chartData();
+  const { dates, candles, ma5, ma20, volumes, rsi, macdHist, macdDif, macdDea, bollUp, bollDn } = chartData();
   c.setOption({
     xAxis: [{ data: dates }, { data: dates }, { data: dates }],
     series: [
@@ -104,6 +122,8 @@ function updateChartData() {
       { data: indShow.macd ? macdDif : [] },
       { data: indShow.macd ? macdDea : [] },
       { data: indShow.rsi ? rsi : [] },
+      { data: indShow.boll ? bollUp : [] },
+      { data: indShow.boll ? bollDn : [] },
     ],
   });
 }
@@ -114,7 +134,7 @@ function renderChart() {
 
 // 主图完整 option (qsChart 的 buildOption; tick 增量路径见 updateChartData)
 function buildChartOption() {
-  const { dates, candles, ma5, ma20, volumes, rsi, macdHist, macdDif, macdDea } = chartData();
+  const { dates, candles, ma5, ma20, volumes, rsi, macdHist, macdDif, macdDea, bollUp, bollDn } = chartData();
 
   return ({
     backgroundColor: "transparent",
@@ -241,6 +261,11 @@ function buildChartOption() {
           lineStyle: { color: COLORS.muted, type: "dotted", opacity: 0.6 },
           data: [{ yAxis: 30 }, { yAxis: 70 }],
         } },
+      // 隐藏机制 #21 "第四根线": 布林上下轨, 芯片解锁前恒喂空数组 (序列位置固定, 见 updateChartData)
+      { name: "BOLL+", type: "line", data: indShow.boll ? bollUp : [], smooth: true, showSymbol: false,
+        lineStyle: { width: 1, color: COLORS.muted, type: "dashed" }, itemStyle: { color: COLORS.muted } },
+      { name: "BOLL-", type: "line", data: indShow.boll ? bollDn : [], smooth: true, showSymbol: false,
+        lineStyle: { width: 1, color: COLORS.muted, type: "dashed" }, itemStyle: { color: COLORS.muted } },
     ],
   });
 }
@@ -364,6 +389,11 @@ async function enterGame(res) {
     state.lastSettle = null;
     state.trades = [];
     state.aiMoves = [];
+    // 隐藏机制 (hidden.js) 的会话上下文: 道具使用/强平/HIGH 级事件见闻
+    state.itemUsed = false;
+    state.wasLiquidated = false;
+    state.newsHigh = [];
+    document.dispatchEvent(new CustomEvent("qs:gameStart"));
     state.autoStrat = null;
     state._autoReason = null;
     renderStratActive();
@@ -444,6 +474,12 @@ async function tick() {
     syncTradeInputs();
     // 后端已内嵌账户快照, 无需再请求 /status
     renderStatus(res.status);
+    // 今日隔夜利息后缀: 让"现金也在工作/杠杆在烧钱"可见 (为 0 或未计息时不加噪音)
+    if (res.interestToday != null && Number(res.interestToday) !== 0) {
+      const iv = Number(res.interestToday);
+      $("st-interest").textContent += " " + t("game.interestToday",
+        (iv > 0 ? "+" : "-") + fmtMoney(Math.abs(iv)));
+    }
     aiTrashTalk(res.status);
     (res.filledOrders || []).forEach((f) => {
       toast(t("orders.filled", t(ORDER_TYPE_KEY[f.orderType] || f.orderType), f.shares, fmtMoney(f.price)));
@@ -461,9 +497,14 @@ async function tick() {
     if ((res.filledOrders || []).length) playSound("fill");
     if (res.autoCancelledOrders > 0) toast(t("orders.autoCancelled"));
     if ((res.filledOrders || []).length || res.autoCancelledOrders > 0 || state.orders.length) loadOrders();
-    if (res.liquidated) { toast(t("adv.liquidated")); flashScreen(); playSound("lose"); }
+    if (res.liquidated) { toast(t("adv.liquidated")); flashScreen(); playSound("lose"); state.wasLiquidated = true; }
     if (res.news && res.news.length && window.qsShowNews) window.qsShowNews(res.news, res.daysElapsed);
+    // 历史回声印章 (hidden.js): 只记 HIGH 级大事件
+    (res.news || []).forEach((n) => {
+      if (n.severity === "HIGH") (state.newsHigh = state.newsHigh || []).push({ zh: n.titleZh, en: n.titleEn });
+    });
     renderTradeLog();
+    if (!res.settled) document.dispatchEvent(new CustomEvent("qs:tick", { detail: { status: res.status } }));
     if (res.settled) {
       showSettle(res.settleResult);
     } else {
@@ -571,6 +612,8 @@ async function trade(direction) {
     return true; // 调用方 (自动策略) 需要知道这单到底成没成
   } catch (e) {
     toast(e.message);
+    // 隐藏机制 #9 (排队文化) 监听拒单文案
+    document.dispatchEvent(new CustomEvent("qs:tradeRejected", { detail: e.message }));
     return false;
   }
 }
@@ -1164,12 +1207,37 @@ function renderSettle(result) {
   const el = $("settle-return");
   el.textContent = fmtPct(Number(result.returnRate));
   el.className = Number(result.returnRate) >= 0 ? "pos" : "neg";
+  // 新闻复盘 (联动设计 3/5): 大事件衰减曲线 + 无消息异动日
+  const rec = result.newsRecap || [];
+  const recBox = $("settle-news-recap");
+  recBox.hidden = !rec.length;
+  const recList = $("settle-news-list");
+  recList.innerHTML = "";
+  rec.forEach((r) => {
+    const p = document.createElement("p");
+    p.className = "hint";
+    const f = (v) => (v == null ? "--" : fmtPct(Number(v)));
+    p.textContent = r.kind === "SILENT"
+      ? t("news.silentDay", f(r.d1), f(r.d3), f(r.d5))
+      : `${LANG === "en" ? r.titleEn : r.titleZh} → ${t("news.decay", f(r.d1), f(r.d3), f(r.d5))}`;
+    recList.appendChild(p);
+  });
+  // 择时贡献 = 玩家收益 - 买入持有: 主动操作的独立计分轴 (正负都展示)
+  $("settle-timing").hidden = result.timingDelta == null;
+  if (result.timingDelta != null) {
+    const tv = $("settle-timing-val");
+    const d = Number(result.timingDelta);
+    tv.textContent = (d >= 0 ? "+" : "") + fmtPct(d);
+    tv.className = d >= 0 ? "pos" : "neg";
+  }
   renderComparison(result);
   // 熊市生存的胜负口径是「亏得比买入持有少」, 覆盖默认的人机判词
   if (state.mode === "SURVIVAL" && result.holdReturnRate != null) {
     const win = Number(result.returnRate) > Number(result.holdReturnRate);
     const verdict = $("settle-verdict");
-    verdict.textContent = t(win ? "survival.win" : "survival.lose");
+    // 零交易取胜的判词微变: 隐藏机制 #2 (以静制动) 的发现线索
+    verdict.textContent = t(win && (state.trades || []).length === 0
+      ? "survival.winIdle" : win ? "survival.win" : "survival.lose");
     verdict.className = "verdict " + (win ? "win" : "lose");
   }
   // 每日挑战规则判定 (D1~D8): 结算卡上亮当日规则的过/未过
@@ -1177,7 +1245,9 @@ function renderSettle(result) {
   dcEl.hidden = !result.dailyChallenge;
   if (result.dailyChallenge) {
     const dc = result.dailyChallenge;
-    dcEl.textContent = t(dc.passed ? "dc.passed" : "dc.failed", t("dc." + dc.rule + ".t"));
+    // 星级 (1~3) 给"压线过"与"大胜"分辨率, 口径见后端 DailyRules.stars
+    dcEl.textContent = t(dc.passed ? "dc.passed" : "dc.failed", t("dc." + dc.rule + ".t"))
+      + (dc.stars > 0 ? " " + "★".repeat(dc.stars) : "");
     dcEl.className = "hint " + (dc.passed ? "pos" : "neg");
     // 达成给学堂经验 (XP 体系在前端 prog, 与徽章同层); addXp 来自 academy.js
     if (dc.passed && window.addXp) addXp(15);

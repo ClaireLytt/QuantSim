@@ -33,6 +33,9 @@ class SettledColumnsTest {
         if (type == String.class) {
             return "sentinel-" + seed;
         }
+        if (type == java.time.LocalDateTime.class) {
+            return java.time.LocalDateTime.of(2026, 1, 1, 0, 0).plusDays(seed);
+        }
         throw new IllegalStateException("未知组件类型 " + type + ": 请在测试里补充哨兵值构造");
     }
 
@@ -45,7 +48,8 @@ class SettledColumnsTest {
             "finalReturnRate", "getFinalReturnRate",
             "finalSharpe", "getFinalSharpe",
             "biasReportJson", "getBiasReport",
-            "equityCurveJson", "getEquityCurve");
+            "equityCurveJson", "getEquityCurve",
+            "settledAt", "getSettledAt");
 
     @Test
     void applyToWritesEveryRecordComponent() throws Exception {

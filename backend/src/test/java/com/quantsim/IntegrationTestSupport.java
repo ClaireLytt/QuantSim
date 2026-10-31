@@ -83,11 +83,13 @@ abstract class IntegrationTestSupport {
     @Autowired protected SeedChallengeEntryRepository seedChallengeEntryRepository;
     @Autowired protected com.quantsim.repository.WeeklyVoteRepository weeklyVoteRepository;
     @Autowired protected com.quantsim.repository.BlindEntryRepository blindEntryRepositorySupport;
+    @Autowired protected com.quantsim.repository.BlindWeekSaltRepository blindWeekSaltRepository;
     @Autowired protected SeedChallengeRepository seedChallengeRepository;
     @Autowired protected UserProgressRepository userProgressRepository;
     @Autowired protected TransactionRepository transactionRepository;
     @Autowired protected AccountRepository accountRepository;
     @Autowired protected GameSessionRepository sessionRepository;
+    @Autowired protected com.quantsim.repository.PointsLedgerRepository pointsLedgerRepository;
     @Autowired protected UserPointsRepository userPointsRepository;
     @Autowired protected UserRepository userRepository;
     @Autowired protected EventTimelineRepository timelineRepository;
@@ -110,6 +112,7 @@ abstract class IntegrationTestSupport {
     protected void clean() {
         weeklyVoteRepository.deleteAll();
         blindEntryRepositorySupport.deleteAll();
+        blindWeekSaltRepository.deleteAll();
         seedChallengeEntryRepository.deleteAll();
         seedChallengeRepository.deleteAll();
         backtestRepository.deleteAll();
@@ -123,6 +126,7 @@ abstract class IntegrationTestSupport {
         transactionRepository.deleteAll();
         accountRepository.deleteAll();
         sessionRepository.deleteAll();
+        pointsLedgerRepository.deleteAll();
         userPointsRepository.deleteAll();
         userRepository.deleteAll();
         timelineRepository.deleteAll();
@@ -132,6 +136,10 @@ abstract class IntegrationTestSupport {
         priceRepository.deleteAll();
         stockRepository.deleteAll();
         cacheManager.getCache("stockData").clear();
+        var blind = cacheManager.getCache("blindData");
+        if (blind != null) {
+            blind.clear();
+        }
         var news = cacheManager.getCache("newsByDate");
         if (news != null) {
             news.clear();

@@ -38,7 +38,8 @@ public class GameDay {
 
     /** 一日推进的全部产物: 门面据此组装 TickResponse, 不再自己编排。 */
     public record DayResult(int aiTradeShares, FillSummary fills,
-                            boolean liquidatedNow, int daysElapsed) { }
+                            boolean liquidatedNow, int daysElapsed,
+                            BigDecimal interestToday) { }
 
     /** 把 session 从当前交易日推进到 next。调用方持有 session/account 悲观锁。 */
     public DayResult advance(GameSession session, Account account, StockData sd, DailyPrice next) {
@@ -50,7 +51,7 @@ public class GameDay {
         session.setDaysElapsed(session.getDaysElapsed() + 1);
 
         // ③④ 新交易日揭晓后: 隔夜资金计息 -> 撮合挂单
-        accrueInterest(session, account);
+        BigDecimal interestToday = accrueInterest(session, account);
         FillSummary fills = orderService.fillOrders(session, account);
 
         // ⑤ 进阶模式保证金检查
@@ -62,20 +63,23 @@ public class GameDay {
                 liquidatedNow = true;
             }
         }
-        return new DayResult(aiTradeShares, fills, liquidatedNow, session.getDaysElapsed());
+        return new DayResult(aiTradeShares, fills, liquidatedNow, session.getDaysElapsed(),
+                interestToday);
     }
 
     /**
      * 隔夜资金计息: 公式/舍入收口在 LedgerReplay.dailyInterest (结算曲线与 undo 重放同一内核,
-     * 天然同口径)。玩家与 AI 一起计, AI 的账走 AiOpponent。
+     * 天然同口径)。玩家与 AI 一起计, AI 的账走 AiOpponent。返回玩家侧今日利息 (下发给前端,
+     * 让现金机会成本可见)。
      */
-    private void accrueInterest(GameSession session, Account account) {
+    private BigDecimal accrueInterest(GameSession session, Account account) {
         BigDecimal interest = ledger.dailyInterest(account.getCashBalance());
         if (interest.signum() != 0) {
             account.setCashBalance(account.getCashBalance().add(interest));
             account.setInterestTotal(account.getInterestTotal().add(interest));
         }
         aiOpponent.accrue(session);
+        return interest;
     }
 
     /** 净值归零强平: 全部持仓按现价了结 (含费用), 现金落定。 */

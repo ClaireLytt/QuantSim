@@ -32,7 +32,9 @@ public final class CompetitiveDtos {
             String stockCode,
             BigDecimal returnRate,
             // 同 LeaderboardEntry.isSelf: 脱敏后前端认不出自己, 后端标记
-            boolean isSelf) {}
+            boolean isSelf,
+            // 完赛用时 (秒, 开局→结算): 异常快速的"完美局"是多账号偷跑的可见指纹 (审计创意26)
+            Long durationSeconds) {}
 
     // ---------- 好友房间 ----------
 
